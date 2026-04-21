@@ -49,6 +49,102 @@
   border-color: var(--border-color);
 }
 
+/* Globals & Bootstrap Overrides */
+.dark-theme body,
+.dark-theme .container-main,
+.dark-theme .bg-light,
+.dark-theme .bg-white {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Typography Overrides */
+.dark-theme h1,
+.dark-theme h2,
+.dark-theme h3,
+.dark-theme h4,
+.dark-theme h5,
+.dark-theme h6 {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme p,
+.dark-theme li {
+  color: #e0e0e0 !important;
+}
+
+.dark-theme a {
+  color: #a3bffa;
+}
+
+.dark-theme a:hover {
+  color: #c3d4ff;
+}
+
+.dark-theme .text-muted,
+.dark-theme .text-secondary {
+  color: var(--text-secondary) !important;
+}
+
+/* Cards & Modals */
+.dark-theme .card,
+.dark-theme .modal-content,
+.dark-theme .documentation-content,
+.dark-theme .chart-modal-content,
+.dark-theme .chart-container {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Navbar / Headers */
+.dark-theme .card-header,
+.dark-theme .chart-modal-header,
+.dark-theme .chart-header {
+  border-color: var(--border-color) !important;
+}
+
+/* Documentation Modal specific fixes */
+.dark-theme .documentation-tabs {
+  background-color: var(--bg-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.dark-theme .doc-tab {
+  color: var(--text-secondary) !important;
+}
+
+.dark-theme .doc-tab.active {
+  background-color: var(--bg-secondary) !important;
+  color: var(--primary-color) !important;
+  border-bottom-color: var(--primary-color) !important;
+}
+
+.dark-theme .doc-list li {
+  color: #e0e0e0 !important;
+}
+
+.dark-theme .doc-var-card {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.dark-theme .doc-var-badge {
+  background-color: var(--bg-primary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Form Controls & Inputs */
+.dark-theme input,
+.dark-theme select,
+.dark-theme textarea,
+.dark-theme .form-control {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
 /* ============================================
    TEMA CLARO (PADRÃO)
    ============================================ */
@@ -615,36 +711,5 @@ input:focus-visible {
   }
 }
 
-/* ============================================
-   MODO ESCURO DO SISTEMA
-   ============================================ */
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-  }
-
-  body {
-    background: #1e1e1e;
-    color: #fff;
-  }
-
-  .sidebar {
-    background: #2d2d2d;
-  }
-
-  .info-item {
-    background: #1e1e1e;
-    border-color: #404040;
-  }
-
-  .control-btn {
-    background: #2d2d2d;
-    color: #fff;
-    border-color: #404040;
-  }
-
-  .control-btn:hover {
-    background: #3d3d3d;
-  }
-}
+/* O modo escuro do sistema agora é gerenciado pelo arquivo theme-toggle.js
+   através da classe .dark-theme, para permitir a alternância manual. */

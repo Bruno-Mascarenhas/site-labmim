@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="assets/css/template.css" />
     <link rel="stylesheet" href="assets/css/style.css" />
+    <link rel="stylesheet" href="assets/css/custom-themes.css" />
     <link rel="stylesheet" href="assets/css/modern.css" />
     <style>
       /* Hover de card de equipe via CSS — sem eventos inline */
@@ -36,6 +37,18 @@
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
       }
     </style>
+
+    <!-- Theme Toggle Scripts -->
+    <script>
+      (function () {
+        var savedTheme = localStorage.getItem("labmim-theme");
+        var systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (savedTheme === "dark" || (!savedTheme && systemPrefersDark)) {
+          document.documentElement.classList.add("dark-theme");
+        }
+      })();
+    </script>
+    <script src="assets/js/theme-toggle.js" defer></script>
   </head>
 
   <body>
@@ -78,6 +91,15 @@
               <a class="btn btn-outline-lab" href="team.html" id="nav-team">Equipe</a>
             </li>
           </ul>
+
+          <button
+            id="themeToggleBtn"
+            class="btn btn-outline-light mr-3"
+            style="border: none; background: transparent; font-size: 1.2rem"
+            title="Alternar Tema"
+          >
+            <i id="themeIcon" class="fas fa-moon"></i>
+          </button>
           <a href="http://www.cienam.ufba.br" target="_blank" rel="noopener" class="mr-3">
             <img
               loading="lazy"
@@ -319,6 +341,15 @@
             >
             <a href="team.html" style="color: #fff; text-decoration: none"><i class="fas fa-users mr-1"></i> Equipe</a>
           </nav>
+
+          <button
+            id="themeToggleBtn"
+            class="btn btn-outline-light mr-3"
+            style="border: none; background: transparent; font-size: 1.2rem"
+            title="Alternar Tema"
+          >
+            <i id="themeIcon" class="fas fa-moon"></i>
+          </button>
           <a href="http://www.cienam.ufba.br" target="_blank" rel="noopener">
             <img
               loading="lazy"

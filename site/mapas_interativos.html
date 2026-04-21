@@ -36,6 +36,18 @@
 
     <!-- Maps-specific CSS (extracted from inline) -->
     <link rel="stylesheet" type="text/css" href="assets/css/maps.css" />
+
+    <!-- Theme Toggle Scripts -->
+    <script>
+      (function () {
+        var savedTheme = localStorage.getItem("labmim-theme");
+        var systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (savedTheme === "dark" || (!savedTheme && systemPrefersDark)) {
+          document.documentElement.classList.add("dark-theme");
+        }
+      })();
+    </script>
+    <script src="assets/js/theme-toggle.js" defer></script>
   </head>
 
   <body>
@@ -127,6 +139,15 @@
               >
             </li>
           </ul>
+
+          <button
+            id="themeToggleBtn"
+            class="btn btn-outline-light mr-3"
+            style="border: none; background: transparent; font-size: 1.2rem"
+            title="Alternar Tema"
+          >
+            <i id="themeIcon" class="fas fa-moon"></i>
+          </button>
           <a href="http://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
             <img
               loading="lazy"
@@ -273,7 +294,7 @@
           <div class="documentation-body">
             <!-- OVERVIEW TAB -->
             <div class="doc-tab-content active" data-tab="overview">
-              <h3>Bem-vindo ao Mapa Interativo de Previsão de Disponibilidade de Energia Eólica e Solar</h3>
+              <h3>Plataforma WebGIS de Previsão Meteorológica — LabMiM / UFBA</h3>
               <div
                 style="
                   background: #fff3cd;
@@ -283,6 +304,7 @@
                   margin-bottom: 16px;
                   font-size: 0.85rem;
                   line-height: 1.5;
+                  color: #856404;
                 "
               >
                 <strong
@@ -294,9 +316,10 @@
                 utilização indevida e não autorizada por parte de terceiros.
               </div>
               <p>
-                Este mapa interativo apresenta dados de previsão de energia gerados pelo modelo WRF (Weather Research
-                and Forecasting), permitindo visualizar a disponibilidade de energia eólica e solar em alta resolução
-                espacial e temporal para a região de interesse.
+                Este mapa interativo apresenta dados de <strong>previsão numérica do tempo</strong> gerados pelo modelo
+                <strong>WRF (Weather Research and Forecasting)</strong>, permitindo visualizar 9 variáveis
+                meteorológicas e energéticas em alta resolução espacial e temporal para a região da Bahia e entorno. Os
+                dados cobrem um horizonte de previsão de <strong>72 horas</strong> com resolução horária.
               </p>
               <h4>Interface Principal</h4>
               <ul class="doc-list">
@@ -328,19 +351,13 @@
               <ul class="doc-list">
                 <li><strong>Zoom:</strong> Role do mouse ou use os botões + e - no mapa</li>
                 <li><strong>Deslocamento:</strong> Arraste o mapa com o mouse</li>
-                <li>
-                  <strong>Domínios Automáticos:</strong> O mapa muda automaticamente entre 4 domínios (D01-D04) ao fazer
-                  zoom (maior resolução em zoom maior)
-                </li>
+                <li><strong>Domínios:</strong> Use os botões D01/D02/D03/D04 para alternar entre os domínios</li>
               </ul>
 
               <h4>💨 Vetores de Vento</h4>
               <ul class="doc-list">
                 <li><strong>Checkbox:</strong> Ative/desative a visualização dos vetores de vento sobre o mapa</li>
-                <li>
-                  <strong>Tamanho das Setas:</strong> Proporcional à magnitude do vento (setas maiores = vento mais
-                  forte)
-                </li>
+                <li><strong>Tamanho das Setas:</strong> Proporcional à magnitude do vento</li>
                 <li><strong>Direção:</strong> Apontam para a origem do vento (convenção meteorológica)</li>
                 <li><strong>Altura Configurável:</strong> Selecione entre 50m, 100m ou 150m de altura</li>
               </ul>
@@ -350,102 +367,341 @@
                 <li>Clique em qualquer célula do mapa para ver informações detalhadas</li>
                 <li>O painel lateral mostra localização (lat/lon), valor da variável, dados e gráficos adicionais</li>
               </ul>
-
-              <h4>📍 Clip para Bahia</h4>
-              <ul class="doc-list">
-                <li>Clique em "BA Off/On" para visualizar apenas os dados da região da Bahia</li>
-              </ul>
             </div>
 
             <!-- VARIABLES TAB -->
             <div class="doc-tab-content" data-tab="variables">
-              <h3>Variáveis Meteorológicas</h3>
-
-              <h4>☀️ Potencial Fotovoltaico</h4>
-              <p><strong>Unidade:</strong> W/m² | <strong>Disponível:</strong> 06:00 - 18:00 h</p>
-              <p>
-                Radiação solar global incidente na superfície. Importante para previsão de geração solar fotovoltaica.
+              <h3>Variáveis Meteorológicas e Energéticas</h3>
+              <p style="font-size: 0.85rem; color: #666; margin-bottom: 16px">
+                O sistema disponibiliza 9 variáveis derivadas das saídas do modelo WRF. Cada variável possui uma paleta
+                de cores, unidade e cálculos derivados específicos exibidos no painel lateral.
               </p>
 
-              <h4>💨 Potencial Eólico</h4>
-              <p><strong>Unidade:</strong> m/s | <strong>Alturas:</strong> 50m, 100m, 150m</p>
-              <p>
-                Velocidade do vento interpolada para alturas de interesse em turbinas eólicas. Essencial para avaliação
-                de potencial eólico.
-              </p>
+              <div class="doc-var-card">
+                <h4>☀️ Potencial Fotovoltaico (SWDOWN)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: W/m²</span>
+                  <span class="doc-var-badge">ID WRF: SWDOWN</span>
+                  <span class="doc-var-badge">Disponível: ~06:00–18:00 UTC</span>
+                </div>
 
-              <h4>🌡️ Temperatura</h4>
-              <p><strong>Unidade:</strong> °C | <strong>Altura:</strong> 2 m</p>
-              <p>Temperatura do ar a 2 metros de altura (padrão meteorológico).</p>
+                <p>
+                  Radiação de onda curta descendente (Shortwave Downward Radiation) na superfície. É a componente direta
+                  + difusa da radiação solar que atinge o solo, calculada pelo esquema de radiação do WRF (RRTMG). À
+                  noite, o valor é zero.
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> O painel lateral estima a produção fotovoltaica usando o modelo
+                  de temperatura da célula (<em>T<sub>célula</sub> = T<sub>ar</sub> + (NOCT − 20) × G / 800</em>) e a
+                  equação de rendimento:
+                  <em>P = (G/1000) × η<sub>painel</sub> × η<sub>inversor</sub> × [1 + α(T<sub>célula</sub> − 25)]</em>,
+                  onde α é o coeficiente de temperatura (%/°C).
+                </p>
+              </div>
 
-              <h4>🎯 Pressão Atmosférica</h4>
-              <p><strong>Unidade:</strong> hPa | <strong>Nível:</strong> Nível do mar</p>
-              <p>Pressão atmosférica ajustada ao nível do mar.</p>
+              <div class="doc-var-card">
+                <h4>💨 Potencial Eólico (POT_EOLICO)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: m/s</span>
+                  <span class="doc-var-badge">ID WRF: POT_EOLICO_50M / 100M / 150M</span>
+                  <span class="doc-var-badge">Alturas: 50m, 100m, 150m</span>
+                </div>
 
-              <h4>💧 Umidade Relativa</h4>
-              <p><strong>Unidade:</strong> % | <strong>Altura:</strong> 2 m</p>
-              <p>Umidade relativa do ar (percentual saturação).</p>
+                <p>
+                  Velocidade do vento interpolada verticalmente para alturas de hub de turbinas eólicas. A interpolação
+                  utiliza os níveis sigma do WRF e o perfil logarítmico de vento na camada limite atmosférica.
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> Densidade de potência eólica (<em>P<sub>d</sub> = ½ρv³</em>),
+                  onde ρ é a densidade do ar corrigida pela temperatura (<em>ρ = ρ<sub>0</sub> × 288/(273+T)</em>).
+                  Produção energética estimada usando área do rotor (<em>A = π(D/2)²</em>) e coeficiente de potência Cp.
+                </p>
+              </div>
 
-              <h4>🌧️ Precipitação</h4>
-              <p><strong>Unidade:</strong> mm | <strong>Acumulado:</strong> Por hora</p>
-              <p>Precipitação acumulada em cada intervalo de uma hora.</p>
+              <div class="doc-var-card">
+                <h4>🌬️ Vento a 10m (WIND)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: m/s</span>
+                  <span class="doc-var-badge">ID WRF: WIND</span>
+                  <span class="doc-var-badge">Altura: 10 m</span>
+                </div>
+
+                <p>
+                  Magnitude resultante do vento de superfície a 10 metros, calculada a partir das componentes U10 e V10
+                  do WRF: <em>|V| = √(U10² + V10²)</em>. É a variável padrão de referência para estações meteorológicas
+                  de superfície.
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> Classificação Beaufort simplificada (Muito Fraco a Extremo) e
+                  estimativa de rajadas (fator de rajada ≈ 1.3×).
+                </p>
+              </div>
+
+              <div class="doc-var-card">
+                <h4>🌡️ Temperatura do Ar (TEMP)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: °C</span>
+                  <span class="doc-var-badge">ID WRF: T2</span>
+                  <span class="doc-var-badge">Altura: 2 m</span>
+                </div>
+
+                <p>
+                  Temperatura do ar a 2 metros de altura (variável diagnóstica T2 do WRF), a referência padrão da
+                  Organização Meteorológica Mundial (OMM) para medições de superfície. O WRF calcula essa variável
+                  utilizando a teoria de similaridade de Monin-Obukhov na camada superficial.
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> Sensação térmica (modelo de Wind Chill para T ≤ 10°C e v ≥ 1.34
+                  m/s; modelo de Heat Index para T ≥ 26.7°C e UR ≥ 40%) e índice de calor baseado na pressão parcial de
+                  vapor.
+                </p>
+              </div>
+
+              <div class="doc-var-card">
+                <h4>🎯 Pressão Atmosférica (PRES)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: hPa</span>
+                  <span class="doc-var-badge">ID WRF: PSFC</span>
+                  <span class="doc-var-badge">Nível: Superfície (reduzida ao nível do mar)</span>
+                </div>
+
+                <p>
+                  Pressão atmosférica na superfície, reduzida ao nível do mar para permitir comparação entre diferentes
+                  altitudes. Utiliza escala dinâmica centrada em 1013.25 hPa (pressão média ao nível do mar) com
+                  colormap divergente (RdBu_r): tons vermelhos indicam alta pressão, tons azuis indicam baixa pressão.
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> Classificação Alta/Baixa pressão, desvio em relação à normal
+                  (1013.25 hPa).
+                </p>
+              </div>
+
+              <div class="doc-var-card">
+                <h4>💧 Umidade Relativa (VAPOR)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: %</span>
+                  <span class="doc-var-badge">ID WRF: Q2 (derivada)</span>
+                  <span class="doc-var-badge">Altura: 2 m</span>
+                </div>
+
+                <p>
+                  Umidade relativa do ar a 2 metros, derivada da razão de mistura Q2 e da pressão de saturação de vapor
+                  (equação de Clausius-Clapeyron). Indica o grau de saturação do ar: 100% = ar completamente saturado
+                  (ponto de orvalho = temperatura do ar).
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> Índice de conforto térmico (Seco/Confortável/Úmido), risco de
+                  formação de orvalho (UR &gt; 85%) e potencial de evapotranspiração (100 − UR).
+                </p>
+              </div>
+
+              <div class="doc-var-card">
+                <h4>🌧️ Precipitação (RAIN)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: mm</span>
+                  <span class="doc-var-badge">ID WRF: RAINNC + RAINC</span>
+                  <span class="doc-var-badge">Acumulado: Horário</span>
+                </div>
+
+                <p>
+                  Precipitação acumulada em cada intervalo de uma hora, somando a componente convectiva (RAINC, do
+                  esquema de parametrização de cumulus, ex.: Kain-Fritsch) e a componente de grade (RAINNC, resolvida
+                  explicitamente pela microfísica, ex.: Thompson ou WSM6).
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> Classificação de intensidade segundo a OMM (Leve &lt; 2.5 mm/h,
+                  Moderada 2.5–10 mm/h, Forte &gt; 10 mm/h) e avaliação de impacto agrícola.
+                </p>
+              </div>
+
+              <div class="doc-var-card">
+                <h4>🔥 Calor Sensível (HFX)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: W/m²</span>
+                  <span class="doc-var-badge">ID WRF: HFX</span>
+                  <span class="doc-var-badge">Nível: Superfície</span>
+                </div>
+
+                <p>
+                  Fluxo turbulento de calor sensível na superfície (<em
+                    >H = ρ c<sub>p</sub> C<sub>H</sub> |V| (T<sub>sfc</sub> − T<sub>ar</sub>)</em
+                  >). Representa a transferência de energia térmica entre a superfície e a atmosfera por convecção e
+                  turbulência, sem mudança de fase da água. Valores positivos indicam aquecimento da atmosfera pela
+                  superfície.
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> Classificação da magnitude (Fraca &lt; 100 W/m², Moderada 100–300
+                  W/m², Forte &gt; 300 W/m²) e indicação do tipo de regime (Aquecimento vs. Resfriamento).
+                </p>
+              </div>
+
+              <div class="doc-var-card">
+                <h4>💧 Calor Latente (LH)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: W/m²</span>
+                  <span class="doc-var-badge">ID WRF: LH</span>
+                  <span class="doc-var-badge">Nível: Superfície</span>
+                </div>
+
+                <p>
+                  Fluxo turbulento de calor latente na superfície (<em
+                    >LE = ρ L<sub>v</sub> C<sub>E</sub> |V| (q<sub>sfc</sub> − q<sub>ar</sub>)</em
+                  >). Representa a energia associada a mudanças de fase (evaporação/condensação). Valores positivos
+                  indicam evaporação (transferência de umidade da superfície para a atmosfera), que é a fonte primária
+                  de umidade para formação de nuvens e precipitação.
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> Classificação da atividade convectiva (Fraca/Moderada/Intensa) e
+                  indicação de Evaporação vs. Condensação.
+                </p>
+              </div>
             </div>
 
             <!-- WRF TAB -->
             <div class="doc-tab-content" data-tab="wrf">
-              <h3>Origem dos Dados - Modelo WRF</h3>
+              <h3>Origem dos Dados — Modelo WRF</h3>
 
-              <h4>O que é o WRF?</h4>
-              <p>
-                <strong>O WRF (Weather Research and Forecasting)</strong> é um modelo numérico atmosférico amplamente
-                utilizado para pesquisa e previsão meteorológica operacional. É desenvolvido colaborativamente pelo NCAR
-                (National Center for Atmospheric Research) e outras instituições.
-              </p>
+              <div class="doc-var-card">
+                <h4>O que é o WRF?</h4>
 
-              <h4>Características desta Simulação</h4>
+                <p>
+                  O <strong>WRF (Weather Research and Forecasting)</strong> é um sistema de modelagem numérica
+                  atmosférica de mesoescala, desenvolvido colaborativamente pelo NCAR (National Center for Atmospheric
+                  Research), NOAA, AFWA e diversas universidades. É utilizado mundialmente tanto para pesquisa
+                  atmosférica quanto para previsão operacional do tempo, com aplicações que vão desde a simulação de
+                  furacões até a previsão de recursos energéticos renováveis.
+                </p>
+                <p>
+                  O modelo resolve as <strong>equações primitivas de Euler</strong> (conservação de massa, momento e
+                  energia) em uma grade tridimensional, usando coordenadas verticais terrain-following (sigma).
+                  Processos físicos sub-grade (radiação, microfísica, turbulência, solo) são representados por
+                  <strong>parametrizações</strong>.
+                </p>
+              </div>
+
+              <div class="doc-var-card">
+                <h4>Configuração desta Simulação</h4>
+                <ul class="doc-list">
+                  <li>
+                    <strong>4 Domínios Aninhados (Nesting):</strong> Técnica de two-way nesting que permite resolução
+                    progressiva:
+                    <ul>
+                      <li>
+                        <strong>D01 — 27 km:</strong> Escala sinótica/regional. Cobre o Sul-Nordeste do Brasil
+                        (~2500×2500 km). Captura frentes, ciclones e massas de ar.
+                      </li>
+                      <li>
+                        <strong>D02 — 9 km:</strong> Escala intermediária. Cobre o Nordeste (~800×800 km). Resolve
+                        convecção organizada e brisas de escala meso-α.
+                      </li>
+                      <li>
+                        <strong>D03 — 3 km:</strong> Escala local. Cobre a Bahia (~270×270 km). Resolução suficiente
+                        para resolver convecção profunda explicitamente (sem parametrização de cumulus).
+                      </li>
+                      <li>
+                        <strong>D04 — 1 km:</strong> Alta resolução. Cobre Salvador e Região Metropolitana (~90×90 km).
+                        Captura efeitos topográficos, brisa marítima e ilha de calor urbana.
+                      </li>
+                    </ul>
+                  </li>
+                  <li>
+                    <strong>Dados de Entrada (Condições Iniciais e de Contorno):</strong> GFS (Global Forecast System)
+                    da NOAA, resolução 0.25°, atualizações a cada 6h.
+                  </li>
+                  <li><strong>Resolução Temporal:</strong> Saídas horárias (73 timesteps para 72h de previsão).</li>
+                  <li>
+                    <strong>Coordenadas Verticais:</strong> ~40 níveis sigma, com maior concentração na camada limite
+                    planetária (CLP).
+                  </li>
+                </ul>
+
+                <h4>Parametrizações Físicas</h4>
+                <ul class="doc-list">
+                  <li>
+                    <strong>Radiação (RRTMG):</strong> Calcula os fluxos de radiação de onda curta e longa considerando
+                    interação com nuvens, aerossóis e gases atmosféricos.
+                  </li>
+                  <li>
+                    <strong>Microfísica (Thompson/WSM6):</strong> Simula os processos de formação e evolução de
+                    hidrometeoros (vapor, chuva, neve, graupel, gelo, gotículas de nuvem).
+                  </li>
+                  <li>
+                    <strong>Camada Limite Planetária (YSU/MYJ):</strong> Parametriza o transporte turbulento de calor,
+                    umidade e momento na CLP.
+                  </li>
+                  <li>
+                    <strong>Superfície Terrestre (Noah-MP):</strong> Modelo acoplado de solo e vegetação que calcula
+                    fluxos de calor sensível e latente na interface superfície-atmosfera.
+                  </li>
+                  <li>
+                    <strong>Cumulus (Kain-Fritsch):</strong> Parametriza a convecção sub-grade nos domínios D01 e D02.
+                    Desativada em D03 e D04 (Δx &lt; 4 km), onde a convecção é resolvida explicitamente.
+                  </li>
+                </ul>
+
+                <h4>Pipeline de Dados</h4>
+
+                <p>
+                  Os arquivos brutos do WRF (NetCDF) são processados pelo pipeline Python
+                  <code>labmim-wrf-geojson</code>:
+                </p>
+              </div>
               <ul class="doc-list">
                 <li>
-                  <strong>4 Domínios Aninhados:</strong>
-                  <ul>
-                    <li><strong>D01:</strong> Escala regional (maior área, menor detalhe)</li>
-                    <li><strong>D02:</strong> Escala intermediária</li>
-                    <li><strong>D03:</strong> Escala local detalhada</li>
-                    <li><strong>D04:</strong> Escala alta resolução (maior detalhe)</li>
-                  </ul>
+                  <strong>Extração:</strong> Leitura das variáveis NetCDF via <code>xarray</code> /
+                  <code>netCDF4</code>.
                 </li>
-                <li><strong>Dados de Entrada:</strong> Reanálises globais (GFS)</li>
-                <li><strong>Resolução Temporal:</strong> Dados horários</li>
                 <li>
-                  <strong>Resolução Espacial:</strong> Distância entre os pontos que formam a grade. D01 - 27km; D02 -
-                  9km; D03 - 3km; D04 - 1km
+                  <strong>Interpolação Vertical:</strong> Para variáveis eólicas, interpolação logarítmica dos níveis
+                  sigma para alturas de hub (50m, 100m, 150m).
+                </li>
+                <li>
+                  <strong>Serialização:</strong> Conversão para GeoJSON (geometria da grade, 1 arquivo por domínio) e
+                  JSON (valores, 1 arquivo por domínio × variável × timestep). JSON compacto sem indentação para
+                  minimizar payload.
+                </li>
+                <li>
+                  <strong>Vetores de Vento:</strong> Arquivo separado <code>D0X_WIND_VECTORS_NNN.json</code> com ângulos
+                  e magnitudes sub-amostrados (stride=4), usando U10/V10.
                 </li>
               </ul>
 
-              <h4>Processamento</h4>
-              <p>Os dados brutos do WRF são processados para:</p>
-              <ul class="doc-list">
-                <li>Interpolação vertical para alturas específicas (50m, 100m, 150m para eólico)</li>
-                <li>Conversão para formato GeoJSON para visualização geoespacial</li>
-                <li>Cálculo de índices derivados (Potencial eólico)</li>
-              </ul>
+              <div class="doc-var-card">
+                <h4>Limitações e Considerações</h4>
+                <ul class="doc-list">
+                  <li>
+                    O erro das previsões numéricas cresce progressivamente com o horizonte temporal (especialmente após
+                    48h).
+                  </li>
+                  <li>
+                    A topografia complexa (como o Recôncavo Baiano) pode introduzir viés local, especialmente em
+                    variáveis de superfície.
+                  </li>
+                  <li>
+                    A resolução do modelo pode não capturar fenômenos convectivos isolados (&lt; Δx) nos domínios
+                    D01/D02.
+                  </li>
+                  <li>
+                    A assimilação de dados observacionais locais (estações, radiossondas) melhoraria significativamente
+                    a acurácia, mas não está implementada nesta configuração.
+                  </li>
+                  <li>
+                    Variáveis de fluxo de superfície (HFX, LH) são especialmente sensíveis à representação do uso do
+                    solo no modelo Noah-MP.
+                  </li>
+                </ul>
 
-              <h4>Limitações e Considerações</h4>
-              <ul class="doc-list">
-                <li>Previsões numéricas têm erro inerente que aumenta com o tempo</li>
-                <li>Dados locais melhoram a precisão (assimilação de dados)</li>
-                <li>A resolução do modelo pode não capturar fenômenos muito localizados</li>
-                <li>Topografia complexa pode influenciar significativamente os resultados</li>
-              </ul>
+                <h4>Mais Informações</h4>
 
-              <h4>Mais Informações</h4>
-              <p>
-                Para aprender mais sobre o WRF: <br />
-                <strong
-                  ><a href="https://www.mmm.ucar.edu/models/wrf" target="_blank" rel="noopener noreferrer"
-                    >https://www.mmm.ucar.edu/models/wrf</a
-                  ></strong
-                >
-              </p>
+                <p>
+                  Para aprender mais sobre o WRF: <br />
+                  <strong
+                    ><a href="https://www.mmm.ucar.edu/models/wrf" target="_blank" rel="noopener noreferrer"
+                      >https://www.mmm.ucar.edu/models/wrf</a
+                    ></strong
+                  >
+                </p>
+              </div>
             </div>
           </div>
         </div>

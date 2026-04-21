@@ -1,5 +1,5 @@
 /**
- * video.js — Video playback controls 
+ * video.js — Video playback controls
  */
 
 const MIN_RATE = 0.25;
