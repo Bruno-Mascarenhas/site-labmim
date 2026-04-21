@@ -1,0 +1,1673 @@
+/**
+ * MAP UTILITY FUNCTIONS
+ */
+
+function _debounce(fn, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+class MeteoMapManager {
+  constructor() {
+    this.map = null;
+    this.currentGeoJsonLayer = null;
+    this.currentValueData = null;
+    this.gridLayers = {};
+    this._jsonCache = new Map();
+
+    this._colorWorker = null;
+    this._jsonWorker = null;
+    this._jsonWorkerCallbacks = new Map();
+    this._jsonWorkerId = 0;
+    try {
+      this._colorWorker = new Worker("assets/js/workers/color-calc.worker.js");
+      this._jsonWorker = new Worker("assets/js/workers/json-parser.worker.js");
+      this._jsonWorker.onmessage = (e) => {
+        const { id, data, error } = e.data;
+        const cb = this._jsonWorkerCallbacks.get(id);
+        if (cb) {
+          this._jsonWorkerCallbacks.delete(id);
+          if (error) cb.reject(new Error(error));
+          else cb.resolve(data);
+        }
+      };
+    } catch (err) {
+      console.warn("Web Workers not available, falling back to main thread:", err);
+    }
+    this.stateGeoJson = null;
+    this.selectedMarker = null;
+    this.customParameters = {};
+    this.windHeight = 50;
+
+    this.ui = {};
+
+    this.state = {
+      type: "solar",
+      domain: "D01",
+      index: 7,
+      isPlaying: false,
+      isLooping: false,
+      isClippedToState: false,
+      stateAbbr: "BA",
+      maxLayer: 73,
+      initialDateTime: null,
+      initialIndex: null,
+      dateTimePattern: null,
+      intervalId: null,
+      selectedCell: null,
+    };
+
+    this.initMap();
+    this.setupEventListeners();
+    this.setupDomainIndicators();
+    this.loadStateGeoJson("BA");
+    this.loadCustomParameters();
+  }
+
+  /**
+   * Fetch JSON with in-memory cache.
+   * Avoids re-downloading the same JSON when switching variables or time steps.
+   */
+  _cachedFetch(url, options = {}) {
+    if (this._jsonCache.has(url)) {
+      return Promise.resolve(this._jsonCache.get(url));
+    }
+
+    const fetchPromise = this._jsonWorker
+      ? this._workerFetch(url).then((data) => {
+          if (options.signal && options.signal.aborted) throw new DOMException("Aborted", "AbortError");
+          return data;
+        })
+      : fetch(url, options).then((res) => {
+          if (!res.ok) throw new Error("Dados não encontrados");
+          return res.json();
+        });
+
+    return fetchPromise.then((data) => {
+      if (this._jsonCache.size > 200) {
+        const firstKey = this._jsonCache.keys().next().value;
+        this._jsonCache.delete(firstKey);
+      }
+      this._jsonCache.set(url, data);
+      return data;
+    });
+  }
+
+  /**
+   * Fetch + parse JSON using the Web Worker.
+   * Returns a Promise that resolves with the parsed JSON.
+   */
+  _workerFetch(url) {
+    return new Promise((resolve, reject) => {
+      const id = String(++this._jsonWorkerId);
+      this._jsonWorkerCallbacks.set(id, { resolve, reject });
+      const absoluteUrl = new URL(url, window.location.href).href;
+      this._jsonWorker.postMessage({ url: absoluteUrl, id });
+    });
+  }
+
+  getVariableId(variableType) {
+    const config = VARIABLES_CONFIG[variableType];
+    if (!config) return null;
+
+    if (variableType === "eolico") {
+      if (this.windHeight === 100) return config.id_100m;
+      if (this.windHeight === 150) return config.id_150m;
+      return config.id;
+    }
+
+    return config.id;
+  }
+
+  setWindHeight(height) {
+    if ([50, 100, 150].includes(height)) {
+      this.windHeight = height;
+      if (this.state.type === "eolico") {
+        this.gridLayers = {};
+
+        if (this.state.selectedCell) {
+          this.applyMapChanges().then(() => {
+            this.handleMapClick({
+              latlng: L.latLng(this.state.selectedCell.lat, this.state.selectedCell.lng),
+            });
+          });
+        } else {
+          this.applyMapChanges();
+        }
+      }
+    }
+  }
+
+  loadCustomParameters() {
+    try {
+      const saved = localStorage.getItem("meteoMapCustomParameters");
+      this.customParameters = saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.warn("Error loading custom parameters:", e);
+      this.customParameters = {};
+    }
+  }
+
+  getCustomParameter(variableType, paramName) {
+    if (!this.customParameters) {
+      this.customParameters = {};
+      return null;
+    }
+
+    const key = `${variableType}_${paramName}`;
+    const customValue = this.customParameters[key];
+
+    if (customValue !== undefined && customValue !== null && customValue !== "") {
+      const numValue = parseFloat(customValue);
+      if (!isNaN(numValue)) {
+        console.log(`[PARAM GET] ${key} = ${numValue} (custom)`);
+        return numValue;
+      }
+    }
+
+    console.log(`[PARAM GET] ${key} = null (using default)`);
+    return null;
+  }
+
+  setCustomParameter(variableType, paramName, value) {
+    if (!this.customParameters) {
+      this.customParameters = {};
+    }
+
+    const key = `${variableType}_${paramName}`;
+
+    if (value === null || value === undefined || value === "") {
+      console.log(`[PARAM SAVE] Removing ${key} from customParameters`);
+      delete this.customParameters[key];
+    } else {
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue)) {
+        console.log(`[PARAM SAVE] Saving ${key} = ${numValue}`);
+        this.customParameters[key] = numValue;
+      } else {
+        console.warn(`[PARAM SAVE] Invalid value for ${key}: "${value}", removing`);
+        delete this.customParameters[key];
+      }
+    }
+
+    try {
+      localStorage.setItem("meteoMapCustomParameters", JSON.stringify(this.customParameters));
+      console.log(`[PARAM SAVE] current customParameters:`, this.customParameters);
+
+      if (typeof chartsManager !== "undefined" && chartsManager) {
+        chartsManager.reloadChartsWithNewParameters();
+      }
+    } catch (e) {
+      console.warn("Error saving parameters to localStorage:", e);
+    }
+  }
+
+  resetCustomParameters(variableType) {
+    if (!this.customParameters) {
+      this.customParameters = {};
+      return;
+    }
+
+    const prefix = `${variableType}_`;
+    Object.keys(this.customParameters).forEach((key) => {
+      if (key.startsWith(prefix)) {
+        delete this.customParameters[key];
+      }
+    });
+
+    try {
+      localStorage.setItem("meteoMapCustomParameters", JSON.stringify(this.customParameters));
+
+      if (typeof chartsManager !== "undefined" && chartsManager) {
+        chartsManager.reloadChartsWithNewParameters();
+      }
+    } catch (e) {
+      console.warn("Error saving parameters to localStorage:", e);
+    }
+  }
+
+  getEditableParameters(variableType) {
+    const params = {
+      solar: [
+        {
+          name: "panelEfficiency",
+          label: "Eficiência do Painel",
+          unit: "%",
+          default: 18,
+        },
+        {
+          name: "inversorEfficiency",
+          label: "Eficiência do Inversor",
+          unit: "%",
+          default: 95,
+        },
+        { name: "noct", label: "NOCT", unit: "°C", default: 45 },
+        { name: "ptc", label: "Coeficiente PTC", unit: "%/°C", default: -0.38 },
+      ],
+      eolico: [
+        {
+          name: "airDensity",
+          label: "Densidade do Ar",
+          unit: "kg/m³",
+          default: 1.225,
+        },
+        {
+          name: "rotorDiameter",
+          label: "Diâmetro do Rotor",
+          unit: "m",
+          default: 40,
+        },
+        {
+          name: "Cp",
+          label: "Coeficiente de Potência da Turbina",
+          unit: "",
+          default: 0.4,
+        },
+      ],
+    };
+
+    return params[variableType] || [];
+  }
+
+  createParametersEditor(variableType) {
+    const params = this.getEditableParameters(variableType);
+
+    if (params.length === 0) {
+      return "";
+    }
+
+    if (!this.customParameters) {
+      this.customParameters = {};
+    }
+
+    let html = `
+            <div class="parameters-editor">
+                <div class="parameters-toggle" data-variable="${variableType}">
+                    <span class="parameters-toggle-label">
+                        <i class="fas fa-sliders-h"></i> Parâmetros Customizados
+                    </span>
+                    <span class="parameters-toggle-icon">▼</span>
+                </div>
+                <div class="parameters-list" data-variable="${variableType}">
+        `;
+
+    params.forEach((param) => {
+      const customValue = this.customParameters[`${variableType}_${param.name}`];
+      const displayValue = customValue !== undefined && customValue !== null ? customValue.toString() : "";
+
+      html += `
+                <div class="parameter-item">
+                    <label class="parameter-label">${param.label}</label>
+                    <input 
+                        type="text" 
+                        class="parameter-input parameter-${variableType}-${param.name}" 
+                        placeholder="${param.default} (padrão)"
+                        value="${displayValue}"
+                        data-variable="${variableType}"
+                        data-param="${param.name}"
+                        data-default="${param.default}"
+                        inputmode="decimal"
+                    />
+                    <span class="parameter-unit">${param.unit}</span>
+                    <span class="parameter-hint">Deixe em branco para usar padrão</span>
+                </div>
+            `;
+    });
+
+    html += `
+                    <button class="reset-parameters-btn" data-variable="${variableType}">
+                        <i class="fas fa-redo"></i> Restaurar Padrões
+                    </button>
+                </div>
+            </div>
+        `;
+
+    return html;
+  }
+
+  setupParametersEditorListeners(variableType) {
+    try {
+      const toggle = document.querySelector(`.parameters-toggle[data-variable="${variableType}"]`);
+      const list = document.querySelector(`.parameters-list[data-variable="${variableType}"]`);
+      const resetBtn = document.querySelector(`.reset-parameters-btn[data-variable="${variableType}"]`);
+      const inputs = document.querySelectorAll(`[data-variable="${variableType}"].parameter-input`);
+
+      if (toggle && list) {
+        toggle.addEventListener("click", () => {
+          const icon = toggle.querySelector(".parameters-toggle-icon");
+          list.classList.toggle("active");
+          icon.classList.toggle("active");
+        });
+      }
+
+      if (inputs.length > 0) {
+        inputs.forEach((input) => {
+          const validateAndSave = (e) => {
+            const value = e.target.value.trim();
+            const paramName = e.target.dataset.param;
+            const defaultValue = e.target.dataset.default;
+
+            console.log(`[PARAM UPDATE] Validating ${variableType}.${paramName}: "${value}"`);
+
+            if (value === "") {
+              this.setCustomParameter(variableType, paramName, null);
+              e.target.value = "";
+              console.log(`[PARAM UPDATE] Value cleared, using default`);
+            } else {
+              const numValue = parseFloat(value);
+              if (isNaN(numValue)) {
+                console.warn(`[PARAM UPDATE] Invalid value for ${paramName}: "${value}". Using default.`);
+                e.target.value = "";
+                this.setCustomParameter(variableType, paramName, null);
+              } else {
+                console.log(`[PARAM UPDATE] Saving valid value: ${numValue}`);
+                this.setCustomParameter(variableType, paramName, numValue);
+                e.target.value = numValue.toString();
+              }
+            }
+
+            console.log(`[PARAM UPDATE] Updating sidebar...`);
+            this.updateSidebarWithNewParameters(variableType);
+          };
+
+          input.addEventListener("blur", validateAndSave);
+
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.code === "Enter") {
+              e.preventDefault();
+              validateAndSave(e);
+              input.blur();
+            }
+          });
+
+          input.addEventListener("input", (e) => {
+            let value = e.target.value;
+
+            value = value.replace(/[^\d.\-]/g, "");
+
+            const parts = value.split(".");
+            if (parts.length > 2) {
+              value = parts[0] + "." + parts.slice(1).join("");
+            }
+
+            if ((value.match(/-/g) || []).length > 1) {
+              value = value.replace(/-/g, "");
+              value = "-" + value;
+            }
+
+            e.target.value = value;
+          });
+        });
+      }
+
+      if (resetBtn) {
+        resetBtn.addEventListener("click", () => {
+          if (confirm("Restaurar parâmetros aos valores padrão?")) {
+            console.log(`[PARAM RESET] Restoring default values for ${variableType}`);
+            this.resetCustomParameters(variableType);
+            inputs.forEach((input) => {
+              input.value = "";
+            });
+            this.updateSidebarWithNewParameters(variableType);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Error configuring parameter listeners:", e);
+    }
+  }
+
+  updateSidebarWithNewParameters(variableType) {
+    console.log(`[SIDEBAR UPDATE] Starting update for ${variableType}`);
+
+    if (!this.state.selectedCell) {
+      console.warn(`[SIDEBAR UPDATE] No cell selected`);
+      return;
+    }
+
+    if (this.state.type !== variableType) {
+      console.warn(`[SIDEBAR UPDATE] Variable mismatch: ${this.state.type} !== ${variableType}`);
+      return;
+    }
+
+    const config = VARIABLES_CONFIG[this.state.type];
+    if (!config || !config.specificInfo) {
+      console.warn(`[SIDEBAR UPDATE] Config or specificInfo not found`);
+      return;
+    }
+
+    console.log(
+      `[SIDEBAR UPDATE] Recalculando para valor=${this.state.selectedCell.value}, allValues=`,
+      this.state.selectedCell.allValues
+    );
+
+    const specificInfo = config.specificInfo(this.state.selectedCell.value, this.state.selectedCell.allValues);
+
+    console.log(`[SIDEBAR UPDATE] New specificInfo:`, specificInfo);
+
+    this.updateSidebarSpecificInfo(specificInfo);
+
+    console.log(`[SIDEBAR UPDATE] Update completed`);
+  }
+
+  updateSidebarSpecificInfo(specificInfo) {
+    const sidebarContent = document.getElementById("sidebarContent");
+    const existingSpecific = sidebarContent.querySelector(".variable-specific");
+
+    if (!existingSpecific) return;
+
+    const existingEditor = existingSpecific.querySelector(".parameters-editor");
+    let wasEditorOpen = false;
+    if (existingEditor) {
+      const existingList = existingEditor.querySelector(".parameters-list");
+      wasEditorOpen = existingList && existingList.classList.contains("active");
+      console.log(`[SIDEBAR UPDATE] Dropdown state before: ${wasEditorOpen ? "open" : "closed"}`);
+    }
+
+    let html = `
+            <div class="info-section-title">
+                <i class="fas fa-bolt"></i> ${specificInfo.title}
+            </div>
+        `;
+
+    specificInfo.items.forEach((item) => {
+      html += `
+                <div class="stat-card">
+                    <div style="color: #666; font-size: 0.85rem;">
+                        <i class="fas ${item.icon}"></i> ${item.label}
+                    </div>
+                    <div class="stat-card-value">
+                        ${item.value}
+                        <span class="stat-card-unit">${item.unit || ""}</span>
+                    </div>
+                </div>
+            `;
+    });
+
+    const editorHTML = this.createParametersEditor(this.state.type);
+    html += editorHTML;
+
+    existingSpecific.innerHTML = html;
+
+    if (wasEditorOpen) {
+      const newList = existingSpecific.querySelector(".parameters-list");
+      const newToggle = existingSpecific.querySelector(".parameters-toggle");
+      if (newList && newToggle) {
+        newList.classList.add("active");
+        const icon = newToggle.querySelector(".parameters-toggle-icon");
+        if (icon) icon.classList.add("active");
+        console.log(`[SIDEBAR UPDATE] Dropdown restored to open`);
+      }
+    }
+
+    this.setupParametersEditorListeners(this.state.type);
+  }
+
+  initMap() {
+    this._canvasRenderer = L.canvas({ padding: 0.5 });
+
+    this.map = L.map("map", {
+      fadeAnimation: true,
+      maxZoom: 15,
+      renderer: this._canvasRenderer,
+    }).setView([-12.97, -38.5], 6);
+
+    L.tileLayer("https://{s}.tile.osm.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap | LabMiM-UFBA",
+      minZoom: 3,
+      maxZoom: 15,
+    }).addTo(this.map);
+
+    this.setupWindCanvas();
+  }
+
+  setupWindCanvas() {
+    const canvas = document.getElementById("windVectorCanvas");
+    if (canvas) {
+      if (!this.windCanvasUpdateHandler) {
+        this.windCanvasUpdateHandler = () => {
+          canvas.width = this.map.getSize().x;
+          canvas.height = this.map.getSize().y;
+
+          const windCheckbox = document.getElementById("windLayerCheckbox");
+          if (windCheckbox && windCheckbox.checked) {
+            cancelAnimationFrame(this.windRenderScheduled);
+            this.windRenderScheduled = requestAnimationFrame(() => this.renderWindVectors());
+          }
+        };
+
+        this.windCanvasUpdateHandler();
+
+        this.map.on("move", this.windCanvasUpdateHandler, this);
+        this.map.on("resize", this.windCanvasUpdateHandler, this);
+        this.map.on("zoomend", this.windCanvasUpdateHandler, this);
+      }
+    }
+  }
+
+  setupEventListeners() {
+    this.ui.slider = document.getElementById("layerSlider");
+    this.ui.playPauseBtn = document.getElementById("playPauseBtn");
+    this.ui.loopToggleBtn = document.getElementById("loopToggleBtn");
+    this.ui.clipStateBtn = document.getElementById("clipStateBtn");
+    this.ui.variableSelect = document.getElementById("variableSelect");
+    this.ui.closeSidebarBtn = document.getElementById("closeSidebarBtn");
+    this.ui.layerLabel = document.getElementById("layerLabel");
+    this.ui.windCheckbox = document.getElementById("windLayerCheckbox");
+    this.ui.windCanvas = document.getElementById("windVectorCanvas");
+    this.ui.heightSelector = document.getElementById("heightSelector");
+    this.ui.windLayerToggle = document.getElementById("windLayerToggle");
+
+    const _debouncedSliderApply = _debounce(() => {
+      if (this.state.selectedCell && !this.state.isPlaying) {
+        this.applyMapChanges().then(() => {
+          this.handleMapClick({
+            latlng: L.latLng(this.state.selectedCell.lat, this.state.selectedCell.lng),
+          });
+        });
+      } else {
+        this.applyMapChanges();
+      }
+    }, 100);
+
+    this.ui.slider.addEventListener("input", (e) => {
+      this.state.index = parseInt(e.target.value);
+      this.updateDateTime();
+      _debouncedSliderApply();
+    });
+
+    this.ui.playPauseBtn.addEventListener("click", () => {
+      if (!this.state.isPlaying) {
+        this.closeSidebar();
+      }
+      this.togglePlayPause();
+    });
+
+    this.ui.loopToggleBtn.addEventListener("click", () => this.toggleLoop());
+    this.ui.clipStateBtn.addEventListener("click", () => this.toggleClipState(this.ui.clipStateBtn));
+    this.ui.variableSelect.addEventListener("change", (e) => this.switchVariable(e.target.value));
+    this.ui.closeSidebarBtn.addEventListener("click", () => this.closeSidebar());
+
+    const heightButtons = document.querySelectorAll(".height-btn");
+    heightButtons.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const height = parseInt(e.target.dataset.height);
+        heightButtons.forEach((b) => b.classList.remove("active"));
+        e.target.classList.add("active");
+        this.setWindHeight(height);
+      });
+    });
+
+    const windCheckbox = document.getElementById("windLayerCheckbox");
+    if (windCheckbox) {
+      windCheckbox.addEventListener("change", (e) => {
+        this.toggleWindLayer(e.target.checked);
+      });
+    }
+
+    this.map.on("click", (e) => this.handleMapClick(e));
+
+    this.updateDomainIndicator();
+
+    this.setupDocumentationListeners();
+  }
+
+  setupDocumentationListeners() {
+    const docBtn = document.getElementById("docBtn");
+    const docCloseBtn = document.getElementById("docCloseBtn");
+    const docModal = document.getElementById("documentationModal");
+    const docTabs = document.querySelectorAll(".doc-tab");
+
+    docBtn.addEventListener("click", () => {
+      docModal.classList.add("active");
+    });
+
+    docCloseBtn.addEventListener("click", () => {
+      docModal.classList.remove("active");
+    });
+
+    docModal.addEventListener("click", (e) => {
+      if (e.target === docModal) {
+        docModal.classList.remove("active");
+      }
+    });
+
+    docTabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const tabName = tab.getAttribute("data-tab");
+
+        docTabs.forEach((t) => t.classList.remove("active"));
+        document.querySelectorAll(".doc-tab-content").forEach((content) => {
+          content.classList.remove("active");
+        });
+
+        tab.classList.add("active");
+        document.querySelector(`.doc-tab-content[data-tab="${tabName}"]`).classList.add("active");
+      });
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && docModal.classList.contains("active")) {
+        docModal.classList.remove("active");
+      }
+    });
+  }
+
+  loadStateGeoJson(stateCode) {
+    this.state.stateAbbr = stateCode;
+    fetch(
+      `https://raw.githubusercontent.com/giuliano-macedo/geodata-br-states/main/geojson/br_states/br_${stateCode.toLowerCase()}.json`
+    )
+      .then((res) => res.json())
+      .then((geojson) => {
+        this.stateGeoJson = geojson.features[0];
+        if (this.ui.clipStateBtn) {
+          this.ui.clipStateBtn.innerHTML = `<i class="fas fa-map"></i> ${stateCode} Off`;
+          this.ui.clipStateBtn.style.display = "inline-block";
+        }
+
+        if (this.currentGeoJsonLayer) {
+          this._precomputeStateMask(this.currentGeoJsonLayer);
+          if (this.state.isClippedToState && this.currentValueData) {
+            this.applyValuesToGrid(this.currentGeoJsonLayer, this.currentValueData);
+          }
+        }
+      })
+      .catch((err) => console.error(`Error loading boundary for state ${stateCode}:`, err));
+  }
+
+  _precomputeStateMask(gridLayer) {
+    if (!this.stateGeoJson || gridLayer._stateMaskComputed) return;
+    gridLayer.eachLayer((layer) => {
+      const bounds = layer.getBounds();
+      const pt = turf.point([(bounds.getEast() + bounds.getWest()) / 2, (bounds.getNorth() + bounds.getSouth()) / 2]);
+      layer._inStateMask = turf.booleanPointInPolygon(pt, this.stateGeoJson);
+    });
+    gridLayer._stateMaskComputed = true;
+  }
+
+  updateDateTime() {
+    const config = VARIABLES_CONFIG[this.state.type];
+    const hour = (this.state.index - 1) % 24;
+
+    if (this.ui.layerLabel) {
+      if (config.id === "SWDOWN" && (hour < 6 || hour > 18)) {
+        this.ui.layerLabel.textContent = "Sem dados (noturno)";
+      } else {
+        this.ui.layerLabel.textContent = this.calculateDateTimeFromIndex(this.state.index);
+      }
+    }
+  }
+
+  calculateDateTimeFromIndex(index) {
+    if (!this.state.initialDateTime) return `Hora ${index}`;
+
+    const hoursDiff = index - this.state.initialIndex;
+    const date = new Date(this.state.initialDateTime);
+    date.setHours(date.getHours() + hoursDiff);
+
+    return date.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  togglePlayPause() {
+    this.state.isPlaying = !this.state.isPlaying;
+
+    if (this.state.isPlaying) {
+      this.ui.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+      this.startAnimation();
+    } else {
+      this.ui.playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
+      this.stopAnimation();
+    }
+  }
+
+  toggleLoop() {
+    this.state.isLooping = !this.state.isLooping;
+    this.ui.loopToggleBtn.textContent = this.state.isLooping ? "🔁 Loop On" : "🔁 Loop Off";
+    this.ui.loopToggleBtn.classList.toggle("active", this.state.isLooping);
+  }
+
+  toggleClipState(btn) {
+    this.state.isClippedToState = !this.state.isClippedToState;
+    const abbr = this.state.stateAbbr;
+    btn.innerHTML = this.state.isClippedToState
+      ? `<i class="fas fa-map"></i> ${abbr} On`
+      : `<i class="fas fa-map"></i> ${abbr} Off`;
+    btn.classList.toggle("active", this.state.isClippedToState);
+
+    if (this.currentGeoJsonLayer && this.currentValueData) {
+      this.applyValuesToGrid(this.currentGeoJsonLayer, this.currentValueData);
+    }
+  }
+
+  startAnimation() {
+    this.state.intervalId = setInterval(() => {
+      let nextIndex = parseInt(this.ui.slider.value) + 1;
+
+      const config = VARIABLES_CONFIG[this.state.type];
+      const nextHour = (nextIndex - 1) % 24;
+
+      if (config.id === "SWDOWN" && (nextHour < 6 || nextHour > 18)) {
+        nextIndex = nextHour < 6 ? Math.floor(nextIndex / 24) * 24 + 7 : Math.ceil(nextIndex / 24) * 24 + 7;
+      }
+
+      if (nextIndex > this.state.maxLayer) {
+        nextIndex = this.state.isLooping ? (config.id === "SWDOWN" ? 7 : 1) : this.state.maxLayer;
+
+        if (!this.state.isLooping) this.stopAnimation();
+      }
+
+      this.ui.slider.value = nextIndex;
+      this.ui.slider.dispatchEvent(new Event("input"));
+    }, 800);
+  }
+
+  stopAnimation() {
+    clearInterval(this.state.intervalId);
+    this.state.isPlaying = false;
+    this.ui.playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
+  }
+
+  switchVariable(variableType) {
+    this.gridLayers = {};
+    this.state.type = variableType;
+    if (this.ui.variableSelect) this.ui.variableSelect.value = variableType;
+
+    if (this.ui.windCanvas) {
+      const ctx = this.ui.windCanvas.getContext("2d");
+      ctx.clearRect(0, 0, this.ui.windCanvas.width, this.ui.windCanvas.height);
+    }
+
+    if (variableType === "eolico") {
+      if (this.ui.heightSelector) this.ui.heightSelector.classList.add("active");
+    } else {
+      if (this.ui.heightSelector) this.ui.heightSelector.classList.remove("active");
+    }
+
+    if (this.ui.windLayerToggle) this.ui.windLayerToggle.classList.add("active");
+
+    const selectedCellCoords = this.state.selectedCell
+      ? {
+          lat: this.state.selectedCell.lat,
+          lng: this.state.selectedCell.lng,
+        }
+      : null;
+
+    if (this.selectedMarker) {
+      this.map.removeLayer(this.selectedMarker);
+      this.selectedMarker = null;
+    }
+
+    this.applyMapChanges().then(() => {
+      if (this.state.selectedCell && selectedCellCoords) {
+        this.handleMapClick({
+          latlng: L.latLng(selectedCellCoords.lat, selectedCellCoords.lng),
+        });
+      } else if (this.state.selectedCell) {
+        this.updateSelectedCellData();
+      }
+    });
+  }
+
+  applyMapChanges() {
+    const config = VARIABLES_CONFIG[this.state.type];
+    const hour = (this.state.index - 1) % 24;
+
+    if (config.id === "SWDOWN" && (hour < 6 || hour > 18)) {
+      this.removeCurrentLayer();
+      if (this.selectedMarker) {
+        this.map.removeLayer(this.selectedMarker);
+        this.selectedMarker = null;
+      }
+      this.updateDateTime();
+      return Promise.resolve();
+    }
+
+    return this.loadValueData(this.state.index, this.state.type);
+  }
+
+  loadValueData(index, type) {
+    const config = VARIABLES_CONFIG[type];
+    const domain = this.state.domain;
+
+    const id_num = String(index).padStart(3, "0");
+    const variableId = this.getVariableId(type);
+    const filePath = `JSON/${domain}_${variableId}_${id_num}.json`;
+
+    return this._cachedFetch(filePath)
+      .then((valueData) =>
+        this.loadGridLayer(domain, type).then((gridLayer) => {
+          if (!gridLayer) return null;
+
+          this._precomputeStateMask(gridLayer);
+
+          this.applyValuesToGrid(gridLayer, valueData);
+
+          this.showGeoJsonLayer(gridLayer);
+          this.currentValueData = valueData;
+          this.updateUIFromMetadata(valueData.metadata, gridLayer._gridMetadata);
+
+          if (this.ui.windCheckbox && this.ui.windCheckbox.checked) {
+            setTimeout(() => this.renderWindVectors(), 100);
+          }
+
+          return valueData;
+        })
+      )
+      .catch((err) => {
+        console.error("Error loading data:", err);
+        this.removeCurrentLayer();
+        return null;
+      });
+  }
+
+  getDomainFromZoom(zoom) {
+    if (zoom >= 5 && zoom <= 6) return "D01";
+    if (zoom >= 7 && zoom <= 8) return "D02";
+    if (zoom >= 9 && zoom <= 11) return "D03";
+    if (zoom >= 12) return "D04";
+    return null;
+  }
+
+  updateDomainIndicator() {
+    const domain = this.state.domain;
+    const domainButtons = document.querySelectorAll(".domain-btn");
+
+    domainButtons.forEach((btn) => btn.classList.remove("active"));
+
+    const activeBtn = document.querySelector(`.domain-btn[data-domain="${domain}"]`);
+    if (activeBtn) {
+      activeBtn.classList.add("active");
+    }
+  }
+
+  setupDomainIndicators() {
+    const domainConfig = {
+      D01: { center: [-12.97, -38.5], zoom: 5.5 },
+      D02: { center: [-12.97, -38.5], zoom: 7 },
+      D03: { center: [-12.97, -38.5], zoom: 9 },
+      D04: { center: [-12.97, -38.5], zoom: 12 },
+    };
+
+    const domainButtons = document.querySelectorAll(".domain-btn");
+
+    domainButtons.forEach((button) => {
+      button.addEventListener("click", (e) => {
+        const selectedDomain = button.dataset.domain;
+        const config = domainConfig[selectedDomain];
+        const targetZoom = parseFloat(button.dataset.zoom) || config.zoom;
+
+        this.state.domain = selectedDomain;
+        this.gridLayers = {};
+        this.updateDomainIndicator();
+
+        if (this.state.selectedCell) {
+          const selectedLat = this.state.selectedCell.lat;
+          const selectedLng = this.state.selectedCell.lng;
+
+          this.map.flyTo([selectedLat, selectedLng], targetZoom, {
+            duration: 1.5,
+            easeLinearity: 0.25,
+          });
+
+          this.map.once("moveend", () => {
+            this.applyMapChanges().then(() => {
+              this.handleMapClick({
+                latlng: L.latLng(selectedLat, selectedLng),
+              }).catch(() => {
+                this.closeSidebar();
+              });
+            });
+          });
+        } else {
+          this.applyMapChanges().then(() => {
+            this.map.flyTo(config.center, targetZoom, {
+              duration: 1.5,
+              easeLinearity: 0.25,
+            });
+          });
+        }
+      });
+    });
+  }
+
+  loadGridLayer(domain, type) {
+    const cacheKey = domain;
+
+    if (this.gridLayers[cacheKey]) {
+      return Promise.resolve(this.gridLayers[cacheKey]);
+    }
+
+    return fetch(`GeoJSON/${domain}.geojson`)
+      .then((res) => res.json())
+      .then((geojson) => {
+        const gridMetadata = geojson.metadata;
+        const layer = L.geoJSON(geojson, {
+          renderer: this._canvasRenderer,
+          style: {
+            weight: 0.3,
+            opacity: 0.15,
+            color: "white",
+            fillColor: "#cccccc",
+            fillOpacity: 0.45,
+          },
+          onEachFeature: (feature, layer) => {
+            feature.properties.valor = null;
+            layer.on({
+              mouseover: () => {
+                layer.setStyle({
+                  weight: 1.2,
+                  color: "#666",
+                  fillOpacity: 0.65,
+                });
+              },
+              mouseout: () => {
+                layer.setStyle({
+                  weight: 0.3,
+                  color: "white",
+                  fillOpacity: 0.45,
+                });
+              },
+            });
+          },
+        });
+
+        layer._gridMetadata = gridMetadata;
+        this.gridLayers[cacheKey] = layer;
+        return layer;
+      })
+      .catch((err) => {
+        console.error("Error loading grid:", err);
+        return null;
+      });
+  }
+
+  applyValuesToGrid(gridLayer, valueData) {
+    const values = valueData.values;
+    const layers = gridLayer.getLayers();
+    const config = VARIABLES_CONFIG[this.state.type];
+
+    let scaleValues = valueData.metadata.scale_values;
+    if (config.useDynamicScale && this.currentValueData) {
+      const dynamicScale = this.calculateDynamicScale(this.currentValueData, config);
+      if (dynamicScale) scaleValues = dynamicScale;
+    }
+
+    if (this._colorWorker) {
+      this._colorWorker.onmessage = (e) => {
+        const { colors } = e.data;
+        cancelAnimationFrame(this._applyGridRaf);
+        this._applyGridRaf = requestAnimationFrame(() => {
+          const isClipped = this.state.isClippedToState;
+          for (let i = 0; i < layers.length; i++) {
+            if (colors[i] !== undefined) {
+              layers[i].feature.properties.valor = values[i];
+              const inState = layers[i]._inStateMask !== false;
+
+              if (isClipped && !inState) {
+                layers[i].setStyle({
+                  fillOpacity: 0,
+                  opacity: 0,
+                  weight: 0,
+                });
+              } else {
+                layers[i].setStyle({
+                  fillColor: colors[i],
+                  fillOpacity: 0.45,
+                  weight: 0.5,
+                  opacity: 0.15,
+                  color: "white",
+                });
+              }
+            }
+          }
+        });
+      };
+      this._colorWorker.postMessage({
+        values,
+        scaleValues,
+        colors: config.colors,
+      });
+    } else {
+      const colors = new Array(layers.length);
+      for (let i = 0; i < layers.length; i++) {
+        const value = values[i];
+        if (value !== undefined && value !== null) {
+          colors[i] = this._colorFromScale(value, scaleValues, config);
+        }
+      }
+
+      cancelAnimationFrame(this._applyGridRaf);
+      this._applyGridRaf = requestAnimationFrame(() => {
+        const isClipped = this.state.isClippedToState;
+        for (let i = 0; i < layers.length; i++) {
+          if (colors[i] !== undefined) {
+            layers[i].feature.properties.valor = values[i];
+            const inState = layers[i]._inStateMask !== false;
+
+            if (isClipped && !inState) {
+              layers[i].setStyle({
+                fillOpacity: 0,
+                opacity: 0,
+                weight: 0,
+              });
+            } else {
+              layers[i].setStyle({
+                fillColor: colors[i],
+                fillOpacity: 0.45,
+                weight: 0.5,
+                opacity: 0.15,
+                color: "white",
+              });
+            }
+          }
+        }
+      });
+    }
+  }
+
+  _colorFromScale(value, scaleValues, config) {
+    if (value < scaleValues[0]) return config.colors[0];
+    if (value > scaleValues[scaleValues.length - 1]) return config.colors[config.colors.length - 1];
+    for (let i = 0; i < scaleValues.length - 1; i++) {
+      if (value >= scaleValues[i] && value < scaleValues[i + 1]) {
+        const ratio = (value - scaleValues[i]) / (scaleValues[i + 1] - scaleValues[i]);
+        return this.interpolateColor(config.colors, (i + ratio) / (scaleValues.length - 1));
+      }
+    }
+    return config.colors[config.colors.length - 1];
+  }
+
+  getColorForValue(value, metadata, config) {
+    let scaleValues = metadata.scale_values;
+
+    if (config.useDynamicScale && this.currentValueData) {
+      const dynamicScale = this.calculateDynamicScale(this.currentValueData, config);
+      if (dynamicScale) {
+        scaleValues = dynamicScale;
+      }
+    }
+
+    if (value < scaleValues[0]) return config.colors[0];
+    if (value > scaleValues[scaleValues.length - 1]) return config.colors[config.colors.length - 1];
+
+    for (let i = 0; i < scaleValues.length - 1; i++) {
+      if (value >= scaleValues[i] && value < scaleValues[i + 1]) {
+        const ratio = (value - scaleValues[i]) / (scaleValues[i + 1] - scaleValues[i]);
+        return this.interpolateColor(config.colors, (i + ratio) / (scaleValues.length - 1));
+      }
+    }
+
+    return config.colors[config.colors.length - 1];
+  }
+
+  calculateDynamicScale(valueData, config) {
+    if (!valueData.features || valueData.features.length === 0) return null;
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    valueData.features.forEach((feature) => {
+      if (feature.properties && feature.properties.value !== null && feature.properties.value !== undefined) {
+        const val = feature.properties.value;
+        if (val < min) min = val;
+        if (val > max) max = val;
+      }
+    });
+
+    if (min === Infinity || max === -Infinity) return null;
+
+    let center = config.normalValue || (min + max) / 2;
+    let range = Math.max(Math.abs(max - center), Math.abs(min - center));
+
+    const scaleMin = center - range;
+    const scaleMax = center + range;
+
+    const dynamicScale = [];
+    for (let i = 0; i < 10; i++) {
+      dynamicScale.push(scaleMin + (scaleMax - scaleMin) * (i / 9));
+    }
+
+    return dynamicScale;
+  }
+
+  interpolateColor(colors, factor) {
+    const index = factor * (colors.length - 1);
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    const localFactor = index - lower;
+
+    if (lower === upper) return colors[lower];
+
+    const c1 = this.hexToRgb(colors[lower]);
+    const c2 = this.hexToRgb(colors[upper]);
+
+    return `rgb(${Math.round(c1.r + (c2.r - c1.r) * localFactor)}, ${Math.round(c1.g + (c2.g - c1.g) * localFactor)}, ${Math.round(c1.b + (c2.b - c1.b) * localFactor)})`;
+  }
+
+  hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 0, g: 0, b: 0 };
+  }
+
+  showGeoJsonLayer(newLayer) {
+    if (this.currentGeoJsonLayer) {
+      this.map.removeLayer(this.currentGeoJsonLayer);
+    }
+    newLayer.addTo(this.map);
+    this.currentGeoJsonLayer = newLayer;
+
+    if (this.state.selectedCell) {
+      if (this.selectedMarker) {
+        this.map.removeLayer(this.selectedMarker);
+        this.selectedMarker = null;
+      }
+      this.selectedMarker = this.createPingMarker(this.state.selectedCell.lat, this.state.selectedCell.lng);
+    }
+  }
+
+  removeCurrentLayer() {
+    if (this.currentGeoJsonLayer) {
+      this.map.removeLayer(this.currentGeoJsonLayer);
+      this.currentGeoJsonLayer = null;
+    }
+  }
+
+  updateUIFromMetadata(metadata, gridMetadata) {
+    const config = VARIABLES_CONFIG[this.state.type];
+
+    if (!this.state.initialDateTime) {
+      this.state.initialDateTime = this.parseDateTime(metadata.date_time);
+      this.state.initialIndex = this.state.index;
+    }
+
+    this.updateColorbar(config);
+    this.updateDateTime();
+  }
+
+  parseDateTime(dateStr) {
+    const parts = dateStr.split(" ");
+    const dateParts = parts[0].includes("/") ? parts[0].split("/").reverse().join("-") : parts[0];
+    return new Date(dateParts + " " + parts[1]);
+  }
+
+  updateColorbar(config) {
+    const gradient = `linear-gradient(to top, ${config.colors.join(", ")})`;
+    document.getElementById("colorbarGradient").style.background = gradient;
+    document.getElementById("colorbarUnit").textContent = config.unit;
+
+    let scaleValues = this.currentValueData?.metadata.scale_values || [];
+
+    if (config.useDynamicScale && this.currentValueData) {
+      const dynamicScale = this.calculateDynamicScale(this.currentValueData, config);
+      if (dynamicScale) {
+        scaleValues = dynamicScale;
+      }
+    }
+
+    const labelsContainer = document.getElementById("colorbarLabels");
+    labelsContainer.innerHTML = "";
+
+    for (let i = scaleValues.length - 1; i >= 0; i--) {
+      const label = document.createElement("div");
+      label.className = "colorbar-label";
+      label.textContent = scaleValues[i].toFixed(0) + (i === scaleValues.length - 1 ? "+" : "");
+      labelsContainer.appendChild(label);
+    }
+  }
+
+  handleMapClick(e) {
+    if (!this.currentGeoJsonLayer) {
+      return Promise.reject("No GeoJSON layer available");
+    }
+
+    let foundCell = null;
+    this.currentGeoJsonLayer.eachLayer((layer) => {
+      if (layer.getBounds().contains(e.latlng)) {
+        foundCell = {
+          layer: layer,
+          value: layer.feature.properties.valor,
+          cellIndex: layer.feature.properties.index,
+          lat: e.latlng.lat,
+          lng: e.latlng.lng,
+          allValues: {},
+        };
+      }
+    });
+
+    if (!foundCell || foundCell.value === null) {
+      this.showErrorMessage("Sem informações meteorológicas neste local");
+      return Promise.reject("No cell data found at this location");
+    }
+
+    if (this.selectedMarker) {
+      this.map.removeLayer(this.selectedMarker);
+    }
+
+    this.selectedMarker = this.createPingMarker(e.latlng.lat, e.latlng.lng);
+
+    return this.loadAllVariableValuesForCell(foundCell)
+      .then((allValues) => {
+        foundCell.allValues = allValues;
+        this.state.selectedCell = foundCell;
+        this.showSidebar();
+        return foundCell;
+      })
+      .catch((err) => {
+        console.error("Error loading values:", err);
+        this.showErrorMessage("Erro ao carregar informações meteorológicas");
+        if (this.selectedMarker) {
+          this.map.removeLayer(this.selectedMarker);
+          this.selectedMarker = null;
+        }
+        throw err;
+      });
+  }
+
+  createPingMarker(lat, lng) {
+    /**
+     * Creates a classic pin marker with SVG pulse
+     * Uses L.divIcon for maximum flexibility
+     * Fixed size at all zoom levels (32px - D02 size)
+     */
+    const iconSize = 32;
+    const scaleFactor = 1;
+
+    const pingIcon = L.divIcon({
+      className: "ping-pin",
+      html: `
+                <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" style="transform: scale(${scaleFactor});">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                          fill="#ff006e" stroke="#ffffff" stroke-width="0.5"/>
+                    <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span class="ping-pulse" style="width: ${iconSize}px; height: ${iconSize}px;"></span>
+            `,
+      iconSize: [iconSize, iconSize],
+      iconAnchor: [iconSize / 2, iconSize],
+      popupAnchor: [0, -iconSize],
+    });
+
+    return L.marker([lat, lng], {
+      icon: pingIcon,
+      zIndexOffset: 1000,
+    }).addTo(this.map);
+  }
+
+  loadValueDataOnly(index, type) {
+    /**
+     * Loads variable data WITHOUT rendering the map
+     * Used exclusively to retrieve values for multivariate calculations
+     * Always returns a promise resolving to null on error
+     */
+    const config = VARIABLES_CONFIG[type];
+    const zoom = this.map.getZoom();
+    let domain = this.getDomainFromZoom(zoom);
+
+    if (!domain) {
+      return Promise.resolve(null);
+    }
+
+    const id_num = String(index).padStart(3, "0");
+    const variableId = this.getVariableId(type);
+    const filePath = `JSON/${domain}_${variableId}_${id_num}.json`;
+
+    return this._cachedFetch(filePath).catch(() => null);
+  }
+
+  loadAllVariableValuesForCell(foundCell) {
+    const allValues = {};
+
+    const promises = [];
+
+    Object.keys(VARIABLES_CONFIG).forEach((varType) => {
+      const config = VARIABLES_CONFIG[varType];
+
+      if (varType === this.state.type && foundCell) {
+        allValues[varType] = {
+          value: foundCell.value,
+          label: config.label,
+          unit: config.unit,
+        };
+        return;
+      }
+
+      promises.push(
+        this.loadValueDataOnly(this.state.index, varType)
+          .then((valueData) => {
+            if (
+              valueData &&
+              Array.isArray(valueData.values) &&
+              foundCell.cellIndex >= 0 &&
+              foundCell.cellIndex < valueData.values.length
+            ) {
+              const loadedValue = valueData.values[foundCell.cellIndex];
+              allValues[varType] = {
+                value: loadedValue,
+                label: config.label,
+                unit: config.unit,
+              };
+            } else {
+              allValues[varType] = {
+                value: null,
+                label: config.label,
+                unit: config.unit,
+                ausente: true,
+              };
+            }
+          })
+          .catch((err) => {
+            allValues[varType] = {
+              value: null,
+              label: config.label,
+              unit: config.unit,
+              ausente: true,
+            };
+          })
+      );
+    });
+
+    return Promise.all(promises).then(() => allValues);
+  }
+
+  showSidebar() {
+    const cell = this.state.selectedCell;
+    const config = VARIABLES_CONFIG[this.state.type];
+    const sidebar = document.getElementById("sidebar");
+    const content = document.getElementById("sidebarContent");
+
+    let html = `
+            <div class="info-section">
+                <div class="info-section-title">
+                    <i class="fas fa-map-pin"></i> Localização
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Latitude</span>
+                    <span class="info-value">${cell.lat.toFixed(4)}°</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Longitude</span>
+                    <span class="info-value">${cell.lng.toFixed(4)}°</span>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="info-section-title">
+                    <i class="fas fa-chart-line"></i> ${config.label}
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Valor</span>
+                    <span class="info-value">${cell.value.toFixed(2)}<span class="info-unit">${config.unit}</span></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Data/Hora</span>
+                    <span class="info-value">${this.calculateDateTimeFromIndex(this.state.index)}</span>
+                </div>
+            </div>
+        `;
+
+    const specificInfo = config.specificInfo(cell.value, cell.allValues);
+    if (specificInfo) {
+      html += `
+                <div class="info-section variable-specific">
+                    <div class="info-section-title">
+                        <i class="fas fa-bolt"></i> ${specificInfo.title}
+                    </div>
+            `;
+
+      specificInfo.items.forEach((item) => {
+        html += `
+                    <div class="stat-card">
+                        <div style="color: #666; font-size: 0.85rem;">
+                            <i class="fas ${item.icon}"></i> ${item.label}
+                        </div>
+                        <div class="stat-card-value">
+                            ${item.value}
+                            <span class="stat-card-unit">${item.unit || ""}</span>
+                        </div>
+                    </div>
+                `;
+      });
+
+      html += this.createParametersEditor(this.state.type);
+
+      html += `</div>`;
+    }
+
+    content.innerHTML = html;
+    sidebar.classList.add("active");
+
+    this.setupParametersEditorListeners(this.state.type);
+  }
+
+  closeSidebar() {
+    document.getElementById("sidebar").classList.remove("active");
+
+    if (this.selectedMarker) {
+      this.map.removeLayer(this.selectedMarker);
+      this.selectedMarker = null;
+    }
+
+    this.state.selectedCell = null;
+  }
+
+  toggleWindLayer(isEnabled) {
+    if (isEnabled) {
+      this.renderWindVectors();
+    } else {
+      this.clearWindVectors();
+    }
+  }
+
+  renderWindVectors() {
+    if (!this.ui.windCanvas) {
+      console.warn("Wind canvas not available");
+      return;
+    }
+
+    if (this.currentValueData?.metadata?.wind) {
+      this._renderWindFromData(this.currentValueData.metadata.wind);
+    } else {
+      const domain = this.state.domain;
+      const id_num = String(this.state.index).padStart(3, "0");
+      const filePath = `JSON/${domain}_WIND_VECTORS_${id_num}.json`;
+
+      this._cachedFetch(filePath)
+        .then((windData) => {
+          this._renderWindFromData(windData);
+        })
+        .catch((err) => {
+          console.warn("Wind vectors not available:", err.message);
+          this.clearWindVectors();
+        });
+    }
+  }
+
+  _renderWindFromData(windData) {
+    const canvas = this.ui.windCanvas;
+    if (!canvas) return;
+
+    const linearIndices = windData.downsampled_linear_indices;
+    const angles = windData.downsampled_angles;
+    const magnitudes = windData.downsampled_magnitudes;
+
+    if (!linearIndices || !angles || !magnitudes || linearIndices.length === 0) {
+      console.warn("Empty wind data");
+      return;
+    }
+
+    canvas.width = this.map.getSize().x;
+    canvas.height = this.map.getSize().y;
+    const ctx = canvas.getContext("2d");
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!this.currentGeoJsonLayer) {
+      console.warn("GeoJSON layer not available");
+      return;
+    }
+
+    const layers = this.currentGeoJsonLayer.getLayers();
+    if (layers.length === 0) {
+      console.warn("No cells on map");
+      return;
+    }
+
+    const minMag = Math.min(...magnitudes);
+    const maxMag = Math.max(...magnitudes);
+    const magRange = maxMag - minMag || 1;
+
+    const isClipped = this.state.isClippedToState;
+
+    linearIndices.forEach((actualLayerIdx, idx) => {
+      try {
+        if (actualLayerIdx < 0 || actualLayerIdx >= layers.length) return;
+
+        const layer = layers[actualLayerIdx];
+
+        if (isClipped && layer._inStateMask === false) return;
+
+        const targetLayer = layers[actualLayerIdx];
+        if (!targetLayer || !targetLayer.getBounds) {
+          console.debug(`Layer ${actualLayerIdx} is not valid`);
+          return;
+        }
+
+        const bounds = targetLayer.getBounds();
+        const center = bounds.getCenter();
+        const point = this.map.latLngToContainerPoint(center);
+
+        const angle = angles[idx];
+        const magnitude = magnitudes[idx];
+
+        if (point.x >= 0 && point.x <= canvas.width && point.y >= 0 && point.y <= canvas.height) {
+          this.drawWindArrow(ctx, point.x, point.y, angle, magnitude, minMag, maxMag, magRange);
+        }
+      } catch (e) {
+        console.debug("Error rendering vector:", e.message);
+      }
+    });
+  }
+
+  drawWindArrow(ctx, x, y, angle, magnitude, minMag, maxMag, magRange) {
+    const normalizedMag = (magnitude - minMag) / magRange;
+    const arrowLength = 8 + normalizedMag * 16;
+    const lineWidth = 0.8 + normalizedMag * 1.2;
+    const arrowHeadSize = 3 + normalizedMag * 2;
+
+    const rad = ((angle - 90) * Math.PI) / 180;
+
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.globalAlpha = 0.7;
+
+    const endX = x + arrowLength * Math.cos(rad);
+    const endY = y + arrowLength * Math.sin(rad);
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+
+    const angle1 = rad + Math.PI / 6;
+    const angle2 = rad - Math.PI / 6;
+
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - arrowHeadSize * Math.cos(angle1), endY - arrowHeadSize * Math.sin(angle1));
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - arrowHeadSize * Math.cos(angle2), endY - arrowHeadSize * Math.sin(angle2));
+    ctx.stroke();
+
+    ctx.globalAlpha = 1.0;
+  }
+
+  clearWindVectors() {
+    const canvas = document.getElementById("windVectorCanvas");
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  showErrorMessage(message) {
+    const alertDiv = document.createElement("div");
+    alertDiv.style.cssText = `
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            background: #ff6b6b;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 2000;
+            font-weight: 500;
+            max-width: 300px;
+            animation: slideInRight 0.3s ease;
+        `;
+    alertDiv.textContent = message;
+
+    document.body.appendChild(alertDiv);
+
+    setTimeout(() => {
+      alertDiv.style.animation = "slideOutRight 0.3s ease";
+      setTimeout(() => alertDiv.remove(), 300);
+    }, 3000);
+  }
+
+  updateSelectedCellData() {
+    /**
+     * Updates selected cell data for a new time or variable
+     * Retains marker and position, only updating the underlying information
+     */
+    if (!this.state.selectedCell) return;
+
+    const cell = this.state.selectedCell;
+    const config = VARIABLES_CONFIG[this.state.type];
+
+    if (this.currentValueData && Array.isArray(this.currentValueData.values)) {
+      const cellIndex = cell.cellIndex;
+      if (cellIndex >= 0 && cellIndex < this.currentValueData.values.length) {
+        const newValue = this.currentValueData.values[cellIndex];
+
+        cell.value = newValue;
+
+        // Recarregar TODOS os valores de TODAS as variáveis para o novo horário
+        this.loadAllVariableValuesForCell(cell)
+          .then((allValues) => {
+            cell.allValues = allValues;
+            this.showSidebar();
+          })
+          .catch((err) => {
+            console.error("Error updating cell data:", err);
+            this.showErrorMessage("Sem informações meteorológicas para este horário");
+            this.closeSidebar();
+          });
+      } else {
+        this.showErrorMessage("Sem informações meteorológicas para este horário");
+        this.closeSidebar();
+      }
+    } else {
+      this.showErrorMessage("Sem informações meteorológicas disponíveis");
+      this.closeSidebar();
+    }
+  }
+}

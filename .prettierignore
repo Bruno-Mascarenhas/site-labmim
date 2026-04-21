@@ -1,0 +1,7 @@
+node_modules/
+.venv/
+site/JSON/
+site/GeoJSON/
+site/assets/json/
+*.json
+*.geojson

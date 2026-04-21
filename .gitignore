@@ -1,0 +1,32 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# Generated Data & Pipeline Artifacts
+site/JSON/*.json
+site/GeoJSON/*.geojson
+site/assets/json/*.json
+
+# Environment variables
+.env
+.env.local
+.env.*
