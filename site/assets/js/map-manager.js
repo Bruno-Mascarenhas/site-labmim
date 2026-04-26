@@ -2,6 +2,28 @@
  * MAP UTILITY FUNCTIONS
  */
 
+const JSON_CACHE_LIMIT = 200;
+const PLAYBACK_INTERVAL_MS = 800;
+const WORKER_CACHE_VERSION = "5";
+const DEFAULT_MAP_CENTER = [-12.97, -38.5];
+const DOMAIN_CONFIG = {
+  D01: { center: DEFAULT_MAP_CENTER, zoom: 5.5 },
+  D02: { center: DEFAULT_MAP_CENTER, zoom: 7 },
+  D03: { center: DEFAULT_MAP_CENTER, zoom: 9 },
+  D04: { center: DEFAULT_MAP_CENTER, zoom: 12 },
+};
+const GRID_VISIBLE_STYLE = {
+  fillOpacity: 0.45,
+  weight: 0.5,
+  opacity: 0.15,
+  color: "white",
+};
+const GRID_HIDDEN_STYLE = {
+  fillOpacity: 0,
+  opacity: 0,
+  weight: 0,
+};
+
 function _debounce(fn, delay) {
   let timer;
   return function (...args) {
@@ -22,9 +44,11 @@ class MeteoMapManager {
     this._jsonWorker = null;
     this._jsonWorkerCallbacks = new Map();
     this._jsonWorkerId = 0;
+    this._colorRequestId = 0;
+    this._windRequestKey = null;
     try {
-      this._colorWorker = new Worker("assets/js/workers/color-calc.worker.js");
-      this._jsonWorker = new Worker("assets/js/workers/json-parser.worker.js");
+      this._colorWorker = new Worker(`assets/js/workers/color-calc.worker.js?v=${WORKER_CACHE_VERSION}`);
+      this._jsonWorker = new Worker(`assets/js/workers/json-parser.worker.js?v=${WORKER_CACHE_VERSION}`);
       this._jsonWorker.onmessage = (e) => {
         const { id, data, error } = e.data;
         const cb = this._jsonWorkerCallbacks.get(id);
@@ -72,6 +96,10 @@ class MeteoMapManager {
    * Avoids re-downloading the same JSON when switching variables or time steps.
    */
   _cachedFetch(url, options = {}) {
+    if (options.signal?.aborted) {
+      return Promise.reject(new DOMException("Aborted", "AbortError"));
+    }
+
     if (this._jsonCache.has(url)) {
       return Promise.resolve(this._jsonCache.get(url));
     }
@@ -87,7 +115,7 @@ class MeteoMapManager {
         });
 
     return fetchPromise.then((data) => {
-      if (this._jsonCache.size > 200) {
+      if (this._jsonCache.size > JSON_CACHE_LIMIT) {
         const firstKey = this._jsonCache.keys().next().value;
         this._jsonCache.delete(firstKey);
       }
@@ -163,12 +191,10 @@ class MeteoMapManager {
     if (customValue !== undefined && customValue !== null && customValue !== "") {
       const numValue = parseFloat(customValue);
       if (!isNaN(numValue)) {
-        console.log(`[PARAM GET] ${key} = ${numValue} (custom)`);
         return numValue;
       }
     }
 
-    console.log(`[PARAM GET] ${key} = null (using default)`);
     return null;
   }
 
@@ -180,12 +206,10 @@ class MeteoMapManager {
     const key = `${variableType}_${paramName}`;
 
     if (value === null || value === undefined || value === "") {
-      console.log(`[PARAM SAVE] Removing ${key} from customParameters`);
       delete this.customParameters[key];
     } else {
       const numValue = parseFloat(value);
       if (!isNaN(numValue)) {
-        console.log(`[PARAM SAVE] Saving ${key} = ${numValue}`);
         this.customParameters[key] = numValue;
       } else {
         console.warn(`[PARAM SAVE] Invalid value for ${key}: "${value}", removing`);
@@ -195,7 +219,6 @@ class MeteoMapManager {
 
     try {
       localStorage.setItem("meteoMapCustomParameters", JSON.stringify(this.customParameters));
-      console.log(`[PARAM SAVE] current customParameters:`, this.customParameters);
 
       if (typeof chartsManager !== "undefined" && chartsManager) {
         chartsManager.reloadChartsWithNewParameters();
@@ -328,6 +351,44 @@ class MeteoMapManager {
     return html;
   }
 
+  sanitizeNumericInput(value) {
+    let sanitized = value.replace(/[^\d.-]/g, "");
+
+    const decimalParts = sanitized.split(".");
+    if (decimalParts.length > 2) {
+      sanitized = decimalParts[0] + "." + decimalParts.slice(1).join("");
+    }
+
+    if ((sanitized.match(/-/g) || []).length > 1) {
+      sanitized = sanitized.replace(/-/g, "");
+      sanitized = "-" + sanitized;
+    }
+
+    return sanitized;
+  }
+
+  saveParameterInput(variableType, input) {
+    const value = input.value.trim();
+    const paramName = input.dataset.param;
+
+    if (value === "") {
+      this.setCustomParameter(variableType, paramName, null);
+      input.value = "";
+      return;
+    }
+
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) {
+      console.warn(`[PARAM UPDATE] Invalid value for ${paramName}: "${value}". Using default.`);
+      input.value = "";
+      this.setCustomParameter(variableType, paramName, null);
+      return;
+    }
+
+    this.setCustomParameter(variableType, paramName, numValue);
+    input.value = numValue.toString();
+  }
+
   setupParametersEditorListeners(variableType) {
     try {
       const toggle = document.querySelector(`.parameters-toggle[data-variable="${variableType}"]`);
@@ -346,30 +407,7 @@ class MeteoMapManager {
       if (inputs.length > 0) {
         inputs.forEach((input) => {
           const validateAndSave = (e) => {
-            const value = e.target.value.trim();
-            const paramName = e.target.dataset.param;
-            const defaultValue = e.target.dataset.default;
-
-            console.log(`[PARAM UPDATE] Validating ${variableType}.${paramName}: "${value}"`);
-
-            if (value === "") {
-              this.setCustomParameter(variableType, paramName, null);
-              e.target.value = "";
-              console.log(`[PARAM UPDATE] Value cleared, using default`);
-            } else {
-              const numValue = parseFloat(value);
-              if (isNaN(numValue)) {
-                console.warn(`[PARAM UPDATE] Invalid value for ${paramName}: "${value}". Using default.`);
-                e.target.value = "";
-                this.setCustomParameter(variableType, paramName, null);
-              } else {
-                console.log(`[PARAM UPDATE] Saving valid value: ${numValue}`);
-                this.setCustomParameter(variableType, paramName, numValue);
-                e.target.value = numValue.toString();
-              }
-            }
-
-            console.log(`[PARAM UPDATE] Updating sidebar...`);
+            this.saveParameterInput(variableType, e.target);
             this.updateSidebarWithNewParameters(variableType);
           };
 
@@ -384,21 +422,7 @@ class MeteoMapManager {
           });
 
           input.addEventListener("input", (e) => {
-            let value = e.target.value;
-
-            value = value.replace(/[^\d.\-]/g, "");
-
-            const parts = value.split(".");
-            if (parts.length > 2) {
-              value = parts[0] + "." + parts.slice(1).join("");
-            }
-
-            if ((value.match(/-/g) || []).length > 1) {
-              value = value.replace(/-/g, "");
-              value = "-" + value;
-            }
-
-            e.target.value = value;
+            e.target.value = this.sanitizeNumericInput(e.target.value);
           });
         });
       }
@@ -406,7 +430,6 @@ class MeteoMapManager {
       if (resetBtn) {
         resetBtn.addEventListener("click", () => {
           if (confirm("Restaurar parâmetros aos valores padrão?")) {
-            console.log(`[PARAM RESET] Restoring default values for ${variableType}`);
             this.resetCustomParameters(variableType);
             inputs.forEach((input) => {
               input.value = "";
@@ -421,8 +444,6 @@ class MeteoMapManager {
   }
 
   updateSidebarWithNewParameters(variableType) {
-    console.log(`[SIDEBAR UPDATE] Starting update for ${variableType}`);
-
     if (!this.state.selectedCell) {
       console.warn(`[SIDEBAR UPDATE] No cell selected`);
       return;
@@ -439,22 +460,13 @@ class MeteoMapManager {
       return;
     }
 
-    console.log(
-      `[SIDEBAR UPDATE] Recalculando para valor=${this.state.selectedCell.value}, allValues=`,
-      this.state.selectedCell.allValues
-    );
-
     const specificInfo = config.specificInfo(this.state.selectedCell.value, this.state.selectedCell.allValues);
 
-    console.log(`[SIDEBAR UPDATE] New specificInfo:`, specificInfo);
-
     this.updateSidebarSpecificInfo(specificInfo);
-
-    console.log(`[SIDEBAR UPDATE] Update completed`);
   }
 
   updateSidebarSpecificInfo(specificInfo) {
-    const sidebarContent = document.getElementById("sidebarContent");
+    const sidebarContent = this.ui.sidebarContent || document.getElementById("sidebarContent");
     const existingSpecific = sidebarContent.querySelector(".variable-specific");
 
     if (!existingSpecific) return;
@@ -464,7 +476,6 @@ class MeteoMapManager {
     if (existingEditor) {
       const existingList = existingEditor.querySelector(".parameters-list");
       wasEditorOpen = existingList && existingList.classList.contains("active");
-      console.log(`[SIDEBAR UPDATE] Dropdown state before: ${wasEditorOpen ? "open" : "closed"}`);
     }
 
     let html = `
@@ -476,7 +487,7 @@ class MeteoMapManager {
     specificInfo.items.forEach((item) => {
       html += `
                 <div class="stat-card">
-                    <div style="color: #666; font-size: 0.85rem;">
+                    <div class="stat-card-label">
                         <i class="fas ${item.icon}"></i> ${item.label}
                     </div>
                     <div class="stat-card-value">
@@ -499,7 +510,6 @@ class MeteoMapManager {
         newList.classList.add("active");
         const icon = newToggle.querySelector(".parameters-toggle-icon");
         if (icon) icon.classList.add("active");
-        console.log(`[SIDEBAR UPDATE] Dropdown restored to open`);
       }
     }
 
@@ -513,7 +523,7 @@ class MeteoMapManager {
       fadeAnimation: true,
       maxZoom: 15,
       renderer: this._canvasRenderer,
-    }).setView([-12.97, -38.5], 6);
+    }).setView(DEFAULT_MAP_CENTER, 6);
 
     L.tileLayer("https://{s}.tile.osm.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap | LabMiM-UFBA",
@@ -524,15 +534,43 @@ class MeteoMapManager {
     this.setupWindCanvas();
   }
 
+  cacheUIElements() {
+    this.ui = {
+      slider: document.getElementById("layerSlider"),
+      playPauseBtn: document.getElementById("playPauseBtn"),
+      clipStateBtn: document.getElementById("clipStateBtn"),
+      variableSelect: document.getElementById("variableSelect"),
+      closeSidebarBtn: document.getElementById("closeSidebarBtn"),
+      layerLabel: document.getElementById("layerLabel"),
+      windCheckbox: document.getElementById("windLayerCheckbox"),
+      windCanvas: document.getElementById("windVectorCanvas"),
+      heightSelector: document.getElementById("heightSelector"),
+      windLayerToggle: document.getElementById("windLayerToggle"),
+      sidebar: document.getElementById("sidebar"),
+      sidebarContent: document.getElementById("sidebarContent"),
+      colorbarGradient: document.getElementById("colorbarGradient"),
+      colorbarLabels: document.getElementById("colorbarLabels"),
+      colorbarUnit: document.getElementById("colorbarUnit"),
+      docBtn: document.getElementById("docBtn"),
+      docCloseBtn: document.getElementById("docCloseBtn"),
+      docModal: document.getElementById("documentationModal"),
+      domainButtons: [...document.querySelectorAll(".domain-btn")],
+      heightButtons: [...document.querySelectorAll(".height-btn")],
+      docTabs: [...document.querySelectorAll(".doc-tab")],
+      docTabContents: [...document.querySelectorAll(".doc-tab-content")],
+    };
+  }
+
   setupWindCanvas() {
     const canvas = document.getElementById("windVectorCanvas");
     if (canvas) {
+      this.ui.windCanvas = canvas;
       if (!this.windCanvasUpdateHandler) {
         this.windCanvasUpdateHandler = () => {
           canvas.width = this.map.getSize().x;
           canvas.height = this.map.getSize().y;
 
-          const windCheckbox = document.getElementById("windLayerCheckbox");
+          const windCheckbox = this.ui.windCheckbox || document.getElementById("windLayerCheckbox");
           if (windCheckbox && windCheckbox.checked) {
             cancelAnimationFrame(this.windRenderScheduled);
             this.windRenderScheduled = requestAnimationFrame(() => this.renderWindVectors());
@@ -549,16 +587,7 @@ class MeteoMapManager {
   }
 
   setupEventListeners() {
-    this.ui.slider = document.getElementById("layerSlider");
-    this.ui.playPauseBtn = document.getElementById("playPauseBtn");
-    this.ui.clipStateBtn = document.getElementById("clipStateBtn");
-    this.ui.variableSelect = document.getElementById("variableSelect");
-    this.ui.closeSidebarBtn = document.getElementById("closeSidebarBtn");
-    this.ui.layerLabel = document.getElementById("layerLabel");
-    this.ui.windCheckbox = document.getElementById("windLayerCheckbox");
-    this.ui.windCanvas = document.getElementById("windVectorCanvas");
-    this.ui.heightSelector = document.getElementById("heightSelector");
-    this.ui.windLayerToggle = document.getElementById("windLayerToggle");
+    this.cacheUIElements();
 
     const _debouncedSliderApply = _debounce(() => {
       if (this.state.selectedCell && !this.state.isPlaying) {
@@ -590,7 +619,7 @@ class MeteoMapManager {
     this.ui.variableSelect.addEventListener("change", (e) => this.switchVariable(e.target.value));
     this.ui.closeSidebarBtn.addEventListener("click", () => this.closeSidebar());
 
-    const heightButtons = document.querySelectorAll(".height-btn");
+    const heightButtons = this.ui.heightButtons;
     heightButtons.forEach((btn) => {
       btn.addEventListener("click", (e) => {
         const height = parseInt(e.target.dataset.height);
@@ -600,9 +629,8 @@ class MeteoMapManager {
       });
     });
 
-    const windCheckbox = document.getElementById("windLayerCheckbox");
-    if (windCheckbox) {
-      windCheckbox.addEventListener("change", (e) => {
+    if (this.ui.windCheckbox) {
+      this.ui.windCheckbox.addEventListener("change", (e) => {
         this.toggleWindLayer(e.target.checked);
       });
     }
@@ -616,10 +644,9 @@ class MeteoMapManager {
   }
 
   setupDocumentationListeners() {
-    const docBtn = document.getElementById("docBtn");
-    const docCloseBtn = document.getElementById("docCloseBtn");
-    const docModal = document.getElementById("documentationModal");
-    const docTabs = document.querySelectorAll(".doc-tab");
+    const { docBtn, docCloseBtn, docModal, docTabs, docTabContents } = this.ui;
+
+    if (!docBtn || !docCloseBtn || !docModal) return;
 
     docBtn.addEventListener("click", () => {
       docModal.classList.add("active");
@@ -640,12 +667,12 @@ class MeteoMapManager {
         const tabName = tab.getAttribute("data-tab");
 
         docTabs.forEach((t) => t.classList.remove("active"));
-        document.querySelectorAll(".doc-tab-content").forEach((content) => {
+        docTabContents.forEach((content) => {
           content.classList.remove("active");
         });
 
         tab.classList.add("active");
-        document.querySelector(`.doc-tab-content[data-tab="${tabName}"]`).classList.add("active");
+        docTabContents.find((content) => content.dataset.tab === tabName)?.classList.add("active");
       });
     });
 
@@ -774,7 +801,7 @@ class MeteoMapManager {
 
       this.ui.slider.value = nextIndex;
       this.ui.slider.dispatchEvent(new Event("input"));
-    }, 800);
+    }, PLAYBACK_INTERVAL_MS);
   }
 
   stopAnimation() {
@@ -856,7 +883,6 @@ class MeteoMapManager {
   }
 
   loadValueData(index, type) {
-    const config = VARIABLES_CONFIG[type];
     const domain = this.state.domain;
 
     const id_num = String(index).padStart(3, "0");
@@ -865,16 +891,16 @@ class MeteoMapManager {
 
     return this._cachedFetch(filePath)
       .then((valueData) =>
-        this.loadGridLayer(domain, type).then((gridLayer) => {
+        this.loadGridLayer(domain).then((gridLayer) => {
           if (!gridLayer) return null;
 
           this._precomputeStateMask(gridLayer);
 
+          this.currentValueData = valueData;
           this.applyValuesToGrid(gridLayer, valueData);
 
           this.showGeoJsonLayer(gridLayer);
-          this.currentValueData = valueData;
-          this.updateUIFromMetadata(valueData.metadata, gridLayer._gridMetadata);
+          this.updateUIFromMetadata(valueData.metadata);
 
           if (this.ui.windCheckbox && this.ui.windCheckbox.checked) {
             setTimeout(() => this.renderWindVectors(), 100);
@@ -900,30 +926,24 @@ class MeteoMapManager {
 
   updateDomainIndicator() {
     const domain = this.state.domain;
-    const domainButtons = document.querySelectorAll(".domain-btn");
+    const domainButtons = this.ui.domainButtons || [];
 
     domainButtons.forEach((btn) => btn.classList.remove("active"));
 
-    const activeBtn = document.querySelector(`.domain-btn[data-domain="${domain}"]`);
+    const activeBtn = domainButtons.find((button) => button.dataset.domain === domain);
     if (activeBtn) {
       activeBtn.classList.add("active");
     }
   }
 
   setupDomainIndicators() {
-    const domainConfig = {
-      D01: { center: [-12.97, -38.5], zoom: 5.5 },
-      D02: { center: [-12.97, -38.5], zoom: 7 },
-      D03: { center: [-12.97, -38.5], zoom: 9 },
-      D04: { center: [-12.97, -38.5], zoom: 12 },
-    };
-
-    const domainButtons = document.querySelectorAll(".domain-btn");
+    const domainButtons = this.ui.domainButtons || [];
 
     domainButtons.forEach((button) => {
-      button.addEventListener("click", (e) => {
+      button.addEventListener("click", () => {
         const selectedDomain = button.dataset.domain;
-        const config = domainConfig[selectedDomain];
+        const config = DOMAIN_CONFIG[selectedDomain];
+        if (!config) return;
         const targetZoom = parseFloat(button.dataset.zoom) || config.zoom;
 
         this.state.domain = selectedDomain;
@@ -960,7 +980,7 @@ class MeteoMapManager {
     });
   }
 
-  loadGridLayer(domain, type) {
+  loadGridLayer(domain) {
     const cacheKey = domain;
 
     if (this.gridLayers[cacheKey]) {
@@ -1001,6 +1021,11 @@ class MeteoMapManager {
           },
         });
 
+        layer.eachLayer((cellLayer, index) => {
+          const properties = cellLayer.feature?.properties || {};
+          properties.index = Number.isInteger(properties.linear_index) ? properties.linear_index : index;
+        });
+
         layer._gridMetadata = gridMetadata;
         this.gridLayers[cacheKey] = layer;
         return layer;
@@ -1023,43 +1048,24 @@ class MeteoMapManager {
     }
 
     if (this._colorWorker) {
+      const requestId = ++this._colorRequestId;
       this._colorWorker.onmessage = (e) => {
-        const { colors } = e.data;
+        const { requestId: responseId, colors } = e.data;
+        if (responseId !== undefined && responseId !== this._colorRequestId) return;
         cancelAnimationFrame(this._applyGridRaf);
         this._applyGridRaf = requestAnimationFrame(() => {
-          const isClipped = this.state.isClippedToState;
-          for (let i = 0; i < layers.length; i++) {
-            if (colors[i] !== undefined) {
-              layers[i].feature.properties.valor = values[i];
-              const inState = layers[i]._inStateMask !== false;
-
-              if (isClipped && !inState) {
-                layers[i].setStyle({
-                  fillOpacity: 0,
-                  opacity: 0,
-                  weight: 0,
-                });
-              } else {
-                layers[i].setStyle({
-                  fillColor: colors[i],
-                  fillOpacity: 0.45,
-                  weight: 0.5,
-                  opacity: 0.15,
-                  color: "white",
-                });
-              }
-            }
-          }
+          this.applyComputedColorsToGrid(layers, values, colors);
         });
       };
       this._colorWorker.postMessage({
+        requestId,
         values,
         scaleValues,
         colors: config.colors,
       });
     } else {
-      const colors = new Array(layers.length);
-      for (let i = 0; i < layers.length; i++) {
+      const colors = new Array(values.length);
+      for (let i = 0; i < values.length; i++) {
         const value = values[i];
         if (value !== undefined && value !== null) {
           colors[i] = this._colorFromScale(value, scaleValues, config);
@@ -1068,31 +1074,36 @@ class MeteoMapManager {
 
       cancelAnimationFrame(this._applyGridRaf);
       this._applyGridRaf = requestAnimationFrame(() => {
-        const isClipped = this.state.isClippedToState;
-        for (let i = 0; i < layers.length; i++) {
-          if (colors[i] !== undefined) {
-            layers[i].feature.properties.valor = values[i];
-            const inState = layers[i]._inStateMask !== false;
-
-            if (isClipped && !inState) {
-              layers[i].setStyle({
-                fillOpacity: 0,
-                opacity: 0,
-                weight: 0,
-              });
-            } else {
-              layers[i].setStyle({
-                fillColor: colors[i],
-                fillOpacity: 0.45,
-                weight: 0.5,
-                opacity: 0.15,
-                color: "white",
-              });
-            }
-          }
-        }
+        this.applyComputedColorsToGrid(layers, values, colors);
       });
     }
+  }
+
+  applyComputedColorsToGrid(layers, values, colors) {
+    const isClipped = this.state.isClippedToState;
+
+    for (let i = 0; i < layers.length; i++) {
+      const cellIndex = this.getCellIndexForLayer(layers[i], i);
+      const color = colors[cellIndex];
+      if (color === undefined) continue;
+
+      layers[i].feature.properties.valor = values[cellIndex];
+      const inState = layers[i]._inStateMask !== false;
+
+      layers[i].setStyle(
+        isClipped && !inState
+          ? GRID_HIDDEN_STYLE
+          : {
+              ...GRID_VISIBLE_STYLE,
+              fillColor: color,
+            }
+      );
+    }
+  }
+
+  getCellIndexForLayer(layer, fallbackIndex) {
+    const properties = layer?.feature?.properties || {};
+    return Number.isInteger(properties.index) ? properties.index : fallbackIndex;
   }
 
   _colorFromScale(value, scaleValues, config) {
@@ -1208,7 +1219,7 @@ class MeteoMapManager {
     }
   }
 
-  updateUIFromMetadata(metadata, gridMetadata) {
+  updateUIFromMetadata(metadata) {
     const config = VARIABLES_CONFIG[this.state.type];
 
     if (!this.state.initialDateTime) {
@@ -1228,8 +1239,8 @@ class MeteoMapManager {
 
   updateColorbar(config) {
     const gradient = `linear-gradient(to top, ${config.colors.join(", ")})`;
-    document.getElementById("colorbarGradient").style.background = gradient;
-    document.getElementById("colorbarUnit").textContent = config.unit;
+    this.ui.colorbarGradient.style.background = gradient;
+    this.ui.colorbarUnit.textContent = config.unit;
 
     let scaleValues = this.currentValueData?.metadata.scale_values || [];
 
@@ -1240,7 +1251,7 @@ class MeteoMapManager {
       }
     }
 
-    const labelsContainer = document.getElementById("colorbarLabels");
+    const labelsContainer = this.ui.colorbarLabels;
     labelsContainer.innerHTML = "";
 
     for (let i = scaleValues.length - 1; i >= 0; i--) {
@@ -1262,7 +1273,7 @@ class MeteoMapManager {
         foundCell = {
           layer: layer,
           value: layer.feature.properties.valor,
-          cellIndex: layer.feature.properties.index,
+          cellIndex: this.getCellIndexForLayer(layer, 0),
           lat: e.latlng.lat,
           lng: e.latlng.lng,
           allValues: {},
@@ -1300,11 +1311,6 @@ class MeteoMapManager {
   }
 
   createPingMarker(lat, lng) {
-    /**
-     * Creates a classic pin marker with SVG pulse
-     * Uses L.divIcon for maximum flexibility
-     * Fixed size at all zoom levels (32px - D02 size)
-     */
     const iconSize = 32;
     const scaleFactor = 1;
 
@@ -1330,14 +1336,7 @@ class MeteoMapManager {
   }
 
   loadValueDataOnly(index, type) {
-    /**
-     * Loads variable data WITHOUT rendering the map
-     * Used exclusively to retrieve values for multivariate calculations
-     * Always returns a promise resolving to null on error
-     */
-    const config = VARIABLES_CONFIG[type];
-    const zoom = this.map.getZoom();
-    let domain = this.getDomainFromZoom(zoom);
+    const domain = this.state.domain;
 
     if (!domain) {
       return Promise.resolve(null);
@@ -1391,7 +1390,7 @@ class MeteoMapManager {
               };
             }
           })
-          .catch((err) => {
+          .catch(() => {
             allValues[varType] = {
               value: null,
               label: config.label,
@@ -1408,8 +1407,8 @@ class MeteoMapManager {
   showSidebar() {
     const cell = this.state.selectedCell;
     const config = VARIABLES_CONFIG[this.state.type];
-    const sidebar = document.getElementById("sidebar");
-    const content = document.getElementById("sidebarContent");
+    const sidebar = this.ui.sidebar;
+    const content = this.ui.sidebarContent;
 
     let html = `
             <div class="info-section">
@@ -1453,7 +1452,7 @@ class MeteoMapManager {
       specificInfo.items.forEach((item) => {
         html += `
                     <div class="stat-card">
-                        <div style="color: #666; font-size: 0.85rem;">
+                        <div class="stat-card-label">
                             <i class="fas ${item.icon}"></i> ${item.label}
                         </div>
                         <div class="stat-card-value">
@@ -1476,7 +1475,7 @@ class MeteoMapManager {
   }
 
   closeSidebar() {
-    document.getElementById("sidebar").classList.remove("active");
+    this.ui.sidebar?.classList.remove("active");
 
     if (this.selectedMarker) {
       this.map.removeLayer(this.selectedMarker);
@@ -1506,9 +1505,12 @@ class MeteoMapManager {
       const domain = this.state.domain;
       const id_num = String(this.state.index).padStart(3, "0");
       const filePath = `JSON/${domain}_WIND_VECTORS_${id_num}.json`;
+      const requestKey = `${domain}:${id_num}`;
+      this._windRequestKey = requestKey;
 
       this._cachedFetch(filePath)
         .then((windData) => {
+          if (this._windRequestKey !== requestKey || !this.ui.windCheckbox?.checked) return;
           this._renderWindFromData(windData);
         })
         .catch((err) => {
@@ -1564,7 +1566,6 @@ class MeteoMapManager {
 
         const targetLayer = layers[actualLayerIdx];
         if (!targetLayer || !targetLayer.getBounds) {
-          console.debug(`Layer ${actualLayerIdx} is not valid`);
           return;
         }
 
@@ -1578,8 +1579,8 @@ class MeteoMapManager {
         if (point.x >= 0 && point.x <= canvas.width && point.y >= 0 && point.y <= canvas.height) {
           this.drawWindArrow(ctx, point.x, point.y, angle, magnitude, minMag, maxMag, magRange);
         }
-      } catch (e) {
-        console.debug("Error rendering vector:", e.message);
+      } catch {
+        return;
       }
     });
   }
@@ -1620,7 +1621,8 @@ class MeteoMapManager {
   }
 
   clearWindVectors() {
-    const canvas = document.getElementById("windVectorCanvas");
+    this._windRequestKey = null;
+    const canvas = this.ui.windCanvas;
     if (canvas) {
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1629,26 +1631,13 @@ class MeteoMapManager {
 
   showErrorMessage(message) {
     const alertDiv = document.createElement("div");
-    alertDiv.style.cssText = `
-            position: fixed;
-            bottom: 100px;
-            right: 20px;
-            background: #ff6b6b;
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            z-index: 2000;
-            font-weight: 500;
-            max-width: 300px;
-            animation: slideInRight 0.3s ease;
-        `;
+    alertDiv.className = "map-alert";
     alertDiv.textContent = message;
 
     document.body.appendChild(alertDiv);
 
     setTimeout(() => {
-      alertDiv.style.animation = "slideOutRight 0.3s ease";
+      alertDiv.classList.add("is-exiting");
       setTimeout(() => alertDiv.remove(), 300);
     }, 3000);
   }
@@ -1661,7 +1650,6 @@ class MeteoMapManager {
     if (!this.state.selectedCell) return;
 
     const cell = this.state.selectedCell;
-    const config = VARIABLES_CONFIG[this.state.type];
 
     if (this.currentValueData && Array.isArray(this.currentValueData.values)) {
       const cellIndex = cell.cellIndex;
@@ -1670,7 +1658,6 @@ class MeteoMapManager {
 
         cell.value = newValue;
 
-        // Recarregar TODOS os valores de TODAS as variáveis para o novo horário
         this.loadAllVariableValuesForCell(cell)
           .then((allValues) => {
             cell.allValues = allValues;
@@ -1691,3 +1678,5 @@ class MeteoMapManager {
     }
   }
 }
+
+window.MeteoMapManager = MeteoMapManager;

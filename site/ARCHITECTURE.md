@@ -6,33 +6,33 @@
 site/
 ├── index.html                    ← Homepage
 ├── mapas_interativos.html        ← Interactive maps (Leaflet + Canvas) — PRIMARY
-├── mapas_meteorologicos.html     ← Meteorological map videos (legacy, unlinked)
+├── mapas_meteorologicos.html     ← Compatibility redirect to interactive maps
 ├── monitoring.html               ← Environmental monitoring
 ├── climatologia.html             ← Climatology
 ├── team.html                     ← Team page
 │
 ├── assets/                       ← All static resources
 │   ├── css/
-│   │   ├── template.css          ← Base template layout
-│   │   ├── style.css             ← Global custom styles
-│   │   ├── modern.css            ← Modern design system
-│   │   ├── custom-themes.css     ← Theme variables & colors
+│   │   ├── base.css              ← Variables, reset, utilities, base typography
+│   │   ├── layout.css            ← Navbar, page shells, footer
+│   │   ├── components.css        ← Cards, partners, monitoring, modal helpers
+│   │   ├── theme.css             ← Light/dark theme overrides and variable accents
 │   │   └── maps.css              ← Interactive maps styles
 │   ├── js/
 │   │   ├── map-manager.js        ← MeteoMapManager class
 │   │   ├── map-init.js           ← Map bootstrapping
 │   │   ├── variables-config.js   ← Variable definitions & calculations
 │   │   ├── charts-manager.js     ← Time-series chart rendering
-│   │   ├── script-mapas.js       ← Meteorological maps page logic (legacy)
-│   │   ├── video.js              ← Video player controls (legacy)
+│   │   ├── theme-boot.js         ← Early theme class bootstrap
+│   │   ├── theme-toggle.js       ← Theme button/controller
+│   │   ├── ui-shell.js           ← Small page-level UI interactions
 │   │   └── workers/
 │   │       ├── color-calc.worker.js   ← Web Worker: color interpolation
 │   │       └── json-parser.worker.js  ← Web Worker: JSON fetch+parse
 │   ├── img/                      ← Logos, covers, partner images
 │   ├── icon/                     ← Variable icons
-│   ├── graphs/                   ← Plotly HTMLs + PNGs (monitoring)
-│   ├── json/                     ← Configuration JSONs
-│   └── video/                    ← WebM video animations (legacy)
+│   ├── graphs/                   ← PNGs (monitoring)
+│   └── json/                     ← Optional generated manifests
 │
 ├── GeoJSON/                      ← Pipeline-generated grid geometry
 │   ├── D01.geojson
@@ -56,8 +56,8 @@ WRF Model (NetCDF)
     │   ├─ JSON/D0X_VAR_NNN.json         ← 1 per domain×variable×timestep
     │   └─ JSON/D0X_WIND_VECTORS_NNN.json ← 1 per domain×timestep (wind arrows)
     │
-    └─ labmim-wrf-figures  (Python CLI) ── LEGACY
-        └─ assets/video/*.webm           ← Animated map videos
+    └─ labmim-wrf-figures  (Python CLI) ── retired frontend path
+        └─ static video animations are no longer shipped by this site
 ```
 
 ## Data Contract
@@ -149,19 +149,23 @@ One file per domain × timestep. Standalone wind arrow overlay usable with **any
 
 | File | Purpose | Size |
 |---|---|---|
-| `mapas_interativos.html` | HTML structure only (no inline CSS/JS) | ~22 KB |
-| `assets/css/maps.css` | All map-specific styles | ~40 KB |
-| `assets/css/custom-themes.css` | Theme variables & colors | ~12 KB |
-| `assets/js/map-manager.js` | `MeteoMapManager` class — core map logic | ~74 KB |
+| `mapas_interativos.html` | Interactive map structure and data UI | ~22 KB |
+| `assets/css/base.css` | Variables, reset, shared utilities and base typography | ~3 KB |
+| `assets/css/layout.css` | Navbar, page shell and shared footer layout | ~3 KB |
+| `assets/css/components.css` | Reusable cards, partner blocks, monitoring helpers and chart modal helpers | ~9 KB |
+| `assets/css/theme.css` | Light/dark theme overrides and variable accents | ~10 KB |
+| `assets/css/maps.css` | All map-specific styles | ~36 KB |
+| `assets/js/map-manager.js` | `MeteoMapManager` class — core map logic | ~55 KB |
 | `assets/js/map-init.js` | Bootstrap code — creates app + charts manager | ~2 KB |
-| `assets/js/variables-config.js` | `VARIABLES_CONFIG` — variable definitions, scales, calculations | ~24 KB |
+| `assets/js/variables-config.js` | `VARIABLES_CONFIG` — variable definitions, scales, calculations | ~17 KB |
 | `assets/js/charts-manager.js` | `ChartsManager` — Persistent modal time-series charts | ~20 KB |
-| `assets/js/script-mapas.js` | Meteorological maps page logic (legacy static videos) | ~3 KB |
-| `assets/js/video.js` | Video player controls (legacy) | ~2 KB |
+| `assets/js/theme-boot.js` | Early theme class bootstrap to avoid dark-mode flash | <1 KB |
+| `assets/js/theme-toggle.js` | Theme toggle controller and theme-change event dispatch | ~2 KB |
+| `assets/js/ui-shell.js` | Generic small UI toggles used by content pages | ~1 KB |
 | `assets/js/workers/color-calc.worker.js` | Web Worker — offloads color interpolation | ~2 KB |
 | `assets/js/workers/json-parser.worker.js` | Web Worker — offloads JSON fetch+parse | ~1 KB |
 
-> Note: Legacy scripts (`script.js` and `script-leal.js`) were removed to eliminate jQuery dependencies and DOM-thrashing anti-patterns.
+> Note: Legacy scripts (`script.js`, `script-leal.js`, `script-mapas.js`, and `video.js`) were removed to eliminate unused jQuery-era paths and static video dependencies.
 
 ## Performance Optimizations
 
@@ -185,6 +189,7 @@ One file per domain × timestep. Standalone wind arrow overlay usable with **any
 9. **`<script defer>`** for CDNs — unblocks HTML parser
 10. **`requestAnimationFrame` batching** — prevents DOM thrashing during grid updates
 11. **Canvas renderer** — Leaflet uses `<canvas>` instead of SVG for grid
+12. **Retired static video payloads** — removes ~9 MB of unused `.webm` assets from the active site.
 
 ## Adding a New Variable
 

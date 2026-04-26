@@ -256,11 +256,6 @@ const VARIABLES_CONFIG = {
         };
       }
 
-      const tempValue = allValues.temperature?.value || 15;
-      const humidityValue = allValues.humidity?.value || 60;
-
-      const dewpoint = tempValue - (100 - humidityValue) / 5;
-
       return {
         title: "Condições Atmosféricas",
         items: [
@@ -306,10 +301,6 @@ const VARIABLES_CONFIG = {
         };
       }
 
-      const tempValue = allValues.temperature?.value || 20;
-
-      const dewpoint = tempValue - (100 - value) / 5;
-
       return {
         title: "Condições de Umidade",
         items: [
@@ -354,9 +345,6 @@ const VARIABLES_CONFIG = {
           ],
         };
       }
-
-      const tempValue = allValues.temperature?.value || 20;
-      const humidityValue = allValues.humidity?.value || 70;
 
       return {
         title: "Previsão de Precipitação",
@@ -516,35 +504,7 @@ const VARIABLES_CONFIG = {
       };
     },
   },
-
-  //         if (value === null || value === undefined || allValues.weibull?.ausente) {
-  //             return {
-  //                     }
-  //             };
-  //         }
-
-  //         return {
-  //                 },
-  //                 },
-  //                 }
-  //         }
-  //     }
-  // },
 };
-
-/**
- * UTILITY FUNCTIONS FOR DATA INTERPRETATION
- */
-
-function getValueOrDefault(value, label = "Valor ausente") {
-  /**
-   * Returns the value if available, otherwise returns the missing value label
-   */
-  if (value === null || value === undefined) {
-    return label;
-  }
-  return value;
-}
 
 function getWindCategory(speed) {
   if (speed < 2) return "Muito Fraco";
@@ -579,8 +539,6 @@ function getWindDirection(angle) {
 }
 
 function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
-  console.log(`Calculating feels like temperature for T=${temperatureC}°C, U=${humidity}%, V=${windSpeedMs}m/s`);
-
   if (temperatureC >= 26.7 && humidity >= 40) {
     const T = (temperatureC * 9) / 5 + 32;
     const RH = humidity;

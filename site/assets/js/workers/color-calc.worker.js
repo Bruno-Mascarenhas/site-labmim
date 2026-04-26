@@ -6,8 +6,8 @@
  * of computed CSS color strings.
  *
  * Message protocol:
- *   Input:  { values: number[], scaleValues: number[], colors: string[] }
- *   Output: { colors: string[] }
+ *   Input:  { requestId: number, values: number[], scaleValues: number[], colors: string[] }
+ *   Output: { requestId: number, colors: string[] }
  */
 
 function hexToRgb(hex) {
@@ -49,7 +49,7 @@ function colorFromScale(value, scaleValues, palette) {
 }
 
 self.onmessage = function (e) {
-  const { values, scaleValues, colors: palette } = e.data;
+  const { requestId, values, scaleValues, colors: palette } = e.data;
   const result = new Array(values.length);
 
   for (let i = 0; i < values.length; i++) {
@@ -60,5 +60,5 @@ self.onmessage = function (e) {
     // else result[i] remains undefined
   }
 
-  self.postMessage({ colors: result });
+  self.postMessage({ requestId, colors: result });
 };

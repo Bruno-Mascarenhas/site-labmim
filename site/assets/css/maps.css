@@ -210,6 +210,11 @@ header.maps-header {
   font-size: 0.9rem;
 }
 
+.stat-card-label {
+  color: #666;
+  font-size: 0.85rem;
+}
+
 .stat-card-value {
   font-size: 1.3rem;
   font-weight: 700;
@@ -1277,6 +1282,25 @@ header.maps-header {
   background-color: transparent;
   border: 2px solid rgba(255, 0, 110, 0.4);
   animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.map-alert {
+  position: fixed;
+  right: 20px;
+  bottom: 100px;
+  z-index: 2000;
+  max-width: 300px;
+  padding: 16px 24px;
+  border-radius: 8px;
+  background: #ff6b6b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  color: white;
+  font-weight: 500;
+  animation: slideInRight 0.3s ease;
+}
+
+.map-alert.is-exiting {
+  animation: slideOutRight 0.3s ease;
 }
 
 .info-section {

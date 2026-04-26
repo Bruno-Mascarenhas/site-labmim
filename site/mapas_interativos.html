@@ -23,37 +23,28 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- LabMiM Standard CSS -->
-    <link rel="stylesheet" type="text/css" href="assets/css/template.css" />
-    <link rel="stylesheet" type="text/css" href="assets/css/style.css" />
-    <link rel="stylesheet" type="text/css" href="assets/css/modern.css" />
+    <!-- LabMiM modular CSS -->
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/layout.css" />
+    <link rel="stylesheet" href="assets/css/components.css" />
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-    <!-- Custom Themes & Colors -->
-    <link rel="stylesheet" href="assets/css/custom-themes.css" />
+    <!-- Theme & Colors -->
+    <link rel="stylesheet" href="assets/css/theme.css" />
 
     <!-- Maps-specific CSS (extracted from inline) -->
     <link rel="stylesheet" type="text/css" href="assets/css/maps.css" />
 
-    <!-- Theme Toggle Scripts -->
-    <script>
-      (function () {
-        var savedTheme = localStorage.getItem("labmim-theme");
-        var systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        if (savedTheme === "dark" || (!savedTheme && systemPrefersDark)) {
-          document.documentElement.classList.add("dark-theme");
-        }
-      })();
-    </script>
+    <script src="assets/js/theme-boot.js"></script>
     <script src="assets/js/theme-toggle.js" defer></script>
   </head>
 
   <body>
-    <header class="maps-header" style="background-color: #0b3158 !important">
+    <header class="maps-header">
       <!-- Navigation -->
-      <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" style="padding: 0.5rem 1rem">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top maps-navbar">
         <a class="navbar-brand ms-4" href="index.html">
           <img
             loading="eager"
@@ -61,7 +52,7 @@
             alt="LabMiM Logo"
             width="1280"
             height="409"
-            style="height: 40px; width: auto"
+            class="brand-logo"
           />
         </a>
         <button
@@ -78,74 +69,24 @@
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
             <li class="nav-item active mx-2">
-              <a
-                class="btn btn-outline-lab"
-                href="monitoring.html"
-                id="nav-monitoring"
-                style="
-                  color: white;
-                  border: 1px solid white;
-                  padding: 0.375rem 0.75rem;
-                  border-radius: 0.25rem;
-                  text-decoration: none;
-                "
-                >Monitoramento</a
+              <a class="btn btn-outline-lab nav-pill-light" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
+            </li>
+            <li class="nav-item active mx-2">
+              <a class="btn btn-outline-lab nav-pill-light is-active" href="mapas_interativos.html" id="nav-mapas"
+                >Previsões</a
               >
             </li>
             <li class="nav-item active mx-2">
-              <a
-                class="btn btn-outline-lab"
-                href="mapas_interativos.html"
-                id="nav-mapas"
-                style="
-                  color: white;
-                  background-color: rgba(255, 255, 255, 0.2);
-                  border: 1px solid white;
-                  padding: 0.375rem 0.75rem;
-                  border-radius: 0.25rem;
-                  text-decoration: none;
-                "
-                >Previs&otilde;es</a
-              >
-            </li>
-            <li class="nav-item active mx-2">
-              <a
-                class="btn btn-outline-lab"
-                href="climatologia.html"
-                id="nav-climatologia"
-                style="
-                  color: white;
-                  border: 1px solid white;
-                  padding: 0.375rem 0.75rem;
-                  border-radius: 0.25rem;
-                  text-decoration: none;
-                "
+              <a class="btn btn-outline-lab nav-pill-light" href="climatologia.html" id="nav-climatologia"
                 >Climatologia</a
               >
             </li>
             <li class="nav-item active mx-2">
-              <a
-                class="btn btn-outline-lab"
-                href="team.html"
-                id="nav-team"
-                style="
-                  color: white;
-                  border: 1px solid white;
-                  padding: 0.375rem 0.75rem;
-                  border-radius: 0.25rem;
-                  text-decoration: none;
-                "
-                >Equipe</a
-              >
+              <a class="btn btn-outline-lab nav-pill-light" href="team.html" id="nav-team">Equipe</a>
             </li>
           </ul>
 
-          <button
-            id="themeToggleBtn"
-            class="btn btn-outline-light mr-3"
-            style="border: none; background: transparent; font-size: 1.2rem"
-            title="Alternar Tema"
-          >
+          <button id="themeToggleBtn" class="btn btn-outline-light mr-3" title="Alternar Tema">
             <i id="themeIcon" class="fas fa-moon"></i>
           </button>
           <a href="http://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
@@ -155,7 +96,7 @@
               alt="CIEnAm"
               width="834"
               height="290"
-              style="height: 36px; width: auto; filter: brightness(1.1)"
+              class="brand-logo-sm brand-logo-map"
             />
           </a>
         </div>
@@ -175,7 +116,7 @@
               alt="LabMiM Logo"
               width="1280"
               height="409"
-              style="height: 40px; width: auto"
+              class="brand-logo"
             />
           </a>
         </div>
@@ -293,9 +234,7 @@
             <div class="doc-tab-content active" data-tab="overview">
               <h3>Plataforma WebGIS de Previsão Meteorológica — LabMiM / UFBA</h3>
               <div class="doc-warning">
-                <strong
-                  ><i class="fas fa-exclamation-triangle" style="color: #ff6b6b; margin-right: 8px"></i>ATENÇÃO:</strong
-                ><br />
+                <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
                 Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
                 associados. Não há nenhum compromisso quanto a confiabilidade das previsões, isentando os pesquisadores
                 participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados pela
@@ -357,7 +296,7 @@
             <!-- VARIABLES TAB -->
             <div class="doc-tab-content" data-tab="variables">
               <h3>Variáveis Meteorológicas e Energéticas</h3>
-              <p style="font-size: 0.85rem; color: #666; margin-bottom: 16px">
+              <p class="doc-muted-copy">
                 O sistema disponibiliza 9 variáveis derivadas das saídas do modelo WRF. Cada variável possui uma paleta
                 de cores, unidade e cálculos derivados específicos exibidos no painel lateral.
               </p>
@@ -698,54 +637,33 @@
       <div class="chart-modal-content">
         <div class="chart-modal-header">
           <h2 id="timeSeriesModalTitle">Série Temporal</h2>
-          <div class="chart-modal-actions" style="display: flex; gap: 10px; align-items: center">
+          <div class="chart-modal-actions">
             <button
-              class="chart-export-btn btn btn-sm btn-outline-lab"
+              class="chart-export-btn chart-export-button btn btn-sm btn-outline-lab"
               id="timeSeriesExportBtn"
               title="Exportar CSV"
-              style="color: #0d2b4d; border-color: #0d2b4d; padding: 2px 8px; font-size: 0.85rem"
             >
               <i class="fas fa-download"></i> CSV
             </button>
-            <button
-              class="chart-modal-close"
-              id="timeSeriesCloseBtn"
-              title="Fechar"
-              style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666"
-            >
+            <button class="chart-modal-close" id="timeSeriesCloseBtn" title="Fechar">
               <i class="fas fa-times"></i>
             </button>
           </div>
         </div>
-        <div class="chart-modal-body" style="position: relative; overflow-y: auto; padding: 15px">
+        <div class="chart-modal-body">
           <!-- Loading overlay that only covers the body -->
-          <div
-            id="timeSeriesLoadingOverlay"
-            style="
-              display: none;
-              position: absolute;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              background: rgba(255, 255, 255, 0.8);
-              z-index: 10;
-              justify-content: center;
-              align-items: center;
-              flex-direction: column;
-            "
-          >
-            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem">
+          <div id="timeSeriesLoadingOverlay" class="chart-loading-overlay" style="display: none">
+            <div class="spinner-border text-primary chart-loading-spinner" role="status">
               <span class="visually-hidden">Carregando...</span>
             </div>
-            <div style="margin-top: 10px; font-weight: 500; color: #0d2b4d">Carregando dados...</div>
+            <div class="chart-loading-message">Carregando dados...</div>
           </div>
 
           <!-- Containers for the charts -->
-          <div id="chartContainerValue" style="height: 350px; margin-bottom: 20px; width: 100%">
+          <div id="chartContainerValue" class="chart-container">
             <canvas id="chartCanvasValue"></canvas>
           </div>
-          <div id="chartContainerEnergy" style="height: 350px; display: none; width: 100%">
+          <div id="chartContainerEnergy" class="chart-container chart-container-secondary">
             <canvas id="chartCanvasEnergy"></canvas>
           </div>
         </div>

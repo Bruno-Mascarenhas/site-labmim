@@ -12,14 +12,26 @@ class ChartsManager {
     this.timeSeriesData = {};
     this.timeSeriesCache = new Map();
     this.abortController = null;
+    this.ui = this._cacheUIElements();
 
     this._setupModalListeners();
   }
 
+  _cacheUIElements() {
+    return {
+      modal: document.getElementById("timeSeriesModal"),
+      title: document.getElementById("timeSeriesModalTitle"),
+      closeBtn: document.getElementById("timeSeriesCloseBtn"),
+      exportBtn: document.getElementById("timeSeriesExportBtn"),
+      loadingOverlay: document.getElementById("timeSeriesLoadingOverlay"),
+      chartValueCanvas: document.getElementById("chartCanvasValue"),
+      chartEnergyCanvas: document.getElementById("chartCanvasEnergy"),
+      chartEnergyContainer: document.getElementById("chartContainerEnergy"),
+    };
+  }
+
   _setupModalListeners() {
-    const closeBtn = document.getElementById("timeSeriesCloseBtn");
-    const exportBtn = document.getElementById("timeSeriesExportBtn");
-    const modal = document.getElementById("timeSeriesModal");
+    const { closeBtn, exportBtn, modal } = this.ui;
 
     if (closeBtn) closeBtn.addEventListener("click", () => this.closeModal());
     if (exportBtn) exportBtn.addEventListener("click", () => this.exportCurrentData());
@@ -66,7 +78,7 @@ class ChartsManager {
       return timeSeriesData;
     } catch (error) {
       if (error.name === "AbortError") {
-        console.log("[Charts] Request cancelled by the user.");
+        return {};
       } else {
         console.error("[Charts] Error loading time series:", error);
       }
@@ -90,7 +102,7 @@ class ChartsManager {
           const d = this._quickDist(lat, lng, c.lat, c.lng);
           if (d < minDist) {
             minDist = d;
-            closestIndex = i;
+            closestIndex = this.app?.getCellIndexForLayer?.(layer, i) ?? i;
           }
         });
         return closestIndex;
@@ -108,7 +120,7 @@ class ChartsManager {
           const d = this._quickDist(lat, lng, c.lat, c.lng);
           if (d < minDist) {
             minDist = d;
-            closestIndex = i;
+            closestIndex = Number.isInteger(feature.properties?.linear_index) ? feature.properties.linear_index : i;
           }
         }
       });
@@ -122,31 +134,28 @@ class ChartsManager {
   // ─── Modal Rendering ──────────────────────────────────────────────────────
 
   openModal() {
-    const modal = document.getElementById("timeSeriesModal");
-    if (modal) modal.style.display = "flex";
+    if (this.ui.modal) this.ui.modal.style.display = "flex";
   }
 
   closeModal() {
-    const modal = document.getElementById("timeSeriesModal");
-    if (modal) modal.style.display = "none";
+    if (this.ui.modal) this.ui.modal.style.display = "none";
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
     }
   }
 
-  renderChartsForVariable(variableType, selectedCellData) {
+  renderChartsForVariable(variableType) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
 
-    document.getElementById("timeSeriesModalTitle").innerHTML =
-      `<i class="fas fa-${this._getIcon(variableType, "value")}"></i> Série Temporal: ${config.label}`;
+    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType, "value")}"></i> Série Temporal: ${config.label}`;
 
     const isSolarOrWind = variableType === "solar" || variableType === "eolico";
 
     this._updateOrCreateChart(variableType, "value", "chartCanvasValue");
 
-    const energyContainer = document.getElementById("chartContainerEnergy");
+    const energyContainer = this.ui.chartEnergyContainer;
     if (isSolarOrWind) {
       energyContainer.style.display = "block";
       this._updateOrCreateChart(variableType, "energy", "chartCanvasEnergy");
@@ -183,7 +192,6 @@ class ChartsManager {
       color: chartColor,
     } = this._prepareChartData(variableType, chartType, config, timeData);
 
-    // Optimization: Cache parsed dates
     const labels = timeData.map((d) => {
       if (!d._formattedLabel) {
         d._formattedLabel = new Date(d.timestamp).toLocaleString("pt-BR", {
@@ -199,7 +207,6 @@ class ChartsManager {
     let chartInstance = this.charts.get(canvasId);
 
     if (chartInstance) {
-      // Update in-place (Performance Win)
       chartInstance.data.labels = labels;
       chartInstance.data.datasets[0].data = chartData;
       chartInstance.data.datasets[0].label = chartLabel;
@@ -212,11 +219,17 @@ class ChartsManager {
       this._applyChartTheme(chartInstance, chartColor);
       chartInstance.update("none");
     } else {
-      // Create new if it does not exist
-      const ctx = document.getElementById(canvasId).getContext("2d");
+      const ctx = this._getChartCanvas(canvasId)?.getContext("2d");
+      if (!ctx) return;
       chartInstance = new Chart(ctx, this._buildChartConfig(chartData, labels, chartLabel, chartColor, chartUnit));
       this.charts.set(canvasId, chartInstance);
     }
+  }
+
+  _getChartCanvas(canvasId) {
+    if (canvasId === "chartCanvasValue") return this.ui.chartValueCanvas;
+    if (canvasId === "chartCanvasEnergy") return this.ui.chartEnergyCanvas;
+    return document.getElementById(canvasId);
   }
 
   refreshChartTheme() {
@@ -350,9 +363,6 @@ class ChartsManager {
           [variableType]: { value: d.value },
           temperature: { value: temperatureByHour.get(d.hour) },
         });
-        // "Produção Energética" will be returned by specificInfo since we haven't translated VARIABLES_CONFIG yet
-        // However, we translate our string matchers. Since VARIABLES_CONFIG label will still be PT (used in HTML),
-        // we check for both EN and PT just in case, or keep matching PT if VARIABLES_CONFIG is untouched
         const item = info?.items?.find(
           (it) =>
             it.label?.includes("Produção Energética") ||
@@ -368,7 +378,9 @@ class ChartsManager {
           );
           return isNaN(num) ? 0 : num;
         }
-      } catch (_) {}
+      } catch {
+        return 0;
+      }
       return 0;
     });
 
@@ -439,7 +451,7 @@ class ChartsManager {
   }
 
   _getAvailableHourCount() {
-    const sliderMax = parseInt(document.getElementById("layerSlider")?.max, 10);
+    const sliderMax = parseInt(this.app?.ui?.slider?.max, 10);
     const stateMax = parseInt(this.app?.state?.maxLayer, 10);
     return Number.isFinite(sliderMax) ? sliderMax : Number.isFinite(stateMax) ? stateMax : 73;
   }
@@ -575,3 +587,5 @@ class ChartsManager {
     );
   }
 }
+
+window.ChartsManager = ChartsManager;
