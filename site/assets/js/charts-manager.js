@@ -43,8 +43,9 @@ class ChartsManager {
     try {
       const lat = selectedCell?.lat;
       const lng = selectedCell?.lng;
-      const cellIndex =
-        Number.isInteger(selectedCell?.cellIndex) ? selectedCell.cellIndex : await this.findCellIndex(lat, lng, domain, signal);
+      const cellIndex = Number.isInteger(selectedCell?.cellIndex)
+        ? selectedCell.cellIndex
+        : await this.findCellIndex(lat, lng, domain, signal);
       if (cellIndex === null) return {};
 
       const timeSeriesData = {};
