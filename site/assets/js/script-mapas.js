@@ -41,6 +41,7 @@
           if (!sourceEl || !videoEl) continue;
           sourceEl.src = videos[i][variableKey];
           videoEl.style.maxWidth = "420px";
+          videoEl.loop = true;
           videoEl.load();
           videoEl.play();
         }

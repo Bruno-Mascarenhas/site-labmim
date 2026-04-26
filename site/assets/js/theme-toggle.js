@@ -4,38 +4,53 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-  const themeToggleBtn = document.getElementById("themeToggleBtn");
-  const themeIcon = document.getElementById("themeIcon");
+  const themeToggleBtns = document.querySelectorAll("#themeToggleBtn, [data-theme-toggle]");
+  const themeIcons = document.querySelectorAll("#themeIcon, [data-theme-icon]");
 
-  if (!themeToggleBtn) return;
+  if (!themeToggleBtns.length) return;
 
   function updateIcon(isDark) {
-    if (isDark) {
-      themeIcon.classList.remove("fa-moon");
-      themeIcon.classList.add("fa-sun");
-    } else {
-      themeIcon.classList.remove("fa-sun");
-      themeIcon.classList.add("fa-moon");
-    }
+    themeIcons.forEach((themeIcon) => {
+      if (isDark) {
+        themeIcon.classList.remove("fa-moon");
+        themeIcon.classList.add("fa-sun");
+      } else {
+        themeIcon.classList.remove("fa-sun");
+        themeIcon.classList.add("fa-moon");
+      }
+    });
+
+    themeToggleBtns.forEach((themeToggleBtn) => {
+      themeToggleBtn.setAttribute("aria-label", isDark ? "Alternar para tema claro" : "Alternar para tema escuro");
+      themeToggleBtn.setAttribute("aria-pressed", String(isDark));
+      themeToggleBtn.setAttribute("title", isDark ? "Alternar para tema claro" : "Alternar para tema escuro");
+    });
+  }
+
+  function announceThemeChange(isDark) {
+    window.dispatchEvent(new CustomEvent("labmim-theme-change", { detail: { isDark } }));
   }
 
   // Verifica o estado inicial (aplicado pelo script no <head>)
   let isDark = document.documentElement.classList.contains("dark-theme");
   updateIcon(isDark);
 
-  themeToggleBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    isDark = document.documentElement.classList.contains("dark-theme");
-    const newDark = !isDark;
+  themeToggleBtns.forEach((themeToggleBtn) => {
+    themeToggleBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      isDark = document.documentElement.classList.contains("dark-theme");
+      const newDark = !isDark;
 
-    if (newDark) {
-      document.documentElement.classList.add("dark-theme");
-      localStorage.setItem("labmim-theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark-theme");
-      localStorage.setItem("labmim-theme", "light");
-    }
-    updateIcon(newDark);
+      if (newDark) {
+        document.documentElement.classList.add("dark-theme");
+        localStorage.setItem("labmim-theme", "dark");
+      } else {
+        document.documentElement.classList.remove("dark-theme");
+        localStorage.setItem("labmim-theme", "light");
+      }
+      updateIcon(newDark);
+      announceThemeChange(newDark);
+    });
   });
 
   // Ouve mudanças na preferência do sistema se o usuário não definiu manualmente
@@ -48,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.documentElement.classList.remove("dark-theme");
       }
       updateIcon(isDark);
+      announceThemeChange(isDark);
     }
   });
 });

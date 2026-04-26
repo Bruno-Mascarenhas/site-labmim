@@ -5,6 +5,12 @@
 const MIN_RATE = 0.25;
 const MAX_RATE = 16;
 
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("video[id^='vid']").forEach((video) => {
+    video.loop = true;
+  });
+});
+
 function playPause(videoId) {
   const video = document.getElementById("vid" + videoId);
   if (video.paused) {
@@ -34,14 +40,6 @@ function slow(videoId) {
   velInput.value = video.defaultPlaybackRate;
   video.playbackRate = video.defaultPlaybackRate;
   video.play();
-}
-
-function loop(videoId) {
-  const video = document.getElementById("vid" + videoId);
-  const loopLabel = document.getElementById("loop" + videoId);
-  video.loop = !video.loop;
-  loopLabel.textContent = video.loop ? "desligar loop" : "Loop";
-  if (video.loop) video.play();
 }
 
 function makeBig(videoId) {

@@ -137,7 +137,7 @@ const VARIABLES_CONFIG = {
 
       const airDensity = getParameter("eolico", "airDensity", 1.225);
       const rotorDiameter = getParameter("eolico", "rotorDiameter", 40);
-      const Cp = getParameter("eolico", "powerCoefficient", 0.4);
+      const Cp = getParameter("eolico", "Cp", getParameter("eolico", "powerCoefficient", 0.4));
 
       const densityOfAir = airDensity * (288 / (273 + tempValue));
       const rotorArea = Math.PI * Math.pow(rotorDiameter / 2, 2);

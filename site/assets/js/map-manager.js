@@ -49,7 +49,7 @@ class MeteoMapManager {
       domain: "D01",
       index: 7,
       isPlaying: false,
-      isLooping: false,
+      hasUserControlledPlayback: false,
       isClippedToState: false,
       stateAbbr: "BA",
       maxLayer: 73,
@@ -551,7 +551,6 @@ class MeteoMapManager {
   setupEventListeners() {
     this.ui.slider = document.getElementById("layerSlider");
     this.ui.playPauseBtn = document.getElementById("playPauseBtn");
-    this.ui.loopToggleBtn = document.getElementById("loopToggleBtn");
     this.ui.clipStateBtn = document.getElementById("clipStateBtn");
     this.ui.variableSelect = document.getElementById("variableSelect");
     this.ui.closeSidebarBtn = document.getElementById("closeSidebarBtn");
@@ -580,13 +579,13 @@ class MeteoMapManager {
     });
 
     this.ui.playPauseBtn.addEventListener("click", () => {
+      this.state.hasUserControlledPlayback = true;
       if (!this.state.isPlaying) {
         this.closeSidebar();
       }
       this.togglePlayPause();
     });
 
-    this.ui.loopToggleBtn.addEventListener("click", () => this.toggleLoop());
     this.ui.clipStateBtn.addEventListener("click", () => this.toggleClipState(this.ui.clipStateBtn));
     this.ui.variableSelect.addEventListener("change", (e) => this.switchVariable(e.target.value));
     this.ui.closeSidebarBtn.addEventListener("click", () => this.closeSidebar());
@@ -719,21 +718,26 @@ class MeteoMapManager {
   }
 
   togglePlayPause() {
-    this.state.isPlaying = !this.state.isPlaying;
+    this.setPlaybackState(!this.state.isPlaying);
+  }
 
-    if (this.state.isPlaying) {
+  setPlaybackState(shouldPlay) {
+    if (shouldPlay) {
+      if (this.state.isPlaying && this.state.intervalId) return;
+      this.state.isPlaying = true;
       this.ui.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
       this.startAnimation();
     } else {
+      if (!this.state.isPlaying && !this.state.intervalId) return;
       this.ui.playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
       this.stopAnimation();
     }
   }
 
-  toggleLoop() {
-    this.state.isLooping = !this.state.isLooping;
-    this.ui.loopToggleBtn.textContent = this.state.isLooping ? "🔁 Loop On" : "🔁 Loop Off";
-    this.ui.loopToggleBtn.classList.toggle("active", this.state.isLooping);
+  startInitialPlayback() {
+    if (!this.state.hasUserControlledPlayback) {
+      this.setPlaybackState(true);
+    }
   }
 
   toggleClipState(btn) {
@@ -750,6 +754,9 @@ class MeteoMapManager {
   }
 
   startAnimation() {
+    if (this.state.intervalId) {
+      clearInterval(this.state.intervalId);
+    }
     this.state.intervalId = setInterval(() => {
       let nextIndex = parseInt(this.ui.slider.value) + 1;
 
@@ -761,9 +768,7 @@ class MeteoMapManager {
       }
 
       if (nextIndex > this.state.maxLayer) {
-        nextIndex = this.state.isLooping ? (config.id === "SWDOWN" ? 7 : 1) : this.state.maxLayer;
-
-        if (!this.state.isLooping) this.stopAnimation();
+        nextIndex = config.id === "SWDOWN" ? 7 : 1;
       }
 
       this.ui.slider.value = nextIndex;
@@ -773,6 +778,7 @@ class MeteoMapManager {
 
   stopAnimation() {
     clearInterval(this.state.intervalId);
+    this.state.intervalId = null;
     this.state.isPlaying = false;
     this.ui.playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
   }

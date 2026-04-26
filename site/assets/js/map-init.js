@@ -26,9 +26,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       chartsManager
         .loadTimeSeriesData(
-          app.state.selectedCell.lat,
-          app.state.selectedCell.lng,
-          app.getDomainFromZoom(app.map.getZoom())
+          app.state.selectedCell,
+          app.getDomainFromZoom(app.map.getZoom()) || app.state.domain,
+          app.state.type
         )
         .then((data) => {
           // If it returned an empty object, the request might have been aborted
@@ -43,4 +43,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
   };
+
+  app.applyMapChanges().then(() => {
+    app.startInitialPlayback();
+  });
 });

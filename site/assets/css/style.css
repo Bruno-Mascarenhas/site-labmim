@@ -59,8 +59,8 @@ body {
 }
 
 .bg-lab {
-  background: rgb(255, 255, 255);
-  background: linear-gradient(155deg, rgba(255, 255, 255, 1) 20%, rgba(209, 218, 218, 1) 73%);
+  background: #eef4f7;
+  background: linear-gradient(155deg, #f8fbfc 18%, #dce8ee 72%, #cbdce8 100%);
 }
 
 .text-lab {

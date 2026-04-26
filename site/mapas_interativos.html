@@ -51,7 +51,7 @@
   </head>
 
   <body>
-    <header class="maps-header" style="background-color: #0d2b4d !important">
+    <header class="maps-header" style="background-color: #0b3158 !important">
       <!-- Navigation -->
       <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" style="padding: 0.5rem 1rem">
         <a class="navbar-brand ms-4" href="index.html">
@@ -222,9 +222,6 @@
           <button class="control-btn" id="playPauseBtn" title="Reproduzir/Pausar">
             <i class="fas fa-play"></i> Play
           </button>
-          <button class="control-btn" id="loopToggleBtn" title="Loop de Reprodução">
-            <i class="fas fa-redo"></i> Loop Off
-          </button>
           <button class="control-btn" id="clipStateBtn" title="Clipar/Recortar Estado" style="display: none">
             <i class="fas fa-map"></i> Clip
           </button>
@@ -295,18 +292,7 @@
             <!-- OVERVIEW TAB -->
             <div class="doc-tab-content active" data-tab="overview">
               <h3>Plataforma WebGIS de Previsão Meteorológica — LabMiM / UFBA</h3>
-              <div
-                style="
-                  background: #fff3cd;
-                  border-left: 4px solid #ffc107;
-                  padding: 12px;
-                  border-radius: 4px;
-                  margin-bottom: 16px;
-                  font-size: 0.85rem;
-                  line-height: 1.5;
-                  color: #856404;
-                "
-              >
+              <div class="doc-warning">
                 <strong
                   ><i class="fas fa-exclamation-triangle" style="color: #ff6b6b; margin-right: 8px"></i>ATENÇÃO:</strong
                 ><br />
@@ -344,7 +330,6 @@
               </p>
               <ul class="doc-list">
                 <li><strong>Play/Pause:</strong> Reproduz automaticamente a sequência temporal</li>
-                <li><strong>Loop:</strong> Reinicia automaticamente ao chegar ao final</li>
               </ul>
 
               <h4>🔍 Navegação do Mapa</h4>

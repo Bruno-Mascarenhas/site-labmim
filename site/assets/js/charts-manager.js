@@ -10,6 +10,7 @@ class ChartsManager {
     this.app = app;
     this.charts = new Map();
     this.timeSeriesData = {};
+    this.timeSeriesCache = new Map();
     this.abortController = null;
 
     this._setupModalListeners();
@@ -26,11 +27,12 @@ class ChartsManager {
       modal.addEventListener("click", (e) => {
         if (e.target === modal) this.closeModal();
       });
+    window.addEventListener("labmim-theme-change", () => this.refreshChartTheme());
   }
 
   // ─── Data Loading ─────────────────────────────────────────────────────────
 
-  async loadTimeSeriesData(lat, lng, domain) {
+  async loadTimeSeriesData(selectedCell, domain, variableType) {
     // Abort previous request if it exists
     if (this.abortController) {
       this.abortController.abort();
@@ -39,57 +41,20 @@ class ChartsManager {
     const signal = this.abortController.signal;
 
     try {
-      const cellIndex = await this.findCellIndex(lat, lng, domain, signal);
+      const lat = selectedCell?.lat;
+      const lng = selectedCell?.lng;
+      const cellIndex =
+        Number.isInteger(selectedCell?.cellIndex) ? selectedCell.cellIndex : await this.findCellIndex(lat, lng, domain, signal);
       if (cellIndex === null) return {};
 
       const timeSeriesData = {};
-      const variableKeys = Object.keys(VARIABLES_CONFIG);
+      const variableKeys = this._getRequiredVariableKeys(variableType);
 
-      // Process variables in parallel
       await Promise.all(
         variableKeys.map(async (variableKey) => {
-          const config = VARIABLES_CONFIG[variableKey];
-          if (!config?.id) return;
-
-          let variableId = config.id;
-          if (variableKey === "eolico" && this.app.windHeight) {
-            if (this.app.windHeight === 100) variableId = config.id_100m;
-            if (this.app.windHeight === 150) variableId = config.id_150m;
-          }
-
-          const BATCH_SIZE = 10;
-          const allResults = [];
-          for (let start = 0; start < 73; start += BATCH_SIZE) {
-            if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-            const batch = Array.from({ length: Math.min(BATCH_SIZE, 73 - start) }, (_, j) => {
-              const hour = start + j + 1;
-              return this._fetchHourJson(variableId, domain, hour, signal)
-                .then((data) => {
-                  if (data?.values && Array.isArray(data.values)) {
-                    const cellValue = data.values[cellIndex];
-                    if (cellValue != null) {
-                      return {
-                        hour,
-                        value: cellValue,
-                        timestamp: this._timestampForHour(hour, data),
-                      };
-                    }
-                  }
-                  return null;
-                })
-                .catch((err) => {
-                  if (err.name === "AbortError") throw err;
-                  return null;
-                });
-            });
-            const batchResults = await Promise.all(batch);
-            allResults.push(...batchResults);
-          }
-
-          const hourlyData = allResults.filter(Boolean);
-
-          if (hourlyData.length > 0) {
-            timeSeriesData[variableKey] = { config, data: hourlyData };
+          const result = await this._loadVariableSeries(variableKey, domain, cellIndex, signal);
+          if (result?.data?.length) {
+            timeSeriesData[variableKey] = result;
           }
         })
       );
@@ -200,6 +165,7 @@ class ChartsManager {
     this.charts.forEach((chart) => chart?.destroy());
     this.charts.clear();
     this.timeSeriesData = {};
+    this.timeSeriesCache.clear();
   }
 
   // ─── Internal Methods ─────────────────────────────────────────────────────
@@ -218,13 +184,15 @@ class ChartsManager {
 
     // Optimization: Cache parsed dates
     const labels = timeData.map((d) => {
-      if (!d._formattedTime) {
-        d._formattedTime = new Date(d.timestamp).toLocaleTimeString("pt-BR", {
+      if (!d._formattedLabel) {
+        d._formattedLabel = new Date(d.timestamp).toLocaleString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
           hour: "2-digit",
           minute: "2-digit",
         });
       }
-      return d._formattedTime;
+      return d._formattedLabel;
     });
 
     let chartInstance = this.charts.get(canvasId);
@@ -236,10 +204,12 @@ class ChartsManager {
       chartInstance.data.datasets[0].label = chartLabel;
       chartInstance.data.datasets[0].borderColor = chartColor;
       chartInstance.data.datasets[0].backgroundColor = `${chartColor}20`;
+      chartInstance.data.datasets[0].pointRadius = chartData.length > 96 ? 0 : 3;
       chartInstance.data.datasets[0].pointBackgroundColor = chartColor;
       chartInstance.options.scales.y.title.text = chartUnit;
       chartInstance.options.plugins.tooltip.callbacks.label = (ctx) => `${ctx.parsed.y.toFixed(2)} ${chartUnit}`;
-      chartInstance.update();
+      this._applyChartTheme(chartInstance, chartColor);
+      chartInstance.update("none");
     } else {
       // Create new if it does not exist
       const ctx = document.getElementById(canvasId).getContext("2d");
@@ -248,7 +218,41 @@ class ChartsManager {
     }
   }
 
+  refreshChartTheme() {
+    this.charts.forEach((chart) => {
+      const chartColor = chart.data.datasets[0]?.borderColor || "#667eea";
+      this._applyChartTheme(chart, chartColor);
+      chart.update("none");
+    });
+  }
+
+  _applyChartTheme(chart, accentColor) {
+    const theme = this._getThemeColors();
+    chart.options.plugins.legend.labels.color = theme.textSecondary;
+    chart.options.plugins.tooltip.backgroundColor = theme.tooltipBg;
+    chart.options.plugins.tooltip.titleColor = theme.textPrimary;
+    chart.options.plugins.tooltip.bodyColor = theme.textPrimary;
+    chart.options.plugins.tooltip.borderColor = accentColor;
+    chart.options.scales.y.ticks.color = theme.textSecondary;
+    chart.options.scales.x.ticks.color = theme.textSecondary;
+    chart.options.scales.y.grid.color = theme.grid;
+    chart.options.scales.x.grid.color = theme.grid;
+    chart.options.scales.y.title.color = theme.textSecondary;
+  }
+
+  _getThemeColors() {
+    const rootStyles = getComputedStyle(document.documentElement);
+    const bodyStyles = getComputedStyle(document.body);
+    return {
+      textPrimary: rootStyles.getPropertyValue("--text-primary").trim() || bodyStyles.color || "#fff",
+      textSecondary: rootStyles.getPropertyValue("--text-secondary").trim() || "#888",
+      grid: rootStyles.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
+      tooltipBg: rootStyles.getPropertyValue("--tooltip-bg").trim() || "rgba(0,0,0,0.8)",
+    };
+  }
+
   _buildChartConfig(chartData, labels, chartLabel, chartColor, chartUnit) {
+    const theme = this._getThemeColors();
     return {
       type: "line",
       data: {
@@ -262,7 +266,7 @@ class ChartsManager {
             borderWidth: 3,
             fill: true,
             tension: 0.4,
-            pointRadius: 4,
+            pointRadius: chartData.length > 96 ? 0 : 3,
             pointBackgroundColor: chartColor,
             pointBorderColor: "#fff",
             pointBorderWidth: 2,
@@ -280,15 +284,15 @@ class ChartsManager {
             position: "top",
             labels: {
               font: { size: 14 },
-              color: "#666",
+              color: theme.textSecondary,
               padding: 15,
               usePointStyle: true,
             },
           },
           tooltip: {
-            backgroundColor: "rgba(0,0,0,0.8)",
-            titleColor: "#fff",
-            bodyColor: "#fff",
+            backgroundColor: theme.tooltipBg,
+            titleColor: theme.textPrimary,
+            bodyColor: theme.textPrimary,
             borderColor: chartColor,
             borderWidth: 2,
             padding: 12,
@@ -302,21 +306,21 @@ class ChartsManager {
           y: {
             beginAtZero: false,
             ticks: {
-              color: "#888",
+              color: theme.textSecondary,
               font: { size: 13 },
               callback: (v) => v.toFixed(1),
             },
-            grid: { color: "#f0f0f0", drawBorder: false },
+            grid: { color: theme.grid, drawBorder: false },
             title: {
               display: true,
               text: chartUnit,
               font: { size: 13, weight: "bold" },
-              color: "#666",
+              color: theme.textSecondary,
             },
           },
           x: {
-            ticks: { color: "#888", font: { size: 13 } },
-            grid: { color: "#f0f0f0", drawBorder: false },
+            ticks: { color: theme.textSecondary, font: { size: 13 }, maxTicksLimit: 12 },
+            grid: { color: theme.grid, drawBorder: false },
           },
         },
       },
@@ -335,9 +339,14 @@ class ChartsManager {
 
     const unit = variableType === "solar" ? "Wh/m²" : "kWh";
     const color = variableType === "solar" ? "#FDB462" : "#80B1D3";
+    const temperatureSeries = this.timeSeriesData?.temperature?.data || [];
+    const temperatureByHour = new Map(temperatureSeries.map((entry) => [entry.hour, entry.value]));
     const data = timeData.map((d) => {
       try {
-        const info = config.specificInfo(d.value, {});
+        const info = config.specificInfo(d.value, {
+          [variableType]: { value: d.value },
+          temperature: { value: temperatureByHour.get(d.hour) },
+        });
         // "Produção Energética" will be returned by specificInfo since we haven't translated VARIABLES_CONFIG yet
         // However, we translate our string matchers. Since VARIABLES_CONFIG label will still be PT (used in HTML),
         // we check for both EN and PT just in case, or keep matching PT if VARIABLES_CONFIG is untouched
@@ -361,6 +370,75 @@ class ChartsManager {
     });
 
     return { data, label: "Produção Energética Acumulada (1h)", unit, color };
+  }
+
+  _getRequiredVariableKeys(variableType) {
+    const keys = new Set();
+    if (VARIABLES_CONFIG[variableType]?.id) keys.add(variableType);
+    if (variableType === "solar" || variableType === "eolico") keys.add("temperature");
+    return [...keys];
+  }
+
+  async _loadVariableSeries(variableKey, domain, cellIndex, signal) {
+    const config = VARIABLES_CONFIG[variableKey];
+    if (!config?.id) return null;
+
+    const variableId = this._getVariableId(variableKey, config);
+    const maxHour = this._getAvailableHourCount();
+    const cacheKey = `${domain}:${variableId}:${cellIndex}:${maxHour}`;
+    const cached = this.timeSeriesCache.get(cacheKey);
+    if (cached) return cached;
+
+    const BATCH_SIZE = 12;
+    const allResults = [];
+    for (let start = 1; start <= maxHour; start += BATCH_SIZE) {
+      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+      const batchEnd = Math.min(start + BATCH_SIZE - 1, maxHour);
+      const batch = [];
+      for (let hour = start; hour <= batchEnd; hour++) {
+        batch.push(this._fetchHourValue(variableId, domain, hour, cellIndex, signal));
+      }
+      const batchResults = await Promise.all(batch);
+      allResults.push(...batchResults);
+    }
+
+    const result = { config, data: allResults.filter(Boolean) };
+    this.timeSeriesCache.set(cacheKey, result);
+    return result;
+  }
+
+  async _fetchHourValue(variableId, domain, hour, cellIndex, signal) {
+    try {
+      const data = await this._fetchHourJson(variableId, domain, hour, signal);
+      if (data?.values && Array.isArray(data.values)) {
+        const cellValue = data.values[cellIndex];
+        if (cellValue != null) {
+          return {
+            hour,
+            value: cellValue,
+            timestamp: this._timestampForHour(hour, data),
+          };
+        }
+      }
+      return null;
+    } catch (err) {
+      if (err.name === "AbortError") throw err;
+      return null;
+    }
+  }
+
+  _getVariableId(variableKey, config) {
+    if (variableKey === "eolico" && this.app?.windHeight) {
+      if (this.app.windHeight === 100) return config.id_100m;
+      if (this.app.windHeight === 150) return config.id_150m;
+    }
+    return config.id;
+  }
+
+  _getAvailableHourCount() {
+    const sliderMax = parseInt(document.getElementById("layerSlider")?.max, 10);
+    const stateMax = parseInt(this.app?.state?.maxLayer, 10);
+    return Number.isFinite(sliderMax) ? sliderMax : Number.isFinite(stateMax) ? stateMax : 73;
   }
 
   exportCurrentData() {
@@ -436,6 +514,10 @@ class ChartsManager {
 
   _timestampForHour(hour, data) {
     const meta = data?.metadata;
+    if (meta?.date_time) {
+      const parsed = this._parseMetadataDate(meta.date_time);
+      if (!isNaN(parsed)) return parsed.toISOString();
+    }
     if (meta?.start_date) {
       const base = new Date(meta.start_date);
       if (!isNaN(base)) {
@@ -447,6 +529,16 @@ class ChartsManager {
     base.setMinutes(0, 0, 0);
     base.setHours(base.getHours() + (hour - 1));
     return base.toISOString();
+  }
+
+  _parseMetadataDate(value) {
+    if (value instanceof Date) return value;
+    const parts = String(value).trim().split(" ");
+    if (parts.length >= 2 && parts[0].includes("/")) {
+      const dateParts = parts[0].split("/").reverse().join("-");
+      return new Date(`${dateParts} ${parts[1]}`);
+    }
+    return new Date(value);
   }
 
   _quickDist(lat1, lng1, lat2, lng2) {
