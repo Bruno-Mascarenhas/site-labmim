@@ -228,10 +228,10 @@ class ChartsManager {
 
   _applyChartTheme(chart, accentColor) {
     const theme = this._getThemeColors();
-    chart.options.plugins.legend.labels.color = theme.textSecondary;
+    chart.options.plugins.legend.labels.color = theme.legendText;
     chart.options.plugins.tooltip.backgroundColor = theme.tooltipBg;
-    chart.options.plugins.tooltip.titleColor = theme.textPrimary;
-    chart.options.plugins.tooltip.bodyColor = theme.textPrimary;
+    chart.options.plugins.tooltip.titleColor = theme.tooltipText;
+    chart.options.plugins.tooltip.bodyColor = theme.tooltipText;
     chart.options.plugins.tooltip.borderColor = accentColor;
     chart.options.scales.y.ticks.color = theme.textSecondary;
     chart.options.scales.x.ticks.color = theme.textSecondary;
@@ -246,8 +246,10 @@ class ChartsManager {
     return {
       textPrimary: rootStyles.getPropertyValue("--text-primary").trim() || bodyStyles.color || "#fff",
       textSecondary: rootStyles.getPropertyValue("--text-secondary").trim() || "#888",
+      legendText: document.documentElement.classList.contains("dark-theme") ? "#fff" : "#666",
       grid: rootStyles.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
-      tooltipBg: rootStyles.getPropertyValue("--tooltip-bg").trim() || "rgba(0,0,0,0.8)",
+      tooltipBg: "rgba(18, 18, 18, 0.96)",
+      tooltipText: "#fff",
     };
   }
 
@@ -284,15 +286,15 @@ class ChartsManager {
             position: "top",
             labels: {
               font: { size: 14 },
-              color: theme.textSecondary,
+              color: theme.legendText,
               padding: 15,
               usePointStyle: true,
             },
           },
           tooltip: {
             backgroundColor: theme.tooltipBg,
-            titleColor: theme.textPrimary,
-            bodyColor: theme.textPrimary,
+            titleColor: theme.tooltipText,
+            bodyColor: theme.tooltipText,
             borderColor: chartColor,
             borderWidth: 2,
             padding: 12,

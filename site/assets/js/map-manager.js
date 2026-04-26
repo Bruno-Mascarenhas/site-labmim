@@ -610,6 +610,7 @@ class MeteoMapManager {
     this.map.on("click", (e) => this.handleMapClick(e));
 
     this.updateDomainIndicator();
+    this.updateWindLayerToggleVisibility(this.state.type);
 
     this.setupDocumentationListeners();
   }
@@ -799,7 +800,7 @@ class MeteoMapManager {
       if (this.ui.heightSelector) this.ui.heightSelector.classList.remove("active");
     }
 
-    if (this.ui.windLayerToggle) this.ui.windLayerToggle.classList.add("active");
+    this.updateWindLayerToggleVisibility(variableType);
 
     const selectedCellCoords = this.state.selectedCell
       ? {
@@ -822,6 +823,19 @@ class MeteoMapManager {
         this.updateSelectedCellData();
       }
     });
+  }
+
+  updateWindLayerToggleVisibility(variableType = this.state.type) {
+    const shouldShowWindToggle = variableType === "eolico" || variableType === "wind";
+
+    if (this.ui.windLayerToggle) {
+      this.ui.windLayerToggle.classList.toggle("active", shouldShowWindToggle);
+    }
+
+    if (!shouldShowWindToggle) {
+      if (this.ui.windCheckbox) this.ui.windCheckbox.checked = false;
+      this.clearWindVectors();
+    }
   }
 
   applyMapChanges() {

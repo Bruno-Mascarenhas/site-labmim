@@ -42,6 +42,20 @@ function getParameter(variableType, paramName, defaultValue) {
   return defaultValue;
 }
 
+const TEMPERATURE_COLORS = ["#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000"];
+const PRESSURE_COLORS = [
+  "#a50026",
+  "#d73027",
+  "#f46d43",
+  "#fdae61",
+  "#fee090",
+  "#e0f3f8",
+  "#abd9e9",
+  "#74add1",
+  "#4575b4",
+  "#313695",
+];
+
 const VARIABLES_CONFIG = {
   solar: {
     id: "SWDOWN",
@@ -172,7 +186,7 @@ const VARIABLES_CONFIG = {
     label: "Temperatura (2m)",
     unit: "°C",
     colormap: "hot_r",
-    colors: ["#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000"],
+    colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.temperature?.ausente) {
         return {
@@ -224,18 +238,7 @@ const VARIABLES_CONFIG = {
     label: "Pressão Atmosférica",
     unit: "hPa",
     colormap: "RdBu_r",
-    colors: [
-      "#a50026",
-      "#d73027",
-      "#f46d43",
-      "#fdae61",
-      "#fee090",
-      "#e0f3f8",
-      "#abd9e9",
-      "#74add1",
-      "#4575b4",
-      "#313695",
-    ],
+    colors: PRESSURE_COLORS,
     useDynamicScale: true,
     normalValue: 1013,
     specificInfo: (value, allValues = {}) => {
@@ -286,8 +289,8 @@ const VARIABLES_CONFIG = {
     id: "VAPOR",
     label: "Umidade Relativa",
     unit: "%",
-    colormap: "YlGnBu",
-    colors: ["#ffffd9", "#edf8b1", "#c7e9b4", "#7fbc41", "#365f0f"],
+    colormap: "RdBu_r",
+    colors: PRESSURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.humidity?.ausente) {
         return {
@@ -335,8 +338,8 @@ const VARIABLES_CONFIG = {
     id: "RAIN",
     label: "Precipitação",
     unit: "mm",
-    colormap: "Blues_rev",
-    colors: ["#f7fbff", "#deebf7", "#9ecae1", "#3182bd", "#08519c", "#08306b"],
+    colormap: "hot_r",
+    colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.rain?.ausente) {
         return {
@@ -428,8 +431,8 @@ const VARIABLES_CONFIG = {
     id: "HFX",
     label: "Calor Sensível",
     unit: "W/m²",
-    colormap: "jet",
-    colors: ["#000080", "#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000", "#800000"],
+    colormap: "hot_r",
+    colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.hfx?.ausente) {
         return {
@@ -473,8 +476,8 @@ const VARIABLES_CONFIG = {
     id: "LH",
     label: "Calor Latente",
     unit: "W/m²",
-    colormap: "jet",
-    colors: ["#000080", "#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000", "#800000"],
+    colormap: "hot",
+    colors: [...TEMPERATURE_COLORS].reverse(),
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.lh?.ausente) {
         return {
