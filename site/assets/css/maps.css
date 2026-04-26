@@ -1977,6 +1977,22 @@ header.maps-header {
   max-height: 100%;
 }
 
+.dark-theme .sidebar-header {
+  background: var(--bg-secondary) !important;
+  border-bottom-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .sidebar-header h3,
+.dark-theme .doc-tab-content h3,
+.dark-theme .chart-modal-header h2 {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .sidebar-close-btn {
+  color: #a3bffa !important;
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(50px);

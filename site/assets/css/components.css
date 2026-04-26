@@ -48,8 +48,8 @@
 }
 
 .partners-section {
-  margin: 3rem 0;
-  padding: 1.5rem 0;
+  margin: 2rem 0;
+  padding: 1rem 0;
   background: var(--bg-light);
   border-radius: 12px;
 }
@@ -65,17 +65,17 @@
 
 .partners-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 16px;
-  margin-top: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 1rem;
 }
 
 .partner-logo {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 150px;
-  padding: 1.5rem;
+  height: 96px;
+  padding: 0.75rem;
   background: var(--white);
   border-radius: 10px;
   box-shadow: var(--shadow);
@@ -101,7 +101,7 @@
 }
 
 .partner-logo-sm {
-  max-height: 45px;
+  max-height: 36px;
 }
 
 .partner-logo-text {
@@ -136,6 +136,32 @@
 .sponsor-logo {
   height: 38px;
   object-fit: contain;
+}
+
+.sponsors-strip {
+  max-width: 760px;
+  margin-inline: auto;
+  padding: 0.65rem 0.9rem;
+}
+
+.sponsors-strip .cluster-lg {
+  gap: 10px;
+}
+
+.sponsors-strip .partner-logo {
+  width: 112px;
+  height: 52px;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.sponsors-strip .partner-logo:hover {
+  transform: translateY(-2px);
+}
+
+.sponsors-strip .partner-logo-sm {
+  max-height: 28px;
 }
 
 .explanation-box {
@@ -484,7 +510,12 @@
   }
 
   .partner-logo {
-    height: 120px;
+    height: 88px;
+  }
+
+  .sponsors-strip .partner-logo {
+    width: 96px;
+    height: 48px;
   }
 
   .feature-card {

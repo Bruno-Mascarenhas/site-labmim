@@ -16,7 +16,7 @@
   --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.15);
   --lab-header-bg: linear-gradient(155deg, #f8fbfc 18%, #dce8ee 72%, #cbdce8 100%);
   --lab-header-dark-bg: linear-gradient(155deg, #2f6fa3 0%, #1f5b88 58%, #143b5f 100%);
-  --lab-footer-bg: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  --lab-footer-bg: #285f8f;
   --lab-footer-dark-bg: #285f8f;
 }
 

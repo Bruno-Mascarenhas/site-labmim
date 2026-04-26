@@ -11,24 +11,8 @@
   transform: scale(1.05);
 }
 
-.maps-navbar {
-  padding: 0.5rem 1rem;
-}
-
 .maps-header {
   background-color: #0b3158 !important;
-}
-
-.nav-pill-light {
-  color: var(--white) !important;
-  border: 1px solid var(--white) !important;
-  padding: 0.375rem 0.75rem !important;
-  border-radius: 0.25rem !important;
-  text-decoration: none !important;
-}
-
-.nav-pill-light.is-active {
-  background-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 .modern-section {
