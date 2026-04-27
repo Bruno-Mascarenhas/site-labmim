@@ -192,9 +192,10 @@
 
       <!-- WIND VECTOR LAYER TOGGLE -->
       <div class="wind-layer-toggle" id="windLayerToggle">
-        <label>
-          <input type="checkbox" id="windLayerCheckbox" />
-          <i class="fas fa-arrows-alt"></i> Vetores de Vento
+        <label title="Vetores de Vento">
+          <input type="checkbox" id="windLayerCheckbox" class="visually-hidden" />
+          <i class="fas fa-arrows-alt"></i>
+          <span class="wind-toggle-text">Vetores de Vento</span>
         </label>
       </div>
 
@@ -276,7 +277,10 @@
 
               <h4>💨 Vetores de Vento</h4>
               <ul class="doc-list">
-                <li><strong>Checkbox:</strong> Ative/desative a visualização dos vetores de vento sobre o mapa</li>
+                <li>
+                  <strong>Botão Flutuante:</strong> Ative ou desative a visualização dos vetores de vento clicando no
+                  botão circular no canto inferior esquerdo (aparece quando a variável de vento é selecionada).
+                </li>
                 <li><strong>Tamanho das Setas:</strong> Proporcional à magnitude do vento</li>
                 <li><strong>Direção:</strong> Apontam para a origem do vento (convenção meteorológica)</li>
                 <li><strong>Altura Configurável:</strong> Selecione entre 50m, 100m ou 150m de altura</li>

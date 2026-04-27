@@ -15,10 +15,10 @@ install:
 	npm install
 
 lint-js:
-	npm run lint:js
+	npm run lint:js -- --fix
 
 lint-css:
-	npm run lint:css
+	npm run lint:css -- --fix
 
 lint: lint-js lint-css
 
