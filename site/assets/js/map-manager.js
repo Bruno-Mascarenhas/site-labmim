@@ -7,10 +7,10 @@ const PLAYBACK_INTERVAL_MS = 800;
 const WORKER_CACHE_VERSION = "5";
 const DEFAULT_MAP_CENTER = [-12.97, -38.5];
 const DOMAIN_CONFIG = {
-  D01: { center: DEFAULT_MAP_CENTER, zoom: 5.5 },
-  D02: { center: DEFAULT_MAP_CENTER, zoom: 7 },
-  D03: { center: DEFAULT_MAP_CENTER, zoom: 9 },
-  D04: { center: DEFAULT_MAP_CENTER, zoom: 12 },
+  D01: { label: "BA/NE", center: DEFAULT_MAP_CENTER, zoom: 5.5 },
+  D02: { label: "BA", center: DEFAULT_MAP_CENTER, zoom: 7 },
+  D03: { label: "RMS", center: DEFAULT_MAP_CENTER, zoom: 9 },
+  D04: { label: "SSA", center: DEFAULT_MAP_CENTER, zoom: 12 },
 };
 const GRID_VISIBLE_STYLE = {
   fillOpacity: 0.45,
@@ -33,7 +33,9 @@ function _debounce(fn, delay) {
 }
 
 class MeteoMapManager {
-  constructor() {
+  constructor(options = {}) {
+    this.mapContext = this.resolveMapContext(options.context);
+    this.contextConfig = VARIABLE_CONTEXTS[this.mapContext] || VARIABLE_CONTEXTS.forecast;
     this.map = null;
     this.currentGeoJsonLayer = null;
     this.currentValueData = null;
@@ -69,7 +71,7 @@ class MeteoMapManager {
     this.ui = {};
 
     this.state = {
-      type: "solar",
+      type: this.contextConfig.defaultVariable,
       domain: "D01",
       index: 7,
       isPlaying: false,
@@ -89,6 +91,31 @@ class MeteoMapManager {
     this.setupDomainIndicators();
     this.loadStateGeoJson("BA");
     this.loadCustomParameters();
+  }
+
+  resolveMapContext(explicitContext) {
+    const context = explicitContext || document.body?.dataset?.mapContext || "forecast";
+    return VARIABLE_CONTEXTS[context] ? context : "forecast";
+  }
+
+  getDomainConfig(domain = this.state.domain) {
+    return DOMAIN_CONFIG[domain] || { label: domain, center: DEFAULT_MAP_CENTER, zoom: 6 };
+  }
+
+  getDomainLabel(domain = this.state.domain) {
+    return this.getDomainConfig(domain).label;
+  }
+
+  getVisibleVariableTypes() {
+    return this.contextConfig.variables.filter((variableType) => VARIABLES_CONFIG[variableType]);
+  }
+
+  getRelatedVariableTypes() {
+    const variables = new Set(this.getVisibleVariableTypes());
+    if (this.state.type === "solar" || this.state.type === "eolico") {
+      variables.add("temperature");
+    }
+    return [...variables];
   }
 
   /**
@@ -588,6 +615,7 @@ class MeteoMapManager {
 
   setupEventListeners() {
     this.cacheUIElements();
+    this.configureVariableSelect();
 
     const _debouncedSliderApply = _debounce(() => {
       if (this.state.selectedCell && !this.state.isPlaying) {
@@ -641,6 +669,33 @@ class MeteoMapManager {
     this.updateWindLayerToggleVisibility(this.state.type);
 
     this.setupDocumentationListeners();
+  }
+
+  configureVariableSelect() {
+    if (!this.ui.variableSelect) return;
+
+    const currentValue = this.ui.variableSelect.value;
+    const allowedVariables = this.getVisibleVariableTypes();
+    const selectedVariable = allowedVariables.includes(currentValue)
+      ? currentValue
+      : this.contextConfig.defaultVariable;
+
+    this.ui.variableSelect.innerHTML = "";
+
+    const optionGroup = document.createElement("optgroup");
+    optionGroup.label = this.contextConfig.optionGroupLabel;
+
+    allowedVariables.forEach((variableType) => {
+      const config = VARIABLES_CONFIG[variableType];
+      const option = document.createElement("option");
+      option.value = variableType;
+      option.textContent = `${config.icon || ""} ${config.optionLabel || config.label}`.trim();
+      optionGroup.appendChild(option);
+    });
+
+    this.ui.variableSelect.appendChild(optionGroup);
+    this.ui.variableSelect.value = selectedVariable;
+    this.state.type = selectedVariable;
   }
 
   setupDocumentationListeners() {
@@ -928,7 +983,12 @@ class MeteoMapManager {
     const domain = this.state.domain;
     const domainButtons = this.ui.domainButtons || [];
 
-    domainButtons.forEach((btn) => btn.classList.remove("active"));
+    domainButtons.forEach((btn) => {
+      btn.classList.remove("active");
+      btn.textContent = this.getDomainLabel(btn.dataset.domain);
+      btn.title = `Domínio ${this.getDomainLabel(btn.dataset.domain)}`;
+      btn.setAttribute("aria-label", `Domínio ${this.getDomainLabel(btn.dataset.domain)}`);
+    });
 
     const activeBtn = domainButtons.find((button) => button.dataset.domain === domain);
     if (activeBtn) {
@@ -1257,9 +1317,16 @@ class MeteoMapManager {
     for (let i = scaleValues.length - 1; i >= 0; i--) {
       const label = document.createElement("div");
       label.className = "colorbar-label";
-      label.textContent = scaleValues[i].toFixed(0) + (i === scaleValues.length - 1 ? "+" : "");
+      label.textContent = this.formatColorbarValue(scaleValues[i], config) + (i === scaleValues.length - 1 ? "+" : "");
       labelsContainer.appendChild(label);
     }
+  }
+
+  formatColorbarValue(value, config) {
+    if (!Number.isFinite(value)) return "";
+    if (config?.unit === "kg/kg") return value.toFixed(4);
+    if (Math.abs(value) < 1 && value !== 0) return value.toFixed(3);
+    return value.toFixed(0);
   }
 
   handleMapClick(e) {
@@ -1282,7 +1349,7 @@ class MeteoMapManager {
     });
 
     if (!foundCell || foundCell.value === null) {
-      this.showErrorMessage("Sem informações meteorológicas neste local");
+      this.showErrorMessage("Sem informações neste local");
       return Promise.reject("No cell data found at this location");
     }
 
@@ -1301,7 +1368,7 @@ class MeteoMapManager {
       })
       .catch((err) => {
         console.error("Error loading values:", err);
-        this.showErrorMessage("Erro ao carregar informações meteorológicas");
+        this.showErrorMessage("Erro ao carregar informações");
         if (this.selectedMarker) {
           this.map.removeLayer(this.selectedMarker);
           this.selectedMarker = null;
@@ -1354,7 +1421,7 @@ class MeteoMapManager {
 
     const promises = [];
 
-    Object.keys(VARIABLES_CONFIG).forEach((varType) => {
+    this.getRelatedVariableTypes().forEach((varType) => {
       const config = VARIABLES_CONFIG[varType];
 
       if (varType === this.state.type && foundCell) {
@@ -1422,6 +1489,10 @@ class MeteoMapManager {
                 <div class="info-item">
                     <span class="info-label">Longitude</span>
                     <span class="info-value">${cell.lng.toFixed(4)}°</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Domínio</span>
+                    <span class="info-value">${this.getDomainLabel(this.state.domain)}</span>
                 </div>
             </div>
 

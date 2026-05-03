@@ -55,16 +55,23 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav mx-auto">
-            <li class="nav-item active mr-2">
-              <a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
-            </li>
-            <li class="nav-item active mr-2">
+            <li class="nav-item mr-2">
               <a class="btn btn-outline-lab" href="mapas_interativos.html" id="nav-mapas">Previsões</a>
             </li>
-            <li class="nav-item active mr-2">
+            <li class="nav-item mr-2">
+              <a class="btn btn-outline-lab" href="potenciais_energeticos.html" id="nav-potenciais"
+                >Potenciais Energéticos</a
+              >
+            </li>
+            <li class="nav-item mr-2">
+              <a class="btn btn-outline-lab active" href="monitoring.html" id="nav-monitoring" aria-current="page"
+                >Monitoramento</a
+              >
+            </li>
+            <li class="nav-item mr-2">
               <a class="btn btn-outline-lab" href="climatologia.html" id="nav-climatologia">Climatologia</a>
             </li>
-            <li class="nav-item active mr-2">
+            <li class="nav-item mr-2">
               <a class="btn btn-outline-lab" href="team.html" id="nav-team">Equipe</a>
             </li>
           </ul>
@@ -162,7 +169,7 @@
         <!-- Umidade -->
         <div class="col-sm-4 mb-3">
           <div class="container-overlay">
-            <img loading="lazy" class="d-block w-100" src="assets/graphs/umidade.png" alt="Umidade Relativa do Ar" />
+            <img loading="lazy" class="d-block w-100" src="assets/graphs/umidade.png" alt="Umidade do Ar" />
             <button
               type="button"
               class="btn btn-primary overlay"
@@ -170,7 +177,7 @@
               data-target="#modalUmidade"
               id="btn-umidade"
             >
-              <div class="text">Umidade Relativa do Ar</div>
+              <div class="text">Umidade do Ar</div>
             </button>
           </div>
         </div>
@@ -335,13 +342,13 @@
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="modalUmidadeLabel">Umidade Relativa do Ar</h5>
+            <h5 class="modal-title" id="modalUmidadeLabel">Umidade do Ar</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
           <div class="modal-body">
-            <img loading="lazy" class="d-block w-100" src="assets/graphs/umidade.png" alt="Umidade Relativa do Ar" />
+            <img loading="lazy" class="d-block w-100" src="assets/graphs/umidade.png" alt="Umidade do Ar" />
           </div>
         </div>
       </div>
@@ -513,16 +520,16 @@
       <div class="theme-surface sponsors-strip">
         <h6 class="sponsor-title mb-3">Financiadores</h6>
         <div class="cluster-lg justify-content-center">
-          <a href="https://www.fapesb.ba.gov.br" target="_blank" rel="noopener" class="partner-logo" title="FAPESB">
+          <a href="https://www.fapesb.ba.gov.br" class="partner-logo" title="FAPESB" target="_blank" rel="noopener">
             <img loading="lazy" src="assets/img/logo_fapesb.png" alt="FAPESB" class="partner-logo-sm" />
           </a>
-          <a href="https://www.cnpq.br" target="_blank" rel="noopener" class="partner-logo" title="CNPq">
+          <a href="https://www.cnpq.br" class="partner-logo" title="CNPq" target="_blank" rel="noopener">
             <img loading="lazy" src="assets/img/logo_cnpq.gif" alt="CNPq" class="partner-logo-sm" />
           </a>
-          <a href="https://www.faperj.br" target="_blank" rel="noopener" class="partner-logo" title="FAPERJ">
+          <a href="https://www.faperj.br" class="partner-logo" title="FAPERJ" target="_blank" rel="noopener">
             <img loading="lazy" src="assets/img/logo_faperj.png" alt="FAPERJ" class="partner-logo-sm" />
           </a>
-          <a href="https://www.fapesp.br" target="_blank" rel="noopener" class="partner-logo" title="FAPESP">
+          <a href="https://www.fapesp.br" class="partner-logo" title="FAPESP" target="_blank" rel="noopener">
             <img loading="lazy" src="assets/img/logo_fapesp.jpg" alt="FAPESP" class="partner-logo-sm" />
           </a>
         </div>
@@ -542,8 +549,9 @@
               class="brand-logo brand-logo-bright"
           /></a>
           <nav class="footer-nav">
-            <a href="monitoring.html"><i class="fas fa-chart-line mr-1"></i> Monitoramento</a>
             <a href="mapas_interativos.html"><i class="fas fa-map mr-1"></i> Previsões</a>
+            <a href="potenciais_energeticos.html"><i class="fas fa-bolt mr-1"></i> Potenciais Energéticos</a>
+            <a href="monitoring.html"><i class="fas fa-chart-line mr-1"></i> Monitoramento</a>
             <a href="climatologia.html"><i class="fas fa-cloud-sun mr-1"></i> Climatologia</a>
             <a href="team.html"><i class="fas fa-users mr-1"></i> Equipe</a>
           </nav>

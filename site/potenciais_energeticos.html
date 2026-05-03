@@ -8,9 +8,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LabMiM — Potenciais Energéticos: mapas interativos de potencial fotovoltaico e potencial eólico derivados do modelo WRF para Bahia."
     />
-    <title>LabMiM — Mapas Interativos WRF · UFBA</title>
+    <title>LabMiM — Potenciais Energéticos · UFBA</title>
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
@@ -41,7 +41,7 @@
     <script src="assets/js/theme-toggle.js" defer></script>
   </head>
 
-  <body data-map-context="forecast">
+  <body data-map-context="energy">
     <header class="maps-header">
       <!-- Navigation -->
       <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top">
@@ -69,12 +69,14 @@
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav mx-auto">
             <li class="nav-item mr-2 me-2">
-              <a class="btn btn-outline-lab active" href="mapas_interativos.html" id="nav-mapas" aria-current="page"
-                >Previsões</a
-              >
+              <a class="btn btn-outline-lab" href="mapas_interativos.html" id="nav-mapas">Previsões</a>
             </li>
             <li class="nav-item mr-2 me-2">
-              <a class="btn btn-outline-lab" href="potenciais_energeticos.html" id="nav-potenciais"
+              <a
+                class="btn btn-outline-lab active"
+                href="potenciais_energeticos.html"
+                id="nav-potenciais"
+                aria-current="page"
                 >Potenciais Energéticos</a
               >
             </li>
@@ -174,14 +176,9 @@
         <div class="variable-selector-wrapper">
           <label for="variableSelect">Variável:</label>
           <select id="variableSelect" class="variable-select">
-            <optgroup label="Variáveis meteorológicas">
-              <option value="wind">🌬️ Vento (10m)</option>
-              <option value="temperature">🌡️ Temperatura</option>
-              <option value="pressure">🎯 Pressão Atmosférica</option>
-              <option value="humidity">💧 Umidade Específica</option>
-              <option value="rain">🌧️ Precipitação</option>
-              <option value="hfx">🔥 Calor Sensível</option>
-              <option value="lh">💧 Calor Latente</option>
+            <optgroup label="Potenciais energéticos">
+              <option value="solar">☀️ Potencial Fotovoltaico</option>
+              <option value="eolico">💨 Potencial Eólico</option>
             </optgroup>
           </select>
         </div>
@@ -220,7 +217,7 @@
       <div class="documentation-modal" id="documentationModal">
         <div class="documentation-content">
           <div class="documentation-header">
-            <h2>Documentação - Mapa Interativo</h2>
+            <h2>Documentação - Potenciais Energéticos</h2>
             <button class="documentation-close" id="docCloseBtn">
               <i class="fas fa-times"></i>
             </button>
@@ -236,7 +233,7 @@
           <div class="documentation-body">
             <!-- OVERVIEW TAB -->
             <div class="doc-tab-content active" data-tab="overview">
-              <h3>Plataforma WebGIS de Previsão Meteorológica — LabMiM / UFBA</h3>
+              <h3>Plataforma WebGIS de Potenciais Energéticos — LabMiM / UFBA</h3>
               <div class="doc-warning">
                 <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
                 Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
@@ -245,10 +242,11 @@
                 utilização indevida e não autorizada por parte de terceiros.
               </div>
               <p>
-                Este mapa interativo apresenta dados de <strong>previsão numérica do tempo</strong> gerados pelo modelo
-                <strong>WRF (Weather Research and Forecasting)</strong>, permitindo visualizar variáveis meteorológicas
-                e potenciais energéticos em alta resolução espacial e temporal para a região da Bahia e entorno. Os
-                dados cobrem um horizonte de previsão de <strong>72 horas</strong> com resolução horária.
+                Este mapa interativo reúne visualizações de <strong>potencial fotovoltaico</strong> e
+                <strong>potencial eólico</strong> geradas a partir do modelo
+                <strong>WRF (Weather Research and Forecasting)</strong>. Os produtos energéticos são exibidos em alta
+                resolução espacial e temporal para a região da Bahia e entorno, com horizonte de
+                <strong>72 horas</strong> e resolução horária.
               </p>
               <h4>Interface Principal</h4>
               <ul class="doc-list">
@@ -303,11 +301,52 @@
 
             <!-- VARIABLES TAB -->
             <div class="doc-tab-content" data-tab="variables">
-              <h3>Variáveis Meteorológicas</h3>
+              <h3>Potenciais Energéticos e Variáveis de Apoio</h3>
               <p class="doc-muted-copy">
                 O sistema disponibiliza variáveis derivadas das saídas do modelo WRF. Cada variável possui uma paleta de
                 cores, unidade e cálculos derivados específicos exibidos no painel lateral.
               </p>
+
+              <div class="doc-var-card">
+                <h4>☀️ Potencial Fotovoltaico (SWDOWN)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: W/m²</span>
+                  <span class="doc-var-badge">ID WRF: SWDOWN</span>
+                  <span class="doc-var-badge">Disponível: ~06:00–18:00 UTC</span>
+                </div>
+
+                <p>
+                  Radiação de onda curta descendente (Shortwave Downward Radiation) na superfície. É a componente direta
+                  + difusa da radiação solar que atinge o solo, calculada pelo esquema de radiação do WRF (RRTMG). À
+                  noite, o valor é zero.
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> O painel lateral estima a produção fotovoltaica usando o modelo
+                  de temperatura da célula (<em>T<sub>célula</sub> = T<sub>ar</sub> + (NOCT − 20) × G / 800</em>) e a
+                  equação de rendimento:
+                  <em>P = (G/1000) × η<sub>painel</sub> × η<sub>inversor</sub> × [1 + α(T<sub>célula</sub> − 25)]</em>,
+                  onde α é o coeficiente de temperatura (%/°C).
+                </p>
+              </div>
+
+              <div class="doc-var-card">
+                <h4>💨 Potencial Eólico (POT_EOLICO)</h4>
+                <div class="doc-var-meta">
+                  <span class="doc-var-badge">Unidade: m/s</span>
+                  <span class="doc-var-badge">ID WRF: POT_EOLICO_50M / 100M / 150M</span>
+                  <span class="doc-var-badge">Alturas: 50m, 100m, 150m</span>
+                </div>
+
+                <p>
+                  Velocidade do vento interpolada verticalmente para alturas de hub de turbinas eólicas. A interpolação
+                  utiliza os níveis sigma do WRF e o perfil logarítmico de vento na camada limite atmosférica.
+                </p>
+                <p>
+                  <strong>Cálculos derivados:</strong> Densidade de potência eólica (<em>P<sub>d</sub> = ½ρv³</em>),
+                  onde ρ é a densidade do ar corrigida pela temperatura (<em>ρ = ρ<sub>0</sub> × 288/(273+T)</em>).
+                  Produção energética estimada usando área do rotor (<em>A = π(D/2)²</em>) e coeficiente de potência Cp.
+                </p>
+              </div>
 
               <div class="doc-var-card">
                 <h4>🌬️ Vento a 10m (WIND)</h4>

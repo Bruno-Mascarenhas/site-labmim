@@ -11,8 +11,8 @@ export default [
       "site/GeoJSON/",
       "site/assets/json/",
       "**/*.json",
-      "**/*.geojson"
-    ]
+      "**/*.geojson",
+    ],
   },
   {
     languageOptions: {
@@ -25,18 +25,19 @@ export default [
         turf: "readonly",
         Chart: "readonly",
         VARIABLES_CONFIG: "readonly",
+        VARIABLE_CONTEXTS: "readonly",
         MeteoMapManager: "readonly",
         ChartsManager: "readonly",
         chartsManager: "writable",
         app: "writable",
-        module: "writable"
-      }
+        module: "writable",
+      },
     },
     rules: {
       "no-unused-vars": "warn",
-      "no-console": ["warn", { "allow": ["warn", "error", "info", "debug"] }],
+      "no-console": ["warn", { allow: ["warn", "error", "info", "debug"] }],
       "no-useless-escape": "warn",
-      "no-empty": "warn"
-    }
-  }
+      "no-empty": "warn",
+    },
+  },
 ];

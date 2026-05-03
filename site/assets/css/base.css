@@ -94,6 +94,13 @@ button {
   transform: translateY(-2px);
 }
 
+.btn-outline-lab.active,
+.btn-outline-lab[aria-current="page"] {
+  background-color: var(--secondary-color) !important;
+  border-color: var(--secondary-color) !important;
+  color: var(--white) !important;
+}
+
 .navbar-toggler {
   background-color: #06235e !important;
   border-color: #06235e !important;

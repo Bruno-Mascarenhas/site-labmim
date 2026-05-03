@@ -4,22 +4,25 @@ Este documento descreve a arquitetura atual do site LabMiM com base no estado re
 
 ## Visão Geral
 
-O projeto é um site estático em `site/`, composto por HTML, CSS modular e JavaScript sem framework frontend. O WebGIS usa Leaflet com renderização em Canvas para exibir grades meteorológicas e carrega dados WRF a partir de arquivos gerados em `GeoJSON/` e `JSON/`.
+O projeto é um site estático em `site/`, composto por HTML, CSS modular e JavaScript sem framework frontend. O WebGIS usa Leaflet com renderização em Canvas para exibir grades meteorológicas e potenciais energéticos, carregando dados WRF a partir de arquivos gerados em `GeoJSON/` e `JSON/`.
 
 Não há backend de aplicação neste repositório. Qualquer atualização de dados depende de pipeline externo que gere os arquivos consumidos pelo frontend.
 
 ## Páginas HTML
 
-| Arquivo | Função |
-|---|---|
-| `site/index.html` | Página inicial institucional |
-| `site/monitoring.html` | Monitoramento ambiental com gráficos PNG e modais Bootstrap |
-| `site/team.html` | Equipe, links e localização incorporada |
-| `site/climatologia.html` | Página de climatologia em construção |
-| `site/mapas_interativos.html` | WebGIS principal |
-| `site/mapas_meteorologicos.html` | Redirect de compatibilidade para `mapas_interativos.html` |
+| Arquivo                            | Função                                                      |
+| ---------------------------------- | ----------------------------------------------------------- |
+| `site/index.html`                  | Página inicial institucional                                |
+| `site/monitoring.html`             | Monitoramento ambiental com gráficos PNG e modais Bootstrap |
+| `site/team.html`                   | Equipe, links e localização incorporada                     |
+| `site/climatologia.html`           | Página de climatologia em construção                        |
+| `site/mapas_interativos.html`      | WebGIS de previsões meteorológicas                          |
+| `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico e potencial eólico         |
+| `site/mapas_meteorologicos.html`   | Redirect de compatibilidade para `mapas_interativos.html`   |
 
-As páginas institucionais usam Bootstrap 4.1.3. `mapas_interativos.html` usa Bootstrap 5.3.0 por CDN.
+As páginas institucionais usam Bootstrap 4.1.3. `mapas_interativos.html` e `potenciais_energeticos.html` usam Bootstrap 5.3.0 por CDN.
+
+A navbar principal segue a ordem: Previsões, Potenciais Energéticos, Monitoramento, Climatologia e Equipe.
 
 ## Organização De Pastas
 
@@ -58,24 +61,25 @@ Observações:
 - `assets/icon/` contém ícones raster usados em menus.
 - `assets/json/` está reservado para manifestos opcionais; atualmente há apenas marcador de pasta.
 - `GeoJSON/` e `JSON/` contêm dados gerados. Há também arquivos GeoJSON específicos por variável presentes na pasta, mas o código atual do mapa carrega `GeoJSON/{domain}.geojson`.
+- Não abra, varra, formate ou reprocesse `/data`; evite ler conteúdo de `GeoJSON/` e `JSON/` fora de depuração estritamente necessária, porque esses diretórios podem conter artefatos grandes do pipeline externo.
 
 ## CSS
 
 ### Responsabilidades
 
-| Arquivo | Responsabilidade |
-|---|---|
-| `base.css` | Tokens CSS, reset, tipografia, utilitários pequenos, logos e cores base |
-| `layout.css` | Navbar, seções de página, footer e estrutura compartilhada |
+| Arquivo          | Responsabilidade                                                                    |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| `base.css`       | Tokens CSS, reset, tipografia, utilitários pequenos, logos e cores base             |
+| `layout.css`     | Navbar, seções de página, footer e estrutura compartilhada                          |
 | `components.css` | Cards, parceiros, financiadores, blocos de explicação, monitoramento, modal helpers |
-| `theme.css` | Dark mode, overrides de tema, estados de controles, ajustes globais de contraste |
-| `maps.css` | Layout e componentes exclusivos do WebGIS |
+| `theme.css`      | Dark mode, overrides de tema, estados de controles, ajustes globais de contraste    |
+| `maps.css`       | Layout e componentes exclusivos do WebGIS                                           |
 
 ### Padrões
 
 - Use variáveis CSS em `:root` para cores, sombras, bordas e espaçamentos globais.
 - Dark mode é controlado pela classe `.dark-theme` no elemento `<html>`.
-- `maps.css` é carregado depois de `theme.css` em `mapas_interativos.html`; quando um estilo escuro precisa vencer regras do mapa, o override deve estar em `maps.css` ou ter especificidade compatível.
+- `maps.css` é carregado depois de `theme.css` nas páginas WebGIS; quando um estilo escuro precisa vencer regras do mapa, o override deve estar em `maps.css` ou ter especificidade compatível.
 - Evite estilos inline. Crie classes reutilizáveis em `components.css` ou `maps.css`, conforme o escopo.
 - Mantenha responsividade com media queries já existentes; não use escala tipográfica baseada diretamente em viewport.
 
@@ -83,22 +87,22 @@ Observações:
 
 ### Módulos Gerais
 
-| Arquivo | Responsabilidade |
-|---|---|
-| `theme-boot.js` | Aplica `.dark-theme` cedo com base em `localStorage` ou preferência do sistema |
+| Arquivo           | Responsabilidade                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| `theme-boot.js`   | Aplica `.dark-theme` cedo com base em `localStorage` ou preferência do sistema         |
 | `theme-toggle.js` | Controla botões de tema, ícones, `aria-*`, persistência e evento `labmim-theme-change` |
-| `ui-shell.js` | Toggle genérico para pequenos blocos de UI em páginas institucionais |
+| `ui-shell.js`     | Toggle genérico para pequenos blocos de UI em páginas institucionais                   |
 
 ### Módulos Do WebGIS
 
-| Arquivo | Responsabilidade |
-|---|---|
-| `variables-config.js` | Define `VARIABLES_CONFIG`, IDs de arquivo, unidades, palhetas e `specificInfo()` por variável |
-| `map-manager.js` | Classe `MeteoMapManager`; estado do mapa, domínio, dados, renderização, controles e vento |
-| `charts-manager.js` | Classe `ChartsManager`; séries temporais, Chart.js, modal, cache e CSV |
-| `map-init.js` | Bootstrap do WebGIS; cria `MeteoMapManager`, cria `ChartsManager` e conecta sidebar/modal |
-| `workers/color-calc.worker.js` | Interpolação de cores fora da thread principal |
-| `workers/json-parser.worker.js` | Fetch/parse JSON em worker quando disponível |
+| Arquivo                         | Responsabilidade                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `variables-config.js`           | Define `VARIABLES_CONFIG`, `VARIABLE_CONTEXTS`, IDs de arquivo, unidades, palhetas e `specificInfo()` por variável |
+| `map-manager.js`                | Classe `MeteoMapManager`; estado do mapa, domínio, dados, renderização, controles e vento                          |
+| `charts-manager.js`             | Classe `ChartsManager`; séries temporais, Chart.js, modal, cache e CSV                                             |
+| `map-init.js`                   | Bootstrap do WebGIS; cria `MeteoMapManager`, cria `ChartsManager` e conecta sidebar/modal                          |
+| `workers/color-calc.worker.js`  | Interpolação de cores fora da thread principal                                                                     |
+| `workers/json-parser.worker.js` | Fetch/parse JSON em worker quando disponível                                                                       |
 
 `MeteoMapManager` e `ChartsManager` são expostos em `window` para preservar compatibilidade do bootstrap atual.
 
@@ -135,6 +139,8 @@ Depois ele envolve `app.showSidebar()` para abrir o modal de séries temporais e
 
 ### Estado Principal
 
+`MeteoMapManager` lê `data-map-context` no `<body>` para separar os contextos `forecast` e `energy`. `mapas_interativos.html` inicia apenas com variáveis meteorológicas; `potenciais_energeticos.html` inicia apenas com potencial fotovoltaico e potencial eólico.
+
 `MeteoMapManager` mantém estado interno em `this.state`, incluindo:
 
 - `domain`
@@ -151,12 +157,12 @@ Elementos de DOM usados com frequência são cacheados em `this.ui`.
 
 ### Domínios
 
-`DOMAIN_CONFIG` define centro e zoom para:
+`DOMAIN_CONFIG` separa o ID técnico do label exibido. Os IDs técnicos continuam sendo usados nos nomes de arquivos, cache e estado:
 
-- `D01`
-- `D02`
-- `D03`
-- `D04`
+- `D01` -> label `BA/NE`
+- `D02` -> label `BA`
+- `D03` -> label `RMS`
+- `D04` -> label `SSA`
 
 Os botões `.domain-btn` atualizam `this.state.domain`, limpam cache de grade e recarregam dados. O domínio não troca automaticamente por zoom; a troca é manual.
 
@@ -238,17 +244,17 @@ Campos esperados:
 
 As variáveis ficam em `VARIABLES_CONFIG`:
 
-| Chave | ID principal | Observação |
-|---|---|---|
-| `solar` | `SWDOWN` | Possui regra para pular horários noturnos |
-| `eolico` | `POT_EOLICO_50M` | Também define `id_100m`, `id_150m` e seletor de altura |
-| `temperature` | `TEMP` | Informações térmicas |
-| `pressure` | `PRES` | Usa escala dinâmica |
-| `humidity` | `VAPOR` | Umidade relativa |
-| `rain` | `RAIN` | Precipitação |
-| `wind` | `WIND` | Vento a 10m |
-| `hfx` | `HFX` | Calor sensível |
-| `lh` | `LH` | Calor latente |
+| Chave         | ID principal     | Observação                                             |
+| ------------- | ---------------- | ------------------------------------------------------ |
+| `solar`       | `SWDOWN`         | Possui regra para pular horários noturnos              |
+| `eolico`      | `POT_EOLICO_50M` | Também define `id_100m`, `id_150m` e seletor de altura |
+| `temperature` | `TEMP`           | Informações térmicas                                   |
+| `pressure`    | `PRES`           | Usa escala dinâmica                                    |
+| `humidity`    | `VAPOR`          | Umidade relativa                                       |
+| `rain`        | `RAIN`           | Precipitação                                           |
+| `wind`        | `WIND`           | Vento a 10m                                            |
+| `hfx`         | `HFX`            | Calor sensível                                         |
+| `lh`          | `LH`             | Calor latente                                          |
 
 Cada entrada define:
 
@@ -349,9 +355,10 @@ Dev tooling:
 
 1. Garantir arquivos em `JSON/{domain}_{variableId}_{hour}.json`.
 2. Adicionar entrada em `VARIABLES_CONFIG`.
-3. Adicionar `<option>` em `#variableSelect` em `mapas_interativos.html`.
-4. Definir palheta, unidade e `specificInfo()`.
-5. Validar sidebar, colorbar, séries temporais e dark mode.
+3. Associar a variável ao contexto correto em `VARIABLE_CONTEXTS`.
+4. Atualizar o fallback do `<select id="variableSelect">` nas páginas WebGIS, se necessário.
+5. Definir palheta, unidade e `specificInfo()`.
+6. Validar sidebar, colorbar, séries temporais e dark mode.
 
 ### Alterar Palheta
 
@@ -367,8 +374,10 @@ O próximo passo arquitetural natural seria dividir `map-manager.js` em módulos
 
 ## Cuidados Para Evitar Regressões
 
-- Preserve os IDs usados pelo JS em `mapas_interativos.html`: `map`, `layerSlider`, `playPauseBtn`, `variableSelect`, `windLayerToggle`, `windLayerCheckbox`, `sidebar`, `sidebarContent`, `timeSeriesModal`, `chartCanvasValue`, `chartCanvasEnergy`.
+- Preserve os IDs usados pelo JS nas páginas WebGIS: `map`, `layerSlider`, `playPauseBtn`, `variableSelect`, `windLayerToggle`, `windLayerCheckbox`, `sidebar`, `sidebarContent`, `timeSeriesModal`, `chartCanvasValue`, `chartCanvasEnergy`.
 - Não altere nomes de chaves em `VARIABLES_CONFIG` sem revisar dados, select HTML, gráficos e sidebar.
+- Não renomeie os IDs técnicos `D01-D04`; eles fazem parte do contrato dos arquivos. Altere apenas labels públicos quando necessário.
+- A variável `humidity` deve aparecer como "Umidade Específica" e usar unidade `kg/kg` enquanto o produto `VAPOR` continuar sem conversão no frontend.
 - Não remova `theme-boot.js` do `<head>`.
 - Ao mexer em `maps.css`, valide light e dark mode.
 - Ao mexer em `map-manager.js`, valide play/pause, troca de domínio, troca de variável, clique em célula e wind layer.
@@ -385,9 +394,11 @@ Use antes de merge/publicação:
 - Servir `site/` por HTTP local.
 - Abrir páginas institucionais em desktop e mobile.
 - Alternar dark mode em cada página.
-- Abrir `mapas_interativos.html`.
+- Abrir `mapas_interativos.html` e confirmar que variáveis energéticas não aparecem como previsões meteorológicas.
+- Abrir `potenciais_energeticos.html` e confirmar Potencial Fotovoltaico e Potencial Eólico.
 - Verificar se Leaflet renderiza e se não há erros no console.
 - Trocar variáveis e domínios.
+- Confirmar labels de domínio `BA/NE`, `BA`, `RMS` e `SSA` na UI, mantendo requisições internas com `D01-D04`.
 - Testar play/pause até passar do final da escala temporal.
 - Confirmar regra solar para horários noturnos.
 - Ativar `windLayerToggle` em `wind` e `eolico`.

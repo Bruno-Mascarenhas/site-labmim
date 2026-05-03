@@ -464,7 +464,10 @@ class ChartsManager {
     const timeData = this.timeSeriesData[type].data;
     const chartDataValue = this._prepareChartData(type, "value", config, timeData).data;
 
-    let csv = `Data,Hora,Latitude,Longitude,Variável,Valor(${config.unit})`;
+    const domainLabel = this.app?.getDomainLabel
+      ? this.app.getDomainLabel(this.app.state.domain)
+      : this.app?.state?.domain || "";
+    let csv = `Data,Hora,Latitude,Longitude,Domínio,Variável,Valor(${config.unit})`;
     const isEnergy = type === "solar" || type === "eolico";
     let chartDataEnergy = null;
     let energyUnit = "";
@@ -490,13 +493,13 @@ class ChartsManager {
       const numV =
         typeof rawV === "string" ? parseFloat(rawV.replace(/[^\d.,]/g, "").replace(",", ".")) : parseFloat(rawV);
 
-      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${config.label}",${isNaN(numV) ? "0.00" : numV.toFixed(2)}`;
+      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${config.label}",${this._formatCsvValue(numV, config.unit)}`;
 
       if (isEnergy && chartDataEnergy) {
         const rawE = chartDataEnergy[i];
         const numE =
           typeof rawE === "string" ? parseFloat(rawE.replace(/[^\d.,]/g, "").replace(",", ".")) : parseFloat(rawE);
-        csv += `,${isNaN(numE) ? "0.00" : numE.toFixed(2)}`;
+        csv += `,${this._formatCsvValue(numE, energyUnit)}`;
       }
       csv += "\n";
     });
@@ -510,6 +513,11 @@ class ChartsManager {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  }
+
+  _formatCsvValue(value, unit) {
+    if (isNaN(value)) return unit === "kg/kg" ? "0.0000" : "0.00";
+    return unit === "kg/kg" ? value.toFixed(4) : value.toFixed(2);
   }
 
   async _fetchHourJson(variableId, domain, hour, signal) {

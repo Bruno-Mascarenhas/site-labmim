@@ -56,10 +56,28 @@ const PRESSURE_COLORS = [
   "#313695",
 ];
 
+const VARIABLE_CONTEXTS = {
+  forecast: {
+    label: "Previsões",
+    optionGroupLabel: "Variáveis meteorológicas",
+    defaultVariable: "wind",
+    variables: ["wind", "temperature", "pressure", "humidity", "rain", "hfx", "lh"],
+  },
+  energy: {
+    label: "Potenciais Energéticos",
+    optionGroupLabel: "Potenciais energéticos",
+    defaultVariable: "solar",
+    variables: ["solar", "eolico"],
+  },
+};
+
 const VARIABLES_CONFIG = {
   solar: {
     id: "SWDOWN",
     label: "Radiação Solar",
+    optionLabel: "Potencial Fotovoltaico",
+    icon: "☀️",
+    category: "energy",
     unit: "W/m²",
     colormap: "hot_r",
     colors: [
@@ -129,6 +147,9 @@ const VARIABLES_CONFIG = {
     id_150m: "POT_EOLICO_150M",
     defaultHeight: 50,
     label: "Velocidade do Vento",
+    optionLabel: "Potencial Eólico",
+    icon: "💨",
+    category: "energy",
     unit: "m/s",
     colormap: "Blues",
     colors: ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"],
@@ -184,6 +205,9 @@ const VARIABLES_CONFIG = {
   temperature: {
     id: "TEMP",
     label: "Temperatura (2m)",
+    optionLabel: "Temperatura",
+    icon: "🌡️",
+    category: "meteorological",
     unit: "°C",
     colormap: "hot_r",
     colors: TEMPERATURE_COLORS,
@@ -202,11 +226,11 @@ const VARIABLES_CONFIG = {
         };
       }
 
-      const humidityValue = allValues.humidity?.value || 60;
+      const humidityValue = allValues.humidity?.unit === "%" ? allValues.humidity.value : null;
       const windValue = allValues.wind?.value || 2;
 
-      const feelsLike = getTemperatureFeelsLike(value, humidityValue, windValue);
-      const heatIndex = getHeatIndex(value, humidityValue);
+      const feelsLike = humidityValue === null ? value : getTemperatureFeelsLike(value, humidityValue, windValue);
+      const heatIndex = humidityValue === null ? null : getHeatIndex(value, humidityValue);
 
       return {
         title: "Informações Térmicas",
@@ -224,8 +248,8 @@ const VARIABLES_CONFIG = {
           },
           {
             label: "Índice de Calor",
-            value: heatIndex.toFixed(1),
-            unit: "°C",
+            value: heatIndex === null ? "N/D" : heatIndex.toFixed(1),
+            unit: heatIndex === null ? "" : "°C",
             icon: "fa-fire",
           },
         ],
@@ -236,6 +260,9 @@ const VARIABLES_CONFIG = {
   pressure: {
     id: "PRES",
     label: "Pressão Atmosférica",
+    optionLabel: "Pressão Atmosférica",
+    icon: "🎯",
+    category: "meteorological",
     unit: "hPa",
     colormap: "RdBu_r",
     colors: PRESSURE_COLORS,
@@ -282,8 +309,11 @@ const VARIABLES_CONFIG = {
 
   humidity: {
     id: "VAPOR",
-    label: "Umidade Relativa",
-    unit: "%",
+    label: "Umidade Específica",
+    optionLabel: "Umidade Específica",
+    icon: "💧",
+    category: "meteorological",
+    unit: "kg/kg",
     colormap: "RdBu_r",
     colors: PRESSURE_COLORS,
     specificInfo: (value, allValues = {}) => {
@@ -302,22 +332,22 @@ const VARIABLES_CONFIG = {
       }
 
       return {
-        title: "Condições de Umidade",
+        title: "Conteúdo de Vapor d'Água",
         items: [
           {
-            label: "Conforto Térmico",
-            value: value > 70 ? "Úmido" : value < 30 ? "Seco" : "Confortável",
+            label: "Classificação",
+            value: value > 0.018 ? "Alta" : value < 0.008 ? "Baixa" : "Moderada",
             icon: "fa-droplet",
           },
           {
-            label: "Risco de Formação de Orvalho",
-            value: value > 85 ? "Alto" : "Baixo",
-            icon: "fa-warning",
+            label: "Umidade Específica",
+            value: value.toFixed(4),
+            unit: "kg/kg",
+            icon: "fa-water",
           },
           {
-            label: "Potencial Evapotranspiração",
-            value: (100 - value).toFixed(0),
-            unit: "%",
+            label: "Uso Atmosférico",
+            value: "Transporte de umidade",
             icon: "fa-cloud-sun",
           },
         ],
@@ -328,6 +358,9 @@ const VARIABLES_CONFIG = {
   rain: {
     id: "RAIN",
     label: "Precipitação",
+    optionLabel: "Precipitação",
+    icon: "🌧️",
+    category: "meteorological",
     unit: "mm",
     colormap: "hot_r",
     colors: TEMPERATURE_COLORS,
@@ -373,6 +406,9 @@ const VARIABLES_CONFIG = {
   wind: {
     id: "WIND",
     label: "Velocidade do Vento (10m)",
+    optionLabel: "Vento (10m)",
+    icon: "🌬️",
+    category: "meteorological",
     unit: "m/s",
     colormap: "PuBu",
     colors: ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"],
@@ -418,6 +454,9 @@ const VARIABLES_CONFIG = {
   hfx: {
     id: "HFX",
     label: "Calor Sensível",
+    optionLabel: "Calor Sensível",
+    icon: "🔥",
+    category: "meteorological",
     unit: "W/m²",
     colormap: "hot_r",
     colors: TEMPERATURE_COLORS,
@@ -463,6 +502,9 @@ const VARIABLES_CONFIG = {
   lh: {
     id: "LH",
     label: "Calor Latente",
+    optionLabel: "Calor Latente",
+    icon: "💧",
+    category: "meteorological",
     unit: "W/m²",
     colormap: "hot",
     colors: [...TEMPERATURE_COLORS].reverse(),
@@ -591,6 +633,7 @@ function estimateWindGeneration(powerDensity, turbineArea = 500) {
  */
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    VARIABLE_CONTEXTS,
     VARIABLES_CONFIG,
     getWindCategory,
     getWindDirection,
