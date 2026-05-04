@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LabMiM — Potenciais Energéticos: mapas interativos de potencial fotovoltaico e potencial eólico derivados do modelo WRF para Bahia."
+      content="LabMiM — Potenciais Energéticos: mapas interativos de potencial fotovoltaico, potencial eólico e densidade eólica derivados do modelo WRF para Bahia."
     />
     <title>LabMiM — Potenciais Energéticos · UFBA</title>
     <link
@@ -161,7 +161,13 @@
         <div class="slider-wrapper">
           <label for="layerSlider">Hora:</label>
           <input type="range" id="layerSlider" min="1" max="73" step="1" value="7" />
-          <span class="slider-time" id="layerLabel">Carregando...</span>
+          <div class="slider-time-container">
+            <span class="slider-time" id="layerLabel">Carregando...</span>
+            <i
+              class="fas fa-question-circle slider-helper-icon"
+              title="Horários convertidos das saídas WRF para o horário local UTC−03:00."
+            ></i>
+          </div>
         </div>
 
         <div class="buttons-group">
@@ -179,6 +185,7 @@
             <optgroup label="Potenciais energéticos">
               <option value="solar">☀️ Potencial Fotovoltaico</option>
               <option value="eolico">💨 Potencial Eólico</option>
+              <option value="windPowerDensity">💨 Densidade Eólica 10m</option>
             </optgroup>
           </select>
         </div>
@@ -210,8 +217,43 @@
       <div class="documentation-btn-container">
         <button class="documentation-btn" id="docBtn" title="Abrir Documentação">
           <i class="fas fa-question-circle"></i>
+          <span class="documentation-btn-label">Documentação</span>
         </button>
       </div>
+
+      <!-- VARIABLE GUIDE / LAZY PREVIEW -->
+      <section
+        class="variable-overview-panel is-collapsed"
+        id="variableOverviewPanel"
+        aria-label="Resumo das variáveis"
+      >
+        <div class="variable-overview-header">
+          <div>
+            <span class="variable-overview-kicker">Potenciais Energéticos</span>
+            <h2>Sobre as variáveis</h2>
+          </div>
+          <button class="variable-overview-toggle" id="variableOverviewToggle" title="Ver detalhes">
+            <i class="fas fa-chevron-down"></i>
+            <span>Ver detalhes</span>
+          </button>
+        </div>
+        <div class="variable-overview-body">
+          <div class="variable-card-grid" id="variableCardsGrid"></div>
+          <div class="variable-preview-card">
+            <div class="variable-preview-header">
+              <div>
+                <span class="variable-preview-label" id="variablePreviewLabel">Resumo visual</span>
+                <h3 id="variablePreviewTitle">Selecione uma variável</h3>
+              </div>
+              <span class="variable-preview-domain" id="variablePreviewDomain">BA/NE</span>
+            </div>
+            <div class="variable-preview-stats" id="variablePreviewStats"></div>
+            <div class="variable-preview-chart">
+              <canvas id="variablePreviewCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- DOCUMENTATION MODAL -->
       <div class="documentation-modal" id="documentationModal">
@@ -242,10 +284,10 @@
                 utilização indevida e não autorizada por parte de terceiros.
               </div>
               <p>
-                Este mapa interativo reúne visualizações de <strong>potencial fotovoltaico</strong> e
-                <strong>potencial eólico</strong> geradas a partir do modelo
-                <strong>WRF (Weather Research and Forecasting)</strong>. Os produtos energéticos são exibidos em alta
-                resolução espacial e temporal para a região da Bahia e entorno, com horizonte de
+                Este mapa interativo reúne visualizações de <strong>potencial fotovoltaico</strong>,
+                <strong>potencial eólico</strong> e <strong>densidade de potência eólica</strong> geradas a partir do
+                modelo <strong>WRF (Weather Research and Forecasting)</strong>. Os produtos energéticos são exibidos em
+                alta resolução espacial e temporal para a região da Bahia e entorno, com horizonte de
                 <strong>72 horas</strong> e resolução horária.
               </p>
               <h4>Interface Principal</h4>
@@ -301,189 +343,109 @@
 
             <!-- VARIABLES TAB -->
             <div class="doc-tab-content" data-tab="variables">
-              <h3>Potenciais Energéticos e Variáveis de Apoio</h3>
+              <h3>Potenciais Energéticos</h3>
               <p class="doc-muted-copy">
-                O sistema disponibiliza variáveis derivadas das saídas do modelo WRF. Cada variável possui uma paleta de
-                cores, unidade e cálculos derivados específicos exibidos no painel lateral.
+                Esta página mostra apenas produtos energéticos. As variáveis meteorológicas usadas como suporte entram
+                apenas nos cálculos derivados do frontend ou do backend.
               </p>
 
-              <div class="doc-var-card">
-                <h4>☀️ Potencial Fotovoltaico (SWDOWN)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: W/m²</span>
-                  <span class="doc-var-badge">ID WRF: SWDOWN</span>
-                  <span class="doc-var-badge">Disponível: ~06:00–18:00 UTC</span>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>☀️ Potencial Fotovoltaico (SWDOWN)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade base: W/m²</span>
+                    <span class="doc-var-badge">JSON id: SWDOWN</span>
+                    <span class="doc-var-badge">Estimativa no frontend</span>
+                  </div>
+                  <p>
+                    O potencial fotovoltaico é estimado a partir da radiação solar incidente na superfície
+                    (<code>SWDOWN</code>) e de parâmetros do sistema fotovoltaico definidos no frontend.
+                  </p>
+                  <pre class="doc-formula"><code>SWDOWN = W/m²</code></pre>
+                  <pre class="doc-formula"><code>Tcell = Tair + ((NOCT - 20) * SWDOWN) / 800
+
+Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
+         (1 + PTC * (Tcell - 25) / 100)</code></pre>
+                  <ul class="doc-list">
+                    <li><code>Tcell</code> é a temperatura estimada da célula fotovoltaica.</li>
+                    <li><code>Tair</code> é a temperatura do ar.</li>
+                    <li><code>NOCT</code> é a temperatura nominal de operação da célula.</li>
+                    <li><code>eta_panel</code> é a eficiência do painel.</li>
+                    <li><code>eta_inverter</code> é a eficiência do inversor.</li>
+                    <li><code>PTC</code> é o coeficiente térmico de potência.</li>
+                  </ul>
+                  <p>
+                    <code>SWDOWN</code> é uma variável meteorológica. A produção fotovoltaica exibida é uma estimativa
+                    derivada e depende dos parâmetros assumidos para o sistema. Não substitui estudo técnico de geração
+                    real.
+                  </p>
                 </div>
+              </details>
 
-                <p>
-                  Radiação de onda curta descendente (Shortwave Downward Radiation) na superfície. É a componente direta
-                  + difusa da radiação solar que atinge o solo, calculada pelo esquema de radiação do WRF (RRTMG). À
-                  noite, o valor é zero.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> O painel lateral estima a produção fotovoltaica usando o modelo
-                  de temperatura da célula (<em>T<sub>célula</sub> = T<sub>ar</sub> + (NOCT − 20) × G / 800</em>) e a
-                  equação de rendimento:
-                  <em>P = (G/1000) × η<sub>painel</sub> × η<sub>inversor</sub> × [1 + α(T<sub>célula</sub> − 25)]</em>,
-                  onde α é o coeficiente de temperatura (%/°C).
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>💨 Potencial Eólico (POT_EOLICO)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: m/s</span>
-                  <span class="doc-var-badge">ID WRF: POT_EOLICO_50M / 100M / 150M</span>
-                  <span class="doc-var-badge">Alturas: 50m, 100m, 150m</span>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>💨 Potencial Eólico (POT_EOLICO)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade base: m/s</span>
+                    <span class="doc-var-badge">JSON ids: 50m / 100m / 150m</span>
+                    <span class="doc-var-badge">Estimativa no frontend</span>
+                  </div>
+                  <p>
+                    O potencial eólico usa velocidades do vento interpoladas para alturas de interesse energético:
+                    <code>POT_EOLICO_50M</code>, <code>POT_EOLICO_100M</code> e <code>POT_EOLICO_150M</code>.
+                  </p>
+                  <p>
+                    A velocidade do vento é a variável primária exibida no mapa. A produção energética exibida no painel
+                    é estimada a partir da densidade do ar, área do rotor e coeficiente de potência.
+                  </p>
+                  <pre class="doc-formula"><code>P_density = 0.5 * rho * v³</code></pre>
+                  <pre class="doc-formula"><code>P = 0.5 * rho * A * Cp * v³</code></pre>
+                  <ul class="doc-list">
+                    <li><code>rho</code> é a densidade do ar.</li>
+                    <li><code>v</code> é a velocidade do vento.</li>
+                    <li><code>A</code> é a área varrida pelo rotor.</li>
+                    <li><code>Cp</code> é o coeficiente de potência.</li>
+                  </ul>
+                  <p>
+                    A estimativa não considera curva real de potência da turbina, velocidades de cut-in/rated/cut-out,
+                    perdas elétricas, disponibilidade, rugosidade local ou micrositing. Deve ser usada como triagem
+                    espacial preliminar.
+                  </p>
                 </div>
+              </details>
 
-                <p>
-                  Velocidade do vento interpolada verticalmente para alturas de hub de turbinas eólicas. A interpolação
-                  utiliza os níveis sigma do WRF e o perfil logarítmico de vento na camada limite atmosférica.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Densidade de potência eólica (<em>P<sub>d</sub> = ½ρv³</em>),
-                  onde ρ é a densidade do ar corrigida pela temperatura (<em>ρ = ρ<sub>0</sub> × 288/(273+T)</em>).
-                  Produção energética estimada usando área do rotor (<em>A = π(D/2)²</em>) e coeficiente de potência Cp.
-                </p>
-              </div>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>💨 Densidade de Potência Eólica 10m (WIND_POWER_DENSITY_10M)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: WIND_POWER_DENSITY_10M</span>
+                    <span class="doc-var-badge">Altura: 10 m</span>
+                  </div>
+                  <p>
+                    Densidade de potência disponível no vento por unidade de área a 10 metros, baseada em
+                    <code>U10</code>, <code>V10</code>, <code>T2</code>, <code>PSFC</code> e <code>Q2</code>.
+                  </p>
+                  <pre class="doc-formula"><code>speed10 = sqrt(U10² + V10²)
 
-              <div class="doc-var-card">
-                <h4>🌬️ Vento a 10m (WIND)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: m/s</span>
-                  <span class="doc-var-badge">ID WRF: WIND</span>
-                  <span class="doc-var-badge">Altura: 10 m</span>
+Tv = T2 * (1 + 0.61 * Q2)
+
+rho = PSFC / (287.05 * Tv)
+
+WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
+                  <p>
+                    Representa a potência física disponível no escoamento do vento por metro quadrado. Não é produção de
+                    turbina; é útil para comparar regiões e horários com maior ou menor recurso eólico próximo à
+                    superfície.
+                  </p>
+                  <ul class="doc-list">
+                    <li>Cresce com o cubo da velocidade do vento.</li>
+                    <li>Pequenas diferenças de vento podem gerar grandes diferenças de potência disponível.</li>
+                    <li>Por estar em 10 m, não substitui avaliação em altura de hub.</li>
+                    <li>Complementa, mas não substitui, os mapas de vento em 50 m, 100 m e 150 m.</li>
+                  </ul>
                 </div>
-
-                <p>
-                  Magnitude resultante do vento de superfície a 10 metros, calculada a partir das componentes U10 e V10
-                  do WRF: <em>|V| = √(U10² + V10²)</em>. É a variável padrão de referência para estações meteorológicas
-                  de superfície.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação Beaufort simplificada (Muito Fraco a Extremo) e
-                  estimativa de rajadas (fator de rajada ≈ 1.3×).
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>🌡️ Temperatura do Ar (TEMP)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: °C</span>
-                  <span class="doc-var-badge">ID WRF: T2</span>
-                  <span class="doc-var-badge">Altura: 2 m</span>
-                </div>
-
-                <p>
-                  Temperatura do ar a 2 metros de altura (variável diagnóstica T2 do WRF), a referência padrão da
-                  Organização Meteorológica Mundial (OMM) para medições de superfície. O WRF calcula essa variável
-                  utilizando a teoria de similaridade de Monin-Obukhov na camada superficial.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Sensação térmica (modelo de Wind Chill para T ≤ 10°C e v ≥ 1.34
-                  m/s; modelo de Heat Index para T ≥ 26.7°C e umidade adequada disponível) e índice de calor baseado na
-                  pressão parcial de vapor.
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>🎯 Pressão Atmosférica (PRES)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: hPa</span>
-                  <span class="doc-var-badge">ID WRF: PSFC</span>
-                  <span class="doc-var-badge">Nível: Superfície (reduzida ao nível do mar)</span>
-                </div>
-
-                <p>
-                  Pressão atmosférica na superfície, reduzida ao nível do mar para permitir comparação entre diferentes
-                  altitudes. Utiliza escala dinâmica centrada em 1013.25 hPa (pressão média ao nível do mar) com
-                  colormap divergente (RdBu_r): tons vermelhos indicam alta pressão, tons azuis indicam baixa pressão.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação Alta/Baixa pressão, desvio em relação à normal
-                  (1013.25 hPa).
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>💧 Umidade Específica (VAPOR)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: kg/kg</span>
-                  <span class="doc-var-badge">ID WRF: Q2 (derivada)</span>
-                  <span class="doc-var-badge">Altura: 2 m</span>
-                </div>
-
-                <p>
-                  Umidade específica a 2 metros, representando a massa de vapor d'água por massa de ar úmido conforme o
-                  contrato do produto VAPOR. O valor é exibido sem conversão silenciosa.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> classificação qualitativa do conteúdo de vapor, valor direto da
-                  umidade específica e indicação de transporte de umidade na atmosfera.
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>🌧️ Precipitação (RAIN)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: mm</span>
-                  <span class="doc-var-badge">ID WRF: RAINNC + RAINC</span>
-                  <span class="doc-var-badge">Acumulado: Horário</span>
-                </div>
-
-                <p>
-                  Precipitação acumulada em cada intervalo de uma hora, somando a componente convectiva (RAINC, do
-                  esquema de parametrização de cumulus, ex.: Kain-Fritsch) e a componente de grade (RAINNC, resolvida
-                  explicitamente pela microfísica, ex.: Thompson ou WSM6).
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação de intensidade segundo a OMM (Leve &lt; 2.5 mm/h,
-                  Moderada 2.5–10 mm/h, Forte &gt; 10 mm/h) e avaliação de impacto agrícola.
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>🔥 Calor Sensível (HFX)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: W/m²</span>
-                  <span class="doc-var-badge">ID WRF: HFX</span>
-                  <span class="doc-var-badge">Nível: Superfície</span>
-                </div>
-
-                <p>
-                  Fluxo turbulento de calor sensível na superfície (<em
-                    >H = ρ c<sub>p</sub> C<sub>H</sub> |V| (T<sub>sfc</sub> − T<sub>ar</sub>)</em
-                  >). Representa a transferência de energia térmica entre a superfície e a atmosfera por convecção e
-                  turbulência, sem mudança de fase da água. Valores positivos indicam aquecimento da atmosfera pela
-                  superfície.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação da magnitude (Fraca &lt; 100 W/m², Moderada 100–300
-                  W/m², Forte &gt; 300 W/m²) e indicação do tipo de regime (Aquecimento vs. Resfriamento).
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>💧 Calor Latente (LH)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: W/m²</span>
-                  <span class="doc-var-badge">ID WRF: LH</span>
-                  <span class="doc-var-badge">Nível: Superfície</span>
-                </div>
-
-                <p>
-                  Fluxo turbulento de calor latente na superfície (<em
-                    >LE = ρ L<sub>v</sub> C<sub>E</sub> |V| (q<sub>sfc</sub> − q<sub>ar</sub>)</em
-                  >). Representa a energia associada a mudanças de fase (evaporação/condensação). Valores positivos
-                  indicam evaporação (transferência de umidade da superfície para a atmosfera), que é a fonte primária
-                  de umidade para formação de nuvens e precipitação.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação da atividade convectiva (Fraca/Moderada/Intensa) e
-                  indicação de Evaporação vs. Condensação.
-                </p>
-              </div>
+              </details>
             </div>
 
             <!-- WRF TAB -->

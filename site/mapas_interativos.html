@@ -159,7 +159,13 @@
         <div class="slider-wrapper">
           <label for="layerSlider">Hora:</label>
           <input type="range" id="layerSlider" min="1" max="73" step="1" value="7" />
-          <span class="slider-time" id="layerLabel">Carregando...</span>
+          <div class="slider-time-container">
+            <span class="slider-time" id="layerLabel">Carregando...</span>
+            <i
+              class="fas fa-question-circle slider-helper-icon"
+              title="Horários convertidos das saídas WRF para o horário local UTC−03:00."
+            ></i>
+          </div>
         </div>
 
         <div class="buttons-group">
@@ -174,12 +180,16 @@
         <div class="variable-selector-wrapper">
           <label for="variableSelect">Variável:</label>
           <select id="variableSelect" class="variable-select">
-            <optgroup label="Variáveis meteorológicas">
+            <optgroup label="Variáveis meteorológicas e radiativas">
               <option value="wind">🌬️ Vento (10m)</option>
               <option value="temperature">🌡️ Temperatura</option>
+              <option value="skinTemperature">🌡️ Temperatura de Superfície</option>
               <option value="pressure">🎯 Pressão Atmosférica</option>
-              <option value="humidity">💧 Umidade Específica</option>
+              <option value="humidity">💧 Vapor d'Água</option>
+              <option value="relativeHumidity">💧 Umidade Relativa</option>
               <option value="rain">🌧️ Precipitação</option>
+              <option value="globalRadiation">☀️ Radiação Global</option>
+              <option value="longwave">🌙 Onda Longa Incidente</option>
               <option value="hfx">🔥 Calor Sensível</option>
               <option value="lh">💧 Calor Latente</option>
             </optgroup>
@@ -213,8 +223,43 @@
       <div class="documentation-btn-container">
         <button class="documentation-btn" id="docBtn" title="Abrir Documentação">
           <i class="fas fa-question-circle"></i>
+          <span class="documentation-btn-label">Documentação</span>
         </button>
       </div>
+
+      <!-- VARIABLE GUIDE / LAZY PREVIEW -->
+      <section
+        class="variable-overview-panel is-collapsed"
+        id="variableOverviewPanel"
+        aria-label="Resumo das variáveis"
+      >
+        <div class="variable-overview-header">
+          <div>
+            <span class="variable-overview-kicker">Previsões</span>
+            <h2>Sobre as variáveis</h2>
+          </div>
+          <button class="variable-overview-toggle" id="variableOverviewToggle" title="Ver detalhes">
+            <i class="fas fa-chevron-down"></i>
+            <span>Ver detalhes</span>
+          </button>
+        </div>
+        <div class="variable-overview-body">
+          <div class="variable-card-grid" id="variableCardsGrid"></div>
+          <div class="variable-preview-card">
+            <div class="variable-preview-header">
+              <div>
+                <span class="variable-preview-label" id="variablePreviewLabel">Resumo visual</span>
+                <h3 id="variablePreviewTitle">Selecione uma variável</h3>
+              </div>
+              <span class="variable-preview-domain" id="variablePreviewDomain">BA/NE</span>
+            </div>
+            <div class="variable-preview-stats" id="variablePreviewStats"></div>
+            <div class="variable-preview-chart">
+              <canvas id="variablePreviewCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <!-- DOCUMENTATION MODAL -->
       <div class="documentation-modal" id="documentationModal">
@@ -303,148 +348,272 @@
 
             <!-- VARIABLES TAB -->
             <div class="doc-tab-content" data-tab="variables">
-              <h3>Variáveis Meteorológicas</h3>
+              <h3>Variáveis de Previsão</h3>
               <p class="doc-muted-copy">
-                O sistema disponibiliza variáveis derivadas das saídas do modelo WRF. Cada variável possui uma paleta de
-                cores, unidade e cálculos derivados específicos exibidos no painel lateral.
+                Esta página reúne variáveis meteorológicas e radiativas do WRF. Cada seção abaixo documenta a fonte,
+                unidade, interpretação física e principais limitações da variável exibida no mapa.
               </p>
 
-              <div class="doc-var-card">
-                <h4>🌬️ Vento a 10m (WIND)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: m/s</span>
-                  <span class="doc-var-badge">ID WRF: WIND</span>
-                  <span class="doc-var-badge">Altura: 10 m</span>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🌬️ Vento 10m (WIND)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: m/s</span>
+                    <span class="doc-var-badge">JSON id: WIND</span>
+                    <span class="doc-var-badge">Fonte WRF: U10 + V10</span>
+                  </div>
+                  <p>
+                    Velocidade do vento simulada a 10 metros de altura, calculada a partir das componentes horizontais
+                    <code>U10</code> e <code>V10</code> do modelo WRF.
+                  </p>
+                  <pre class="doc-formula"><code>WIND = sqrt(U10² + V10²)</code></pre>
+                  <p>
+                    Representa a intensidade do vento próximo à superfície e é útil para previsão meteorológica,
+                    dispersão de poluentes, conforto ambiental e avaliação preliminar do escoamento atmosférico.
+                  </p>
+                  <p>
+                    A direção do vento pode ser exibida separadamente pela camada de vetores. Em áreas de relevo
+                    complexo ou rugosidade urbana alta, a velocidade em 10 m pode não representar condições pontuais.
+                  </p>
                 </div>
+              </details>
 
-                <p>
-                  Magnitude resultante do vento de superfície a 10 metros, calculada a partir das componentes U10 e V10
-                  do WRF: <em>|V| = √(U10² + V10²)</em>. É a variável padrão de referência para estações meteorológicas
-                  de superfície.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação Beaufort simplificada (Muito Fraco a Extremo) e
-                  estimativa de rajadas (fator de rajada ≈ 1.3×).
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>🌡️ Temperatura do Ar (TEMP)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: °C</span>
-                  <span class="doc-var-badge">ID WRF: T2</span>
-                  <span class="doc-var-badge">Altura: 2 m</span>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🌡️ Temperatura 2m (TEMP)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: °C</span>
+                    <span class="doc-var-badge">JSON id: TEMP</span>
+                    <span class="doc-var-badge">Fonte WRF: T2</span>
+                  </div>
+                  <p>
+                    Temperatura do ar próximo à superfície, a 2 metros de altura, obtida a partir de <code>T2</code>.
+                  </p>
+                  <pre class="doc-formula"><code>TEMP_C = T2_K - 273.15</code></pre>
+                  <p>
+                    Representa a temperatura do ar em altura padrão meteorológica próxima à superfície. É diferente da
+                    temperatura de superfície, pois descreve o ar e não diretamente solo, vegetação, telhados ou corpos
+                    d'água.
+                  </p>
+                  <p>
+                    Pode ser afetada por parametrizações de camada limite, uso do solo e resolução espacial do domínio.
+                  </p>
                 </div>
+              </details>
 
-                <p>
-                  Temperatura do ar a 2 metros de altura (variável diagnóstica T2 do WRF), a referência padrão da
-                  Organização Meteorológica Mundial (OMM) para medições de superfície. O WRF calcula essa variável
-                  utilizando a teoria de similaridade de Monin-Obukhov na camada superficial.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Sensação térmica (modelo de Wind Chill para T ≤ 10°C e v ≥ 1.34
-                  m/s; modelo de Heat Index para T ≥ 26.7°C e umidade adequada disponível) e índice de calor baseado na
-                  pressão parcial de vapor.
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>🎯 Pressão Atmosférica (PRES)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: hPa</span>
-                  <span class="doc-var-badge">ID WRF: PSFC</span>
-                  <span class="doc-var-badge">Nível: Superfície (reduzida ao nível do mar)</span>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🌡️ Temperatura de Superfície (TSK)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: °C</span>
+                    <span class="doc-var-badge">JSON id: TSK</span>
+                    <span class="doc-var-badge">Fonte WRF: TSK</span>
+                  </div>
+                  <p>Temperatura da superfície simulada pelo modelo, também chamada de temperatura da pele.</p>
+                  <pre class="doc-formula"><code>TSK_C = TSK_K - 273.15</code></pre>
+                  <p>
+                    Representa a temperatura da interface solo/superfície. Pode variar mais rapidamente que a
+                    temperatura do ar a 2 m, principalmente em áreas urbanas, solo exposto, vegetação e superfícies
+                    úmidas.
+                  </p>
+                  <p>
+                    É útil para análise de ilhas de calor, balanço de energia da superfície e processos de troca entre
+                    superfície e atmosfera.
+                  </p>
                 </div>
+              </details>
 
-                <p>
-                  Pressão atmosférica na superfície, reduzida ao nível do mar para permitir comparação entre diferentes
-                  altitudes. Utiliza escala dinâmica centrada em 1013.25 hPa (pressão média ao nível do mar) com
-                  colormap divergente (RdBu_r): tons vermelhos indicam alta pressão, tons azuis indicam baixa pressão.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação Alta/Baixa pressão, desvio em relação à normal
-                  (1013.25 hPa).
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>💧 Umidade Específica (VAPOR)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: kg/kg</span>
-                  <span class="doc-var-badge">ID WRF: Q2 (derivada)</span>
-                  <span class="doc-var-badge">Altura: 2 m</span>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🎯 Pressão Atmosférica (PRES)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: hPa</span>
+                    <span class="doc-var-badge">JSON id: PRES</span>
+                    <span class="doc-var-badge">Fonte WRF: PSFC</span>
+                  </div>
+                  <p>Pressão atmosférica na superfície obtida da variável <code>PSFC</code>.</p>
+                  <pre class="doc-formula"><code>PRES_hPa = PSFC_Pa / 100</code></pre>
+                  <p>
+                    Representa a pressão do ar junto à superfície. É útil para interpretação de sistemas meteorológicos,
+                    gradientes de pressão e condições sinóticas.
+                  </p>
+                  <p>
+                    Valores mais baixos podem estar associados a maior instabilidade ou sistemas de baixa pressão;
+                    valores mais altos tendem a indicar maior estabilidade atmosférica.
+                  </p>
                 </div>
+              </details>
 
-                <p>
-                  Umidade específica a 2 metros, representando a massa de vapor d'água por massa de ar úmido conforme o
-                  contrato do produto VAPOR. O valor é exibido sem conversão silenciosa.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> classificação qualitativa do conteúdo de vapor, valor direto da
-                  umidade específica e indicação de transporte de umidade na atmosfera.
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>🌧️ Precipitação (RAIN)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: mm</span>
-                  <span class="doc-var-badge">ID WRF: RAINNC + RAINC</span>
-                  <span class="doc-var-badge">Acumulado: Horário</span>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>💧 Vapor d'Água (VAPOR)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: g/kg</span>
+                    <span class="doc-var-badge">JSON id: VAPOR</span>
+                    <span class="doc-var-badge">Fonte WRF: Q2</span>
+                  </div>
+                  <p>Razão de mistura de vapor d'água próximo à superfície, baseada em <code>Q2</code>.</p>
+                  <pre class="doc-formula"><code>VAPOR_gkg = Q2 * 1000</code></pre>
+                  <p>
+                    Indica a massa de vapor d'água presente no ar em relação à massa de ar seco. Ela não é umidade
+                    relativa. No backend, o valor é convertido de kg/kg para g/kg para facilitar a leitura no site.
+                  </p>
+                  <ul class="doc-list">
+                    <li>Valores maiores indicam ar com mais vapor d'água.</li>
+                    <li>Valores menores indicam ar mais seco.</li>
+                    <li>É importante para formação de nuvens, precipitação, sensação térmica e balanço de energia.</li>
+                    <li>É usada junto com temperatura e pressão para estimar a umidade relativa.</li>
+                  </ul>
                 </div>
+              </details>
 
-                <p>
-                  Precipitação acumulada em cada intervalo de uma hora, somando a componente convectiva (RAINC, do
-                  esquema de parametrização de cumulus, ex.: Kain-Fritsch) e a componente de grade (RAINNC, resolvida
-                  explicitamente pela microfísica, ex.: Thompson ou WSM6).
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação de intensidade segundo a OMM (Leve &lt; 2.5 mm/h,
-                  Moderada 2.5–10 mm/h, Forte &gt; 10 mm/h) e avaliação de impacto agrícola.
-                </p>
-              </div>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>💧 Umidade Relativa (RH2)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: %</span>
+                    <span class="doc-var-badge">JSON id: RH2</span>
+                    <span class="doc-var-badge">Fonte: Q2 + T2 + PSFC</span>
+                  </div>
+                  <p>Umidade relativa estimada a 2 metros a partir de vapor d'água, temperatura e pressão.</p>
+                  <pre class="doc-formula"><code>e = q * p / (epsilon + q)
+epsilon = 0.622
 
-              <div class="doc-var-card">
-                <h4>🔥 Calor Sensível (HFX)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: W/m²</span>
-                  <span class="doc-var-badge">ID WRF: HFX</span>
-                  <span class="doc-var-badge">Nível: Superfície</span>
+es = 611.2 * exp(17.67 * Tc / (Tc + 243.5))
+
+RH2 = clip(100 * e / es, 0, 100)</code></pre>
+                  <ul class="doc-list">
+                    <li><code>q</code> é a razão de mistura de vapor d'água.</li>
+                    <li><code>p</code> é a pressão atmosférica.</li>
+                    <li><code>Tc</code> é a temperatura do ar em °C.</li>
+                    <li><code>e</code> é a pressão parcial de vapor.</li>
+                    <li><code>es</code> é a pressão de vapor de saturação.</li>
+                  </ul>
+                  <p>
+                    Indica o quão próximo o ar está da saturação. Valores altos favorecem condensação, formação de
+                    nuvens e desconforto térmico; valores baixos indicam ar seco e maior potencial evaporativo.
+                  </p>
                 </div>
+              </details>
 
-                <p>
-                  Fluxo turbulento de calor sensível na superfície (<em
-                    >H = ρ c<sub>p</sub> C<sub>H</sub> |V| (T<sub>sfc</sub> − T<sub>ar</sub>)</em
-                  >). Representa a transferência de energia térmica entre a superfície e a atmosfera por convecção e
-                  turbulência, sem mudança de fase da água. Valores positivos indicam aquecimento da atmosfera pela
-                  superfície.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação da magnitude (Fraca &lt; 100 W/m², Moderada 100–300
-                  W/m², Forte &gt; 300 W/m²) e indicação do tipo de regime (Aquecimento vs. Resfriamento).
-                </p>
-              </div>
-
-              <div class="doc-var-card">
-                <h4>💧 Calor Latente (LH)</h4>
-                <div class="doc-var-meta">
-                  <span class="doc-var-badge">Unidade: W/m²</span>
-                  <span class="doc-var-badge">ID WRF: LH</span>
-                  <span class="doc-var-badge">Nível: Superfície</span>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🌧️ Precipitação (RAIN)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: mm</span>
+                    <span class="doc-var-badge">JSON id: RAIN</span>
+                    <span class="doc-var-badge">Fonte WRF: RAINC + RAINNC</span>
+                  </div>
+                  <p>Chuva prevista por intervalo temporal, derivada dos acumulados do modelo WRF.</p>
+                  <pre class="doc-formula"><code>RAIN_TOTAL = RAINC + RAINNC
+RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
+                  <p>
+                    As variáveis <code>RAINC</code> e <code>RAINNC</code> são acumuladas no WRF. Para representar chuva
+                    por horário, o backend calcula a diferença entre timesteps consecutivos.
+                  </p>
+                  <p>
+                    Isso evita mostrar o acumulado total como se fosse chuva instantânea. A qualidade depende das
+                    parametrizações de convecção e microfísica do domínio.
+                  </p>
                 </div>
+              </details>
 
-                <p>
-                  Fluxo turbulento de calor latente na superfície (<em
-                    >LE = ρ L<sub>v</sub> C<sub>E</sub> |V| (q<sub>sfc</sub> − q<sub>ar</sub>)</em
-                  >). Representa a energia associada a mudanças de fase (evaporação/condensação). Valores positivos
-                  indicam evaporação (transferência de umidade da superfície para a atmosfera), que é a fonte primária
-                  de umidade para formação de nuvens e precipitação.
-                </p>
-                <p>
-                  <strong>Cálculos derivados:</strong> Classificação da atividade convectiva (Fraca/Moderada/Intensa) e
-                  indicação de Evaporação vs. Condensação.
-                </p>
-              </div>
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>☀️ Radiação Global (SWDOWN)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: SWDOWN</span>
+                    <span class="doc-var-badge">Fonte WRF: SWDOWN</span>
+                  </div>
+                  <p>
+                    Radiação solar de onda curta incidente na superfície. Na página de Previsões, é tratada como
+                    variável radiativa meteorológica, sem cálculo de geração fotovoltaica.
+                  </p>
+                  <pre class="doc-formula"><code>Rn = SWDOWN - SWUP + GLW - LWUP</code></pre>
+                  <ul class="doc-list">
+                    <li><code>Rn</code> é a radiação líquida.</li>
+                    <li><code>SWDOWN</code> é a radiação solar de onda curta incidente.</li>
+                    <li><code>SWUP</code> é a radiação solar refletida pela superfície.</li>
+                    <li><code>GLW</code> é a radiação de onda longa descendente.</li>
+                    <li><code>LWUP</code> é a radiação de onda longa emitida pela superfície.</li>
+                  </ul>
+                  <p>
+                    Mesmo que o site exiba apenas <code>SWDOWN</code> e <code>GLW</code>, a Radiação Global é uma das
+                    componentes principais do balanço radiativo de superfície. Valores altos geralmente indicam céu mais
+                    limpo e maior insolação.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🌙 Radiação de Onda Longa (GLW)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: GLW</span>
+                    <span class="doc-var-badge">Fonte WRF: GLW</span>
+                  </div>
+                  <p>
+                    Radiação infravermelha descendente emitida pela atmosfera em direção à superfície. É influenciada
+                    por temperatura do ar, vapor d'água e nebulosidade.
+                  </p>
+                  <pre class="doc-formula"><code>Rn = SWDOWN - SWUP + GLW - LWUP</code></pre>
+                  <p>
+                    Atmosferas mais úmidas ou com maior cobertura de nuvens tendem a emitir mais radiação de onda longa
+                    para a superfície. <code>GLW</code> é importante para análise noturna, resfriamento radiativo e
+                    balanço energético.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🔥 Calor Sensível (HFX)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: HFX</span>
+                    <span class="doc-var-badge">Fonte WRF: HFX</span>
+                  </div>
+                  <p>
+                    Fluxo de calor sensível na superfície. Representa a troca de energia entre superfície e atmosfera
+                    associada ao aquecimento ou resfriamento do ar.
+                  </p>
+                  <pre class="doc-formula"><code>Rn = H + LE + G + S</code></pre>
+                  <ul class="doc-list">
+                    <li><code>Rn</code> é a radiação líquida.</li>
+                    <li><code>H</code> é o fluxo de calor sensível.</li>
+                    <li><code>LE</code> é o fluxo de calor latente.</li>
+                    <li><code>G</code> é o fluxo de calor no solo.</li>
+                    <li><code>S</code> representa armazenamento de energia.</li>
+                  </ul>
+                  <p>
+                    Valores positivos geralmente indicam transferência de calor da superfície para a atmosfera; valores
+                    negativos indicam transferência no sentido oposto.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>💧 Calor Latente (LH)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: LH</span>
+                    <span class="doc-var-badge">Fonte WRF: LH</span>
+                  </div>
+                  <p>
+                    Fluxo de calor latente na superfície. Representa a energia envolvida em processos de evaporação,
+                    transpiração e condensação.
+                  </p>
+                  <pre class="doc-formula"><code>Rn = H + LE + G + S</code></pre>
+                  <p>
+                    Valores maiores geralmente indicam maior transferência de energia associada à água, como evaporação
+                    do solo, corpos d'água ou vegetação. É importante para avaliar disponibilidade de umidade,
+                    evapotranspiração, acoplamento superfície-atmosfera e processos convectivos.
+                  </p>
+                </div>
+              </details>
             </div>
 
             <!-- WRF TAB -->

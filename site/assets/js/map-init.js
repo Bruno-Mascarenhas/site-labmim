@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   app = new MeteoMapManager();
   chartsManager = new ChartsManager(app);
   app.chartsManager = chartsManager;
+  app.setupVariableOverview(chartsManager);
 
   const originalShowSidebar = app.showSidebar.bind(app);
   app.showSidebar = function () {

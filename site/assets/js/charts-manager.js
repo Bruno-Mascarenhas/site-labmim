@@ -9,9 +9,12 @@ class ChartsManager {
   constructor(app) {
     this.app = app;
     this.charts = new Map();
+    this.previewCharts = new Map();
     this.timeSeriesData = {};
     this.timeSeriesCache = new Map();
+    this.domainSummaryCache = new Map();
     this.abortController = null;
+    this.previewAbortController = null;
     this.ui = this._cacheUIElements();
 
     this._setupModalListeners();
@@ -179,6 +182,214 @@ class ChartsManager {
   }
 
   // ─── Internal Methods ─────────────────────────────────────────────────────
+
+  async renderDomainSummary(variableType, domain, elements = {}) {
+    const config = VARIABLES_CONFIG[variableType];
+    if (!config) return;
+
+    if (this.previewAbortController) {
+      this.previewAbortController.abort();
+    }
+    this.previewAbortController = new AbortController();
+    const signal = this.previewAbortController.signal;
+
+    const { canvasId = "variablePreviewCanvas", statsContainer, titleElement, labelElement, domainElement } = elements;
+
+    if (titleElement) titleElement.textContent = config.optionLabel || config.label;
+    if (labelElement) labelElement.textContent = `${config.sourceId || config.id} · ${config.unit}`;
+    if (domainElement) {
+      domainElement.textContent = this.app?.getDomainLabel ? this.app.getDomainLabel(domain) : domain;
+      domainElement.title = `Domínio técnico: ${domain}`;
+    }
+    if (statsContainer) {
+      statsContainer.innerHTML = '<div class="variable-preview-empty">Carregando resumo...</div>';
+    }
+
+    try {
+      const result = await this._loadDomainMeanSeries(variableType, domain, signal);
+      if (signal.aborted) return;
+
+      if (!result?.series?.length) {
+        this._renderEmptyPreview(
+          canvasId,
+          statsContainer,
+          "Sem dados disponíveis para esta variável no domínio atual."
+        );
+        return;
+      }
+
+      this._renderPreviewStats(statsContainer, result.stats, config);
+      this._renderPreviewChart(canvasId, result.series, config);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      console.error("[Charts] Error rendering domain summary:", error);
+      this._renderEmptyPreview(canvasId, statsContainer, "Não foi possível carregar o resumo visual.");
+    }
+  }
+
+  async _loadDomainMeanSeries(variableType, domain, signal) {
+    const config = VARIABLES_CONFIG[variableType];
+    if (!config?.id) return null;
+
+    const variableId = this._getVariableId(variableType, config);
+    const maxHour = this._getAvailableHourCount();
+    const currentHour = parseInt(this.app?.state?.index, 10) || 1;
+    const cacheKey = `${domain}:${variableId}:domain-summary:${maxHour}`;
+    const cached = this.domainSummaryCache.get(cacheKey);
+    if (cached) return this._withCurrentStats(cached, currentHour);
+
+    const BATCH_SIZE = 8;
+    const series = [];
+
+    for (let start = 1; start <= maxHour; start += BATCH_SIZE) {
+      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+      const batchEnd = Math.min(start + BATCH_SIZE - 1, maxHour);
+      const batch = [];
+
+      for (let hour = start; hour <= batchEnd; hour++) {
+        batch.push(
+          this._fetchHourJson(variableId, domain, hour, signal).then((data) => {
+            const summary = this._summarizeValues(data?.values);
+            if (!summary) return null;
+            return {
+              hour,
+              value: summary.mean,
+              min: summary.min,
+              max: summary.max,
+              timestamp: this._timestampForHour(hour, data),
+            };
+          })
+        );
+      }
+
+      const batchResults = await Promise.all(batch);
+      series.push(...batchResults.filter(Boolean));
+    }
+
+    const baseResult = { series, stats: this._aggregateSeriesStats(series, currentHour) };
+    this.domainSummaryCache.set(cacheKey, baseResult);
+    return baseResult;
+  }
+
+  _withCurrentStats(result, currentHour) {
+    return {
+      series: result.series,
+      stats: this._aggregateSeriesStats(result.series, currentHour),
+    };
+  }
+
+  _summarizeValues(values) {
+    if (!Array.isArray(values)) return null;
+
+    let count = 0;
+    let sum = 0;
+    let min = Infinity;
+    let max = -Infinity;
+
+    values.forEach((value) => {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return;
+      const numericValue = Number(value);
+      count += 1;
+      sum += numericValue;
+      min = Math.min(min, numericValue);
+      max = Math.max(max, numericValue);
+    });
+
+    if (!count) return null;
+    return { mean: sum / count, min, max };
+  }
+
+  _aggregateSeriesStats(series, currentHour) {
+    if (!series?.length) return null;
+
+    const current = series.find((entry) => entry.hour === currentHour) || series[0];
+    const mean = series.reduce((sum, entry) => sum + entry.value, 0) / series.length;
+    const min = Math.min(...series.map((entry) => entry.min));
+    const max = Math.max(...series.map((entry) => entry.max));
+
+    return { current: current.value, mean, min, max };
+  }
+
+  _renderPreviewStats(container, stats, config) {
+    if (!container || !stats) return;
+
+    const items = [
+      ["Atual", stats.current],
+      ["Média", stats.mean],
+      ["Mín", stats.min],
+      ["Máx", stats.max],
+    ];
+
+    container.innerHTML = items
+      .map(
+        ([label, value]) => `
+          <div class="variable-preview-stat">
+            <span>${label}</span>
+            <strong>${this._formatPreviewValue(value, config.unit)}</strong>
+          </div>
+        `
+      )
+      .join("");
+  }
+
+  _renderPreviewChart(canvasId, series, config) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || typeof Chart === "undefined") return;
+
+    const labels = series.map((entry) =>
+      new Date(entry.timestamp).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+      })
+    );
+    const chartData = series.map((entry) => entry.value);
+    const chartColor = config.colors?.[config.colors.length - 1] || "#0d6efd";
+    const chartLabel = `Média do domínio · ${config.label}`;
+
+    let chartInstance = this.previewCharts.get(canvasId);
+
+    if (chartInstance) {
+      chartInstance.data.labels = labels;
+      chartInstance.data.datasets[0].data = chartData;
+      chartInstance.data.datasets[0].label = chartLabel;
+      chartInstance.data.datasets[0].borderColor = chartColor;
+      chartInstance.data.datasets[0].backgroundColor = `${chartColor}20`;
+      chartInstance.options.scales.y.title.text = config.unit;
+      chartInstance.options.plugins.tooltip.callbacks.label = (ctx) =>
+        `${this._formatPreviewValue(ctx.parsed.y, config.unit)}`;
+      this._applyChartTheme(chartInstance, chartColor);
+      chartInstance.update("none");
+      return;
+    }
+
+    chartInstance = new Chart(
+      canvas.getContext("2d"),
+      this._buildChartConfig(chartData, labels, chartLabel, chartColor, config.unit)
+    );
+    chartInstance.options.plugins.legend.display = false;
+    chartInstance.options.scales.x.ticks.maxTicksLimit = 6;
+    chartInstance.options.elements = { point: { radius: 0 } };
+    this.previewCharts.set(canvasId, chartInstance);
+  }
+
+  _renderEmptyPreview(canvasId, statsContainer, message) {
+    const chartInstance = this.previewCharts.get(canvasId);
+    if (chartInstance) {
+      chartInstance.destroy();
+      this.previewCharts.delete(canvasId);
+    }
+    if (statsContainer) {
+      statsContainer.innerHTML = `<div class="variable-preview-empty">${message}</div>`;
+    }
+  }
+
+  _formatPreviewValue(value, unit) {
+    if (!Number.isFinite(Number(value))) return "N/D";
+    const numericValue = Number(value);
+    const precision = unit === "%" || unit === "W/m²" || unit === "hPa" || unit === "mm" ? 0 : 1;
+    return `${numericValue.toFixed(precision)} ${unit}`;
+  }
 
   _updateOrCreateChart(variableType, chartType, canvasId) {
     if (!this.timeSeriesData?.[variableType]) return;
@@ -391,6 +602,7 @@ class ChartsManager {
     const keys = new Set();
     if (VARIABLES_CONFIG[variableType]?.id) keys.add(variableType);
     if (variableType === "solar" || variableType === "eolico") keys.add("temperature");
+    if (variableType === "windPowerDensity") keys.add("wind");
     return [...keys];
   }
 
@@ -515,9 +727,9 @@ class ChartsManager {
     URL.revokeObjectURL(url);
   }
 
-  _formatCsvValue(value, unit) {
-    if (isNaN(value)) return unit === "kg/kg" ? "0.0000" : "0.00";
-    return unit === "kg/kg" ? value.toFixed(4) : value.toFixed(2);
+  _formatCsvValue(value) {
+    if (isNaN(value)) return "0.00";
+    return value.toFixed(2);
   }
 
   async _fetchHourJson(variableId, domain, hour, signal) {
@@ -590,7 +802,13 @@ class ChartsManager {
         temperature: "thermometer",
         pressure: "cloud",
         humidity: "droplet",
+        skinTemperature: "temperature-high",
+        relativeHumidity: "droplet",
+        longwave: "moon",
         rain: "cloud-rain",
+        hfx: "fire",
+        lh: "water",
+        windPowerDensity: "fan",
       }[variableType] || "chart-line"
     );
   }

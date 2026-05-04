@@ -11,7 +11,7 @@ O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, 
 - Página de equipe com links de pesquisadores e localização incorporada.
 - Página de climatologia atualmente em construção.
 - WebGIS de previsões em `mapas_interativos.html` com variáveis meteorológicas.
-- WebGIS de potenciais energéticos em `potenciais_energeticos.html` com potencial fotovoltaico e potencial eólico.
+- WebGIS de potenciais energéticos em `potenciais_energeticos.html` com potencial fotovoltaico, potencial eólico e densidade eólica.
 - Leaflet, domínios WRF, palhetas por variável, animação temporal, recorte por estado quando disponível, camada de vento e séries temporais em modal.
 - Dark mode persistente em `localStorage`, com sincronização para gráficos via evento `labmim-theme-change`.
 
@@ -124,7 +124,7 @@ make ci
 - `site/team.html`: equipe e localização.
 - `site/climatologia.html`: página em construção.
 - `site/mapas_interativos.html`: WebGIS de previsões meteorológicas.
-- `site/potenciais_energeticos.html`: WebGIS de potenciais fotovoltaico e eólico.
+- `site/potenciais_energeticos.html`: WebGIS de potenciais fotovoltaico, eólico e densidade eólica.
 - `site/mapas_meteorologicos.html`: compatibilidade, redireciona para `mapas_interativos.html`.
 
 ## Mapas Interativos
@@ -136,13 +136,17 @@ Navbar principal: Previsões, Potenciais Energéticos, Monitoramento, Climatolog
 Principais recursos:
 
 - Domínios com labels públicos `BA/NE`, `BA`, `RMS` e `SSA`; os IDs técnicos continuam `D01`, `D02`, `D03` e `D04` para arquivos, cache e estado interno.
-- Variáveis configuradas em `VARIABLES_CONFIG`: meteorológicas (`temperature`, `pressure`, `humidity`, `rain`, `wind`, `hfx`, `lh`) e energéticas (`solar`, `eolico`).
-- `humidity` exibe "Umidade Específica" com unidade `kg/kg` conforme o contrato atual de `VAPOR`.
-- Palhetas de cores por variável e escala dinâmica para variáveis configuradas com `useDynamicScale`.
+- Variáveis de Previsões configuradas em `VARIABLE_CONTEXTS.forecast`: `wind`, `temperature`, `skinTemperature`, `pressure`, `humidity`, `relativeHumidity`, `rain`, `globalRadiation`, `longwave`, `hfx` e `lh`.
+- Variáveis de Potenciais Energéticos configuradas em `VARIABLE_CONTEXTS.energy`: `solar`, `eolico` e `windPowerDensity`.
+- `humidity` representa Vapor d'Água / razão de mistura em `g/kg`; `relativeHumidity` representa RH2 em `%`.
+- `SWDOWN` aparece em dois contextos: `globalRadiation` como Radiação Global em Previsões, e `solar` como Potencial Fotovoltaico em Potenciais Energéticos.
+- Palhetas e escalas ficam em `VARIABLES_CONFIG`; as variáveis principais usam limites fixos (`scaleMin`/`scaleMax`) para manter cores comparáveis entre horários.
 - Slider temporal com animação play/pause.
-- Tratamento especial para `SWDOWN`, pulando horários noturnos na animação.
+- Tratamento especial para `SWDOWN`, pulando horários noturnos na animação quando não há produto solar disponível.
 - `windLayerToggle` visível apenas para variáveis de vento (`wind` e `eolico`).
 - Séries temporais no modal `timeSeriesModal`, com exportação CSV.
+- O painel "Sobre as variáveis" inicia minimizado e pode ser expandido pelo usuário para ver cards e prévias leves.
+- A aba "Variáveis" da documentação dos mapas usa seções expansíveis com fórmulas e limitações por variável.
 
 ## Dark Mode
 
@@ -169,8 +173,8 @@ O dark mode é dividido em dois passos:
 Antes de publicar:
 
 - Abrir `index.html`, `monitoring.html`, `team.html` e `climatologia.html` em light e dark mode.
-- Abrir `mapas_interativos.html` e verificar se o mapa Leaflet renderiza apenas com variáveis meteorológicas.
-- Abrir `potenciais_energeticos.html` e verificar se o mapa renderiza potencial fotovoltaico e potencial eólico.
+- Abrir `mapas_interativos.html` e verificar se o mapa Leaflet renderiza apenas variáveis meteorológicas/radiativas, incluindo Radiação Global.
+- Abrir `potenciais_energeticos.html` e verificar se o mapa renderiza apenas Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Testar troca de variável.
 - Testar botões de domínio `BA/NE`, `BA`, `RMS` e `SSA`, confirmando que as requisições continuam usando IDs técnicos `D01-D04`.
 - Testar play/pause do slider temporal.

@@ -1,4 +1,4 @@
-.PHONY: help install lint lint-js lint-css format format-check ci
+.PHONY: help install lint lint-js lint-css format format-check ci fix
 
 # Default target
 help:
@@ -9,6 +9,7 @@ help:
 	@echo "  make lint-css      - Roda apenas o linter de CSS"
 	@echo "  make format        - Formata o código fonte usando o Prettier (altera os arquivos)"
 	@echo "  make format-check  - Verifica a formatação do código fonte (usado no CI)"
+	@echo "  make fix           - Aplica automaticamente as correções do Prettier e dos linters"
 	@echo "  make ci            - Roda todos os testes do CI (lint e format-check)"
 
 install:
@@ -23,9 +24,11 @@ lint-css:
 lint: lint-js lint-css
 
 format:
-	npm run format
+	npm run format -- --write
 
 format-check:
 	npm run format:check
+
+fix: format lint
 
 ci: format-check lint

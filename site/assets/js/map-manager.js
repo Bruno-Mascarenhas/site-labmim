@@ -115,6 +115,9 @@ class MeteoMapManager {
     if (this.state.type === "solar" || this.state.type === "eolico") {
       variables.add("temperature");
     }
+    if (this.state.type === "windPowerDensity") {
+      variables.add("wind");
+    }
     return [...variables];
   }
 
@@ -632,6 +635,7 @@ class MeteoMapManager {
     this.ui.slider.addEventListener("input", (e) => {
       this.state.index = parseInt(e.target.value);
       this.updateDateTime();
+      this.scheduleVariablePreviewRefresh();
       _debouncedSliderApply();
     });
 
@@ -690,6 +694,7 @@ class MeteoMapManager {
       const option = document.createElement("option");
       option.value = variableType;
       option.textContent = `${config.icon || ""} ${config.optionLabel || config.label}`.trim();
+      option.title = config.summary || config.label;
       optionGroup.appendChild(option);
     });
 
@@ -738,6 +743,133 @@ class MeteoMapManager {
     });
   }
 
+  setupVariableOverview(chartsManagerInstance) {
+    this.variableOverviewCharts = chartsManagerInstance;
+    this.ui.variableOverviewPanel = document.getElementById("variableOverviewPanel");
+    this.ui.variableOverviewToggle = document.getElementById("variableOverviewToggle");
+    this.ui.variableCardsGrid = document.getElementById("variableCardsGrid");
+    this.ui.variablePreviewCanvas = document.getElementById("variablePreviewCanvas");
+    this.ui.variablePreviewStats = document.getElementById("variablePreviewStats");
+    this.ui.variablePreviewTitle = document.getElementById("variablePreviewTitle");
+    this.ui.variablePreviewLabel = document.getElementById("variablePreviewLabel");
+    this.ui.variablePreviewDomain = document.getElementById("variablePreviewDomain");
+
+    if (!this.ui.variableOverviewPanel || !this.ui.variableCardsGrid) return;
+
+    this.renderVariableGuideCards();
+    this._debouncedPreviewRefresh = _debounce(() => this.refreshVariableOverviewPreview(), 250);
+    this.updateVariableOverviewToggle();
+
+    this.ui.variableOverviewToggle?.addEventListener("click", () => {
+      const isCollapsed = this.ui.variableOverviewPanel.classList.toggle("is-collapsed");
+      this.updateVariableOverviewToggle(isCollapsed);
+      if (!isCollapsed) this.refreshVariableOverviewPreview();
+    });
+
+    this.updateVariablePreviewShell(this.state.type);
+  }
+
+  updateVariableOverviewToggle(isCollapsed = this.ui.variableOverviewPanel?.classList.contains("is-collapsed")) {
+    const toggle = this.ui.variableOverviewToggle;
+    if (!toggle) return;
+
+    const icon = toggle.querySelector("i");
+    const label = toggle.querySelector("span");
+
+    if (icon) icon.className = isCollapsed ? "fas fa-chevron-down" : "fas fa-chevron-up";
+    if (label) label.textContent = isCollapsed ? "Ver detalhes" : "Recolher";
+    toggle.title = isCollapsed ? "Ver detalhes" : "Recolher painel";
+    toggle.setAttribute("aria-expanded", String(!isCollapsed));
+  }
+
+  renderVariableGuideCards() {
+    const fragment = document.createDocumentFragment();
+
+    this.getVisibleVariableTypes().forEach((variableType) => {
+      const config = VARIABLES_CONFIG[variableType];
+      if (!config) return;
+
+      const card = document.createElement("article");
+      card.className = "variable-guide-card";
+      card.dataset.variable = variableType;
+
+      card.innerHTML = `
+        <div class="variable-card-title">
+          <span>${config.icon || ""} ${config.optionLabel || config.label}</span>
+          <i class="fas fa-info-circle variable-info-icon" title="${config.summary || config.label}"></i>
+        </div>
+        <div class="variable-card-meta">
+          <span class="variable-card-chip">${config.unit}</span>
+          <span class="variable-card-chip">${config.sourceId || config.id}</span>
+        </div>
+        <p class="variable-card-summary">${config.summary || "Variável disponível no mapa interativo."}</p>
+        <button class="variable-card-action" type="button" data-variable="${variableType}">
+          <i class="fas fa-map-location-dot"></i> Abrir no mapa
+        </button>
+      `;
+
+      card.querySelector(".variable-card-action")?.addEventListener("click", () => {
+        this.switchVariable(variableType);
+      });
+
+      fragment.appendChild(card);
+    });
+
+    this.ui.variableCardsGrid.innerHTML = "";
+    this.ui.variableCardsGrid.appendChild(fragment);
+    this.updateVariableGuideSelection();
+  }
+
+  updateVariableGuideSelection(variableType = this.state.type) {
+    if (!this.ui.variableCardsGrid) return;
+
+    this.ui.variableCardsGrid.querySelectorAll(".variable-guide-card").forEach((card) => {
+      card.classList.toggle("is-active", card.dataset.variable === variableType);
+    });
+  }
+
+  updateVariablePreviewShell(variableType = this.state.type) {
+    const config = VARIABLES_CONFIG[variableType];
+    if (!config) return;
+
+    if (this.ui.variablePreviewTitle) {
+      this.ui.variablePreviewTitle.textContent = config.optionLabel || config.label;
+    }
+    if (this.ui.variablePreviewLabel) {
+      this.ui.variablePreviewLabel.textContent = `${config.sourceId || config.id} · ${config.unit}`;
+    }
+    if (this.ui.variablePreviewDomain) {
+      this.ui.variablePreviewDomain.textContent = this.getDomainLabel(this.state.domain);
+      this.ui.variablePreviewDomain.title = `Domínio técnico: ${this.state.domain}`;
+    }
+    if (this.ui.variablePreviewStats) {
+      this.ui.variablePreviewStats.innerHTML =
+        '<div class="variable-preview-empty">Abra uma variável no mapa para carregar a prévia leve do domínio atual.</div>';
+    }
+  }
+
+  scheduleVariablePreviewRefresh() {
+    if (this._debouncedPreviewRefresh) {
+      this._debouncedPreviewRefresh();
+    }
+  }
+
+  refreshVariableOverviewPreview(variableType = this.state.type) {
+    this.updateVariableGuideSelection(variableType);
+    this.updateVariablePreviewShell(variableType);
+
+    if (!this.variableOverviewCharts || !this.ui.variableOverviewPanel) return;
+    if (this.ui.variableOverviewPanel.classList.contains("is-collapsed")) return;
+
+    this.variableOverviewCharts.renderDomainSummary(variableType, this.state.domain, {
+      canvasId: "variablePreviewCanvas",
+      statsContainer: this.ui.variablePreviewStats,
+      titleElement: this.ui.variablePreviewTitle,
+      labelElement: this.ui.variablePreviewLabel,
+      domainElement: this.ui.variablePreviewDomain,
+    });
+  }
+
   loadStateGeoJson(stateCode) {
     this.state.stateAbbr = stateCode;
     fetch(
@@ -776,28 +908,43 @@ class MeteoMapManager {
     const hour = (this.state.index - 1) % 24;
 
     if (this.ui.layerLabel) {
-      if (config.id === "SWDOWN" && (hour < 6 || hour > 18)) {
-        this.ui.layerLabel.textContent = "Sem dados (noturno)";
-      } else {
-        this.ui.layerLabel.textContent = this.calculateDateTimeFromIndex(this.state.index);
-      }
+      const hasData = !(config.id === "SWDOWN" && (hour < 6 || hour > 18));
+      const targetDate = this.calculateTargetDateFromIndex(this.state.index);
+      this.ui.layerLabel.textContent = this.formatForecastDateTimeLabel(targetDate, hasData);
     }
   }
 
-  calculateDateTimeFromIndex(index) {
-    if (!this.state.initialDateTime) return `Hora ${index}`;
-
+  calculateTargetDateFromIndex(index) {
+    if (!this.state.initialDateTime) return null;
     const hoursDiff = index - this.state.initialIndex;
-    const date = new Date(this.state.initialDateTime);
-    date.setHours(date.getHours() + hoursDiff);
+    const date = new Date(this.state.initialDateTime.getTime());
+    date.setUTCHours(date.getUTCHours() + hoursDiff);
+    return date;
+  }
 
-    return date.toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  calculateDateTimeFromIndex(index) {
+    const date = this.calculateTargetDateFromIndex(index);
+    if (!date) return `Hora ${index}`;
+    return this.formatForecastDateTimeLabel(date, true);
+  }
+
+  formatForecastDateTimeLabel(date, hasData = true) {
+    if (!date) return "Carregando...";
+
+    const year = date.getUTCFullYear();
+    const monthIndex = date.getUTCMonth();
+    const month = String(monthIndex + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+
+    if (hasData) {
+      return `${year}-${month}-${day} · ${hours}:${minutes} UTC−03:00`;
+    } else {
+      const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+      const monthStr = months[monthIndex];
+      return `${day} ${monthStr} ${year} · ${hours}:${minutes} UTC−03:00 — sem dados noturnos`;
+    }
   }
 
   togglePlayPause() {
@@ -883,6 +1030,7 @@ class MeteoMapManager {
     }
 
     this.updateWindLayerToggleVisibility(variableType);
+    this.refreshVariableOverviewPreview(variableType);
 
     const selectedCellCoords = this.state.selectedCell
       ? {
@@ -1009,6 +1157,7 @@ class MeteoMapManager {
         this.state.domain = selectedDomain;
         this.gridLayers = {};
         this.updateDomainIndicator();
+        this.refreshVariableOverviewPreview();
 
         if (this.state.selectedCell) {
           const selectedLat = this.state.selectedCell.lat;
@@ -1100,12 +1249,7 @@ class MeteoMapManager {
     const values = valueData.values;
     const layers = gridLayer.getLayers();
     const config = VARIABLES_CONFIG[this.state.type];
-
-    let scaleValues = valueData.metadata.scale_values;
-    if (config.useDynamicScale && this.currentValueData) {
-      const dynamicScale = this.calculateDynamicScale(this.currentValueData, config);
-      if (dynamicScale) scaleValues = dynamicScale;
-    }
+    const scaleValues = this.getScaleValues(config, valueData);
 
     if (this._colorWorker) {
       const requestId = ++this._colorRequestId;
@@ -1167,6 +1311,7 @@ class MeteoMapManager {
   }
 
   _colorFromScale(value, scaleValues, config) {
+    if (!scaleValues?.length) return config.colors[0];
     if (value < scaleValues[0]) return config.colors[0];
     if (value > scaleValues[scaleValues.length - 1]) return config.colors[config.colors.length - 1];
     for (let i = 0; i < scaleValues.length - 1; i++) {
@@ -1179,43 +1324,58 @@ class MeteoMapManager {
   }
 
   getColorForValue(value, metadata, config) {
-    let scaleValues = metadata.scale_values;
+    const scaleValues = this.getScaleValues(config, { metadata });
 
-    if (config.useDynamicScale && this.currentValueData) {
-      const dynamicScale = this.calculateDynamicScale(this.currentValueData, config);
-      if (dynamicScale) {
-        scaleValues = dynamicScale;
-      }
+    return this._colorFromScale(value, scaleValues, config);
+  }
+
+  getScaleValues(config, valueData = this.currentValueData) {
+    if (Array.isArray(config.scaleTicks) && config.scaleTicks.length >= 2) {
+      return config.scaleTicks;
     }
 
-    if (value < scaleValues[0]) return config.colors[0];
-    if (value > scaleValues[scaleValues.length - 1]) return config.colors[config.colors.length - 1];
-
-    for (let i = 0; i < scaleValues.length - 1; i++) {
-      if (value >= scaleValues[i] && value < scaleValues[i + 1]) {
-        const ratio = (value - scaleValues[i]) / (scaleValues[i + 1] - scaleValues[i]);
-        return this.interpolateColor(config.colors, (i + ratio) / (scaleValues.length - 1));
+    if (Number.isFinite(config.scaleMin) && Number.isFinite(config.scaleMax) && config.scaleMin < config.scaleMax) {
+      const tickCount = Number.isInteger(config.scaleTickCount) ? config.scaleTickCount : 10;
+      const values = [];
+      for (let i = 0; i < tickCount; i++) {
+        values.push(config.scaleMin + (config.scaleMax - config.scaleMin) * (i / (tickCount - 1)));
       }
+      return values;
     }
 
-    return config.colors[config.colors.length - 1];
+    if (config.useDynamicScale && valueData) {
+      const dynamicScale = this.calculateDynamicScale(valueData, config);
+      if (dynamicScale) return dynamicScale;
+    }
+
+    return valueData?.metadata?.scale_values || [];
   }
 
   calculateDynamicScale(valueData, config) {
-    if (!valueData.features || valueData.features.length === 0) return null;
-
     let min = Infinity;
     let max = -Infinity;
 
-    valueData.features.forEach((feature) => {
-      if (feature.properties && feature.properties.value !== null && feature.properties.value !== undefined) {
-        const val = feature.properties.value;
-        if (val < min) min = val;
-        if (val > max) max = val;
-      }
-    });
+    if (Array.isArray(valueData.values)) {
+      valueData.values.forEach((val) => {
+        if (val === null || val === undefined || !Number.isFinite(Number(val))) return;
+        const numericValue = Number(val);
+        if (numericValue < min) min = numericValue;
+        if (numericValue > max) max = numericValue;
+      });
+    } else if (Array.isArray(valueData.features)) {
+      valueData.features.forEach((feature) => {
+        const val = feature.properties?.value;
+        if (val === null || val === undefined || !Number.isFinite(Number(val))) return;
+        const numericValue = Number(val);
+        if (numericValue < min) min = numericValue;
+        if (numericValue > max) max = numericValue;
+      });
+    } else {
+      return null;
+    }
 
     if (min === Infinity || max === -Infinity) return null;
+    if (min === max) return null;
 
     let center = config.normalValue || (min + max) / 2;
     let range = Math.max(Math.abs(max - center), Math.abs(min - center));
@@ -1293,23 +1453,31 @@ class MeteoMapManager {
 
   parseDateTime(dateStr) {
     const parts = dateStr.split(" ");
-    const dateParts = parts[0].includes("/") ? parts[0].split("/").reverse().join("-") : parts[0];
-    return new Date(dateParts + " " + parts[1]);
+    let day, month, year;
+    if (parts[0].includes("/")) {
+      const dateParts = parts[0].split("/");
+      day = parseInt(dateParts[0], 10);
+      month = parseInt(dateParts[1], 10);
+      year = parseInt(dateParts[2], 10);
+    } else {
+      const dateParts = parts[0].split("-");
+      year = parseInt(dateParts[0], 10);
+      month = parseInt(dateParts[1], 10);
+      day = parseInt(dateParts[2], 10);
+    }
+    const timeParts = parts[1].split(":");
+    const hour = parseInt(timeParts[0], 10);
+    const minute = parseInt(timeParts[1], 10);
+    const second = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+    return new Date(Date.UTC(year, month - 1, day, hour, minute, second));
   }
 
   updateColorbar(config) {
     const gradient = `linear-gradient(to top, ${config.colors.join(", ")})`;
     this.ui.colorbarGradient.style.background = gradient;
     this.ui.colorbarUnit.textContent = config.unit;
-
-    let scaleValues = this.currentValueData?.metadata.scale_values || [];
-
-    if (config.useDynamicScale && this.currentValueData) {
-      const dynamicScale = this.calculateDynamicScale(this.currentValueData, config);
-      if (dynamicScale) {
-        scaleValues = dynamicScale;
-      }
-    }
+    const scaleValues = this.getScaleValues(config);
 
     const labelsContainer = this.ui.colorbarLabels;
     labelsContainer.innerHTML = "";
@@ -1317,14 +1485,13 @@ class MeteoMapManager {
     for (let i = scaleValues.length - 1; i >= 0; i--) {
       const label = document.createElement("div");
       label.className = "colorbar-label";
-      label.textContent = this.formatColorbarValue(scaleValues[i], config) + (i === scaleValues.length - 1 ? "+" : "");
+      label.textContent = this.formatColorbarValue(scaleValues[i], config);
       labelsContainer.appendChild(label);
     }
   }
 
-  formatColorbarValue(value, config) {
+  formatColorbarValue(value) {
     if (!Number.isFinite(value)) return "";
-    if (config?.unit === "kg/kg") return value.toFixed(4);
     if (Math.abs(value) < 1 && value !== 0) return value.toFixed(3);
     return value.toFixed(0);
   }

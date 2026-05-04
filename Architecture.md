@@ -17,7 +17,7 @@ Não há backend de aplicação neste repositório. Qualquer atualização de da
 | `site/team.html`                   | Equipe, links e localização incorporada                     |
 | `site/climatologia.html`           | Página de climatologia em construção                        |
 | `site/mapas_interativos.html`      | WebGIS de previsões meteorológicas                          |
-| `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico e potencial eólico         |
+| `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
 | `site/mapas_meteorologicos.html`   | Redirect de compatibilidade para `mapas_interativos.html`   |
 
 As páginas institucionais usam Bootstrap 4.1.3. `mapas_interativos.html` e `potenciais_energeticos.html` usam Bootstrap 5.3.0 por CDN.
@@ -139,7 +139,7 @@ Depois ele envolve `app.showSidebar()` para abrir o modal de séries temporais e
 
 ### Estado Principal
 
-`MeteoMapManager` lê `data-map-context` no `<body>` para separar os contextos `forecast` e `energy`. `mapas_interativos.html` inicia apenas com variáveis meteorológicas; `potenciais_energeticos.html` inicia apenas com potencial fotovoltaico e potencial eólico.
+`MeteoMapManager` lê `data-map-context` no `<body>` para separar os contextos `forecast` e `energy`. `mapas_interativos.html` inicia apenas com variáveis meteorológicas/radiativas; `potenciais_energeticos.html` inicia apenas com produtos energéticos.
 
 `MeteoMapManager` mantém estado interno em `this.state`, incluindo:
 
@@ -154,6 +154,10 @@ Depois ele envolve `app.showSidebar()` para abrir o modal de séries temporais e
 - `isClippedToState`
 
 Elementos de DOM usados com frequência são cacheados em `this.ui`.
+
+O painel resumido "Sobre as variáveis" é controlado por `setupVariableOverview()`. Ele inicia com a classe
+`is-collapsed` para não ocupar a área do mapa ou dos controles no primeiro acesso, e só carrega a prévia visual quando o
+usuário expande o painel.
 
 ### Domínios
 
@@ -244,17 +248,22 @@ Campos esperados:
 
 As variáveis ficam em `VARIABLES_CONFIG`:
 
-| Chave         | ID principal     | Observação                                             |
-| ------------- | ---------------- | ------------------------------------------------------ |
-| `solar`       | `SWDOWN`         | Possui regra para pular horários noturnos              |
-| `eolico`      | `POT_EOLICO_50M` | Também define `id_100m`, `id_150m` e seletor de altura |
-| `temperature` | `TEMP`           | Informações térmicas                                   |
-| `pressure`    | `PRES`           | Usa escala dinâmica                                    |
-| `humidity`    | `VAPOR`          | Umidade relativa                                       |
-| `rain`        | `RAIN`           | Precipitação                                           |
-| `wind`        | `WIND`           | Vento a 10m                                            |
-| `hfx`         | `HFX`            | Calor sensível                                         |
-| `lh`          | `LH`             | Calor latente                                          |
+| Chave                | ID principal                | Observação                                             |
+| -------------------- | --------------------------- | ------------------------------------------------------ |
+| `globalRadiation`    | `SWDOWN`                    | Radiação Global no contexto de Previsões               |
+| `solar`              | `SWDOWN`                    | Potencial Fotovoltaico no contexto energético          |
+| `eolico`             | `POT_EOLICO_50M`            | Também define `id_100m`, `id_150m` e seletor de altura |
+| `temperature`        | `TEMP`                      | Informações térmicas                                   |
+| `skinTemperature`    | `TSK`                       | Temperatura de superfície                              |
+| `pressure`           | `PRES`                      | Pressão atmosférica                                    |
+| `humidity`           | `VAPOR`                     | Vapor d'Água / razão de mistura em `g/kg`              |
+| `relativeHumidity`   | `RH2`                       | Umidade relativa em `%`                                |
+| `rain`               | `RAIN`                      | Precipitação                                           |
+| `wind`               | `WIND`                      | Vento a 10m                                            |
+| `longwave`           | `GLW`                       | Radiação de onda longa incidente                       |
+| `hfx`                | `HFX`                       | Calor sensível                                         |
+| `lh`                 | `LH`                        | Calor latente                                          |
+| `windPowerDensity`   | `WIND_POWER_DENSITY_10M`    | Densidade de potência eólica a 10m                     |
 
 Cada entrada define:
 
@@ -362,7 +371,7 @@ Dev tooling:
 
 ### Alterar Palheta
 
-Atualize `colors` da variável em `variables-config.js`. Se a variável usa escala dinâmica, revise também `normalValue` e `useDynamicScale`.
+Atualize `colors` da variável em `variables-config.js`. Para escalas comparáveis entre horários, prefira definir `scaleMin` e `scaleMax`; `metadata.scale_values` fica como fallback para variáveis sem escala fixa. Se a variável usa escala dinâmica, revise também `normalValue` e `useDynamicScale`.
 
 ### Alterar Layout Institucional
 
@@ -377,7 +386,7 @@ O próximo passo arquitetural natural seria dividir `map-manager.js` em módulos
 - Preserve os IDs usados pelo JS nas páginas WebGIS: `map`, `layerSlider`, `playPauseBtn`, `variableSelect`, `windLayerToggle`, `windLayerCheckbox`, `sidebar`, `sidebarContent`, `timeSeriesModal`, `chartCanvasValue`, `chartCanvasEnergy`.
 - Não altere nomes de chaves em `VARIABLES_CONFIG` sem revisar dados, select HTML, gráficos e sidebar.
 - Não renomeie os IDs técnicos `D01-D04`; eles fazem parte do contrato dos arquivos. Altere apenas labels públicos quando necessário.
-- A variável `humidity` deve aparecer como "Umidade Específica" e usar unidade `kg/kg` enquanto o produto `VAPOR` continuar sem conversão no frontend.
+- A variável `humidity` deve aparecer como Vapor d'Água / razão de mistura e usar unidade `g/kg`; `relativeHumidity` é a umidade relativa em `%`.
 - Não remova `theme-boot.js` do `<head>`.
 - Ao mexer em `maps.css`, valide light e dark mode.
 - Ao mexer em `map-manager.js`, valide play/pause, troca de domínio, troca de variável, clique em célula e wind layer.
@@ -394,8 +403,8 @@ Use antes de merge/publicação:
 - Servir `site/` por HTTP local.
 - Abrir páginas institucionais em desktop e mobile.
 - Alternar dark mode em cada página.
-- Abrir `mapas_interativos.html` e confirmar que variáveis energéticas não aparecem como previsões meteorológicas.
-- Abrir `potenciais_energeticos.html` e confirmar Potencial Fotovoltaico e Potencial Eólico.
+- Abrir `mapas_interativos.html` e confirmar que Potencial Fotovoltaico não aparece como previsão; `SWDOWN` deve aparecer como Radiação Global.
+- Abrir `potenciais_energeticos.html` e confirmar que só aparecem Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Verificar se Leaflet renderiza e se não há erros no console.
 - Trocar variáveis e domínios.
 - Confirmar labels de domínio `BA/NE`, `BA`, `RMS` e `SSA` na UI, mantendo requisições internas com `D01-D04`.
