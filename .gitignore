@@ -3,6 +3,12 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.npm/
+
+# Tool caches
+.eslintcache
+.stylelintcache
+.prettiercache
 
 # Python
 __pycache__/

@@ -3,18 +3,22 @@
   "version": "1.0.0",
   "description": "Frontend tooling for LabMiM static site",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
+    "lint": "npm run lint:js && npm run lint:css",
     "lint:js": "eslint site/assets/js/**/*.js",
     "lint:css": "stylelint \"site/assets/css/**/*.css\"",
     "format": "prettier --write \"site/**/*.{html,css,js}\"",
     "format:check": "prettier --check \"site/**/*.{html,css,js}\""
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "eslint": "^9.0.0",
-    "globals": "^15.0.0",
-    "prettier": "^3.0.0",
-    "stylelint": "^16.0.0",
-    "stylelint-config-standard": "^36.0.0"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0",
+    "prettier": "^3.9.4",
+    "stylelint": "^17.14.0",
+    "stylelint-config-standard": "^40.0.0"
   }
 }

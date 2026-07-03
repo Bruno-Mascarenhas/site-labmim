@@ -1,20 +1,20 @@
 import js from "@eslint/js";
+import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
 
-export default [
-  js.configs.recommended,
+export default defineConfig([
+  globalIgnores([
+    "node_modules/",
+    ".venv/",
+    "site/JSON/",
+    "site/GeoJSON/",
+    "site/assets/json/",
+    "**/*.json",
+    "**/*.geojson",
+  ]),
   {
-    ignores: [
-      "node_modules/",
-      ".venv/",
-      "site/JSON/",
-      "site/GeoJSON/",
-      "site/assets/json/",
-      "**/*.json",
-      "**/*.geojson",
-    ],
-  },
-  {
+    files: ["**/*.js"],
+    extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
@@ -40,4 +40,4 @@ export default [
       "no-empty": "warn",
     },
   },
-];
+]);
