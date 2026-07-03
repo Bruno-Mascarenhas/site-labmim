@@ -2,7 +2,7 @@
 
 Site estático do LabMiM - Laboratório de Micrometeorologia e Modelagem da UFBA. O projeto reúne páginas institucionais, visualização de gráficos de monitoramento ambiental e WebGIS para previsões meteorológicas e potenciais energéticos derivados de saídas do modelo WRF.
 
-O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, sem backend próprio neste repositório. Os mapas interativos carregam arquivos `GeoJSON/` e `JSON/` gerados por pipeline externo.
+O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, sem backend próprio neste repositório. Não há etapa de build — os arquivos em `site/` são publicados como estão. Os mapas interativos carregam arquivos `GeoJSON/` e `JSON/` gerados por pipeline externo.
 
 ## Funcionalidades
 
@@ -12,7 +12,8 @@ O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, 
 - Página de climatologia atualmente em construção.
 - WebGIS de previsões em `mapas_interativos.html` com variáveis meteorológicas.
 - WebGIS de potenciais energéticos em `potenciais_energeticos.html` com potencial fotovoltaico, potencial eólico e densidade eólica.
-- Leaflet, domínios WRF, palhetas por variável, animação temporal, recorte por estado quando disponível, camada de vento e séries temporais em modal.
+- Leaflet com renderização em Canvas, domínios WRF, palhetas por variável, animação temporal, recorte por estado, camada de vento e séries temporais em modal.
+- Camada de dados compartilhada (`data-service.js`) com cache em memória, deduplicação de requisições em voo, cache negativo e parsing em Web Worker.
 - Dark mode persistente em `localStorage`, com sincronização para gráficos via evento `labmim-theme-change`.
 
 ## Estrutura Do Repositório
@@ -22,18 +23,27 @@ O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, 
 ├── README.md
 ├── Architecture.md
 ├── package.json
+├── package-lock.json
+├── .nvmrc                     # Node LTS usado pelo projeto e pelo CI
 ├── eslint.config.mjs
+├── .stylelintrc.json
+├── .prettierrc / .prettierignore
+├── .editorconfig
+├── .github/
+│   ├── workflows/ci.yml       # lint + format-check + audit
+│   └── dependabot.yml         # atualizações npm e GitHub Actions
 ├── Makefile
 └── site/
+    ├── .htaccess              # charset, MIME, compressão e cache (Apache)
     ├── index.html
     ├── monitoring.html
     ├── team.html
     ├── climatologia.html
     ├── mapas_interativos.html
     ├── potenciais_energeticos.html
-    ├── mapas_meteorologicos.html
-    ├── GeoJSON/
-    ├── JSON/
+    ├── mapas_meteorologicos.html   # redirect de compatibilidade
+    ├── GeoJSON/               # grades geradas (git-ignored)
+    ├── JSON/                  # valores gerados (git-ignored)
     └── assets/
         ├── css/
         │   ├── base.css
@@ -46,25 +56,39 @@ O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, 
         │   ├── theme-toggle.js
         │   ├── ui-shell.js
         │   ├── variables-config.js
+        │   ├── data-service.js      # LabmimDataService (fetch/cache/worker)
         │   ├── charts-manager.js
         │   ├── map-manager.js
         │   ├── map-init.js
         │   └── workers/
+        │       ├── color-calc.worker.js
+        │       └── json-parser.worker.js
+        ├── vendor/            # bibliotecas vendorizadas localmente
+        │   ├── leaflet/       # Leaflet 1.9.4 (js, css, images)
+        │   └── chartjs/       # Chart.js 3.9.1
+        ├── data/
+        │   └── br_ba.json     # contorno da Bahia (recorte por estado)
         ├── graphs/
         ├── icon/
         ├── img/
-        └── json/
+        └── json/              # reservado (apenas .gitkeep)
 ```
 
-`site/GeoJSON/` e `site/JSON/` são dados gerados. O código atual busca principalmente `GeoJSON/{domain}.geojson`, `JSON/{domain}_{variableId}_{hour}.json` e `JSON/{domain}_WIND_VECTORS_{hour}.json`. Não abra, formate ou reprocesse `/data`, `site/JSON/` ou `site/GeoJSON/` durante manutenção comum; esses diretórios podem conter dados grandes gerados por pipeline externo.
+`site/GeoJSON/` e `site/JSON/` são dados gerados e ficam fora do controle de versão (ver `.gitignore`). O código atual busca `GeoJSON/{domain}.geojson`, `JSON/{domain}_{variableId}_{hour}.json` e `JSON/{domain}_WIND_VECTORS_{hour}.json`. Não abra, formate ou reprocesse `/data`, `site/JSON/` ou `site/GeoJSON/` durante manutenção comum; esses diretórios podem conter dados grandes gerados por pipeline externo.
 
 ## Como Executar Localmente
 
 Não abra as páginas direto por `file://`. Os mapas e workers dependem de `fetch`, então use um servidor HTTP local.
 
 ```bash
+make serve            # serve site/ em http://localhost:8000
+```
+
+Ou diretamente:
+
+```bash
 cd site
-python -m http.server 8000
+python3 -m http.server 8000
 ```
 
 Acesse:
@@ -73,30 +97,26 @@ Acesse:
 - `http://localhost:8000/mapas_interativos.html`
 - `http://localhost:8000/potenciais_energeticos.html`
 
-Se a porta 8000 estiver ocupada:
-
-```bash
-python -m http.server 8100
-```
+Se a porta 8000 estiver ocupada, use outra (ex.: `python3 -m http.server 8100`).
 
 ## Dependências Externas Em Runtime
 
-As páginas carregam bibliotecas por CDN:
+O WebGIS carrega Leaflet, Chart.js e o contorno da Bahia **localmente** (`assets/vendor/` e `assets/data/`), sem CDN no caminho crítico de renderização; `leaflet.js` é carregado com `defer` para não bloquear o primeiro paint. O antigo Turf.js foi removido — a máscara de recorte por estado agora usa um _point-in-polygon_ local em `map-manager.js`.
 
-- Bootstrap 4.1.3 nas páginas institucionais.
-- Bootstrap 5.3.0 em `mapas_interativos.html` e `potenciais_energeticos.html`.
-- Font Awesome 6.4.0.
-- Leaflet 1.9.4 no WebGIS.
-- Turf 6 no WebGIS, usado por lógica geográfica.
-- Chart.js 3.9.1 para séries temporais em modal.
+Ainda são carregados por CDN:
 
-As ferramentas de desenvolvimento são Node.js, ESLint, Stylelint e Prettier, declaradas em `package.json`.
+- Bootstrap 4.1.3 e jQuery nas páginas institucionais (`index`, `monitoring`, `team`, `climatologia`).
+- Bootstrap 5.3.0 (CSS + JS) em `mapas_interativos.html` e `potenciais_energeticos.html`.
+- Font Awesome 6.4.0 em todas as páginas.
+- Tiles do mapa base via OpenStreetMap.
 
 ## Desenvolvimento
 
-Instale as dependências:
+O projeto usa a versão de Node fixada em `.nvmrc` (Node 24 LTS). Com `nvm`:
 
 ```bash
+nvm install    # instala a versão do .nvmrc, se necessário
+nvm use
 npm ci
 ```
 
@@ -112,10 +132,14 @@ npm run format
 Também há atalhos no `Makefile`:
 
 ```bash
-make lint
-make format-check
-make ci
+make lint          # ESLint + Stylelint (somente verifica)
+make format-check  # Prettier (somente verifica)
+make fix           # aplica Prettier + correções dos linters
+make audit         # npm audit --audit-level=high
+make ci            # format-check + lint + audit (espelha o CI)
 ```
+
+As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, `stylelint-config-standard`) são declaradas em `package.json` como `devDependencies`. Não há dependências de runtime instaladas via npm — o site é estático. O CI (`.github/workflows/ci.yml`) roda lint, format-check e `npm audit`; o Dependabot (`.github/dependabot.yml`) acompanha atualizações de npm e GitHub Actions.
 
 ## Páginas Principais
 
@@ -148,6 +172,23 @@ Principais recursos:
 - O painel "Sobre as variáveis" inicia minimizado e pode ser expandido pelo usuário para ver cards e prévias leves.
 - A aba "Variáveis" da documentação dos mapas usa seções expansíveis com fórmulas e limitações por variável.
 
+## Camada De Dados E Performance
+
+O carregamento de dados do WebGIS passa por `LabmimDataService` (`data-service.js`), exposto em `window.LabmimDataService` e instanciado por `MeteoMapManager` como `this.dataService`. `MeteoMapManager._cachedFetch()` e `ChartsManager._fetchHourJson()` delegam a ele. O serviço oferece:
+
+- **Cache em memória** com limite de tamanho, evitando re-download do mesmo JSON ao trocar variável ou horário.
+- **Deduplicação de requisições em voo**: chamadas concorrentes à mesma URL compartilham um único `fetch` + parse.
+- **Cache negativo** (60 s): um arquivo ausente não é re-requisitado a cada tick da animação.
+- **Parsing em Web Worker** (`json-parser.worker.js`) com _fallback_ transparente para a thread principal caso o worker falhe ao carregar.
+- **Distinção 404 vs falha transitória**: um `404` determinístico (ex.: horas noturnas de `SWDOWN`, que o pipeline não exporta) é tratado como lacuna esperada; apenas falhas transitórias (rede/5xx) impedem o cache de séries.
+
+Outras otimizações da camada de mapa:
+
+- A grade (`GeoJSON/{domain}.geojson`) fica em cache por domínio e **não** é descartada ao trocar de variável ou altura — só muda quando o domínio muda.
+- Valores e grade são buscados em paralelo (`Promise.all`), não em sequência.
+- A interpolação de cores roda em `color-calc.worker.js`, com _fallback_ para a thread principal e descarte de respostas obsoletas por `requestId`.
+- As bibliotecas vendorizadas usam versionamento por query (`?v=`) para invalidação de cache no deploy.
+
 ## Dark Mode
 
 O dark mode é dividido em dois passos:
@@ -166,7 +207,9 @@ O dark mode é dividido em dois passos:
 - Para estilos exclusivos do WebGIS, use `assets/css/maps.css`.
 - Para adicionar uma variável ao mapa, atualize `variables-config.js`, o contexto em `VARIABLE_CONTEXTS` e o fallback do `<select id="variableSelect">` nas páginas WebGIS.
 - Para lógica de mapa, prefira métodos em `MeteoMapManager` e preserve a API global exposta em `window.MeteoMapManager`.
+- Para busca/cache de dados, use `LabmimDataService` em vez de `fetch` direto; mantenha a API de `data-service.js` estável para os consumidores.
 - Para gráficos temporais, altere `ChartsManager` e preserve os IDs usados no modal.
+- Ao atualizar uma biblioteca vendorizada, substitua o arquivo em `assets/vendor/` e incremente o `?v=` correspondente nas páginas.
 
 ## Checklist Manual Rápido
 
@@ -175,7 +218,7 @@ Antes de publicar:
 - Abrir `index.html`, `monitoring.html`, `team.html` e `climatologia.html` em light e dark mode.
 - Abrir `mapas_interativos.html` e verificar se o mapa Leaflet renderiza apenas variáveis meteorológicas/radiativas, incluindo Radiação Global.
 - Abrir `potenciais_energeticos.html` e verificar se o mapa renderiza apenas Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
-- Testar troca de variável.
+- Testar troca de variável (a grade não deve piscar/recarregar do zero).
 - Testar botões de domínio `BA/NE`, `BA`, `RMS` e `SSA`, confirmando que as requisições continuam usando IDs técnicos `D01-D04`.
 - Testar play/pause do slider temporal.
 - Confirmar que `windLayerToggle` aparece em `wind`/`eolico` e não aparece nas demais variáveis.
@@ -186,8 +229,9 @@ Antes de publicar:
 
 ## Notas Para Futuros Desenvolvedores
 
-- Este repositório não contém o pipeline que gera os dados WRF; ele apenas consome os arquivos já publicados em `site/GeoJSON/` e `site/JSON/`.
+- Este repositório não contém o pipeline que gera os dados WRF; ele apenas consome os arquivos publicados em `site/GeoJSON/` e `site/JSON/`.
 - Não abra, varra, formate ou reprocesse `/data`; evite também ler conteúdo de `site/JSON/` e `site/GeoJSON/` fora de depuração estritamente necessária.
 - Evite estilos inline em HTML. Use os módulos CSS existentes.
 - Evite adicionar dependências de build para o runtime do site; hoje ele funciona como site estático.
 - A documentação técnica detalhada fica em [Architecture.md](Architecture.md).
+```
