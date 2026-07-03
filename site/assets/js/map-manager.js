@@ -78,6 +78,12 @@ class MeteoMapManager {
     this.map = null;
     this.currentGeoJsonLayer = null;
     this.currentValueData = null;
+    // Identifies which (domain, variable, timestep) currentValueData holds, so
+    // a click can tell whether the loaded data matches the current view or is
+    // still catching up after a rapid slider/variable/domain change.
+    this._currentValueKey = null;
+    // The in-flight applyMapChanges() load, tagged with the view it targets.
+    this._currentApply = null;
     this.gridLayers = {};
     this._gridLayerPromises = new Map();
     this.dataService = new LabmimDataService({
@@ -1087,21 +1093,44 @@ class MeteoMapManager {
     }
   }
 
+  /**
+   * Key identifying a (domain, variable, timestep) view. The variable part is
+   * the resolved data id (getVariableId), so eolico 50/100/150 m are distinct.
+   */
+  _loadKey(index = this.state.index, type = this.state.type, domain = this.state.domain) {
+    return `${domain}:${this.getVariableId(type)}:${index}`;
+  }
+
+  /**
+   * Drops the current value data and painted layer together, so the map never
+   * shows a previous timestep/variable under an advanced time label. Also
+   * clears any wind overlay left from the previous frame.
+   */
+  _clearCurrentData() {
+    this.currentValueData = null;
+    this._currentValueKey = null;
+    this.removeCurrentLayer();
+    this.clearWindVectors();
+  }
+
   applyMapChanges() {
     const config = VARIABLES_CONFIG[this.state.type];
     const hour = (this.state.index - 1) % 24;
 
     if (config.id === "SWDOWN" && (hour < 6 || hour > 18)) {
-      this.removeCurrentLayer();
+      this._clearCurrentData();
       if (this.selectedMarker) {
         this.map.removeLayer(this.selectedMarker);
         this.selectedMarker = null;
       }
       this.updateDateTime();
-      return Promise.resolve();
+      this._currentApply = null;
+      return Promise.resolve(null);
     }
 
-    return this.loadValueData(this.state.index, this.state.type);
+    const promise = this.loadValueData(this.state.index, this.state.type);
+    this._currentApply = { key: this._loadKey(), promise };
+    return promise;
   }
 
   loadValueData(index, type) {
@@ -1110,10 +1139,16 @@ class MeteoMapManager {
     const id_num = String(index).padStart(3, "0");
     const variableId = this.getVariableId(type);
     const filePath = `JSON/${domain}_${variableId}_${id_num}.json`;
+    const loadKey = `${domain}:${variableId}:${index}`;
 
     return Promise.all([this._cachedFetch(filePath), this.loadGridLayer(domain)])
       .then(([valueData, gridLayer]) => {
-        if (!gridLayer) return null;
+        // Grid fetch failed while the value fetch succeeded: still a no-data
+        // state — clear so a stale frame/value is never shown under the label.
+        if (!gridLayer) {
+          this._clearCurrentData();
+          return null;
+        }
 
         try {
           this._precomputeStateMask(gridLayer);
@@ -1122,6 +1157,7 @@ class MeteoMapManager {
         }
 
         this.currentValueData = valueData;
+        this._currentValueKey = loadKey;
         this.applyValuesToGrid(gridLayer, valueData);
 
         this.showGeoJsonLayer(gridLayer);
@@ -1135,12 +1171,9 @@ class MeteoMapManager {
       })
       .catch((err) => {
         console.error("Error loading data:", err);
-        // Honest no-data state: remove the layer and its value data so the
-        // map never shows a previous timestep under the new time label. The
-        // negative cache in the data service keeps playback from re-hitting
-        // the network for the same missing file on every tick.
-        this.currentValueData = null;
-        this.removeCurrentLayer();
+        // Honest no-data state. The data service's negative cache keeps
+        // playback from re-hitting the network for the same missing file.
+        this._clearCurrentData();
         return null;
       });
   }
@@ -1195,6 +1228,9 @@ class MeteoMapManager {
 
           this.map.once("moveend", () => {
             this.applyMapChanges().then(() => {
+              // The user may have closed the sidebar / started playback during
+              // the 1.5s flyTo; don't resurrect a cleared selection.
+              if (!this.state.selectedCell) return;
               this.handleMapClick({
                 latlng: L.latLng(selectedLat, selectedLng),
               }).catch(() => {
@@ -1552,17 +1588,32 @@ class MeteoMapManager {
     return value.toFixed(0);
   }
 
-  handleMapClick(e, options = {}) {
+  async handleMapClick(e, options = {}) {
+    // The data for the current view may still be loading (the user clicked
+    // mid-drag). Wait for the matching in-flight load so the sidebar reflects
+    // the selected view, not a previous one. Bounded to avoid chasing a user
+    // who keeps dragging; a residual mismatch falls through to "no data".
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const wantKey = this._loadKey();
+      if (this._currentValueKey === wantKey) break;
+      if (this._currentApply?.key !== wantKey) break;
+      try {
+        await this._currentApply.promise;
+      } catch {
+        break;
+      }
+    }
+
     if (!this.currentGeoJsonLayer) {
       return Promise.reject(new Error("No GeoJSON layer available"));
     }
 
-    // Read values from currentValueData (the source of truth for the active
-    // variable/timestep) rather than the painted feature.properties.valor:
-    // the paint lands asynchronously (color worker + requestAnimationFrame),
-    // so right after a variable/height/domain switch the painted value may
-    // still belong to the previous selection.
-    const values = Array.isArray(this.currentValueData?.values) ? this.currentValueData.values : null;
+    // Only trust currentValueData when it matches the current view; otherwise
+    // the value would be shown under a mismatched variable/time label.
+    const values =
+      this._currentValueKey === this._loadKey() && Array.isArray(this.currentValueData?.values)
+        ? this.currentValueData.values
+        : null;
 
     let foundCell = null;
     this.currentGeoJsonLayer.eachLayer((layer) => {
@@ -1592,6 +1643,15 @@ class MeteoMapManager {
 
     return this.loadAllVariableValuesForCell(foundCell)
       .then((allValues) => {
+        // A programmatic refresh must not resurrect a selection the user
+        // cleared (closed the sidebar / started playback) while data loaded.
+        if (!options.userInitiated && !this.state.selectedCell) {
+          if (this.selectedMarker) {
+            this.map.removeLayer(this.selectedMarker);
+            this.selectedMarker = null;
+          }
+          return null;
+        }
         foundCell.allValues = allValues;
         this.state.selectedCell = foundCell;
         this.showSidebar({ userInitiated: options.userInitiated === true });

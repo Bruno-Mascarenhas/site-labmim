@@ -44,12 +44,15 @@ class LabmimDataService {
     }
 
     this._worker.onmessage = (e) => {
-      const { id, data, error } = e.data;
+      const { id, data, error, status } = e.data;
       const callback = this._workerCallbacks.get(id);
       if (!callback) return;
       this._workerCallbacks.delete(id);
-      if (error) callback.reject(new Error(error));
-      else callback.resolve(data);
+      if (error) {
+        callback.reject(Number.isFinite(status) ? this._httpError(status, "worker") : new Error(error));
+      } else {
+        callback.resolve(data);
+      }
     };
 
     const onWorkerFailure = (event) => {
@@ -100,10 +103,10 @@ class LabmimDataService {
       return Promise.resolve(this._cache.get(url));
     }
 
-    const failedAt = this._failedAt.get(url);
-    if (failedAt !== undefined) {
-      if (Date.now() - failedAt < this.failureTtlMs) {
-        return Promise.reject(new Error(`Dados não encontrados (${url})`));
+    const failure = this._failedAt.get(url);
+    if (failure !== undefined) {
+      if (Date.now() - failure.at < this.failureTtlMs) {
+        return Promise.reject(this._failureError(url, failure.notFound));
       }
       this._failedAt.delete(url);
     }
@@ -116,7 +119,7 @@ class LabmimDataService {
           return data;
         })
         .catch((err) => {
-          this._failedAt.set(url, Date.now());
+          this._failedAt.set(url, { at: Date.now(), notFound: err?.notFound === true });
           throw err;
         })
         .finally(() => {
@@ -145,7 +148,7 @@ class LabmimDataService {
 
   _mainThreadFetch(url) {
     return fetch(url).then((res) => {
-      if (!res.ok) throw new Error(`Dados não encontrados (HTTP ${res.status})`);
+      if (!res.ok) throw this._httpError(res.status, url);
       return res.json();
     });
   }
@@ -157,6 +160,25 @@ class LabmimDataService {
       const absoluteUrl = new URL(url, window.location.href).href;
       this._worker.postMessage({ url: absoluteUrl, id });
     });
+  }
+
+  /**
+   * Builds a fetch error tagged with the HTTP status and a `notFound` flag.
+   * `notFound` marks a deterministically absent resource (404/403/410) — e.g.
+   * SWDOWN night hours the pipeline never exports — which callers may treat as
+   * expected rather than as a transient failure.
+   */
+  _httpError(status, url) {
+    const error = new Error(`Dados não encontrados (HTTP ${status}): ${url}`);
+    error.status = status;
+    error.notFound = status === 404 || status === 403 || status === 410;
+    return error;
+  }
+
+  _failureError(url, notFound) {
+    const error = new Error(`Dados não encontrados (${url})`);
+    error.notFound = notFound === true;
+    return error;
   }
 
   _storeInCache(url, data) {

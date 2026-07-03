@@ -242,7 +242,7 @@ class ChartsManager {
     const cached = this.domainSummaryCache.get(cacheKey);
     if (cached) return this._withCurrentStats(cached, currentHour);
 
-    const { series, fetchFailures } = await this._collectHourlySeries(
+    const { series, transientFailures } = await this._collectHourlySeries(
       variableId,
       domain,
       maxHour,
@@ -262,9 +262,9 @@ class ChartsManager {
     );
 
     const baseResult = { series, stats: this._aggregateSeriesStats(series, currentHour) };
-    // Only cache complete results: caching a series truncated by transient
-    // fetch failures would poison the summary for the whole session.
-    if (fetchFailures === 0) {
+    // Cache unless a transient failure truncated the series: a series missing
+    // only structurally-absent hours (404) is complete and safe to cache.
+    if (transientFailures === 0) {
       this.domainSummaryCache.set(cacheKey, baseResult);
     }
     return baseResult;
@@ -272,13 +272,14 @@ class ChartsManager {
 
   /**
    * Fetches hours 1..maxHour in batches and maps each successfully fetched
-   * JSON through mapHourData(hour, data). Hours whose JSON could not be
-   * fetched are counted in fetchFailures; hours mapped to null (e.g.
-   * legitimate null cell values such as SWDOWN at night) are simply skipped.
+   * JSON through mapHourData(hour, data). Only TRANSIENT failures (network
+   * errors, 5xx) are counted in transientFailures; a deterministic 404 (a
+   * file the pipeline never exports, e.g. SWDOWN night hours) is treated as
+   * an expected gap, so a complete-but-sparse series can still be cached.
    */
   async _collectHourlySeries(variableId, domain, maxHour, batchSize, signal, mapHourData) {
     const series = [];
-    let fetchFailures = 0;
+    let transientFailures = 0;
 
     for (let start = 1; start <= maxHour; start += batchSize) {
       if (signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -286,15 +287,14 @@ class ChartsManager {
       const batch = [];
 
       for (let hour = start; hour <= batchEnd; hour++) {
-        if (this._isStructurallyMissingHour(variableId, hour)) continue;
         batch.push(
-          this._fetchHourJson(variableId, domain, hour, signal).then((data) => {
-            if (!data) {
-              fetchFailures += 1;
+          this._fetchHourJson(variableId, domain, hour, signal)
+            .then((data) => (data ? mapHourData(hour, data) : null))
+            .catch((err) => {
+              if (err?.name === "AbortError") throw err;
+              transientFailures += 1;
               return null;
-            }
-            return mapHourData(hour, data);
-          })
+            })
         );
       }
 
@@ -302,19 +302,7 @@ class ChartsManager {
       series.push(...batchResults.filter(Boolean));
     }
 
-    return { series, fetchFailures };
-  }
-
-  /**
-   * Hours whose JSON the pipeline structurally never exports (SWDOWN solar
-   * radiation only exists for daytime hours). They must not be fetched at
-   * all: counting their 404s as fetchFailures would permanently disable
-   * caching for solar. Mirrors the night-hour skip in map-manager.js.
-   */
-  _isStructurallyMissingHour(variableId, hour) {
-    if (variableId !== "SWDOWN") return false;
-    const hourOfDay = (hour - 1) % 24;
-    return hourOfDay < 6 || hourOfDay > 18;
+    return { series, transientFailures };
   }
 
   _withCurrentStats(result, currentHour) {
@@ -670,7 +658,7 @@ class ChartsManager {
     const cached = this.timeSeriesCache.get(cacheKey);
     if (cached) return cached;
 
-    const { series, fetchFailures } = await this._collectHourlySeries(
+    const { series, transientFailures } = await this._collectHourlySeries(
       variableId,
       domain,
       maxHour,
@@ -688,9 +676,9 @@ class ChartsManager {
     );
 
     const result = { config, data: series };
-    // Only cache complete results: caching a series truncated by transient
-    // fetch failures would show holes in the charts for the whole session.
-    if (fetchFailures === 0) {
+    // Cache unless a transient failure truncated the series; structurally
+    // absent hours (404) are an expected gap and do not block caching.
+    if (transientFailures === 0) {
       this.timeSeriesCache.set(cacheKey, result);
     }
     return result;
@@ -775,6 +763,12 @@ class ChartsManager {
     return value.toFixed(2);
   }
 
+  /**
+   * Resolves the hour's JSON, or null for a deterministically absent file
+   * (404). Transient failures (network/5xx) are rethrown so the caller can
+   * count them and decline to cache an incomplete series. AbortError always
+   * propagates.
+   */
   async _fetchHourJson(variableId, domain, hour, signal) {
     const idNum = String(hour).padStart(3, "0");
     const url = `JSON/${domain}_${variableId}_${idNum}.json`;
@@ -783,10 +777,13 @@ class ChartsManager {
         return await this.app._cachedFetch(url, { signal });
       }
       const res = await fetch(url, { signal });
-      return res.ok ? res.json() : null;
+      if (res.ok) return await res.json();
+      if (res.status === 404 || res.status === 403 || res.status === 410) return null;
+      throw new Error(`HTTP ${res.status}`);
     } catch (e) {
       if (e.name === "AbortError") throw e;
-      return null;
+      if (e.notFound) return null;
+      throw e;
     }
   }
 
