@@ -2,7 +2,6 @@
  * MAP UTILITY FUNCTIONS
  */
 
-const JSON_CACHE_LIMIT = 200;
 const PLAYBACK_INTERVAL_MS = 800;
 const WORKER_CACHE_VERSION = "5";
 const DEFAULT_MAP_CENTER = [-12.97, -38.5];
@@ -23,6 +22,10 @@ const GRID_HIDDEN_STYLE = {
   opacity: 0,
   weight: 0,
 };
+const GRID_NODATA_STYLE = {
+  ...GRID_VISIBLE_STYLE,
+  fillColor: "#cccccc",
+};
 
 function _debounce(fn, delay) {
   let timer;
@@ -30,6 +33,42 @@ function _debounce(fn, delay) {
     clearTimeout(timer);
     timer = setTimeout(() => fn.apply(this, args), delay);
   };
+}
+
+/**
+ * Ray-casting point-in-polygon for GeoJSON Polygon/MultiPolygon features.
+ * Replaces the former runtime dependency on the full turf.js bundle, which
+ * was only used for the state-boundary mask.
+ */
+function _pointInRing(lng, lat, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0];
+    const yi = ring[i][1];
+    const xj = ring[j][0];
+    const yj = ring[j][1];
+    const intersects = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function _pointInPolygonCoords(lng, lat, polygonCoords) {
+  if (!_pointInRing(lng, lat, polygonCoords[0])) return false;
+  for (let h = 1; h < polygonCoords.length; h++) {
+    if (_pointInRing(lng, lat, polygonCoords[h])) return false;
+  }
+  return true;
+}
+
+function pointInGeoJsonFeature(lng, lat, feature) {
+  const geometry = feature?.geometry;
+  if (!geometry) return false;
+  if (geometry.type === "Polygon") return _pointInPolygonCoords(lng, lat, geometry.coordinates);
+  if (geometry.type === "MultiPolygon") {
+    return geometry.coordinates.some((polygonCoords) => _pointInPolygonCoords(lng, lat, polygonCoords));
+  }
+  return false;
 }
 
 class MeteoMapManager {
@@ -40,28 +79,36 @@ class MeteoMapManager {
     this.currentGeoJsonLayer = null;
     this.currentValueData = null;
     this.gridLayers = {};
-    this._jsonCache = new Map();
+    this._gridLayerPromises = new Map();
+    this.dataService = new LabmimDataService({
+      workerUrl: `assets/js/workers/json-parser.worker.js?v=${WORKER_CACHE_VERSION}`,
+    });
 
     this._colorWorker = null;
-    this._jsonWorker = null;
-    this._jsonWorkerCallbacks = new Map();
-    this._jsonWorkerId = 0;
     this._colorRequestId = 0;
+    this._pendingColorRequest = null;
     this._windRequestKey = null;
     try {
       this._colorWorker = new Worker(`assets/js/workers/color-calc.worker.js?v=${WORKER_CACHE_VERSION}`);
-      this._jsonWorker = new Worker(`assets/js/workers/json-parser.worker.js?v=${WORKER_CACHE_VERSION}`);
-      this._jsonWorker.onmessage = (e) => {
-        const { id, data, error } = e.data;
-        const cb = this._jsonWorkerCallbacks.get(id);
-        if (cb) {
-          this._jsonWorkerCallbacks.delete(id);
-          if (error) cb.reject(new Error(error));
-          else cb.resolve(data);
+      const onColorWorkerFailure = (event) => {
+        console.warn("Color worker failed, falling back to main thread:", event?.message || event);
+        try {
+          this._colorWorker.terminate();
+        } catch {
+          /* worker already gone */
+        }
+        this._colorWorker = null;
+        if (this._pendingColorRequest) {
+          const { layers, values, scaleValues, config } = this._pendingColorRequest;
+          this._pendingColorRequest = null;
+          this._applyColorsOnMainThread(layers, values, scaleValues, config);
         }
       };
+      this._colorWorker.onerror = onColorWorkerFailure;
+      this._colorWorker.onmessageerror = onColorWorkerFailure;
     } catch (err) {
       console.warn("Web Workers not available, falling back to main thread:", err);
+      this._colorWorker = null;
     }
     this.stateGeoJson = null;
     this.selectedMarker = null;
@@ -122,49 +169,12 @@ class MeteoMapManager {
   }
 
   /**
-   * Fetch JSON with in-memory cache.
-   * Avoids re-downloading the same JSON when switching variables or time steps.
+   * Fetch JSON through the shared data service (cache, in-flight dedup,
+   * negative cache and worker parsing with main-thread fallback).
+   * Kept as a method because ChartsManager consumes it via app._cachedFetch.
    */
   _cachedFetch(url, options = {}) {
-    if (options.signal?.aborted) {
-      return Promise.reject(new DOMException("Aborted", "AbortError"));
-    }
-
-    if (this._jsonCache.has(url)) {
-      return Promise.resolve(this._jsonCache.get(url));
-    }
-
-    const fetchPromise = this._jsonWorker
-      ? this._workerFetch(url).then((data) => {
-          if (options.signal && options.signal.aborted) throw new DOMException("Aborted", "AbortError");
-          return data;
-        })
-      : fetch(url, options).then((res) => {
-          if (!res.ok) throw new Error("Dados não encontrados");
-          return res.json();
-        });
-
-    return fetchPromise.then((data) => {
-      if (this._jsonCache.size > JSON_CACHE_LIMIT) {
-        const firstKey = this._jsonCache.keys().next().value;
-        this._jsonCache.delete(firstKey);
-      }
-      this._jsonCache.set(url, data);
-      return data;
-    });
-  }
-
-  /**
-   * Fetch + parse JSON using the Web Worker.
-   * Returns a Promise that resolves with the parsed JSON.
-   */
-  _workerFetch(url) {
-    return new Promise((resolve, reject) => {
-      const id = String(++this._jsonWorkerId);
-      this._jsonWorkerCallbacks.set(id, { resolve, reject });
-      const absoluteUrl = new URL(url, window.location.href).href;
-      this._jsonWorker.postMessage({ url: absoluteUrl, id });
-    });
+    return this.dataService.fetchJson(url, options);
   }
 
   getVariableId(variableType) {
@@ -184,13 +194,11 @@ class MeteoMapManager {
     if ([50, 100, 150].includes(height)) {
       this.windHeight = height;
       if (this.state.type === "eolico") {
-        this.gridLayers = {};
-
         if (this.state.selectedCell) {
           this.applyMapChanges().then(() => {
             this.handleMapClick({
               latlng: L.latLng(this.state.selectedCell.lat, this.state.selectedCell.lng),
-            });
+            }).catch(() => this.closeSidebar());
           });
         } else {
           this.applyMapChanges();
@@ -625,7 +633,7 @@ class MeteoMapManager {
         this.applyMapChanges().then(() => {
           this.handleMapClick({
             latlng: L.latLng(this.state.selectedCell.lat, this.state.selectedCell.lng),
-          });
+          }).catch(() => this.closeSidebar());
         });
       } else {
         this.applyMapChanges();
@@ -667,7 +675,11 @@ class MeteoMapManager {
       });
     }
 
-    this.map.on("click", (e) => this.handleMapClick(e));
+    this.map.on("click", (e) => {
+      this.handleMapClick(e, { userInitiated: true }).catch(() => {
+        /* feedback already shown by showErrorMessage */
+      });
+    });
 
     this.updateDomainIndicator();
     this.updateWindLayerToggleVisibility(this.state.type);
@@ -872,10 +884,11 @@ class MeteoMapManager {
 
   loadStateGeoJson(stateCode) {
     this.state.stateAbbr = stateCode;
-    fetch(
-      `https://raw.githubusercontent.com/giuliano-macedo/geodata-br-states/main/geojson/br_states/br_${stateCode.toLowerCase()}.json`
-    )
-      .then((res) => res.json())
+    fetch(`assets/data/br_${stateCode.toLowerCase()}.json`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((geojson) => {
         this.stateGeoJson = geojson.features[0];
         if (this.ui.clipStateBtn) {
@@ -897,8 +910,9 @@ class MeteoMapManager {
     if (!this.stateGeoJson || gridLayer._stateMaskComputed) return;
     gridLayer.eachLayer((layer) => {
       const bounds = layer.getBounds();
-      const pt = turf.point([(bounds.getEast() + bounds.getWest()) / 2, (bounds.getNorth() + bounds.getSouth()) / 2]);
-      layer._inStateMask = turf.booleanPointInPolygon(pt, this.stateGeoJson);
+      const lng = (bounds.getEast() + bounds.getWest()) / 2;
+      const lat = (bounds.getNorth() + bounds.getSouth()) / 2;
+      layer._inStateMask = pointInGeoJsonFeature(lng, lat, this.stateGeoJson);
     });
     gridLayer._stateMaskComputed = true;
   }
@@ -1014,7 +1028,6 @@ class MeteoMapManager {
   }
 
   switchVariable(variableType) {
-    this.gridLayers = {};
     this.state.type = variableType;
     if (this.ui.variableSelect) this.ui.variableSelect.value = variableType;
 
@@ -1048,7 +1061,7 @@ class MeteoMapManager {
       if (this.state.selectedCell && selectedCellCoords) {
         this.handleMapClick({
           latlng: L.latLng(selectedCellCoords.lat, selectedCellCoords.lng),
-        });
+        }).catch(() => this.closeSidebar());
       } else if (this.state.selectedCell) {
         this.updateSelectedCellData();
       }
@@ -1092,29 +1105,33 @@ class MeteoMapManager {
     const variableId = this.getVariableId(type);
     const filePath = `JSON/${domain}_${variableId}_${id_num}.json`;
 
-    return this._cachedFetch(filePath)
-      .then((valueData) =>
-        this.loadGridLayer(domain).then((gridLayer) => {
-          if (!gridLayer) return null;
+    return Promise.all([this._cachedFetch(filePath), this.loadGridLayer(domain)])
+      .then(([valueData, gridLayer]) => {
+        if (!gridLayer) return null;
 
+        try {
           this._precomputeStateMask(gridLayer);
+        } catch (maskErr) {
+          console.warn("State mask unavailable, rendering without clipping:", maskErr);
+        }
 
-          this.currentValueData = valueData;
-          this.applyValuesToGrid(gridLayer, valueData);
+        this.currentValueData = valueData;
+        this.applyValuesToGrid(gridLayer, valueData);
 
-          this.showGeoJsonLayer(gridLayer);
-          this.updateUIFromMetadata(valueData.metadata);
+        this.showGeoJsonLayer(gridLayer);
+        this.updateUIFromMetadata(valueData.metadata);
 
-          if (this.ui.windCheckbox && this.ui.windCheckbox.checked) {
-            setTimeout(() => this.renderWindVectors(), 100);
-          }
+        if (this.ui.windCheckbox && this.ui.windCheckbox.checked) {
+          setTimeout(() => this.renderWindVectors(), 100);
+        }
 
-          return valueData;
-        })
-      )
+        return valueData;
+      })
       .catch((err) => {
         console.error("Error loading data:", err);
-        this.removeCurrentLayer();
+        if (!this.state.isPlaying) {
+          this.removeCurrentLayer();
+        }
         return null;
       });
   }
@@ -1155,7 +1172,6 @@ class MeteoMapManager {
         const targetZoom = parseFloat(button.dataset.zoom) || config.zoom;
 
         this.state.domain = selectedDomain;
-        this.gridLayers = {};
         this.updateDomainIndicator();
         this.refreshVariableOverviewPreview();
 
@@ -1196,8 +1212,15 @@ class MeteoMapManager {
       return Promise.resolve(this.gridLayers[cacheKey]);
     }
 
-    return fetch(`GeoJSON/${domain}.geojson`)
-      .then((res) => res.json())
+    if (this._gridLayerPromises.has(cacheKey)) {
+      return this._gridLayerPromises.get(cacheKey);
+    }
+
+    const gridPromise = fetch(`GeoJSON/${domain}.geojson`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((geojson) => {
         const gridMetadata = geojson.metadata;
         const layer = L.geoJSON(geojson, {
@@ -1230,19 +1253,28 @@ class MeteoMapManager {
           },
         });
 
-        layer.eachLayer((cellLayer, index) => {
+        const layersByLinearIndex = new Map();
+        layer.getLayers().forEach((cellLayer, index) => {
           const properties = cellLayer.feature?.properties || {};
           properties.index = Number.isInteger(properties.linear_index) ? properties.linear_index : index;
+          layersByLinearIndex.set(properties.index, cellLayer);
         });
 
         layer._gridMetadata = gridMetadata;
+        layer._layersByLinearIndex = layersByLinearIndex;
         this.gridLayers[cacheKey] = layer;
         return layer;
       })
       .catch((err) => {
         console.error("Error loading grid:", err);
         return null;
+      })
+      .finally(() => {
+        this._gridLayerPromises.delete(cacheKey);
       });
+
+    this._gridLayerPromises.set(cacheKey, gridPromise);
+    return gridPromise;
   }
 
   applyValuesToGrid(gridLayer, valueData) {
@@ -1253,13 +1285,12 @@ class MeteoMapManager {
 
     if (this._colorWorker) {
       const requestId = ++this._colorRequestId;
+      this._pendingColorRequest = { layers, values, scaleValues, config };
       this._colorWorker.onmessage = (e) => {
         const { requestId: responseId, colors } = e.data;
         if (responseId !== undefined && responseId !== this._colorRequestId) return;
-        cancelAnimationFrame(this._applyGridRaf);
-        this._applyGridRaf = requestAnimationFrame(() => {
-          this.applyComputedColorsToGrid(layers, values, colors);
-        });
+        this._pendingColorRequest = null;
+        this._scheduleGridPaint(layers, values, colors);
       };
       this._colorWorker.postMessage({
         requestId,
@@ -1268,19 +1299,27 @@ class MeteoMapManager {
         colors: config.colors,
       });
     } else {
-      const colors = new Array(values.length);
-      for (let i = 0; i < values.length; i++) {
-        const value = values[i];
-        if (value !== undefined && value !== null) {
-          colors[i] = this._colorFromScale(value, scaleValues, config);
-        }
-      }
-
-      cancelAnimationFrame(this._applyGridRaf);
-      this._applyGridRaf = requestAnimationFrame(() => {
-        this.applyComputedColorsToGrid(layers, values, colors);
-      });
+      this._applyColorsOnMainThread(layers, values, scaleValues, config);
     }
+  }
+
+  _applyColorsOnMainThread(layers, values, scaleValues, config) {
+    const colors = new Array(values.length);
+    for (let i = 0; i < values.length; i++) {
+      const value = values[i];
+      if (value !== undefined && value !== null) {
+        colors[i] = this._colorFromScale(value, scaleValues, config);
+      }
+    }
+
+    this._scheduleGridPaint(layers, values, colors);
+  }
+
+  _scheduleGridPaint(layers, values, colors) {
+    cancelAnimationFrame(this._applyGridRaf);
+    this._applyGridRaf = requestAnimationFrame(() => {
+      this.applyComputedColorsToGrid(layers, values, colors);
+    });
   }
 
   applyComputedColorsToGrid(layers, values, colors) {
@@ -1289,13 +1328,21 @@ class MeteoMapManager {
     for (let i = 0; i < layers.length; i++) {
       const cellIndex = this.getCellIndexForLayer(layers[i], i);
       const color = colors[cellIndex];
-      if (color === undefined) continue;
+      const inState = layers[i]._inStateMask !== false;
+      const hiddenByClip = isClipped && !inState;
+
+      if (color === undefined) {
+        // No data at this timestep: reset the previous timestep's value and
+        // color instead of leaving a stale reading on the map.
+        layers[i].feature.properties.valor = null;
+        layers[i].setStyle(hiddenByClip ? GRID_HIDDEN_STYLE : GRID_NODATA_STYLE);
+        continue;
+      }
 
       layers[i].feature.properties.valor = values[cellIndex];
-      const inState = layers[i]._inStateMask !== false;
 
       layers[i].setStyle(
-        isClipped && !inState
+        hiddenByClip
           ? GRID_HIDDEN_STYLE
           : {
               ...GRID_VISIBLE_STYLE,
@@ -1496,9 +1543,9 @@ class MeteoMapManager {
     return value.toFixed(0);
   }
 
-  handleMapClick(e) {
+  handleMapClick(e, options = {}) {
     if (!this.currentGeoJsonLayer) {
-      return Promise.reject("No GeoJSON layer available");
+      return Promise.reject(new Error("No GeoJSON layer available"));
     }
 
     let foundCell = null;
@@ -1517,7 +1564,7 @@ class MeteoMapManager {
 
     if (!foundCell || foundCell.value === null) {
       this.showErrorMessage("Sem informações neste local");
-      return Promise.reject("No cell data found at this location");
+      return Promise.reject(new Error("No cell data found at this location"));
     }
 
     if (this.selectedMarker) {
@@ -1530,7 +1577,7 @@ class MeteoMapManager {
       .then((allValues) => {
         foundCell.allValues = allValues;
         this.state.selectedCell = foundCell;
-        this.showSidebar();
+        this.showSidebar({ userInitiated: options.userInitiated === true });
         return foundCell;
       })
       .catch((err) => {
@@ -1638,6 +1685,12 @@ class MeteoMapManager {
     return Promise.all(promises).then(() => allValues);
   }
 
+  /**
+   * Renders the selected-cell sidebar. `options.userInitiated` distinguishes
+   * a real map click from programmatic refreshes (slider, variable or domain
+   * switches) — consumed by the showSidebar wrapper in map-init.js to decide
+   * whether the time-series modal may open.
+   */
   showSidebar() {
     const cell = this.state.selectedCell;
     const config = VARIABLES_CONFIG[this.state.type];
@@ -1768,6 +1821,7 @@ class MeteoMapManager {
 
     if (!linearIndices || !angles || !magnitudes || linearIndices.length === 0) {
       console.warn("Empty wind data");
+      this.clearWindVectors();
       return;
     }
 
@@ -1793,19 +1847,19 @@ class MeteoMapManager {
     const magRange = maxMag - minMag || 1;
 
     const isClipped = this.state.isClippedToState;
+    // Resolve cells through the linear_index -> layer map built in
+    // loadGridLayer: feature order in the GeoJSON is not guaranteed to
+    // match linear_index, so positional lookup could misplace arrows.
+    const layersByLinearIndex = this.currentGeoJsonLayer._layersByLinearIndex;
 
-    linearIndices.forEach((actualLayerIdx, idx) => {
+    linearIndices.forEach((linearIndex, idx) => {
       try {
-        if (actualLayerIdx < 0 || actualLayerIdx >= layers.length) return;
-
-        const layer = layers[actualLayerIdx];
-
-        if (isClipped && layer._inStateMask === false) return;
-
-        const targetLayer = layers[actualLayerIdx];
+        const targetLayer = layersByLinearIndex ? layersByLinearIndex.get(linearIndex) : layers[linearIndex];
         if (!targetLayer || !targetLayer.getBounds) {
           return;
         }
+
+        if (isClipped && targetLayer._inStateMask === false) return;
 
         const bounds = targetLayer.getBounds();
         const center = bounds.getCenter();

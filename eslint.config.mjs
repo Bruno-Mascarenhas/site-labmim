@@ -9,6 +9,8 @@ export default defineConfig([
     "site/JSON/",
     "site/GeoJSON/",
     "site/assets/json/",
+    "site/assets/vendor/",
+    "site/assets/data/",
     "**/*.json",
     "**/*.geojson",
   ]),
