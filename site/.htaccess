@@ -1,1 +1,55 @@
+# ---------------------------------------------------------------------------
+# LabMIM WebGIS — configuração Apache (charset, MIME, compressão e cache)
+# Todas as diretivas estão protegidas por <IfModule> para que o site nunca
+# retorne 500 caso algum módulo não esteja habilitado no servidor.
+# ---------------------------------------------------------------------------
+
 AddDefaultCharset UTF-8
+
+# --- MIME types -------------------------------------------------------------
+# Garante o Content-Type correto dos dados de previsão (JSON/GeoJSON).
+<IfModule mod_mime.c>
+  AddType application/json .json
+  AddType application/geo+json .geojson
+</IfModule>
+
+# --- Compressão -------------------------------------------------------------
+# Os payloads JSON/GeoJSON de previsão variam de centenas de KB a vários MB;
+# a compressão é o maior ganho de transferência do site.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html
+  AddOutputFilterByType DEFLATE text/css
+  AddOutputFilterByType DEFLATE application/javascript
+  AddOutputFilterByType DEFLATE text/javascript
+  AddOutputFilterByType DEFLATE application/json
+  AddOutputFilterByType DEFLATE application/geo+json
+  AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# --- Política de cache ------------------------------------------------------
+<IfModule mod_headers.c>
+  # Dados de previsão (JSON/GeoJSON): o pipeline REUTILIZA os mesmos nomes de
+  # arquivo a cada nova rodada, então o navegador nunca pode confiar em cópia
+  # antiga sem revalidar. "no-cache" permite armazenar, mas exige revalidação
+  # a cada uso — respostas 304 baratas via ETag/Last-Modified e previsões
+  # sempre atualizadas.
+  <FilesMatch "\.(json|geojson)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+
+  # HTML: sempre revalidar para entregar a versão mais recente das páginas.
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+
+  # CSS/JS: cache curto com stale-while-revalidate; o app já usa
+  # cache-busting via query string (?v=) para atualizações imediatas.
+  <FilesMatch "\.(css|js)$">
+    Header set Cache-Control "public, max-age=3600, stale-while-revalidate=86400"
+  </FilesMatch>
+
+  # Imagens e fontes: conteúdo estável, cache de 7 dias.
+  <FilesMatch "\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+</IfModule>
