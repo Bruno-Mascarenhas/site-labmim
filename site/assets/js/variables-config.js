@@ -126,7 +126,7 @@ const VARIABLES_CONFIG = {
         };
       }
 
-      const air_temp = allValues.temperature?.value || 25;
+      const air_temp = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 25;
       const panelEfficiency = getParameter("solar", "panelEfficiency", 18) / 100;
       const inversorEfficiency = getParameter("solar", "inversorEfficiency", 95) / 100;
       const ptc = getParameter("solar", "ptc", -0.38);
@@ -192,7 +192,7 @@ const VARIABLES_CONFIG = {
         };
       }
 
-      const tempValue = allValues.temperature?.value || 15;
+      const tempValue = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 15;
 
       const airDensity = getParameter("eolico", "airDensity", 1.225);
       const rotorDiameter = getParameter("eolico", "rotorDiameter", 40);
@@ -256,7 +256,7 @@ const VARIABLES_CONFIG = {
 
       const humidityValue =
         allValues.relativeHumidity?.value ?? (allValues.humidity?.unit === "%" ? allValues.humidity.value : null);
-      const windValue = allValues.wind?.value || 2;
+      const windValue = Number.isFinite(allValues.wind?.value) ? allValues.wind.value : 2;
 
       const feelsLike = humidityValue === null ? value : getTemperatureFeelsLike(value, humidityValue, windValue);
       const heatIndex = humidityValue === null ? null : getHeatIndex(value, humidityValue);
