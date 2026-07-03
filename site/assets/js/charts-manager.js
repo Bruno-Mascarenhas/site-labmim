@@ -140,6 +140,10 @@ class ChartsManager {
     if (this.ui.modal) this.ui.modal.style.display = "flex";
   }
 
+  isModalOpen() {
+    return !!this.ui.modal && this.ui.modal.style.display === "flex";
+  }
+
   closeModal() {
     if (this.ui.modal) this.ui.modal.style.display = "none";
     if (this.abortController) {
@@ -170,7 +174,7 @@ class ChartsManager {
   reloadChartsWithNewParameters() {
     const { type, selectedCell } = this.app?.state || {};
     if (type && selectedCell && this.timeSeriesData) {
-      this.renderChartsForVariable(type, selectedCell);
+      this.renderChartsForVariable(type);
     }
   }
 
@@ -238,27 +242,59 @@ class ChartsManager {
     const cached = this.domainSummaryCache.get(cacheKey);
     if (cached) return this._withCurrentStats(cached, currentHour);
 
-    const BATCH_SIZE = 8;
-    const series = [];
+    const { series, transientFailures } = await this._collectHourlySeries(
+      variableId,
+      domain,
+      maxHour,
+      8,
+      signal,
+      (hour, data) => {
+        const summary = this._summarizeValues(data.values);
+        if (!summary) return null;
+        return {
+          hour,
+          value: summary.mean,
+          min: summary.min,
+          max: summary.max,
+          timestamp: this._timestampForHour(hour, data),
+        };
+      }
+    );
 
-    for (let start = 1; start <= maxHour; start += BATCH_SIZE) {
+    const baseResult = { series, stats: this._aggregateSeriesStats(series, currentHour) };
+    // Cache unless a transient failure truncated the series: a series missing
+    // only structurally-absent hours (404) is complete and safe to cache.
+    if (transientFailures === 0) {
+      this.domainSummaryCache.set(cacheKey, baseResult);
+    }
+    return baseResult;
+  }
+
+  /**
+   * Fetches hours 1..maxHour in batches and maps each successfully fetched
+   * JSON through mapHourData(hour, data). Only TRANSIENT failures (network
+   * errors, 5xx) are counted in transientFailures; a deterministic 404 (a
+   * file the pipeline never exports, e.g. SWDOWN night hours) is treated as
+   * an expected gap, so a complete-but-sparse series can still be cached.
+   */
+  async _collectHourlySeries(variableId, domain, maxHour, batchSize, signal, mapHourData) {
+    const series = [];
+    let transientFailures = 0;
+
+    for (let start = 1; start <= maxHour; start += batchSize) {
       if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const batchEnd = Math.min(start + BATCH_SIZE - 1, maxHour);
+      const batchEnd = Math.min(start + batchSize - 1, maxHour);
       const batch = [];
 
       for (let hour = start; hour <= batchEnd; hour++) {
         batch.push(
-          this._fetchHourJson(variableId, domain, hour, signal).then((data) => {
-            const summary = this._summarizeValues(data?.values);
-            if (!summary) return null;
-            return {
-              hour,
-              value: summary.mean,
-              min: summary.min,
-              max: summary.max,
-              timestamp: this._timestampForHour(hour, data),
-            };
-          })
+          this._fetchHourJson(variableId, domain, hour, signal)
+            .then((data) => (data ? mapHourData(hour, data) : null))
+            .catch((err) => {
+              if (err?.name === "AbortError") throw err;
+              transientFailures += 1;
+              return null;
+            })
         );
       }
 
@@ -266,9 +302,7 @@ class ChartsManager {
       series.push(...batchResults.filter(Boolean));
     }
 
-    const baseResult = { series, stats: this._aggregateSeriesStats(series, currentHour) };
-    this.domainSummaryCache.set(cacheKey, baseResult);
-    return baseResult;
+    return { series, transientFailures };
   }
 
   _withCurrentStats(result, currentHour) {
@@ -336,8 +370,13 @@ class ChartsManager {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
 
+    // timeZone UTC: forecast timestamps store the metadata's wall-clock
+    // digits in UTC fields (see app.parseDateTime), and the map label prints
+    // those same digits — local-time formatting would shift charts/CSV by
+    // the viewer's UTC offset relative to the map.
     const labels = series.map((entry) =>
       new Date(entry.timestamp).toLocaleString("pt-BR", {
+        timeZone: "UTC",
         day: "2-digit",
         month: "2-digit",
         hour: "2-digit",
@@ -405,7 +444,10 @@ class ChartsManager {
 
     const labels = timeData.map((d) => {
       if (!d._formattedLabel) {
+        // timeZone UTC keeps chart labels on the forecast's wall-clock
+        // digits, consistent with the map's time label (see _renderPreviewChart).
         d._formattedLabel = new Date(d.timestamp).toLocaleString("pt-BR", {
+          timeZone: "UTC",
           day: "2-digit",
           month: "2-digit",
           hour: "2-digit",
@@ -616,42 +658,30 @@ class ChartsManager {
     const cached = this.timeSeriesCache.get(cacheKey);
     if (cached) return cached;
 
-    const BATCH_SIZE = 12;
-    const allResults = [];
-    for (let start = 1; start <= maxHour; start += BATCH_SIZE) {
-      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const batchEnd = Math.min(start + BATCH_SIZE - 1, maxHour);
-      const batch = [];
-      for (let hour = start; hour <= batchEnd; hour++) {
-        batch.push(this._fetchHourValue(variableId, domain, hour, cellIndex, signal));
+    const { series, transientFailures } = await this._collectHourlySeries(
+      variableId,
+      domain,
+      maxHour,
+      12,
+      signal,
+      (hour, data) => {
+        const cellValue = Array.isArray(data.values) ? data.values[cellIndex] : null;
+        if (cellValue == null) return null;
+        return {
+          hour,
+          value: cellValue,
+          timestamp: this._timestampForHour(hour, data),
+        };
       }
-      const batchResults = await Promise.all(batch);
-      allResults.push(...batchResults);
-    }
+    );
 
-    const result = { config, data: allResults.filter(Boolean) };
-    this.timeSeriesCache.set(cacheKey, result);
+    const result = { config, data: series };
+    // Cache unless a transient failure truncated the series; structurally
+    // absent hours (404) are an expected gap and do not block caching.
+    if (transientFailures === 0) {
+      this.timeSeriesCache.set(cacheKey, result);
+    }
     return result;
-  }
-
-  async _fetchHourValue(variableId, domain, hour, cellIndex, signal) {
-    try {
-      const data = await this._fetchHourJson(variableId, domain, hour, signal);
-      if (data?.values && Array.isArray(data.values)) {
-        const cellValue = data.values[cellIndex];
-        if (cellValue != null) {
-          return {
-            hour,
-            value: cellValue,
-            timestamp: this._timestampForHour(hour, data),
-          };
-        }
-      }
-      return null;
-    } catch (err) {
-      if (err.name === "AbortError") throw err;
-      return null;
-    }
   }
 
   _getVariableId(variableKey, config) {
@@ -682,20 +712,21 @@ class ChartsManager {
     let csv = `Data,Hora,Latitude,Longitude,Domínio,Variável,Valor(${config.unit})`;
     const isEnergy = type === "solar" || type === "eolico";
     let chartDataEnergy = null;
-    let energyUnit = "";
 
     if (isEnergy) {
       const energyConfig = this._prepareChartData(type, "energy", config, timeData);
       chartDataEnergy = energyConfig.data;
-      energyUnit = energyConfig.unit;
-      csv += `,Produção(${energyUnit})`;
+      csv += `,Produção(${energyConfig.unit})`;
     }
     csv += "\n";
 
     timeData.forEach((d, i) => {
       const date = new Date(d.timestamp);
-      const dateStr = date.toLocaleDateString("pt-BR");
+      // timeZone UTC: export the forecast's wall-clock digits (same as the
+      // map label), not the viewer's local time.
+      const dateStr = date.toLocaleDateString("pt-BR", { timeZone: "UTC" });
       const timeStr = date.toLocaleTimeString("pt-BR", {
+        timeZone: "UTC",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
@@ -705,13 +736,13 @@ class ChartsManager {
       const numV =
         typeof rawV === "string" ? parseFloat(rawV.replace(/[^\d.,]/g, "").replace(",", ".")) : parseFloat(rawV);
 
-      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${config.label}",${this._formatCsvValue(numV, config.unit)}`;
+      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${config.label}",${this._formatCsvValue(numV)}`;
 
       if (isEnergy && chartDataEnergy) {
         const rawE = chartDataEnergy[i];
         const numE =
           typeof rawE === "string" ? parseFloat(rawE.replace(/[^\d.,]/g, "").replace(",", ".")) : parseFloat(rawE);
-        csv += `,${this._formatCsvValue(numE, energyUnit)}`;
+        csv += `,${this._formatCsvValue(numE)}`;
       }
       csv += "\n";
     });
@@ -732,6 +763,12 @@ class ChartsManager {
     return value.toFixed(2);
   }
 
+  /**
+   * Resolves the hour's JSON, or null for a deterministically absent file
+   * (404). Transient failures (network/5xx) are rethrown so the caller can
+   * count them and decline to cache an incomplete series. AbortError always
+   * propagates.
+   */
   async _fetchHourJson(variableId, domain, hour, signal) {
     const idNum = String(hour).padStart(3, "0");
     const url = `JSON/${domain}_${variableId}_${idNum}.json`;
@@ -740,10 +777,13 @@ class ChartsManager {
         return await this.app._cachedFetch(url, { signal });
       }
       const res = await fetch(url, { signal });
-      return res.ok ? res.json() : null;
+      if (res.ok) return await res.json();
+      if (res.status === 404 || res.status === 403 || res.status === 410) return null;
+      throw new Error(`HTTP ${res.status}`);
     } catch (e) {
       if (e.name === "AbortError") throw e;
-      return null;
+      if (e.notFound) return null;
+      throw e;
     }
   }
 
@@ -754,26 +794,54 @@ class ChartsManager {
       if (!isNaN(parsed)) return parsed.toISOString();
     }
     if (meta?.start_date) {
-      const base = new Date(meta.start_date);
-      if (!isNaN(base)) {
-        base.setHours(base.getHours() + (hour - 1));
-        return base.toISOString();
+      const start = this._parseMetadataDate(meta.start_date);
+      if (!isNaN(start)) {
+        return new Date(start.getTime() + (hour - 1) * 3600000).toISOString();
       }
     }
+    // Prefer the forecast's initial datetime over any wall-clock guess
+    const forecastDate = this.app?.calculateTargetDateFromIndex?.(hour);
+    if (forecastDate instanceof Date && !isNaN(forecastDate)) {
+      return forecastDate.toISOString();
+    }
+    // True last resort: current wall clock offset by the hour index
     const base = new Date();
     base.setMinutes(0, 0, 0);
     base.setHours(base.getHours() + (hour - 1));
     return base.toISOString();
   }
 
+  /**
+   * Parses "DD/MM/YYYY HH:MM[:SS]" or "YYYY-MM-DD HH:MM[:SS]" into a UTC Date.
+   * Never uses new Date(string): WebKit/Safari returns Invalid Date for the
+   * space-separated, non-ISO formats used in the metadata.
+   */
   _parseMetadataDate(value) {
     if (value instanceof Date) return value;
-    const parts = String(value).trim().split(" ");
-    if (parts.length >= 2 && parts[0].includes("/")) {
-      const dateParts = parts[0].split("/").reverse().join("-");
-      return new Date(`${dateParts} ${parts[1]}`);
+    const dateStr = String(value).trim();
+
+    if (typeof this.app?.parseDateTime === "function") {
+      try {
+        const parsed = this.app.parseDateTime(dateStr);
+        if (parsed instanceof Date && !isNaN(parsed)) return parsed;
+      } catch {
+        // Fall through to the standalone parser below
+      }
     }
-    return new Date(value);
+
+    const [datePart, timePart] = dateStr.split(/[T ]/);
+    if (!datePart || !timePart) return new Date(NaN);
+
+    let day, month, year;
+    if (datePart.includes("/")) {
+      [day, month, year] = datePart.split("/").map(Number);
+    } else {
+      [year, month, day] = datePart.split("-").map(Number);
+    }
+    const [hour, minute, second = 0] = timePart.split(":").map(Number);
+    if (![year, month, day, hour, minute].every(Number.isFinite)) return new Date(NaN);
+
+    return new Date(Date.UTC(year, month - 1, day, hour, minute, Number.isFinite(second) ? second : 0));
   }
 
   _quickDist(lat1, lng1, lat2, lng2) {

@@ -16,7 +16,9 @@ self.onmessage = async function (e) {
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      self.postMessage({ id, error: `HTTP ${response.status}` });
+      // Forward the HTTP status so the main thread can distinguish a
+      // deterministically-absent file (404) from a transient failure.
+      self.postMessage({ id, error: `HTTP ${response.status}`, status: response.status });
       return;
     }
 

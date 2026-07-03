@@ -3,5 +3,7 @@ node_modules/
 site/JSON/
 site/GeoJSON/
 site/assets/json/
+site/assets/vendor/
+site/assets/data/
 *.json
 *.geojson

@@ -5,6 +5,7 @@
     "selector-id-pattern": null,
     "font-family-no-missing-generic-family-keyword": null,
     "color-function-notation": null,
+    "color-function-alias-notation": null,
     "alpha-value-notation": null,
     "keyframes-name-pattern": null,
     "no-descending-specificity": null,
