@@ -194,10 +194,13 @@ class MeteoMapManager {
     if ([50, 100, 150].includes(height)) {
       this.windHeight = height;
       if (this.state.type === "eolico") {
-        if (this.state.selectedCell) {
+        const selectedCell = this.state.selectedCell;
+        if (selectedCell) {
           this.applyMapChanges().then(() => {
+            // The selection may have been cleared while the data was loading.
+            if (!this.state.selectedCell) return;
             this.handleMapClick({
-              latlng: L.latLng(this.state.selectedCell.lat, this.state.selectedCell.lng),
+              latlng: L.latLng(selectedCell.lat, selectedCell.lng),
             }).catch(() => this.closeSidebar());
           });
         } else {
@@ -629,10 +632,13 @@ class MeteoMapManager {
     this.configureVariableSelect();
 
     const _debouncedSliderApply = _debounce(() => {
-      if (this.state.selectedCell && !this.state.isPlaying) {
+      const selectedCell = this.state.selectedCell;
+      if (selectedCell && !this.state.isPlaying) {
         this.applyMapChanges().then(() => {
+          // The selection may have been cleared while the data was loading.
+          if (!this.state.selectedCell) return;
           this.handleMapClick({
-            latlng: L.latLng(this.state.selectedCell.lat, this.state.selectedCell.lng),
+            latlng: L.latLng(selectedCell.lat, selectedCell.lng),
           }).catch(() => this.closeSidebar());
         });
       } else {
@@ -1129,9 +1135,12 @@ class MeteoMapManager {
       })
       .catch((err) => {
         console.error("Error loading data:", err);
-        if (!this.state.isPlaying) {
-          this.removeCurrentLayer();
-        }
+        // Honest no-data state: remove the layer and its value data so the
+        // map never shows a previous timestep under the new time label. The
+        // negative cache in the data service keeps playback from re-hitting
+        // the network for the same missing file on every tick.
+        this.currentValueData = null;
+        this.removeCurrentLayer();
         return null;
       });
   }
@@ -1216,11 +1225,11 @@ class MeteoMapManager {
       return this._gridLayerPromises.get(cacheKey);
     }
 
-    const gridPromise = fetch(`GeoJSON/${domain}.geojson`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+    // Fetched through the data service: worker-side parsing for the multi-MB
+    // payload, in-flight dedup and 60s negative caching on failure (so a
+    // missing grid is not re-requested on every playback tick).
+    const gridPromise = this.dataService
+      .fetchJson(`GeoJSON/${domain}.geojson`)
       .then((geojson) => {
         const gridMetadata = geojson.metadata;
         const layer = L.geoJSON(geojson, {
@@ -1548,13 +1557,21 @@ class MeteoMapManager {
       return Promise.reject(new Error("No GeoJSON layer available"));
     }
 
+    // Read values from currentValueData (the source of truth for the active
+    // variable/timestep) rather than the painted feature.properties.valor:
+    // the paint lands asynchronously (color worker + requestAnimationFrame),
+    // so right after a variable/height/domain switch the painted value may
+    // still belong to the previous selection.
+    const values = Array.isArray(this.currentValueData?.values) ? this.currentValueData.values : null;
+
     let foundCell = null;
     this.currentGeoJsonLayer.eachLayer((layer) => {
       if (layer.getBounds().contains(e.latlng)) {
+        const cellIndex = this.getCellIndexForLayer(layer, 0);
         foundCell = {
-          layer: layer,
-          value: layer.feature.properties.valor,
-          cellIndex: this.getCellIndexForLayer(layer, 0),
+          layer,
+          value: values ? (values[cellIndex] ?? null) : null,
+          cellIndex,
           lat: e.latlng.lat,
           lng: e.latlng.lng,
           allValues: {},

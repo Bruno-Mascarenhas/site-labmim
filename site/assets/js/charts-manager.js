@@ -286,6 +286,7 @@ class ChartsManager {
       const batch = [];
 
       for (let hour = start; hour <= batchEnd; hour++) {
+        if (this._isStructurallyMissingHour(variableId, hour)) continue;
         batch.push(
           this._fetchHourJson(variableId, domain, hour, signal).then((data) => {
             if (!data) {
@@ -302,6 +303,18 @@ class ChartsManager {
     }
 
     return { series, fetchFailures };
+  }
+
+  /**
+   * Hours whose JSON the pipeline structurally never exports (SWDOWN solar
+   * radiation only exists for daytime hours). They must not be fetched at
+   * all: counting their 404s as fetchFailures would permanently disable
+   * caching for solar. Mirrors the night-hour skip in map-manager.js.
+   */
+  _isStructurallyMissingHour(variableId, hour) {
+    if (variableId !== "SWDOWN") return false;
+    const hourOfDay = (hour - 1) % 24;
+    return hourOfDay < 6 || hourOfDay > 18;
   }
 
   _withCurrentStats(result, currentHour) {
@@ -369,8 +382,13 @@ class ChartsManager {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
 
+    // timeZone UTC: forecast timestamps store the metadata's wall-clock
+    // digits in UTC fields (see app.parseDateTime), and the map label prints
+    // those same digits — local-time formatting would shift charts/CSV by
+    // the viewer's UTC offset relative to the map.
     const labels = series.map((entry) =>
       new Date(entry.timestamp).toLocaleString("pt-BR", {
+        timeZone: "UTC",
         day: "2-digit",
         month: "2-digit",
         hour: "2-digit",
@@ -438,7 +456,10 @@ class ChartsManager {
 
     const labels = timeData.map((d) => {
       if (!d._formattedLabel) {
+        // timeZone UTC keeps chart labels on the forecast's wall-clock
+        // digits, consistent with the map's time label (see _renderPreviewChart).
         d._formattedLabel = new Date(d.timestamp).toLocaleString("pt-BR", {
+          timeZone: "UTC",
           day: "2-digit",
           month: "2-digit",
           hour: "2-digit",
@@ -713,8 +734,11 @@ class ChartsManager {
 
     timeData.forEach((d, i) => {
       const date = new Date(d.timestamp);
-      const dateStr = date.toLocaleDateString("pt-BR");
+      // timeZone UTC: export the forecast's wall-clock digits (same as the
+      // map label), not the viewer's local time.
+      const dateStr = date.toLocaleDateString("pt-BR", { timeZone: "UTC" });
       const timeStr = date.toLocaleTimeString("pt-BR", {
+        timeZone: "UTC",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",

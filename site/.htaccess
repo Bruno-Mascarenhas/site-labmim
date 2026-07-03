@@ -16,14 +16,18 @@ AddDefaultCharset UTF-8
 # --- Compressão -------------------------------------------------------------
 # Os payloads JSON/GeoJSON de previsão variam de centenas de KB a vários MB;
 # a compressão é o maior ganho de transferência do site.
+# No Apache 2.4 a diretiva AddOutputFilterByType pertence ao mod_filter,
+# então o guard duplo evita 500 caso apenas um dos módulos esteja ativo.
 <IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html
-  AddOutputFilterByType DEFLATE text/css
-  AddOutputFilterByType DEFLATE application/javascript
-  AddOutputFilterByType DEFLATE text/javascript
-  AddOutputFilterByType DEFLATE application/json
-  AddOutputFilterByType DEFLATE application/geo+json
-  AddOutputFilterByType DEFLATE image/svg+xml
+  <IfModule mod_filter.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/geo+json
+    AddOutputFilterByType DEFLATE image/svg+xml
+  </IfModule>
 </IfModule>
 
 # --- Política de cache ------------------------------------------------------
