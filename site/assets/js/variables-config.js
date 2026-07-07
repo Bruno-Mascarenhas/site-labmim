@@ -91,6 +91,7 @@ const VARIABLES_CONFIG = {
     label: "Radiação Solar",
     optionLabel: "Potencial Fotovoltaico",
     icon: "☀️",
+    faIcon: "sun",
     category: "energy",
     unit: "W/m²",
     sourceId: "SWDOWN",
@@ -154,6 +155,10 @@ const VARIABLES_CONFIG = {
             value: (energy_gen * 1000).toFixed(2),
             unit: "Wh/m²",
             icon: "fa-solar-panel",
+            // Structured numeric value for charts/CSV (unformatted); the
+            // displayed `value`/`unit` above are unchanged.
+            energyValue: energy_gen * 1000,
+            energyUnit: "Wh/m²",
           },
         ],
       };
@@ -168,6 +173,7 @@ const VARIABLES_CONFIG = {
     label: "Velocidade do Vento",
     optionLabel: "Potencial Eólico",
     icon: "💨",
+    faIcon: "wind",
     category: "energy",
     unit: "m/s",
     sourceId: "POT_EOLICO_50M / POT_EOLICO_100M / POT_EOLICO_150M",
@@ -220,6 +226,10 @@ const VARIABLES_CONFIG = {
             value: ((0.5 * densityOfAir * Math.pow(value, 3) * rotorArea * Cp) / 1000).toFixed(1),
             unit: "kWh",
             icon: "fa-wind",
+            // Structured numeric value for charts/CSV (unformatted); the
+            // displayed `value`/`unit` above are unchanged.
+            energyValue: (0.5 * densityOfAir * Math.pow(value, 3) * rotorArea * Cp) / 1000,
+            energyUnit: "kWh",
           },
         ],
       };
@@ -231,6 +241,7 @@ const VARIABLES_CONFIG = {
     label: "Temperatura (2m)",
     optionLabel: "Temperatura",
     icon: "🌡️",
+    faIcon: "thermometer",
     category: "forecast",
     unit: "°C",
     sourceId: "TEMP",
@@ -291,6 +302,7 @@ const VARIABLES_CONFIG = {
     label: "Temperatura de Superfície",
     optionLabel: "Temperatura de Superfície",
     icon: "🌡️",
+    faIcon: "temperature-high",
     category: "forecast",
     unit: "°C",
     sourceId: "TSK",
@@ -347,6 +359,7 @@ const VARIABLES_CONFIG = {
     label: "Pressão Atmosférica",
     optionLabel: "Pressão Atmosférica",
     icon: "🎯",
+    faIcon: "cloud",
     category: "forecast",
     unit: "hPa",
     sourceId: "PRES",
@@ -355,8 +368,6 @@ const VARIABLES_CONFIG = {
     scaleMax: 1030,
     colormap: "RdBu_r",
     colors: PRESSURE_COLORS,
-    useDynamicScale: true,
-    normalValue: 1013,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.pressure?.ausente) {
         return {
@@ -401,13 +412,14 @@ const VARIABLES_CONFIG = {
     label: "Vapor d'Água (2m)",
     optionLabel: "Vapor d'Água",
     icon: "💧",
+    faIcon: "droplet",
     category: "forecast",
     unit: "g/kg",
     sourceId: "VAPOR",
     summary: "Razão de mistura de vapor d'água próximo à superfície, expressa em g/kg.",
     scaleMin: 0,
     scaleMax: 25,
-    colormap: "RdBu_r",
+    colormap: "Blues",
     colors: HUMIDITY_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.humidity?.ausente) {
@@ -453,6 +465,7 @@ const VARIABLES_CONFIG = {
     label: "Umidade Relativa (2m)",
     optionLabel: "Umidade Relativa",
     icon: "💧",
+    faIcon: "droplet",
     category: "forecast",
     unit: "%",
     sourceId: "RH2",
@@ -462,7 +475,6 @@ const VARIABLES_CONFIG = {
     scaleMax: 100,
     colormap: "YlGnBu",
     colors: HUMIDITY_COLORS,
-    useDynamicScale: true,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.relativeHumidity?.ausente) {
         return {
@@ -507,6 +519,7 @@ const VARIABLES_CONFIG = {
     label: "Precipitação",
     optionLabel: "Precipitação",
     icon: "🌧️",
+    faIcon: "cloud-rain",
     category: "forecast",
     unit: "mm",
     sourceId: "RAIN",
@@ -559,6 +572,7 @@ const VARIABLES_CONFIG = {
     label: "Velocidade do Vento (10m)",
     optionLabel: "Vento (10m)",
     icon: "🌬️",
+    faIcon: "wind",
     category: "forecast",
     unit: "m/s",
     sourceId: "WIND",
@@ -611,6 +625,7 @@ const VARIABLES_CONFIG = {
     label: "Radiação Global",
     optionLabel: "Radiação Global",
     icon: "☀️",
+    faIcon: "sun",
     category: "forecast",
     unit: "W/m²",
     sourceId: "SWDOWN",
@@ -675,6 +690,7 @@ const VARIABLES_CONFIG = {
     label: "Radiação de Onda Longa",
     optionLabel: "Onda Longa Incidente",
     icon: "🌙",
+    faIcon: "moon",
     category: "forecast",
     unit: "W/m²",
     sourceId: "GLW",
@@ -683,7 +699,6 @@ const VARIABLES_CONFIG = {
     scaleMax: 500,
     colormap: "magma",
     colors: RADIATION_COLORS,
-    useDynamicScale: true,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.longwave?.ausente) {
         return {
@@ -728,6 +743,7 @@ const VARIABLES_CONFIG = {
     label: "Calor Sensível",
     optionLabel: "Calor Sensível",
     icon: "🔥",
+    faIcon: "fire",
     category: "forecast",
     unit: "W/m²",
     sourceId: "HFX",
@@ -780,6 +796,7 @@ const VARIABLES_CONFIG = {
     label: "Calor Latente",
     optionLabel: "Calor Latente",
     icon: "💧",
+    faIcon: "water",
     category: "forecast",
     unit: "W/m²",
     sourceId: "LH",
@@ -832,6 +849,7 @@ const VARIABLES_CONFIG = {
     label: "Densidade de Potência Eólica (10m)",
     optionLabel: "Densidade Eólica 10m",
     icon: "💨",
+    faIcon: "fan",
     category: "energy",
     unit: "W/m²",
     sourceId: "WIND_POWER_DENSITY_10M",
@@ -840,7 +858,6 @@ const VARIABLES_CONFIG = {
     scaleMax: 1500,
     colormap: "YlOrRd",
     colors: ["#ffffcc", "#ffeda0", "#fed976", "#feb24c", "#fd8d3c", "#e31a1c", "#800026"],
-    useDynamicScale: true,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.windPowerDensity?.ausente) {
         return {
@@ -894,29 +911,6 @@ function getWindCategory(speed) {
   return "Extremo";
 }
 
-function getWindDirection(angle) {
-  const directions = [
-    "N",
-    "NNE",
-    "NE",
-    "ENE",
-    "E",
-    "ESE",
-    "SE",
-    "SSE",
-    "S",
-    "SSW",
-    "SW",
-    "WSW",
-    "W",
-    "WNW",
-    "NW",
-    "NNW",
-  ];
-  const index = Math.round((angle % 360) / 22.5);
-  return directions[index % 16];
-}
-
 function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
   if (temperatureC >= 26.7 && humidity >= 40) {
     const T = (temperatureC * 9) / 5 + 32;
@@ -952,17 +946,9 @@ function getHeatIndex(temperatureC, humidity) {
 
   const e = (humidity / 100) * 6.105 * Math.exp((17.27 * temperatureC) / (237.7 + temperatureC));
 
-  const heatIndex = temperatureC + 0.33 * e - 0.7;
+  const heatIndex = temperatureC + 0.33 * e - 4.0;
 
   return heatIndex;
-}
-
-function estimateSolarGeneration(irradiance, panelArea = 10, efficiency = 0.18) {
-  return (irradiance * panelArea * efficiency) / 1000;
-}
-
-function estimateWindGeneration(powerDensity, turbineArea = 500) {
-  return (powerDensity * turbineArea) / 1000;
 }
 
 /**
@@ -973,9 +959,6 @@ if (typeof module !== "undefined" && module.exports) {
     VARIABLE_CONTEXTS,
     VARIABLES_CONFIG,
     getWindCategory,
-    getWindDirection,
     getTemperatureFeelsLike,
-    estimateSolarGeneration,
-    estimateWindGeneration,
   };
 }

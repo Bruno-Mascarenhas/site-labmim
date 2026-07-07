@@ -36,6 +36,7 @@ function interpolateColor(palette, factor) {
 }
 
 function colorFromScale(value, scaleValues, palette) {
+  if (!scaleValues || scaleValues.length === 0) return palette[0];
   if (value < scaleValues[0]) return palette[0];
   if (value > scaleValues[scaleValues.length - 1]) return palette[palette.length - 1];
 
