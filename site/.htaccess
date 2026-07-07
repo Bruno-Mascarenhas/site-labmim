@@ -6,6 +6,16 @@
 
 AddDefaultCharset UTF-8
 
+# --- Página de erro 404 personalizada ---------------------------------------
+ErrorDocument 404 /404.html
+
+# --- Redirect permanente da página legada -----------------------------------
+# A página antiga também tem um <meta refresh> como fallback caso mod_alias
+# esteja desativado.
+<IfModule mod_alias.c>
+  Redirect 301 /mapas_meteorologicos.html /mapas_interativos.html
+</IfModule>
+
 # --- MIME types -------------------------------------------------------------
 # Garante o Content-Type correto dos dados de previsão (JSON/GeoJSON).
 <IfModule mod_mime.c>
@@ -30,8 +40,37 @@ AddDefaultCharset UTF-8
   </IfModule>
 </IfModule>
 
-# --- Política de cache ------------------------------------------------------
+# Brotli (quando disponível) — densidade melhor que gzip para texto/JSON.
+# Clientes sem suporte a Brotli continuam recebendo gzip pelo mod_deflate acima.
+<IfModule mod_brotli.c>
+  <IfModule mod_filter.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html
+    AddOutputFilterByType BROTLI_COMPRESS text/css
+    AddOutputFilterByType BROTLI_COMPRESS application/javascript
+    AddOutputFilterByType BROTLI_COMPRESS text/javascript
+    AddOutputFilterByType BROTLI_COMPRESS application/json
+    AddOutputFilterByType BROTLI_COMPRESS application/geo+json
+    AddOutputFilterByType BROTLI_COMPRESS image/svg+xml
+  </IfModule>
+</IfModule>
+
+# --- Cabeçalhos de segurança e política de cache ----------------------------
 <IfModule mod_headers.c>
+  # Segurança (always = valem inclusive para respostas de erro).
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Permissions-Policy "geolocation=(), camera=(), microphone=()"
+
+  # Content-Security-Policy: todo CSS/JS é same-origin (vendorizado); não há
+  # <script> executável inline nem handlers on*. O bloco JSON-LD
+  # (type=application/ld+json) não é executável e é permitido independentemente.
+  # style-src 'unsafe-inline' cobre apenas os atributos style inline (Leaflet e
+  # style="display:none"). script-src permanece 'self' — sem 'unsafe-inline'/'eval'.
+  # data: em img-src cobre o favicon e o ícone SVG do navbar-toggler; os hosts
+  # OSM cobrem os tiles do mapa; frame-src libera o iframe do Google Maps.
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.osm.org https://*.tile.openstreetmap.org; font-src 'self'; connect-src 'self'; frame-src https://www.google.com; upgrade-insecure-requests"
+
   # Dados de previsão (JSON/GeoJSON): o pipeline REUTILIZA os mesmos nomes de
   # arquivo a cada nova rodada, então o navegador nunca pode confiar em cópia
   # antiga sem revalidar. "no-cache" permite armazenar, mas exige revalidação
@@ -56,4 +95,11 @@ AddDefaultCharset UTF-8
   <FilesMatch "\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf)$">
     Header set Cache-Control "public, max-age=604800"
   </FilesMatch>
+
+  # Bibliotecas vendorizadas (assets/vendor/**): versionadas no deploy e
+  # imutáveis — cache longo e agressivo (sobrepõe as regras acima para esse
+  # caminho). <If> é do core do Apache 2.4.
+  <If "%{REQUEST_URI} =~ m#^/assets/vendor/#">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
 </IfModule>
