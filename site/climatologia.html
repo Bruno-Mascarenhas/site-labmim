@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,17 +8,41 @@
       content="LabMiM — Climatologia: análise climática da Região Metropolitana de Salvador e Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
     />
     <title>LabMiM — Climatologia · UFBA</title>
+
+    <!-- SEO: canonical + Open Graph + Twitter (gerado por build.js a partir de PROD) -->
+    <link rel="canonical" href="https://labmim.if.ufba.br/climatologia.html" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LabMiM" />
+    <meta property="og:title" content="LabMiM — Climatologia · UFBA" />
+    <meta
+      property="og:description"
+      content="LabMiM — Climatologia: análise climática da Região Metropolitana de Salvador e Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
+    />
+    <meta property="og:url" content="https://labmim.if.ufba.br/climatologia.html" />
+    <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LabMiM — Climatologia · UFBA" />
+    <meta
+      name="twitter:description"
+      content="LabMiM — Climatologia: análise climática da Região Metropolitana de Salvador e Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
+    />
+    <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
     />
 
-    <link rel="preconnect" href="https://stackpath.bootstrapcdn.com" />
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
-    <link rel="preconnect" href="https://ajax.googleapis.com" />
+    <!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico) -->
+    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css" />
 
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Font Awesome 6.4.0 (vendorizado localmente) -->
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css" />
+
+    <!-- LabMiM modular CSS -->
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/layout.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
@@ -26,11 +50,15 @@
 
     <script src="assets/js/theme-boot.js"></script>
     <script src="assets/js/theme-toggle.js" defer></script>
+    <script src="assets/js/ui-shell.js" defer></script>
   </head>
+
   <body>
+    <a class="skip-link" href="#main">Pular para o conteúdo</a>
     <header>
-      <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top">
-        <a class="navbar-brand ml-4" href="index.html">
+      <!-- Navigation -->
+      <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
+        <a class="navbar-brand ms-4" href="index.html">
           <img
             loading="eager"
             src="assets/img/logonova1.png"
@@ -43,41 +71,45 @@
         <button
           class="navbar-toggler"
           type="button"
-          data-toggle="collapse"
-          data-target="#navbarSupportedContent"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarSupportedContent"
           aria-controls="navbarSupportedContent"
           aria-expanded="false"
-          aria-label="Toggle navigation"
+          aria-label="Alternar navegação"
         >
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav mx-auto">
-            <li class="nav-item mr-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="mapas_interativos.html" id="nav-mapas">Previsões</a>
             </li>
-            <li class="nav-item mr-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="potenciais_energeticos.html" id="nav-potenciais"
                 >Potenciais Energéticos</a
               >
             </li>
-            <li class="nav-item mr-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
             </li>
-            <li class="nav-item mr-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab active" href="climatologia.html" id="nav-climatologia" aria-current="page"
                 >Climatologia</a
               >
             </li>
-            <li class="nav-item mr-2">
-              <a class="btn btn-outline-lab" href="team.html" id="nav-team">Equipe</a>
-            </li>
+            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="team.html" id="nav-team">Equipe</a></li>
           </ul>
 
-          <button id="themeToggleBtn" class="btn btn-outline-light mr-3" title="Alternar Tema">
-            <i id="themeIcon" class="fas fa-moon"></i>
+          <button
+            type="button"
+            id="themeToggleBtn"
+            class="btn btn-outline-light me-3"
+            title="Alternar Tema"
+            aria-label="Alternar Tema"
+          >
+            <i id="themeIcon" class="fas fa-moon" aria-hidden="true"></i>
           </button>
-          <a href="http://www.cienam.ufba.br" target="_blank" rel="noopener" class="mr-3">
+          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
             <img
               loading="lazy"
               src="assets/img/logo_cienam.png"
@@ -91,14 +123,17 @@
       </nav>
     </header>
 
-    <div class="modern-section construction-section">
-      <div class="hero-title mb-5">
-        <h2 class="text-center mb-4">Climatologia</h2>
-        <p class="text-center text-muted">
-          <strong>Página em construção</strong>
-        </p>
+    <main id="main">
+      <h1 class="visually-hidden">Climatologia</h1>
+      <div class="modern-section construction-section">
+        <div class="hero-title mb-5">
+          <h2 class="text-center mb-4">Climatologia</h2>
+          <p class="text-center text-muted">
+            <strong>Página em construção</strong>
+          </p>
+        </div>
       </div>
-    </div>
+    </main>
 
     <footer class="modern-footer">
       <div class="container">
@@ -112,18 +147,24 @@
               height="409"
               class="brand-logo brand-logo-bright"
           /></a>
-          <nav class="footer-nav">
-            <a href="mapas_interativos.html"><i class="fas fa-map mr-1"></i> Previsões</a>
-            <a href="potenciais_energeticos.html"><i class="fas fa-bolt mr-1"></i> Potenciais Energéticos</a>
-            <a href="monitoring.html"><i class="fas fa-chart-line mr-1"></i> Monitoramento</a>
-            <a href="climatologia.html"><i class="fas fa-cloud-sun mr-1"></i> Climatologia</a>
-            <a href="team.html"><i class="fas fa-users mr-1"></i> Equipe</a>
+          <nav class="footer-nav" aria-label="Navegação do rodapé">
+            <a href="mapas_interativos.html"><i class="fas fa-map me-1"></i> Previsões</a>
+            <a href="potenciais_energeticos.html"><i class="fas fa-bolt me-1"></i> Potenciais Energéticos</a>
+            <a href="monitoring.html"><i class="fas fa-chart-line me-1"></i> Monitoramento</a>
+            <a href="climatologia.html"><i class="fas fa-cloud-sun me-1"></i> Climatologia</a>
+            <a href="team.html"><i class="fas fa-users me-1"></i> Equipe</a>
           </nav>
 
-          <button id="themeToggleBtn" class="btn btn-outline-light mr-3" title="Alternar Tema">
-            <i id="themeIcon" class="fas fa-moon"></i>
+          <button
+            type="button"
+            class="btn btn-outline-light me-3"
+            title="Alternar Tema"
+            data-theme-toggle
+            aria-label="Alternar Tema"
+          >
+            <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="http://www.cienam.ufba.br" target="_blank" rel="noopener">
+          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener">
             <img
               loading="lazy"
               src="assets/img/logo_cienam.png"
@@ -136,7 +177,7 @@
         </div>
         <div class="footer-bottom-compact">
           <p class="footer-disclaimer">
-            <i class="fas fa-exclamation-triangle mr-1"></i> ATENÇÃO: As informações exibidas são resultados acadêmicos.
+            <i class="fas fa-exclamation-triangle me-1"></i> ATENÇÃO: As informações exibidas são resultados acadêmicos.
             Não recomendamos atitudes de risco com base nesta plataforma.
           </p>
           <p class="copyright mb-0">&copy; 2026 LabMiM - Todos os direitos reservados</p>
@@ -144,8 +185,8 @@
       </div>
     </footer>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" defer></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" defer></script>
+    <!-- Scripts ao final do body — não bloqueiam o rendering -->
+    <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
+    <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
   </body>
 </html>

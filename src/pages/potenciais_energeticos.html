@@ -1,0 +1,532 @@
+<main class="container-main" id="main">
+  <!-- MAP -->
+  <div id="map"></div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo-header">
+      <a href="index.html" title="Voltar ao início">
+        <img
+          loading="lazy"
+          src="assets/img/logonova1.png"
+          alt="LabMiM Logo"
+          width="1280"
+          height="409"
+          class="brand-logo"
+        />
+      </a>
+    </div>
+    <div class="sidebar-header">
+      <h3>Detalhes da Célula</h3>
+      <button type="button" class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Fechar painel de detalhes">
+        <i class="fas fa-times" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="sidebar-content" id="sidebarContent" aria-live="polite">
+      <!-- Conteúdo será preenchido dinamicamente -->
+    </div>
+  </div>
+
+  <!-- COLORBAR -->
+  <div class="colorbar-container" id="colorbarContainer">
+    <div class="colorbar-content">
+      <div class="colorbar-gradient" id="colorbarGradient"></div>
+      <div class="colorbar-labels" id="colorbarLabels"></div>
+    </div>
+    <div class="colorbar-unit" id="colorbarUnit">W/m²</div>
+  </div>
+
+  <!-- DOMAIN INDICATORS -->
+  <div class="domain-indicators-container" id="domainIndicatorsContainer">
+    <span class="domain-label">Domínios:</span>
+    <div class="domain-buttons-group">
+      <button type="button" class="domain-btn active" aria-pressed="true" data-domain="D01" data-zoom="5.5">BA/NE</button>
+      <button type="button" class="domain-btn" aria-pressed="false" data-domain="D02" data-zoom="7">BA</button>
+      <button type="button" class="domain-btn" aria-pressed="false" data-domain="D03" data-zoom="9">RMS</button>
+      <button type="button" class="domain-btn" aria-pressed="false" data-domain="D04" data-zoom="12">SSA</button>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls-container">
+    <div class="slider-wrapper">
+      <label for="layerSlider">Hora:</label>
+      <input type="range" id="layerSlider" min="1" max="73" step="1" value="7" />
+      <div class="slider-time-container">
+        <span class="slider-time" id="layerLabel">Carregando...</span>
+        <i
+          class="fas fa-question-circle slider-helper-icon"
+          title="Horários convertidos das saídas WRF para o horário local UTC−03:00."
+        ></i>
+      </div>
+    </div>
+
+    <div class="buttons-group">
+      <button type="button" class="control-btn" id="playPauseBtn" title="Reproduzir/Pausar"><i class="fas fa-play"></i> Play</button>
+      <button type="button" class="control-btn" id="clipStateBtn" title="Clipar/Recortar Estado" style="display: none">
+        <i class="fas fa-map"></i> Clip
+      </button>
+    </div>
+
+    <div class="variable-selector-wrapper">
+      <label for="variableSelect">Variável:</label>
+      <select id="variableSelect" class="variable-select">
+        <!-- Opções preenchidas em runtime por map-manager (configureVariableSelect)
+                 a partir de VARIABLES_CONFIG; este placeholder some no carregamento. -->
+        <option disabled selected>Carregando…</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- HEIGHT SELECTOR (Eólico) -->
+  <div class="height-selector-wrapper" id="heightSelector" role="group" aria-label="Altura (m)">
+    <label>Altura (m):</label>
+    <div class="height-button-group">
+      <button type="button" class="height-btn active" aria-pressed="true" data-height="50">50</button>
+      <button type="button" class="height-btn" aria-pressed="false" data-height="100">100</button>
+      <button type="button" class="height-btn" aria-pressed="false" data-height="150">150</button>
+    </div>
+  </div>
+
+  <!-- WIND VECTOR LAYER TOGGLE -->
+  <div class="wind-layer-toggle" id="windLayerToggle">
+    <label title="Vetores de Vento">
+      <input type="checkbox" id="windLayerCheckbox" class="visually-hidden" />
+      <i class="fas fa-arrows-alt"></i>
+      <span class="wind-toggle-text">Vetores de Vento</span>
+    </label>
+  </div>
+
+  <!-- WIND VECTORS CANVAS -->
+  <canvas id="windVectorCanvas"></canvas>
+
+  <!-- DOCUMENTATION BUTTON -->
+  <div class="documentation-btn-container">
+    <button type="button" class="documentation-btn" id="docBtn" title="Abrir Documentação">
+      <i class="fas fa-question-circle"></i>
+      <span class="documentation-btn-label">Documentação</span>
+    </button>
+  </div>
+
+  <!-- VARIABLE GUIDE / LAZY PREVIEW -->
+  <section class="variable-overview-panel is-collapsed" id="variableOverviewPanel" aria-label="Resumo das variáveis">
+    <div class="variable-overview-header">
+      <div>
+        <span class="variable-overview-kicker">Potenciais Energéticos</span>
+        <h2>Sobre as variáveis</h2>
+      </div>
+      <button type="button" class="variable-overview-toggle" id="variableOverviewToggle" title="Ver detalhes">
+        <i class="fas fa-chevron-down"></i>
+        <span>Ver detalhes</span>
+      </button>
+    </div>
+    <div class="variable-overview-body">
+      <div class="variable-card-grid" id="variableCardsGrid"></div>
+      <div class="variable-preview-card">
+        <div class="variable-preview-header">
+          <div>
+            <span class="variable-preview-label" id="variablePreviewLabel">Resumo visual</span>
+            <h3 id="variablePreviewTitle">Selecione uma variável</h3>
+          </div>
+          <span class="variable-preview-domain" id="variablePreviewDomain">BA/NE</span>
+        </div>
+        <div class="variable-preview-stats" id="variablePreviewStats"></div>
+        <div class="variable-preview-chart">
+          <canvas id="variablePreviewCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOCUMENTATION MODAL -->
+  <div
+    class="documentation-modal"
+    id="documentationModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="documentationModalTitle"
+  >
+    <div class="documentation-content">
+      <div class="documentation-header">
+        <h2 id="documentationModalTitle">Documentação - Potenciais Energéticos</h2>
+        <button type="button" class="documentation-close" id="docCloseBtn" aria-label="Fechar documentação">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <div class="documentation-tabs">
+        <button type="button" class="doc-tab active" data-tab="overview"><i class="fas fa-map"></i> Visão Geral</button>
+        <button type="button" class="doc-tab" data-tab="features"><i class="fas fa-cogs"></i> Funcionalidades</button>
+        <button type="button" class="doc-tab" data-tab="variables"><i class="fas fa-chart-bar"></i> Variáveis</button>
+        <button type="button" class="doc-tab" data-tab="wrf"><i class="fas fa-database"></i> Dados WRF</button>
+      </div>
+
+      <div class="documentation-body">
+        <!-- OVERVIEW TAB -->
+        <div class="doc-tab-content active" data-tab="overview">
+          <h3>Plataforma WebGIS de Potenciais Energéticos — LabMiM / UFBA</h3>
+          <div class="doc-warning">
+            <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
+            Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
+            associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os pesquisadores
+            participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados pela
+            utilização indevida e não autorizada por parte de terceiros.
+          </div>
+          <p>
+            Este mapa interativo reúne visualizações de <strong>potencial fotovoltaico</strong>,
+            <strong>potencial eólico</strong> e <strong>densidade de potência eólica</strong> geradas a partir do modelo
+            <strong>WRF (Weather Research and Forecasting)</strong>. Os produtos energéticos são exibidos em alta
+            resolução espacial e temporal para a região da Bahia e entorno, com horizonte de <strong>72 horas</strong> e
+            resolução horária.
+          </p>
+          <h4>Interface Principal</h4>
+          <ul class="doc-list">
+            <li><strong>Mapa Principal:</strong> Exibe a grade do modelo com dados codificados por cores</li>
+            <li><strong>Barra de Cores:</strong> Mostra a escala de valores da variável selecionada (esquerda)</li>
+            <li>
+              <strong>Indicador de Domínio:</strong> Exibe qual domínio amigável (BA/NE, BA, RMS ou SSA) está sendo
+              visualizado
+            </li>
+            <li><strong>Controles Inferiores:</strong> Manipulação de tempo, variáveis e camadas</li>
+            <li><strong>Painel de Detalhes:</strong> Informações de células ao clicar (lado direito)</li>
+          </ul>
+        </div>
+
+        <!-- FEATURES TAB -->
+        <div class="doc-tab-content" data-tab="features">
+          <h3>Funcionalidades Principais</h3>
+
+          <h4>⏱️ Controle Temporal</h4>
+          <p>
+            Use o slider para navegar entre os diferentes horários da previsão. Cada posição representa uma hora de
+            intervalo.
+          </p>
+          <ul class="doc-list">
+            <li><strong>Play/Pause:</strong> Reproduz automaticamente a sequência temporal</li>
+          </ul>
+
+          <h4>🔍 Navegação do Mapa</h4>
+          <ul class="doc-list">
+            <li><strong>Zoom:</strong> Role do mouse ou use os botões + e - no mapa</li>
+            <li><strong>Deslocamento:</strong> Arraste o mapa com o mouse</li>
+            <li><strong>Domínios:</strong> Use os botões BA/NE, BA, RMS e SSA para alternar entre os domínios</li>
+          </ul>
+
+          <h4>💨 Vetores de Vento</h4>
+          <ul class="doc-list">
+            <li>
+              <strong>Botão Flutuante:</strong> Ative ou desative a visualização dos vetores de vento clicando no botão
+              circular no canto inferior esquerdo (aparece quando a variável de vento é selecionada).
+            </li>
+            <li><strong>Tamanho das Setas:</strong> Proporcional à magnitude do vento</li>
+            <li><strong>Direção:</strong> Apontam para a origem do vento (convenção meteorológica)</li>
+            <li><strong>Altura Configurável:</strong> Selecione entre 50m, 100m ou 150m de altura</li>
+          </ul>
+
+          <h4>🏷️ Clique nas Células</h4>
+          <ul class="doc-list">
+            <li>Clique em qualquer célula do mapa para ver informações detalhadas</li>
+            <li>O painel lateral mostra localização (lat/lon), valor da variável, dados e gráficos adicionais</li>
+          </ul>
+        </div>
+
+        <!-- VARIABLES TAB -->
+        <div class="doc-tab-content" data-tab="variables">
+          <h3>Potenciais Energéticos</h3>
+          <p class="doc-muted-copy">
+            Esta página mostra apenas produtos energéticos. As variáveis meteorológicas usadas como suporte entram
+            apenas nos cálculos derivados do frontend ou do backend.
+          </p>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>☀️ Potencial Fotovoltaico (SWDOWN)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade base: W/m²</span>
+                <span class="doc-var-badge">JSON id: SWDOWN</span>
+                <span class="doc-var-badge">Estimativa no frontend</span>
+              </div>
+              <p>
+                O potencial fotovoltaico é estimado a partir da radiação solar incidente na superfície
+                (<code>SWDOWN</code>) e de parâmetros do sistema fotovoltaico definidos no frontend.
+              </p>
+              <pre class="doc-formula"><code>SWDOWN = W/m²</code></pre>
+              <pre class="doc-formula"><code>Tcell = Tair + ((NOCT - 20) * SWDOWN) / 800
+
+Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
+         (1 + PTC * (Tcell - 25) / 100)</code></pre>
+              <ul class="doc-list">
+                <li><code>Tcell</code> é a temperatura estimada da célula fotovoltaica.</li>
+                <li><code>Tair</code> é a temperatura do ar.</li>
+                <li><code>NOCT</code> é a temperatura nominal de operação da célula.</li>
+                <li><code>eta_panel</code> é a eficiência do painel.</li>
+                <li><code>eta_inverter</code> é a eficiência do inversor.</li>
+                <li><code>PTC</code> é o coeficiente térmico de potência.</li>
+              </ul>
+              <p>
+                <code>SWDOWN</code> é uma variável meteorológica. A produção fotovoltaica exibida é uma estimativa
+                derivada e depende dos parâmetros assumidos para o sistema. Não substitui estudo técnico de geração
+                real.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💨 Potencial Eólico (POT_EOLICO)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade base: m/s</span>
+                <span class="doc-var-badge">JSON ids: 50m / 100m / 150m</span>
+                <span class="doc-var-badge">Estimativa no frontend</span>
+              </div>
+              <p>
+                O potencial eólico usa velocidades do vento interpoladas para alturas de interesse energético:
+                <code>POT_EOLICO_50M</code>, <code>POT_EOLICO_100M</code> e <code>POT_EOLICO_150M</code>.
+              </p>
+              <p>
+                A velocidade do vento é a variável primária exibida no mapa. A produção energética exibida no painel é
+                estimada a partir da densidade do ar, área do rotor e coeficiente de potência.
+              </p>
+              <pre class="doc-formula"><code>P_density = 0.5 * rho * v³</code></pre>
+              <pre class="doc-formula"><code>P = 0.5 * rho * A * Cp * v³</code></pre>
+              <ul class="doc-list">
+                <li><code>rho</code> é a densidade do ar.</li>
+                <li><code>v</code> é a velocidade do vento.</li>
+                <li><code>A</code> é a área varrida pelo rotor.</li>
+                <li><code>Cp</code> é o coeficiente de potência.</li>
+              </ul>
+              <p>
+                A estimativa não considera curva real de potência da turbina, velocidades de cut-in/rated/cut-out,
+                perdas elétricas, disponibilidade, rugosidade local ou micrositing. Deve ser usada como triagem espacial
+                preliminar.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💨 Densidade de Potência Eólica 10m (WIND_POWER_DENSITY_10M)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: W/m²</span>
+                <span class="doc-var-badge">JSON id: WIND_POWER_DENSITY_10M</span>
+                <span class="doc-var-badge">Altura: 10 m</span>
+              </div>
+              <p>
+                Densidade de potência disponível no vento por unidade de área a 10 metros, baseada em
+                <code>U10</code>, <code>V10</code>, <code>T2</code>, <code>PSFC</code> e <code>Q2</code>.
+              </p>
+              <pre class="doc-formula"><code>speed10 = sqrt(U10² + V10²)
+
+Tv = T2 * (1 + 0.61 * Q2)
+
+rho = PSFC / (287.05 * Tv)
+
+WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
+              <p>
+                Representa a potência física disponível no escoamento do vento por metro quadrado. Não é produção de
+                turbina; é útil para comparar regiões e horários com maior ou menor recurso eólico próximo à superfície.
+              </p>
+              <ul class="doc-list">
+                <li>Cresce com o cubo da velocidade do vento.</li>
+                <li>Pequenas diferenças de vento podem gerar grandes diferenças de potência disponível.</li>
+                <li>Por estar em 10 m, não substitui avaliação em altura de hub.</li>
+                <li>Complementa, mas não substitui, os mapas de vento em 50 m, 100 m e 150 m.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+
+        <!-- WRF TAB -->
+        <div class="doc-tab-content" data-tab="wrf">
+          <h3>Origem dos Dados — Modelo WRF</h3>
+
+          <div class="doc-var-card">
+            <h4>O que é o WRF?</h4>
+
+            <p>
+              O <strong>WRF (Weather Research and Forecasting)</strong> é um sistema de modelagem numérica atmosférica
+              de mesoescala, desenvolvido colaborativamente pelo NCAR (National Center for Atmospheric Research), NOAA,
+              AFWA e diversas universidades. É utilizado mundialmente tanto para pesquisa atmosférica quanto para
+              previsão operacional do tempo, com aplicações que vão desde a simulação de furacões até a previsão de
+              recursos energéticos renováveis.
+            </p>
+            <p>
+              O modelo resolve as <strong>equações primitivas de Euler</strong> (conservação de massa, momento e
+              energia) em uma grade tridimensional, usando coordenadas verticais terrain-following (sigma). Processos
+              físicos sub-grade (radiação, microfísica, turbulência, solo) são representados por
+              <strong>parametrizações</strong>.
+            </p>
+          </div>
+
+          <div class="doc-var-card">
+            <h4>Configuração desta Simulação</h4>
+            <ul class="doc-list">
+              <li>
+                <strong>4 Domínios Aninhados (Nesting):</strong> Técnica de two-way nesting que permite resolução
+                progressiva:
+                <ul>
+                  <li>
+                    <strong>BA/NE — 27 km:</strong> Escala sinótica/regional. Cobre o Sul-Nordeste do Brasil (~2500×2500
+                    km). Captura frentes, ciclones e massas de ar.
+                  </li>
+                  <li>
+                    <strong>BA — 9 km:</strong> Escala intermediária. Cobre o Nordeste (~800×800 km). Resolve convecção
+                    organizada e brisas de escala meso-α.
+                  </li>
+                  <li>
+                    <strong>RMS — 3 km:</strong> Escala local. Cobre a Bahia (~270×270 km). Resolução suficiente para
+                    resolver convecção profunda explicitamente (sem parametrização de cumulus).
+                  </li>
+                  <li>
+                    <strong>SSA — 1 km:</strong> Alta resolução. Cobre Salvador e Região Metropolitana (~90×90 km).
+                    Captura efeitos topográficos, brisa marítima e ilha de calor urbana.
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <strong>Dados de Entrada (Condições Iniciais e de Contorno):</strong> GFS (Global Forecast System) da
+                NOAA, resolução 0.25°, atualizações a cada 6h.
+              </li>
+              <li><strong>Resolução Temporal:</strong> Saídas horárias (73 timesteps para 72h de previsão).</li>
+              <li>
+                <strong>Coordenadas Verticais:</strong> ~40 níveis sigma, com maior concentração na camada limite
+                planetária (CLP).
+              </li>
+            </ul>
+
+            <h4>Parametrizações Físicas</h4>
+            <ul class="doc-list">
+              <li>
+                <strong>Radiação (RRTMG):</strong> Calcula os fluxos de radiação de onda curta e longa considerando
+                interação com nuvens, aerossóis e gases atmosféricos.
+              </li>
+              <li>
+                <strong>Microfísica (Thompson/WSM6):</strong> Simula os processos de formação e evolução de
+                hidrometeoros (vapor, chuva, neve, graupel, gelo, gotículas de nuvem).
+              </li>
+              <li>
+                <strong>Camada Limite Planetária (YSU/MYJ):</strong> Parametriza o transporte turbulento de calor,
+                umidade e momento na CLP.
+              </li>
+              <li>
+                <strong>Superfície Terrestre (Noah-MP):</strong> Modelo acoplado de solo e vegetação que calcula fluxos
+                de calor sensível e latente na interface superfície-atmosfera.
+              </li>
+              <li>
+                <strong>Cumulus (Kain-Fritsch):</strong> Parametriza a convecção sub-grade nos domínios BA/NE e BA.
+                Desativada em RMS e SSA (Δx &lt; 4 km), onde a convecção é resolvida explicitamente.
+              </li>
+            </ul>
+
+            <h4>Pipeline de Dados</h4>
+
+            <p>
+              Os arquivos brutos do WRF (NetCDF) são processados pelo pipeline Python
+              <code>labmim-wrf-geojson</code>:
+            </p>
+          </div>
+          <ul class="doc-list">
+            <li>
+              <strong>Extração:</strong> Leitura das variáveis NetCDF via <code>xarray</code> / <code>netCDF4</code>.
+            </li>
+            <li>
+              <strong>Interpolação Vertical:</strong> Para variáveis eólicas, interpolação logarítmica dos níveis sigma
+              para alturas de hub (50m, 100m, 150m).
+            </li>
+            <li>
+              <strong>Serialização:</strong> Conversão para GeoJSON (geometria da grade, 1 arquivo por domínio) e JSON
+              (valores, 1 arquivo por domínio × variável × timestep). JSON compacto sem indentação para minimizar
+              payload.
+            </li>
+            <li>
+              <strong>Vetores de Vento:</strong> Arquivo separado <code>D0X_WIND_VECTORS_NNN.json</code> com ângulos e
+              magnitudes sub-amostrados (stride=4), usando U10/V10.
+            </li>
+          </ul>
+
+          <div class="doc-var-card">
+            <h4>Limitações e Considerações</h4>
+            <ul class="doc-list">
+              <li>
+                O erro das previsões numéricas cresce progressivamente com o horizonte temporal (especialmente após
+                48h).
+              </li>
+              <li>
+                A topografia complexa (como o Recôncavo Baiano) pode introduzir viés local, especialmente em variáveis
+                de superfície.
+              </li>
+              <li>
+                A resolução do modelo pode não capturar fenômenos convectivos isolados (&lt; Δx) nos domínios BA/NE e
+                BA.
+              </li>
+              <li>
+                A assimilação de dados observacionais locais (estações, radiossondas) melhoraria significativamente a
+                acurácia, mas não está implementada nesta configuração.
+              </li>
+              <li>
+                Variáveis de fluxo de superfície (HFX, LH) são especialmente sensíveis à representação do uso do solo no
+                modelo Noah-MP.
+              </li>
+            </ul>
+
+            <h4>Mais Informações</h4>
+
+            <p>
+              Para aprender mais sobre o WRF: <br />
+              <strong
+                ><a href="https://www.mmm.ucar.edu/models/wrf" target="_blank" rel="noopener noreferrer"
+                  >https://www.mmm.ucar.edu/models/wrf</a
+                ></strong
+              >
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- PERSISTENT TIME-SERIES MODAL -->
+<div
+  class="chart-modal-overlay"
+  id="timeSeriesModal"
+  style="display: none"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="timeSeriesModalTitle"
+>
+  <div class="chart-modal-content">
+    <div class="chart-modal-header">
+      <h2 id="timeSeriesModalTitle">Série Temporal</h2>
+      <div class="chart-modal-actions">
+        <button type="button"
+          class="chart-export-btn chart-export-button btn btn-sm btn-outline-lab"
+          id="timeSeriesExportBtn"
+          title="Exportar CSV"
+        >
+          <i class="fas fa-download"></i> CSV
+        </button>
+        <button type="button" class="chart-modal-close" id="timeSeriesCloseBtn" title="Fechar" aria-label="Fechar série temporal">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+    <div class="chart-modal-body">
+      <!-- Loading overlay that only covers the body -->
+      <div id="timeSeriesLoadingOverlay" class="chart-loading-overlay" style="display: none">
+        <div class="spinner-border text-primary chart-loading-spinner" role="status">
+          <span class="visually-hidden">Carregando...</span>
+        </div>
+        <div class="chart-loading-message">Carregando dados...</div>
+      </div>
+
+      <!-- Containers for the charts -->
+      <div id="chartContainerValue" class="chart-container">
+        <canvas id="chartCanvasValue"></canvas>
+      </div>
+      <div id="chartContainerEnergy" class="chart-container chart-container-secondary">
+        <canvas id="chartCanvasEnergy"></canvas>
+      </div>
+    </div>
+  </div>
+</div>

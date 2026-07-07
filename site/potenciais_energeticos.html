@@ -1,11 +1,6 @@
 <!doctype html>
 <html lang="pt-BR">
   <head>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
-    <link rel="dns-prefetch" href="https://a.tile.osm.org" />
-    <link rel="dns-prefetch" href="https://b.tile.osm.org" />
-    <link rel="dns-prefetch" href="https://c.tile.osm.org" />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
@@ -13,41 +8,68 @@
       content="LabMiM — Potenciais Energéticos: mapas interativos de potencial fotovoltaico, potencial eólico e densidade eólica derivados do modelo WRF para Bahia."
     />
     <title>LabMiM — Potenciais Energéticos · UFBA</title>
+
+    <!-- SEO: canonical + Open Graph + Twitter (gerado por build.js a partir de PROD) -->
+    <link rel="canonical" href="https://labmim.if.ufba.br/potenciais_energeticos.html" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LabMiM" />
+    <meta property="og:title" content="LabMiM — Potenciais Energéticos · UFBA" />
+    <meta
+      property="og:description"
+      content="LabMiM — Potenciais Energéticos: mapas interativos de potencial fotovoltaico, potencial eólico e densidade eólica derivados do modelo WRF para Bahia."
+    />
+    <meta property="og:url" content="https://labmim.if.ufba.br/potenciais_energeticos.html" />
+    <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LabMiM — Potenciais Energéticos · UFBA" />
+    <meta
+      name="twitter:description"
+      content="LabMiM — Potenciais Energéticos: mapas interativos de potencial fotovoltaico, potencial eólico e densidade eólica derivados do modelo WRF para Bahia."
+    />
+    <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
     />
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico) -->
+    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css" />
 
-    <!-- Leaflet 1.9.4 (vendorizado localmente — sem CDN no caminho crítico; defer libera o primeiro paint) -->
-    <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
-    <script src="assets/vendor/leaflet/leaflet.js" defer></script>
+    <!-- Font Awesome 6.4.0 (vendorizado localmente) -->
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css" />
 
     <!-- LabMiM modular CSS -->
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/layout.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
-
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
-    <!-- Theme & Colors -->
     <link rel="stylesheet" href="assets/css/theme.css" />
+
+    <script src="assets/js/theme-boot.js"></script>
+    <script src="assets/js/theme-toggle.js" defer></script>
+    <script src="assets/js/ui-shell.js" defer></script>
+
+    <!-- Leaflet 1.9.4 (vendorizado localmente — sem CDN no caminho crítico; defer libera o primeiro paint) -->
+    <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
+    <script src="assets/vendor/leaflet/leaflet.js" defer></script>
 
     <!-- Maps-specific CSS (extracted from inline) -->
     <link rel="stylesheet" type="text/css" href="assets/css/maps.css" />
 
-    <script src="assets/js/theme-boot.js"></script>
-    <script src="assets/js/theme-toggle.js" defer></script>
+    <link rel="dns-prefetch" href="https://a.tile.osm.org" />
+    <link rel="dns-prefetch" href="https://b.tile.osm.org" />
+    <link rel="dns-prefetch" href="https://c.tile.osm.org" />
   </head>
 
   <body data-map-context="energy">
+    <a class="skip-link" href="#main">Pular para o conteúdo</a>
     <header class="maps-header">
       <!-- Navigation -->
-      <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top">
-        <a class="navbar-brand ml-4 ms-4" href="index.html">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
+        <a class="navbar-brand ms-4" href="index.html">
           <img
             loading="eager"
             src="assets/img/logonova1.png"
@@ -64,16 +86,16 @@
           data-bs-target="#navbarSupportedContent"
           aria-controls="navbarSupportedContent"
           aria-expanded="false"
-          aria-label="Toggle navigation"
+          aria-label="Alternar navegação"
         >
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav mx-auto">
-            <li class="nav-item mr-2 me-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="mapas_interativos.html" id="nav-mapas">Previsões</a>
             </li>
-            <li class="nav-item mr-2 me-2">
+            <li class="nav-item me-2">
               <a
                 class="btn btn-outline-lab active"
                 href="potenciais_energeticos.html"
@@ -82,21 +104,25 @@
                 >Potenciais Energéticos</a
               >
             </li>
-            <li class="nav-item mr-2 me-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
             </li>
-            <li class="nav-item mr-2 me-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="climatologia.html" id="nav-climatologia">Climatologia</a>
             </li>
-            <li class="nav-item mr-2 me-2">
-              <a class="btn btn-outline-lab" href="team.html" id="nav-team">Equipe</a>
-            </li>
+            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="team.html" id="nav-team">Equipe</a></li>
           </ul>
 
-          <button id="themeToggleBtn" class="btn btn-outline-light mr-3" title="Alternar Tema">
-            <i id="themeIcon" class="fas fa-moon"></i>
+          <button
+            type="button"
+            id="themeToggleBtn"
+            class="btn btn-outline-light me-3"
+            title="Alternar Tema"
+            aria-label="Alternar Tema"
+          >
+            <i id="themeIcon" class="fas fa-moon" aria-hidden="true"></i>
           </button>
-          <a href="http://www.cienam.ufba.br" target="_blank" rel="noopener" class="mr-3 me-3">
+          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
             <img
               loading="lazy"
               src="assets/img/logo_cienam.png"
@@ -109,7 +135,9 @@
         </div>
       </nav>
     </header>
-    <div class="container-main">
+
+    <h1 class="visually-hidden">Potenciais Energéticos</h1>
+    <main class="container-main" id="main">
       <!-- MAP -->
       <div id="map"></div>
 
@@ -129,11 +157,11 @@
         </div>
         <div class="sidebar-header">
           <h3>Detalhes da Célula</h3>
-          <button class="sidebar-close-btn" id="closeSidebarBtn">
-            <i class="fas fa-times"></i>
+          <button type="button" class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Fechar painel de detalhes">
+            <i class="fas fa-times" aria-hidden="true"></i>
           </button>
         </div>
-        <div class="sidebar-content" id="sidebarContent">
+        <div class="sidebar-content" id="sidebarContent" aria-live="polite">
           <!-- Conteúdo será preenchido dinamicamente -->
         </div>
       </div>
@@ -151,10 +179,12 @@
       <div class="domain-indicators-container" id="domainIndicatorsContainer">
         <span class="domain-label">Domínios:</span>
         <div class="domain-buttons-group">
-          <button class="domain-btn active" data-domain="D01" data-zoom="5.5">BA/NE</button>
-          <button class="domain-btn" data-domain="D02" data-zoom="7">BA</button>
-          <button class="domain-btn" data-domain="D03" data-zoom="9">RMS</button>
-          <button class="domain-btn" data-domain="D04" data-zoom="12">SSA</button>
+          <button type="button" class="domain-btn active" aria-pressed="true" data-domain="D01" data-zoom="5.5">
+            BA/NE
+          </button>
+          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D02" data-zoom="7">BA</button>
+          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D03" data-zoom="9">RMS</button>
+          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D04" data-zoom="12">SSA</button>
         </div>
       </div>
 
@@ -173,10 +203,16 @@
         </div>
 
         <div class="buttons-group">
-          <button class="control-btn" id="playPauseBtn" title="Reproduzir/Pausar">
+          <button type="button" class="control-btn" id="playPauseBtn" title="Reproduzir/Pausar">
             <i class="fas fa-play"></i> Play
           </button>
-          <button class="control-btn" id="clipStateBtn" title="Clipar/Recortar Estado" style="display: none">
+          <button
+            type="button"
+            class="control-btn"
+            id="clipStateBtn"
+            title="Clipar/Recortar Estado"
+            style="display: none"
+          >
             <i class="fas fa-map"></i> Clip
           </button>
         </div>
@@ -184,22 +220,20 @@
         <div class="variable-selector-wrapper">
           <label for="variableSelect">Variável:</label>
           <select id="variableSelect" class="variable-select">
-            <optgroup label="Potenciais energéticos">
-              <option value="solar">☀️ Potencial Fotovoltaico</option>
-              <option value="eolico">💨 Potencial Eólico</option>
-              <option value="windPowerDensity">💨 Densidade Eólica 10m</option>
-            </optgroup>
+            <!-- Opções preenchidas em runtime por map-manager (configureVariableSelect)
+                 a partir de VARIABLES_CONFIG; este placeholder some no carregamento. -->
+            <option disabled selected>Carregando…</option>
           </select>
         </div>
       </div>
 
       <!-- HEIGHT SELECTOR (Eólico) -->
-      <div class="height-selector-wrapper" id="heightSelector">
+      <div class="height-selector-wrapper" id="heightSelector" role="group" aria-label="Altura (m)">
         <label>Altura (m):</label>
         <div class="height-button-group">
-          <button class="height-btn active" data-height="50">50</button>
-          <button class="height-btn" data-height="100">100</button>
-          <button class="height-btn" data-height="150">150</button>
+          <button type="button" class="height-btn active" aria-pressed="true" data-height="50">50</button>
+          <button type="button" class="height-btn" aria-pressed="false" data-height="100">100</button>
+          <button type="button" class="height-btn" aria-pressed="false" data-height="150">150</button>
         </div>
       </div>
 
@@ -217,7 +251,7 @@
 
       <!-- DOCUMENTATION BUTTON -->
       <div class="documentation-btn-container">
-        <button class="documentation-btn" id="docBtn" title="Abrir Documentação">
+        <button type="button" class="documentation-btn" id="docBtn" title="Abrir Documentação">
           <i class="fas fa-question-circle"></i>
           <span class="documentation-btn-label">Documentação</span>
         </button>
@@ -234,7 +268,7 @@
             <span class="variable-overview-kicker">Potenciais Energéticos</span>
             <h2>Sobre as variáveis</h2>
           </div>
-          <button class="variable-overview-toggle" id="variableOverviewToggle" title="Ver detalhes">
+          <button type="button" class="variable-overview-toggle" id="variableOverviewToggle" title="Ver detalhes">
             <i class="fas fa-chevron-down"></i>
             <span>Ver detalhes</span>
           </button>
@@ -258,20 +292,32 @@
       </section>
 
       <!-- DOCUMENTATION MODAL -->
-      <div class="documentation-modal" id="documentationModal">
+      <div
+        class="documentation-modal"
+        id="documentationModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="documentationModalTitle"
+      >
         <div class="documentation-content">
           <div class="documentation-header">
-            <h2>Documentação - Potenciais Energéticos</h2>
-            <button class="documentation-close" id="docCloseBtn">
-              <i class="fas fa-times"></i>
+            <h2 id="documentationModalTitle">Documentação - Potenciais Energéticos</h2>
+            <button type="button" class="documentation-close" id="docCloseBtn" aria-label="Fechar documentação">
+              <i class="fas fa-times" aria-hidden="true"></i>
             </button>
           </div>
 
           <div class="documentation-tabs">
-            <button class="doc-tab active" data-tab="overview"><i class="fas fa-map"></i> Visão Geral</button>
-            <button class="doc-tab" data-tab="features"><i class="fas fa-cogs"></i> Funcionalidades</button>
-            <button class="doc-tab" data-tab="variables"><i class="fas fa-chart-bar"></i> Variáveis</button>
-            <button class="doc-tab" data-tab="wrf"><i class="fas fa-database"></i> Dados WRF</button>
+            <button type="button" class="doc-tab active" data-tab="overview">
+              <i class="fas fa-map"></i> Visão Geral
+            </button>
+            <button type="button" class="doc-tab" data-tab="features">
+              <i class="fas fa-cogs"></i> Funcionalidades
+            </button>
+            <button type="button" class="doc-tab" data-tab="variables">
+              <i class="fas fa-chart-bar"></i> Variáveis
+            </button>
+            <button type="button" class="doc-tab" data-tab="wrf"><i class="fas fa-database"></i> Dados WRF</button>
           </div>
 
           <div class="documentation-body">
@@ -281,7 +327,7 @@
               <div class="doc-warning">
                 <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
                 Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
-                associados. Não há nenhum compromisso quanto a confiabilidade das previsões, isentando os pesquisadores
+                associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os pesquisadores
                 participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados pela
                 utilização indevida e não autorizada por parte de terceiros.
               </div>
@@ -599,23 +645,37 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
           </div>
         </div>
       </div>
-    </div>
+    </main>
 
     <!-- PERSISTENT TIME-SERIES MODAL -->
-    <div class="chart-modal-overlay" id="timeSeriesModal" style="display: none">
+    <div
+      class="chart-modal-overlay"
+      id="timeSeriesModal"
+      style="display: none"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="timeSeriesModalTitle"
+    >
       <div class="chart-modal-content">
         <div class="chart-modal-header">
           <h2 id="timeSeriesModalTitle">Série Temporal</h2>
           <div class="chart-modal-actions">
             <button
+              type="button"
               class="chart-export-btn chart-export-button btn btn-sm btn-outline-lab"
               id="timeSeriesExportBtn"
               title="Exportar CSV"
             >
               <i class="fas fa-download"></i> CSV
             </button>
-            <button class="chart-modal-close" id="timeSeriesCloseBtn" title="Fechar">
-              <i class="fas fa-times"></i>
+            <button
+              type="button"
+              class="chart-modal-close"
+              id="timeSeriesCloseBtn"
+              title="Fechar"
+              aria-label="Fechar série temporal"
+            >
+              <i class="fas fa-times" aria-hidden="true"></i>
             </button>
           </div>
         </div>
@@ -639,25 +699,19 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
       </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Scripts ao final do body — não bloqueiam o rendering -->
+    <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
+    <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
 
     <!-- Chart.js 3.9.1 (vendorizado localmente) -->
     <script defer src="assets/vendor/chartjs/chart.min.js"></script>
 
-    <!-- Variáveis de Configuração (Meteorológicas) -->
-    <script src="assets/js/variables-config.js?v=5" defer></script>
-
-    <!-- Serviço de dados compartilhado (cache/fetch/worker) -->
-    <script src="assets/js/data-service.js?v=1" defer></script>
-
-    <!-- Gerenciador de Gráficos Temporais -->
-    <script src="assets/js/charts-manager.js?v=5" defer></script>
-
-    <!-- Map Manager (extracted from inline) -->
-    <script src="assets/js/map-manager.js?v=5" defer></script>
-
-    <!-- Initialization -->
-    <script src="assets/js/map-init.js?v=5" defer></script>
+    <!-- Configuração de variáveis + serviço de dados + gráficos + mapa.
+         Token de versão único e coordenado (?v=) para invalidação de cache no deploy. -->
+    <script src="assets/js/variables-config.js?v=6" defer></script>
+    <script src="assets/js/data-service.js?v=6" defer></script>
+    <script src="assets/js/charts-manager.js?v=6" defer></script>
+    <script src="assets/js/map-manager.js?v=6" defer></script>
+    <script src="assets/js/map-init.js?v=6" defer></script>
   </body>
 </html>
