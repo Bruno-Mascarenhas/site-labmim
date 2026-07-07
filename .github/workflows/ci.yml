@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify generated pages are up to date
+        run: npm run build:check
+
       - name: Run ESLint
         run: npm run lint:js
 
@@ -38,6 +41,12 @@ jobs:
 
       - name: Run Prettier formatting check
         run: npm run format:check
+
+      - name: Validate generated HTML
+        run: npm run lint:html
+
+      - name: Check internal links and assets
+        run: npm run lint:links
 
       - name: Audit dependencies
         run: npm audit --audit-level=high

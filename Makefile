@@ -1,9 +1,11 @@
-.PHONY: help install lint lint-js lint-css format format-check fix audit serve ci
+.PHONY: help install build build-check lint lint-js lint-css lint-html lint-links format format-check fix audit serve ci
 
 # Default target
 help:
 	@echo "Comandos disponíveis:"
 	@echo "  make install       - Instala as dependências do Node (npm install)"
+	@echo "  make build         - Gera as páginas HTML estáticas a partir de src/ (partials + build.js)"
+	@echo "  make build-check   - Gera e verifica se site/*.html está atualizado (usado no CI)"
 	@echo "  make lint          - Roda o linter de JS (ESLint) e CSS (Stylelint), sem alterar arquivos"
 	@echo "  make lint-js       - Roda apenas o linter de JS"
 	@echo "  make lint-css      - Roda apenas o linter de CSS"
@@ -12,16 +14,30 @@ help:
 	@echo "  make fix           - Aplica automaticamente as correções do Prettier e dos linters"
 	@echo "  make audit         - Verifica vulnerabilidades nas dependências (npm audit)"
 	@echo "  make serve         - Serve o site localmente em http://localhost:8000"
-	@echo "  make ci            - Roda todos os checks do CI (format-check, lint e audit)"
+	@echo "  make lint-html     - Valida o HTML gerado (html-validate)"
+	@echo "  make lint-links    - Verifica links/assets internos (linkinator)"
+	@echo "  make ci            - Roda todos os checks do CI (build-check, format-check, lint, html, links, audit)"
 
 install:
 	npm install
+
+build:
+	npm run build
+
+build-check:
+	npm run build:check
 
 lint-js:
 	npm run lint:js
 
 lint-css:
 	npm run lint:css
+
+lint-html:
+	npm run lint:html
+
+lint-links:
+	npm run lint:links
 
 lint: lint-js lint-css
 
@@ -42,4 +58,4 @@ audit:
 serve:
 	python3 -m http.server 8000 --directory site
 
-ci: format-check lint audit
+ci: build-check format-check lint lint-html lint-links audit

@@ -7,9 +7,14 @@
     "node": ">=24"
   },
   "scripts": {
+    "build": "node build.js && prettier --write \"site/*.html\"",
+    "build:check": "npm run build && git diff --exit-code -- \"site/*.html\"",
     "lint": "npm run lint:js && npm run lint:css",
-    "lint:js": "eslint site/assets/js/**/*.js",
+    "lint:all": "npm run lint:js && npm run lint:css && npm run lint:html && npm run lint:links",
+    "lint:js": "eslint \"site/assets/js/**/*.js\"",
     "lint:css": "stylelint \"site/assets/css/**/*.css\"",
+    "lint:html": "html-validate \"site/*.html\"",
+    "lint:links": "linkinator / --server-root site --recurse --skip '^https?://(?!localhost|127\\.0\\.0\\.1)|^mailto:|^tel:|^data:|/JSON/|/GeoJSON/'",
     "format": "prettier --write \"site/**/*.{html,css,js}\"",
     "format:check": "prettier --check \"site/**/*.{html,css,js}\""
   },
@@ -17,6 +22,8 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.6.0",
     "globals": "^17.7.0",
+    "html-validate": "^10.1.1",
+    "linkinator": "^6.1.4",
     "prettier": "^3.9.4",
     "stylelint": "^17.14.0",
     "stylelint-config-standard": "^40.0.0"
