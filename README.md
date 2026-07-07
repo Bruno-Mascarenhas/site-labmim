@@ -2,7 +2,7 @@
 
 Site estático do LabMiM - Laboratório de Micrometeorologia e Modelagem da UFBA. O projeto reúne páginas institucionais, visualização de gráficos de monitoramento ambiental e WebGIS para previsões meteorológicas e potenciais energéticos derivados de saídas do modelo WRF.
 
-O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, sem backend próprio neste repositório. Não há etapa de build — os arquivos em `site/` são publicados como estão. Os mapas interativos carregam arquivos `GeoJSON/` e `JSON/` gerados por pipeline externo.
+O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, sem backend próprio neste repositório. As páginas em `site/` são **geradas** a partir de fontes em `src/` por um passo de build local/CI sem dependências de runtime (`build.js`, apenas a biblioteca padrão do Node), que expande _partials_ compartilhados (head, navbar, footer, scripts) em HTML estático puro. O host continua servindo somente arquivos estáticos — não há build no servidor. Os mapas interativos carregam arquivos `GeoJSON/` e `JSON/` gerados por pipeline externo.
 
 ## Funcionalidades
 
@@ -30,18 +30,37 @@ O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, 
 ├── .prettierrc / .prettierignore
 ├── .editorconfig
 ├── .github/
-│   ├── workflows/ci.yml       # lint + format-check + audit
+│   ├── workflows/ci.yml       # build-check + lint + format-check + audit
 │   └── dependabot.yml         # atualizações npm e GitHub Actions
 ├── Makefile
-└── site/
-    ├── .htaccess              # charset, MIME, compressão e cache (Apache)
-    ├── index.html
-    ├── monitoring.html
-    ├── team.html
-    ├── climatologia.html
-    ├── mapas_interativos.html
-    ├── potenciais_energeticos.html
-    ├── mapas_meteorologicos.html   # redirect de compatibilidade
+├── build.js                   # gerador estático (src/ -> site/*.html), só stdlib do Node
+├── src/                       # FONTE das páginas — edite AQUI, nunca em site/*.html
+│   ├── layouts/
+│   │   ├── institutional.html # index, monitoring, team, climatologia
+│   │   └── webgis.html        # mapas_interativos, potenciais_energeticos
+│   ├── partials/
+│   │   ├── head.html          # <head> compartilhado (meta, CSS, scripts de tema)
+│   │   ├── nav.html           # navbar (itens gerados do array NAV em build.js)
+│   │   ├── footer.html        # rodapé compartilhado
+│   │   └── scripts.html       # Bootstrap bundle (fim do body)
+│   └── pages/                 # conteúdo único de cada página (sem head/nav/footer)
+│       ├── index.html
+│       ├── monitoring.html
+│       ├── team.html
+│       ├── climatologia.html
+│       ├── mapas_interativos.html
+│       └── potenciais_energeticos.html
+└── site/                      # SAÍDA publicada (HTML gerado + assets estáticos)
+    ├── .htaccess              # charset, MIME, compressão, cache, cabeçalhos de segurança, 404, 301
+    ├── robots.txt             # regras de crawl (bloqueia /JSON/, /GeoJSON/, /figuras/)
+    ├── 404.html               # página de erro (standalone, caminhos absolutos)
+    ├── index.html             # ┐
+    ├── monitoring.html        # │ gerados por build.js a partir de src/
+    ├── team.html              # │ (não edite à mão — serão sobrescritos)
+    ├── climatologia.html      # │
+    ├── mapas_interativos.html # │
+    ├── potenciais_energeticos.html  # ┘
+    ├── mapas_meteorologicos.html   # redirect de compatibilidade (mantido à mão)
     ├── GeoJSON/               # grades geradas (git-ignored)
     ├── JSON/                  # valores gerados (git-ignored)
     └── assets/
@@ -64,6 +83,8 @@ O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, 
         │       ├── color-calc.worker.js
         │       └── json-parser.worker.js
         ├── vendor/            # bibliotecas vendorizadas localmente
+        │   ├── bootstrap/     # Bootstrap 5.3.8 (min css + bundle js)
+        │   ├── fontawesome/   # Font Awesome 6.4.0 (css + webfonts)
         │   ├── leaflet/       # Leaflet 1.9.4 (js, css, images)
         │   └── chartjs/       # Chart.js 3.9.1
         ├── data/
@@ -79,6 +100,12 @@ O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, 
 ## Como Executar Localmente
 
 Não abra as páginas direto por `file://`. Os mapas e workers dependem de `fetch`, então use um servidor HTTP local.
+
+Se editou algo em `src/` (partials, layouts ou conteúdo de página), gere o HTML antes de servir/publicar:
+
+```bash
+make build            # expande src/ -> site/*.html e roda o Prettier
+```
 
 ```bash
 make serve            # serve site/ em http://localhost:8000
@@ -101,14 +128,11 @@ Se a porta 8000 estiver ocupada, use outra (ex.: `python3 -m http.server 8100`).
 
 ## Dependências Externas Em Runtime
 
-O WebGIS carrega Leaflet, Chart.js e o contorno da Bahia **localmente** (`assets/vendor/` e `assets/data/`), sem CDN no caminho crítico de renderização; `leaflet.js` é carregado com `defer` para não bloquear o primeiro paint. O antigo Turf.js foi removido — a máscara de recorte por estado agora usa um _point-in-polygon_ local em `map-manager.js`.
+Todo o site usa **uma única versão do Bootstrap — 5.3.8 — vendorizada localmente** em `assets/vendor/bootstrap/`. As páginas institucionais deixaram de usar Bootstrap 4 + jQuery + Popper; **não há mais jQuery no projeto** (os componentes usados — colapso da navbar e modais do monitoramento — funcionam apenas com o bundle do Bootstrap 5). Bootstrap, **Font Awesome 6.4.0**, Leaflet, Chart.js e o contorno da Bahia são todos carregados **localmente** (`assets/vendor/` e `assets/data/`) — **não há mais CDN no caminho crítico de renderização** (CSS/JS). `leaflet.js` é carregado com `defer` para não bloquear o primeiro paint. O antigo Turf.js foi removido — a máscara de recorte por estado agora usa um _point-in-polygon_ local em `map-manager.js`.
 
-Ainda são carregados por CDN:
+A única origem externa restante é a base cartográfica:
 
-- Bootstrap 4.1.3 e jQuery nas páginas institucionais (`index`, `monitoring`, `team`, `climatologia`).
-- Bootstrap 5.3.0 (CSS + JS) em `mapas_interativos.html` e `potenciais_energeticos.html`.
-- Font Awesome 6.4.0 em todas as páginas.
-- Tiles do mapa base via OpenStreetMap.
+- Tiles do mapa base via OpenStreetMap (dados do mapa, apenas nas páginas WebGIS).
 
 ## Desenvolvimento
 
@@ -123,6 +147,8 @@ npm ci
 Comandos úteis:
 
 ```bash
+npm run build         # gera site/*.html a partir de src/
+npm run build:check   # gera e falha se site/*.html estiver desatualizado (usado no CI)
 npm run lint:js
 npm run lint:css
 npm run format:check
@@ -132,14 +158,16 @@ npm run format
 Também há atalhos no `Makefile`:
 
 ```bash
+make build         # gera as páginas a partir de src/
+make build-check   # gera e verifica se site/*.html está atualizado
 make lint          # ESLint + Stylelint (somente verifica)
 make format-check  # Prettier (somente verifica)
 make fix           # aplica Prettier + correções dos linters
 make audit         # npm audit --audit-level=high
-make ci            # format-check + lint + audit (espelha o CI)
+make ci            # build-check + format-check + lint + audit (espelha o CI)
 ```
 
-As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, `stylelint-config-standard`) são declaradas em `package.json` como `devDependencies`. Não há dependências de runtime instaladas via npm — o site é estático. O CI (`.github/workflows/ci.yml`) roda lint, format-check e `npm audit`; o Dependabot (`.github/dependabot.yml`) acompanha atualizações de npm e GitHub Actions.
+As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, `stylelint-config-standard`) são declaradas em `package.json` como `devDependencies`. Não há dependências de runtime instaladas via npm — o site é estático e `build.js` usa apenas a biblioteca padrão do Node. O CI (`.github/workflows/ci.yml`) roda o `build:check` (garante que `site/*.html` está em sincronia com `src/`), lint, format-check e `npm audit`; o Dependabot (`.github/dependabot.yml`) acompanha atualizações de npm e GitHub Actions.
 
 ## Páginas Principais
 
@@ -200,7 +228,9 @@ O dark mode é dividido em dois passos:
 
 ## Manutenção
 
-- Para alterar cores, espaçamentos globais e tokens, comece por `assets/css/base.css`.
+- **Navbar, rodapé, `<head>` e blocos de script são compartilhados**: edite-os em `src/partials/` e rode `make build`. Nunca edite header/footer diretamente em `site/*.html` — esses arquivos são gerados por `build.js` e serão sobrescritos. A ordem e os rótulos da navegação vêm do array `NAV` em `build.js` (fonte única para navbar e footer); o estado ativo do menu é derivado do campo `active` de cada página em `PAGES`.
+- Para adicionar uma página: crie `src/pages/<nome>.html` (apenas o conteúdo único, sem head/nav/footer), adicione uma entrada em `PAGES` no `build.js` e, se for um destino de navegação, uma entrada em `NAV`. Rode `make build`.
+- Para alterar cores, espaçamentos globais e tokens, comece por `assets/css/base.css`. Use `--brand-primary`/`--brand-secondary` para a marca navy (fixa entre temas, diferente de `--primary-color`, que muda no dark mode) e `--map-accent*` para o accent roxo do WebGIS.
 - Para navbar, footer e estrutura de página, use `assets/css/layout.css`.
 - Para cards, parceiros, financiadores, modais e blocos reutilizáveis, use `assets/css/components.css`.
 - Para dark mode e variações de tema, use `assets/css/theme.css`.
