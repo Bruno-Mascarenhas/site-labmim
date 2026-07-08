@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,17 +8,41 @@
       content="LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores."
     />
     <title>LabMiM — Equipe · UFBA</title>
+
+    <!-- SEO: canonical + Open Graph + Twitter (gerado por build.js a partir de PROD) -->
+    <link rel="canonical" href="https://labmim.if.ufba.br/team.html" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LabMiM" />
+    <meta property="og:title" content="LabMiM — Equipe · UFBA" />
+    <meta
+      property="og:description"
+      content="LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores."
+    />
+    <meta property="og:url" content="https://labmim.if.ufba.br/team.html" />
+    <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LabMiM — Equipe · UFBA" />
+    <meta
+      name="twitter:description"
+      content="LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores."
+    />
+    <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
     />
 
-    <link rel="preconnect" href="https://stackpath.bootstrapcdn.com" />
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
-    <link rel="preconnect" href="https://ajax.googleapis.com" />
+    <!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico) -->
+    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css?v=5.3.8" />
 
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Font Awesome 6.4.0 (vendorizado localmente) -->
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
+
+    <!-- LabMiM modular CSS -->
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/layout.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
@@ -26,13 +50,15 @@
 
     <script src="assets/js/theme-boot.js"></script>
     <script src="assets/js/theme-toggle.js" defer></script>
+    <script src="assets/js/ui-shell.js" defer></script>
   </head>
 
   <body>
+    <a class="skip-link" href="#main">Pular para o conteúdo</a>
     <header>
       <!-- Navigation -->
-      <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top">
-        <a class="navbar-brand ml-4" href="index.html">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
+        <a class="navbar-brand ms-4" href="index.html">
           <img
             loading="eager"
             src="assets/img/logonova1.png"
@@ -45,39 +71,45 @@
         <button
           class="navbar-toggler"
           type="button"
-          data-toggle="collapse"
-          data-target="#navbarSupportedContent"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarSupportedContent"
           aria-controls="navbarSupportedContent"
           aria-expanded="false"
-          aria-label="Toggle navigation"
+          aria-label="Alternar navegação"
         >
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav mx-auto">
-            <li class="nav-item mr-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="mapas_interativos.html" id="nav-mapas">Previsões</a>
             </li>
-            <li class="nav-item mr-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="potenciais_energeticos.html" id="nav-potenciais"
                 >Potenciais Energéticos</a
               >
             </li>
-            <li class="nav-item mr-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
             </li>
-            <li class="nav-item mr-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="climatologia.html" id="nav-climatologia">Climatologia</a>
             </li>
-            <li class="nav-item mr-2">
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab active" href="team.html" id="nav-team" aria-current="page">Equipe</a>
             </li>
           </ul>
 
-          <button id="themeToggleBtn" class="btn btn-outline-light mr-3" title="Alternar Tema">
-            <i id="themeIcon" class="fas fa-moon"></i>
+          <button
+            type="button"
+            id="themeToggleBtn"
+            class="btn btn-outline-light me-3"
+            title="Alternar Tema"
+            aria-label="Alternar Tema"
+          >
+            <i id="themeIcon" class="fas fa-moon" aria-hidden="true"></i>
           </button>
-          <a href="http://www.cienam.ufba.br" target="_blank" rel="noopener" class="mr-3">
+          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
             <img
               loading="lazy"
               src="assets/img/logo_cienam.png"
@@ -91,153 +123,155 @@
       </nav>
     </header>
 
-    <div class="modern-section">
-      <div class="page-header">
-        <i class="fas fa-users"></i>
-        <h4>Equipe</h4>
-      </div>
+    <main id="main">
+      <h1 class="visually-hidden">Equipe</h1>
+      <div class="modern-section">
+        <div class="page-header">
+          <i class="fas fa-users"></i>
+          <h2>Equipe</h2>
+        </div>
 
-      <div class="row">
-        <!-- Pesquisador Responsável -->
-        <div class="col-md-6 mb-4 d-flex">
-          <div class="team-group w-100 p-4 border rounded shadow-sm">
-            <h5 class="team-group-title"><i class="fas fa-user-tie mr-2"></i>Pesquisador Responsável</h5>
-            <div class="d-flex align-items-center mb-2">
-              <i class="fas fa-chevron-right text-muted mr-2 icon-chevron"></i>
-              <a
-                href="http://lattes.cnpq.br/3112476528507003"
-                target="_blank"
-                rel="noopener"
-                class="font-weight-bold mr-2 text-dark"
-                >Edson P. Marques Filho</a
-              >
-              <span class="badge badge-info">IF-UFBA</span>
+        <div class="row">
+          <!-- Pesquisador Responsável -->
+          <div class="col-md-6 mb-4 d-flex">
+            <div class="team-group w-100 p-4 border rounded shadow-sm">
+              <h3 class="team-group-title"><i class="fas fa-user-tie me-2"></i>Pesquisador Responsável</h3>
+              <div class="d-flex align-items-center mb-2">
+                <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i>
+                <a
+                  href="https://lattes.cnpq.br/3112476528507003"
+                  target="_blank"
+                  rel="noopener"
+                  class="font-weight-bold me-2 text-dark"
+                  >Edson P. Marques Filho</a
+                >
+                <span class="badge text-bg-info">IF-UFBA</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pesquisadores Colaboradores -->
+          <div class="col-md-6 mb-4 d-flex">
+            <div class="team-group w-100 p-4 border rounded shadow-sm">
+              <h3 class="team-group-title"><i class="fas fa-user-friends me-2"></i>Pesquisadores Colaboradores</h3>
+              <div class="stack-sm">
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a href="https://lattes.cnpq.br/8212836406462666" target="_blank" rel="noopener" class="text-dark"
+                    >Maxsuel M. Rocha Pereira</a
+                  >
+                  <span class="badge text-bg-secondary float-end">CT-UFES</span>
+                </div>
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a href="https://lattes.cnpq.br/1778866012464923" target="_blank" rel="noopener" class="text-dark"
+                    >José Ricardo A. França</a
+                  >
+                  <span class="badge text-bg-secondary float-end">IGEO-UFRJ</span>
+                </div>
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a href="https://lattes.cnpq.br/1364246301366731" target="_blank" rel="noopener" class="text-dark"
+                    >Amauri Pereira de Oliveira</a
+                  >
+                  <span class="badge text-bg-secondary float-end">IAG-USP</span>
+                </div>
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a href="https://lattes.cnpq.br/6401622195719726" target="_blank" rel="noopener" class="text-dark"
+                    >Iuri Muniz Pepe</a
+                  >
+                  <span class="badge text-bg-secondary float-end">IF-UFBA</span>
+                </div>
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a href="https://lattes.cnpq.br/6553529534653449" target="_blank" rel="noopener" class="text-dark"
+                    >Umberto Rizza</a
+                  >
+                  <span class="badge text-bg-secondary float-end">ISAC-CNR</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alunos Doutorado -->
+          <div class="col-md-6 mb-4 d-flex">
+            <div class="team-group w-100 p-4 border rounded shadow-sm">
+              <h3 class="team-group-title"><i class="fas fa-graduation-cap me-2"></i>Alunos Doutorado</h3>
+              <div class="stack-sm">
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a href="https://lattes.cnpq.br/6895899768798180" target="_blank" rel="noopener" class="text-dark"
+                    >Ernando Ferreira</a
+                  >
+                  <span class="badge text-bg-light border float-end">PGEnAm-UFBA</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alunos Mestrado -->
+          <div class="col-md-6 mb-4 d-flex">
+            <div class="team-group w-100 p-4 border rounded shadow-sm">
+              <h3 class="team-group-title"><i class="fas fa-user-graduate me-2"></i>Alunos Mestrado</h3>
+              <div class="stack-sm">
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i>
+                  <a href="https://lattes.cnpq.br/9111550721326814" target="_blank" rel="noopener" class="text-dark"
+                    >Diogo Santos de Jesus</a
+                  >
+                  <span class="badge text-bg-light border float-end">PPGM-UFBA</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alunos Iniciação Científica -->
+          <div class="col-md-6 mb-4 d-flex">
+            <div class="team-group w-100 p-4 border rounded shadow-sm">
+              <h3 class="team-group-title"><i class="fas fa-flask me-2"></i>Alunos Iniciação Científica</h3>
+              <div class="stack-sm">
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a href="https://lattes.cnpq.br/8164651360713654" target="_blank" rel="noopener" class="text-dark"
+                    >Bruno S. Mascarenhas</a
+                  >
+                  <span class="badge text-bg-light border float-end">EP-UFBA</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Pesquisadores Colaboradores -->
-        <div class="col-md-6 mb-4 d-flex">
-          <div class="team-group w-100 p-4 border rounded shadow-sm">
-            <h5 class="team-group-title"><i class="fas fa-user-friends mr-2"></i>Pesquisadores Colaboradores</h5>
-            <div class="stack-sm">
-              <div>
-                <i class="fas fa-chevron-right text-muted mr-2 icon-chevron"></i
-                ><a href="http://lattes.cnpq.br/8212836406462666" target="_blank" rel="noopener" class="text-dark"
-                  >Maxsuel M. Rocha Pereira</a
-                >
-                <span class="badge badge-secondary float-right">CT-UFES</span>
-              </div>
-              <div>
-                <i class="fas fa-chevron-right text-muted mr-2 icon-chevron"></i
-                ><a href="http://lattes.cnpq.br/1778866012464923" target="_blank" rel="noopener" class="text-dark"
-                  >José Ricardo A. França</a
-                >
-                <span class="badge badge-secondary float-right">IGEO-UFRJ</span>
-              </div>
-              <div>
-                <i class="fas fa-chevron-right text-muted mr-2 icon-chevron"></i
-                ><a href="http://lattes.cnpq.br/1364246301366731" target="_blank" rel="noopener" class="text-dark"
-                  >Amauri Pereira de Oliveira</a
-                >
-                <span class="badge badge-secondary float-right">IAG-USP</span>
-              </div>
-              <div>
-                <i class="fas fa-chevron-right text-muted mr-2 icon-chevron"></i
-                ><a href="http://lattes.cnpq.br/6401622195719726" target="_blank" rel="noopener" class="text-dark"
-                  >Iuri Muniz Pepe</a
-                >
-                <span class="badge badge-secondary float-right">IF-UFBA</span>
-              </div>
-              <div>
-                <i class="fas fa-chevron-right text-muted mr-2 icon-chevron"></i
-                ><a href="http://lattes.cnpq.br/6553529534653449" target="_blank" rel="noopener" class="text-dark"
-                  >Umberto Rizza</a
-                >
-                <span class="badge badge-secondary float-right">ISAC-CNR</span>
-              </div>
-            </div>
+        <hr class="my-5 hr-soft" />
+
+        <div class="page-header mt-5">
+          <i class="fas fa-map-marked-alt"></i>
+          <h2>Contato e Localização</h2>
+        </div>
+
+        <div class="row">
+          <div class="col-12 mt-3 mb-4">
+            <p class="text-secondary lead-copy">
+              <i class="fas fa-map-marker-alt text-lab me-2"></i>
+              <strong>Laboratório de Micrometeorologia e Modelagem (LabMiM)</strong>
+              <br />Rua Barão de Jeremoabo, s/n <br />Campus Universitário de Ondina <br />Salvador, BA, Brasil - CEP
+              40170-115
+            </p>
           </div>
         </div>
 
-        <!-- Alunos Doutorado -->
-        <div class="col-md-6 mb-4 d-flex">
-          <div class="team-group w-100 p-4 border rounded shadow-sm">
-            <h5 class="team-group-title"><i class="fas fa-graduation-cap mr-2"></i>Alunos Doutorado</h5>
-            <div class="stack-sm">
-              <div>
-                <i class="fas fa-chevron-right text-muted mr-2 icon-chevron"></i
-                ><a href="http://lattes.cnpq.br/6895899768798180" target="_blank" rel="noopener" class="text-dark"
-                  >Ernando Ferreira</a
-                >
-                <span class="badge badge-light border float-right">PGEnAm-UFBA</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Alunos Mestrado -->
-        <div class="col-md-6 mb-4 d-flex">
-          <div class="team-group w-100 p-4 border rounded shadow-sm">
-            <h5 class="team-group-title"><i class="fas fa-user-graduate mr-2"></i>Alunos Mestrado</h5>
-            <div class="stack-sm">
-              <div>
-                <i class="fas fa-chevron-right text-muted mr-2 icon-chevron"></i>
-                <a href="http://lattes.cnpq.br/9111550721326814" target="_blank" rel="noopener" class="text-dark"
-                  >Diogo Santos de Jesus</a
-                >
-                <span class="badge badge-light border float-right">PPGM-UFBA</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Alunos Iniciação Científica -->
-        <div class="col-md-6 mb-4 d-flex">
-          <div class="team-group w-100 p-4 border rounded shadow-sm">
-            <h5 class="team-group-title"><i class="fas fa-flask mr-2"></i>Alunos Iniciação Científica</h5>
-            <div class="stack-sm">
-              <div>
-                <i class="fas fa-chevron-right text-muted mr-2 icon-chevron"></i
-                ><a href="http://lattes.cnpq.br/8164651360713654" target="_blank" rel="noopener" class="text-dark"
-                  >Bruno S. Mascarenhas</a
-                >
-                <span class="badge badge-light border float-right">EP-UFBA</span>
-              </div>
-            </div>
-          </div>
+        <div class="mt-2 mb-5">
+          <iframe
+            loading="lazy"
+            src="https://www.google.com/maps/d/u/0/embed?mid=1sUXwVKDDw6HHQTVHcMu6r7nRKmREp45L"
+            height="350"
+            class="embedded-map"
+            title="Localização do LabMiM"
+          ></iframe>
         </div>
       </div>
-
-      <hr class="my-5 hr-soft" />
-
-      <div class="page-header mt-5">
-        <i class="fas fa-map-marked-alt"></i>
-        <h4>Contato e Localização</h4>
-      </div>
-
-      <div class="row">
-        <div class="col-12 mt-3 mb-4">
-          <p class="text-secondary lead-copy">
-            <i class="fas fa-map-marker-alt text-lab mr-2"></i>
-            <strong>Laboratório de Micrometeorologia e Modelagem (LabMiM)</strong>
-            <br />Rua Barão de Jeremoabo, s/n <br />Campus Universitário de Ondina <br />Salvador, BA, Brasil - CEP
-            40170-115
-          </p>
-        </div>
-      </div>
-
-      <div class="mt-2 mb-5">
-        <iframe
-          loading="lazy"
-          src="https://www.google.com/maps/d/u/0/embed?mid=1sUXwVKDDw6HHQTVHcMu6r7nRKmREp45L"
-          width="100%"
-          height="350"
-          class="embedded-map"
-          title="Localização do LabMiM"
-        ></iframe>
-      </div>
-    </div>
+    </main>
 
     <footer class="modern-footer">
       <div class="container">
@@ -251,18 +285,24 @@
               height="409"
               class="brand-logo brand-logo-bright"
           /></a>
-          <nav class="footer-nav">
-            <a href="mapas_interativos.html"><i class="fas fa-map mr-1"></i> Previsões</a>
-            <a href="potenciais_energeticos.html"><i class="fas fa-bolt mr-1"></i> Potenciais Energéticos</a>
-            <a href="monitoring.html"><i class="fas fa-chart-line mr-1"></i> Monitoramento</a>
-            <a href="climatologia.html"><i class="fas fa-cloud-sun mr-1"></i> Climatologia</a>
-            <a href="team.html"><i class="fas fa-users mr-1"></i> Equipe</a>
+          <nav class="footer-nav" aria-label="Navegação do rodapé">
+            <a href="mapas_interativos.html"><i class="fas fa-map me-1"></i> Previsões</a>
+            <a href="potenciais_energeticos.html"><i class="fas fa-bolt me-1"></i> Potenciais Energéticos</a>
+            <a href="monitoring.html"><i class="fas fa-chart-line me-1"></i> Monitoramento</a>
+            <a href="climatologia.html"><i class="fas fa-cloud-sun me-1"></i> Climatologia</a>
+            <a href="team.html"><i class="fas fa-users me-1"></i> Equipe</a>
           </nav>
 
-          <button id="themeToggleBtn" class="btn btn-outline-light mr-3" title="Alternar Tema">
-            <i id="themeIcon" class="fas fa-moon"></i>
+          <button
+            type="button"
+            class="btn btn-outline-light me-3"
+            title="Alternar Tema"
+            data-theme-toggle
+            aria-label="Alternar Tema"
+          >
+            <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="http://www.cienam.ufba.br" target="_blank" rel="noopener">
+          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener">
             <img
               loading="lazy"
               src="assets/img/logo_cienam.png"
@@ -275,7 +315,7 @@
         </div>
         <div class="footer-bottom-compact">
           <p class="footer-disclaimer">
-            <i class="fas fa-exclamation-triangle mr-1"></i> ATENÇÃO: As informações exibidas são resultados acadêmicos.
+            <i class="fas fa-exclamation-triangle me-1"></i> ATENÇÃO: As informações exibidas são resultados acadêmicos.
             Não recomendamos atitudes de risco com base nesta plataforma.
           </p>
           <p class="copyright mb-0">&copy; 2026 LabMiM - Todos os direitos reservados</p>
@@ -283,8 +323,8 @@
       </div>
     </footer>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" defer></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" defer></script>
+    <!-- Scripts ao final do body — não bloqueiam o rendering -->
+    <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
+    <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
   </body>
 </html>

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://html-validate.org/schemas/config.json",
+  "extends": ["html-validate:recommended"],
+  "rules": {
+    "doctype-style": "off",
+    "void-style": "off",
+    "attr-quotes": "off",
+    "no-inline-style": "off",
+    "prefer-button": "off",
+    "no-trailing-whitespace": "off",
+    "long-title": "off",
+    "input-missing-label": "off",
+    "heading-level": "off",
+    "no-redundant-role": "off",
+    "wcag/h30": "off",
+    "wcag/h63": "off",
+    "wcag/h67": "off",
+    "no-implicit-input-type": "off",
+    "meta-refresh": "off"
+  }
+}

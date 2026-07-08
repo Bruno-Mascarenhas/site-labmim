@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+{{> head}}
+
+    <!-- Leaflet 1.9.4 (vendorizado localmente — sem CDN no caminho crítico; defer libera o primeiro paint) -->
+    <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4" />
+    <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
+
+    <!-- Maps-specific CSS (extracted from inline) -->
+    <link rel="stylesheet" type="text/css" href="assets/css/maps.css" />
+
+    <link rel="dns-prefetch" href="https://a.tile.osm.org" />
+    <link rel="dns-prefetch" href="https://b.tile.osm.org" />
+    <link rel="dns-prefetch" href="https://c.tile.osm.org" />
+  </head>
+
+  <body{{bodyAttrs}}>
+    <a class="skip-link" href="#main">Pular para o conteúdo</a>
+    <header class="maps-header">
+{{> nav}}
+    </header>
+
+    <h1 class="visually-hidden">{{h1}}</h1>
+{{content}}
+
+    <!-- Scripts ao final do body — não bloqueiam o rendering -->
+{{> scripts}}
+
+    <!-- Chart.js 3.9.1 (vendorizado localmente) -->
+    <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
+
+    <!-- Configuração de variáveis + serviço de dados + gráficos + mapa.
+         Token ?v= dos scripts de app; os Web Workers usam WORKER_CACHE_VERSION em
+         map-manager.js e devem ser incrementados junto. -->
+    <script src="assets/js/variables-config.js?v=6" defer></script>
+    <script src="assets/js/data-service.js?v=6" defer></script>
+    <script src="assets/js/charts-manager.js?v=6" defer></script>
+    <script src="assets/js/map-manager.js?v=6" defer></script>
+    <script src="assets/js/map-init.js?v=6" defer></script>
+  </body>
+</html>

@@ -42,6 +42,12 @@ class ChartsManager {
       modal.addEventListener("click", (e) => {
         if (e.target === modal) this.closeModal();
       });
+    // Fecha o modal (role=dialog) com Escape quando aberto.
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal && modal.style.display === "flex") {
+        this.closeModal();
+      }
+    });
     window.addEventListener("labmim-theme-change", () => this.refreshChartTheme());
   }
 
@@ -137,7 +143,11 @@ class ChartsManager {
   // ─── Modal Rendering ──────────────────────────────────────────────────────
 
   openModal() {
-    if (this.ui.modal) this.ui.modal.style.display = "flex";
+    if (this.ui.modal) {
+      this.ui.modal.style.display = "flex";
+      // Move o foco para o botão de fechar para acessibilidade por teclado.
+      if (this.ui.closeBtn) this.ui.closeBtn.focus();
+    }
   }
 
   isModalOpen() {
@@ -409,6 +419,9 @@ class ChartsManager {
     chartInstance.options.plugins.legend.display = false;
     chartInstance.options.scales.x.ticks.maxTicksLimit = 6;
     chartInstance.options.elements = { point: { radius: 0 } };
+    chartInstance.options.plugins.tooltip.callbacks.label = (ctx) =>
+      `${this._formatPreviewValue(ctx.parsed.y, config.unit)}`;
+    chartInstance.update("none");
     this.previewCharts.set(canvasId, chartInstance);
   }
 
@@ -486,11 +499,13 @@ class ChartsManager {
   }
 
   refreshChartTheme() {
-    this.charts.forEach((chart) => {
+    const apply = (chart) => {
       const chartColor = chart.data.datasets[0]?.borderColor || "#667eea";
       this._applyChartTheme(chart, chartColor);
       chart.update("none");
-    });
+    };
+    this.charts.forEach(apply);
+    this.previewCharts.forEach(apply);
   }
 
   _applyChartTheme(chart, accentColor) {
@@ -616,25 +631,13 @@ class ChartsManager {
           [variableType]: { value: d.value },
           temperature: { value: temperatureByHour.get(d.hour) },
         });
-        const item = info?.items?.find(
-          (it) =>
-            it.label?.includes("Produção Energética") ||
-            it.label?.includes("Energy Production") ||
-            it.label?.includes("kWh") ||
-            it.label?.includes("Wh")
-        );
-        if (item?.value) {
-          const num = parseFloat(
-            String(item.value)
-              .replace(/[^\d.,]/g, "")
-              .replace(",", ".")
-          );
-          return isNaN(num) ? 0 : num;
-        }
+        // Read the raw numeric production from the structured `energyValue`
+        // field (see VARIABLES_CONFIG), never from the formatted display text.
+        const item = info?.items?.find((it) => Number.isFinite(it.energyValue));
+        return item ? item.energyValue : 0;
       } catch {
         return 0;
       }
-      return 0;
     });
 
     return { data, label: "Produção Energética Acumulada (1h)", unit, color };
@@ -863,22 +866,7 @@ class ChartsManager {
 
   _getIcon(variableType, chartType) {
     if (chartType === "energy") return variableType === "solar" ? "solar-panel" : "fan";
-    return (
-      {
-        solar: "sun",
-        eolico: "wind",
-        temperature: "thermometer",
-        pressure: "cloud",
-        humidity: "droplet",
-        skinTemperature: "temperature-high",
-        relativeHumidity: "droplet",
-        longwave: "moon",
-        rain: "cloud-rain",
-        hfx: "fire",
-        lh: "water",
-        windPowerDensity: "fan",
-      }[variableType] || "chart-line"
-    );
+    return VARIABLES_CONFIG[variableType]?.faIcon || "chart-line";
   }
 }
 

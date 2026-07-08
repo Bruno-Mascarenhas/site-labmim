@@ -1,16 +1,7 @@
-.light-theme {
-  --primary-color: #667eea;
-  --primary-dark: #764ba2;
-  --bg-primary: #fff;
-  --bg-secondary: #f5f5f5;
-  --text-primary: #333;
-  --text-secondary: #666;
-  --border-color: #e9ecef;
-}
-
 .dark-theme {
-  --primary-color: #667eea;
-  --primary-dark: #764ba2;
+  /* NÃO reatribui --primary-color: a marca (navy #06235e definida em base.css :root)
+     permanece consistente entre temas. O antigo roxo #667eea vira um accent dedicado
+     (--accent-violet), usado só onde é um indicador de destaque sobre fundo escuro. */
   --bg-primary: #1e1e1e;
   --bg-secondary: #2d2d2d;
   --text-primary: #fff;
@@ -21,6 +12,12 @@
   --tooltip-bg: rgba(18, 18, 18, 0.96);
   --lab-header-bg: var(--lab-header-dark-bg);
   --lab-footer-bg: var(--lab-footer-dark-bg);
+
+  /* Tokens de accent do modo escuro — fonte única de verdade. */
+  --dark-accent: #a3bffa;
+  --dark-accent-hover: #c3d4ff;
+  --dark-accent-rgb: 163, 191, 250;
+  --accent-violet: #667eea;
 }
 
 #themeToggleBtn,
@@ -33,10 +30,10 @@
   min-height: 36px;
   padding: 0.35rem 0.7rem !important;
   background: rgba(255, 255, 255, 0.78) !important;
-  border: 1px solid rgba(6, 35, 94, 0.28) !important;
+  border: 1px solid rgba(var(--brand-primary-rgb), 0.28) !important;
   border-radius: 999px !important;
-  box-shadow: 0 2px 8px rgba(6, 35, 94, 0.12);
-  color: #06235e !important;
+  box-shadow: 0 2px 8px rgba(var(--brand-primary-rgb), 0.12);
+  color: var(--brand-primary) !important;
   cursor: pointer;
 }
 
@@ -52,9 +49,9 @@
 [data-theme-toggle]:hover {
   transform: translateY(-1px);
   background: var(--white) !important;
-  border-color: rgba(55, 97, 180, 0.55) !important;
-  box-shadow: 0 4px 12px rgba(6, 35, 94, 0.18);
-  color: #3761b4 !important;
+  border-color: rgba(var(--brand-secondary-rgb), 0.55) !important;
+  box-shadow: 0 4px 12px rgba(var(--brand-primary-rgb), 0.18);
+  color: var(--brand-secondary) !important;
 }
 
 #themeToggleBtn:focus-visible,
@@ -62,7 +59,7 @@
 .control-btn:focus-visible,
 .sidebar-close-btn:focus-visible,
 input:focus-visible {
-  outline: 3px solid rgba(55, 97, 180, 0.35);
+  outline: 3px solid rgba(var(--brand-secondary-rgb), 0.35);
   outline-offset: 3px;
 }
 
@@ -85,7 +82,7 @@ input:focus-visible {
 .dark-theme #themeToggleBtn,
 .dark-theme [data-theme-toggle] {
   background: rgba(12, 28, 48, 0.88) !important;
-  border-color: rgba(163, 191, 250, 0.45) !important;
+  border-color: rgba(var(--dark-accent-rgb), 0.45) !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
   color: #e8f1ff !important;
 }
@@ -93,7 +90,7 @@ input:focus-visible {
 .dark-theme #themeToggleBtn:hover,
 .dark-theme [data-theme-toggle]:hover {
   background: rgba(28, 45, 72, 0.96) !important;
-  border-color: #a3bffa !important;
+  border-color: var(--dark-accent) !important;
   color: var(--white) !important;
 }
 
@@ -131,11 +128,11 @@ input:focus-visible {
 }
 
 .dark-theme a {
-  color: #a3bffa;
+  color: var(--dark-accent);
 }
 
 .dark-theme a:hover {
-  color: #c3d4ff;
+  color: var(--dark-accent-hover);
 }
 
 .dark-theme .text-muted,
@@ -178,14 +175,27 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
+/* Elementos com cor de marca navy própria (que agora permanece navy no dark
+   mode) precisam de override para não ficarem ilegíveis sobre superfícies
+   escuras — contraste navy #06235e sobre #2d2d2d é ~1.1:1. */
+.dark-theme .partner-logo-text,
+.dark-theme .partner-logo-text small,
+.dark-theme .video-title {
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .text-lab {
+  color: var(--dark-accent) !important;
+}
+
 .dark-theme .feature-card,
 .dark-theme .project-card-modern {
-  border-top-color: #a3bffa !important;
+  border-top-color: var(--dark-accent) !important;
 }
 
 .dark-theme .feature-icon {
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.22) 0%, rgba(176, 224, 230, 0.14) 100%) !important;
-  color: #a3bffa !important;
+  color: var(--dark-accent) !important;
 }
 
 .dark-theme .partner-logo:hover,
@@ -206,7 +216,7 @@ input:focus-visible {
 
 .dark-theme .team-group a,
 .dark-theme .team-group a.text-dark {
-  color: #c3d4ff !important;
+  color: var(--dark-accent-hover) !important;
 }
 
 .dark-theme .team-group a:hover {
@@ -233,8 +243,8 @@ input:focus-visible {
 
 .dark-theme .doc-tab.active {
   background-color: var(--bg-secondary) !important;
-  border-bottom-color: var(--primary-color) !important;
-  color: var(--primary-color) !important;
+  border-bottom-color: var(--accent-violet) !important;
+  color: var(--accent-violet) !important;
 }
 
 .dark-theme .doc-var-card {
@@ -289,7 +299,7 @@ input:focus-visible {
 .dark-theme .slider-time,
 .dark-theme .parameters-toggle-label,
 .dark-theme .stat-card-value {
-  color: #a3bffa !important;
+  color: var(--dark-accent) !important;
 }
 
 .dark-theme .info-section,
@@ -304,8 +314,15 @@ input:focus-visible {
   background: linear-gradient(135deg, #242936 0%, #1f2937 100%) !important;
 }
 
+/* Sidebar de detalhes (click-to-inspect): as .info-item têm fundo claro fixo;
+   sem override o texto claro do dark mode fica ilegível sobre ele. */
+.dark-theme .info-item {
+  background: var(--bg-primary) !important;
+}
+
 .dark-theme .colorbar-labels,
 .dark-theme .colorbar-unit,
+.dark-theme .stat-card-label,
 .dark-theme .stat-card-unit,
 .dark-theme .parameter-unit,
 .dark-theme .parameter-hint,
@@ -329,18 +346,20 @@ input:focus-visible {
 
 .dark-theme .chart-export-btn,
 .dark-theme .chart-export-button {
-  border-color: #a3bffa !important;
-  color: #a3bffa !important;
+  border-color: var(--dark-accent) !important;
+  color: var(--dark-accent) !important;
 }
 
-.dark-theme .chart-modal-close,
-.dark-theme .modal-custom-close,
-.dark-theme .close {
+.dark-theme .chart-modal-close {
   color: var(--text-secondary) !important;
 }
 
-.dark-theme .chart-modal-close:hover,
-.dark-theme .modal-custom-close:hover {
+/* Bootstrap 5 modal close button (SVG background) — invert so it stays visible on dark modals */
+.dark-theme .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.dark-theme .chart-modal-close:hover {
   background-color: var(--bg-primary) !important;
   color: var(--text-primary) !important;
 }

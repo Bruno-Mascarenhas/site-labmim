@@ -4,7 +4,7 @@ Este documento descreve a arquitetura atual do site LabMiM com base no estado re
 
 ## Visão Geral
 
-O projeto é um site estático em `site/`, composto por HTML, CSS modular e JavaScript sem framework frontend e sem etapa de build. O WebGIS usa Leaflet com renderização em Canvas para exibir grades meteorológicas e potenciais energéticos, carregando dados WRF a partir de arquivos gerados em `GeoJSON/` e `JSON/`.
+O projeto é um site estático em `site/`, composto por HTML, CSS modular e JavaScript sem framework frontend. As páginas HTML são **geradas** a partir de fontes em `src/` por um passo de build local/CI (`build.js`, apenas stdlib do Node) que expande _partials_ compartilhados (head, navbar, footer, scripts) — o deploy continua sendo de arquivos estáticos puros, sem build no servidor. O WebGIS usa Leaflet com renderização em Canvas para exibir grades meteorológicas e potenciais energéticos, carregando dados WRF a partir de arquivos gerados em `GeoJSON/` e `JSON/`.
 
 Não há backend de aplicação neste repositório. Qualquer atualização de dados depende de pipeline externo que gere os arquivos consumidos pelo frontend.
 
@@ -20,15 +20,28 @@ Não há backend de aplicação neste repositório. Qualquer atualização de da
 | `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
 | `site/mapas_meteorologicos.html`   | Redirect de compatibilidade para `mapas_interativos.html`   |
 
-As páginas institucionais usam Bootstrap 4.1.3 e jQuery por CDN. `mapas_interativos.html` e `potenciais_energeticos.html` usam Bootstrap 5.3.0 por CDN. Leaflet e Chart.js são carregados localmente (ver [Dependências Externas](#dependências-externas)).
+Todas as páginas usam **Bootstrap 5.3.8 vendorizado localmente** (`assets/vendor/bootstrap/`); não há mais Bootstrap 4 nem jQuery no projeto. Leaflet e Chart.js também são carregados localmente (ver [Dependências Externas](#dependências-externas)).
 
-A navbar principal segue a ordem: Previsões, Potenciais Energéticos, Monitoramento, Climatologia e Equipe.
+A navbar principal segue a ordem: Previsões, Potenciais Energéticos, Monitoramento, Climatologia e Equipe. Essa ordem é definida **uma única vez** no array `NAV` de `build.js`, que gera tanto a navbar quanto o menu do rodapé; o item ativo vem do campo `active` da página em `PAGES`. Editar navbar/rodapé/`<head>` significa editar `src/partials/`, não `site/*.html`.
 
 ## Organização De Pastas
 
 ```text
-site/
+build.js                            # gerador estático (src/ -> site/*.html), só stdlib do Node
+src/                                # FONTE das páginas — edite aqui, nunca em site/*.html
+├── layouts/
+│   ├── institutional.html          # index, monitoring, team, climatologia
+│   └── webgis.html                 # mapas_interativos, potenciais_energeticos
+├── partials/
+│   ├── head.html                   # <head> compartilhado
+│   ├── nav.html                    # navbar (itens gerados do array NAV em build.js)
+│   ├── footer.html                 # rodapé compartilhado
+│   └── scripts.html                # Bootstrap bundle (fim do body)
+└── pages/                          # conteúdo único de cada página (sem head/nav/footer)
+
+site/                               # SAÍDA publicada (HTML gerado por build.js + assets)
 ├── .htaccess                       # charset, MIME, compressão e cache (Apache)
+├── *.html                          # gerados por build.js (exceto mapas_meteorologicos.html)
 ├── assets/
 │   ├── css/
 │   │   ├── base.css
@@ -49,6 +62,7 @@ site/
 │   │       ├── color-calc.worker.js
 │   │       └── json-parser.worker.js
 │   ├── vendor/                     # bibliotecas vendorizadas localmente
+│   │   ├── bootstrap/              # Bootstrap 5.3.8 (min css + bundle js)
 │   │   ├── leaflet/                # Leaflet 1.9.4 (js, css, images/)
 │   │   └── chartjs/                # Chart.js 3.9.1
 │   ├── data/
@@ -118,7 +132,7 @@ Observações:
 
 ### Ordem De Carregamento (páginas WebGIS)
 
-No `<head>`: `theme-boot.js` (síncrono, para reduzir flash) e `theme-toggle.js` (`defer`). Antes de `</body>`, todos com `defer` e nesta ordem: Bootstrap 5 (CDN), Chart.js (vendorizado), `variables-config.js`, `data-service.js`, `charts-manager.js`, `map-manager.js`, `map-init.js`. `leaflet.js` (vendorizado) também é carregado com `defer` no `<head>`. Scripts de aplicação usam versionamento por query (`?v=`).
+No `<head>`: `theme-boot.js` (síncrono, para reduzir flash), `theme-toggle.js` e `ui-shell.js` (`defer`). Antes de `</body>`, todos com `defer` e nesta ordem: Bootstrap 5 (vendorizado), Chart.js (vendorizado), `variables-config.js`, `data-service.js`, `charts-manager.js`, `map-manager.js`, `map-init.js`. `leaflet.js` (vendorizado) também é carregado com `defer` no `<head>`. Scripts de aplicação usam versionamento por query (`?v=`).
 
 ## Dark Mode
 
@@ -251,7 +265,7 @@ JSON/{domain}_{variableId}_{hour:03d}.json
 }
 ```
 
-`values[i]` é indexado por `linear_index`. Um valor `null` é legítimo (ex.: célula sem dado). `date_time` é interpretado como horário de parede em UTC (ver `parseDateTime()` / rótulos do mapa).
+`values[i]` é indexado por `linear_index`. Um valor `null` é legítimo (ex.: célula sem dado). `date_time` traz os **dígitos de horário local** (as saídas WRF já convertidas para UTC−03:00); `parseDateTime()` armazena esses dígitos nos campos UTC de um `Date`, de modo que são exibidos sem deslocamento e o rótulo do mapa/os gráficos os apresentam como horário local (UTC−03:00).
 
 #### Vetores De Vento
 
@@ -332,7 +346,7 @@ Ao clicar em uma célula:
 - Usa `AbortController` para cancelar carregamentos anteriores.
 - Mantém `timeSeriesCache` e `domainSummaryCache`, gravando apenas quando não houve falha **transitória** (um 404 estrutural, como horas noturnas de `SWDOWN`, não bloqueia o cache).
 - Reutiliza instâncias Chart.js com `.update("none")`.
-- Formata rótulos e CSV em UTC, consistentes com o rótulo do mapa; datas de metadados são parseadas por `parseDateTime` do `MeteoMapManager` (seguro no Safari/WebKit).
+- Formata rótulos e CSV com `timeZone: "UTC"` para **preservar os dígitos de horário local** (UTC−03:00) das saídas WRF, consistente com o rótulo do mapa; datas de metadados são parseadas por `parseDateTime` do `MeteoMapManager` (seguro no Safari/WebKit).
 - Exporta CSV com data, hora, latitude, longitude, domínio, variável e valores.
 
 Para `solar` e `eolico`, o modal também exibe uma série derivada de energia.
@@ -360,28 +374,30 @@ Para `solar` e `eolico`, o modal também exibe uma série derivada de energia.
 
 Vendorizadas localmente (sem CDN no caminho crítico):
 
+- Bootstrap 5.3.8 — `assets/vendor/bootstrap/` (`bootstrap.min.css` + `bootstrap.bundle.min.js` com `defer`), usado por **todas** as páginas.
+- Font Awesome 6.4.0 — `assets/vendor/fontawesome/` (`css/all.min.css` + `webfonts/`).
 - Leaflet 1.9.4 — `assets/vendor/leaflet/` (`leaflet.js` com `defer`).
 - Chart.js 3.9.1 — `assets/vendor/chartjs/`.
 - Contorno da Bahia — `assets/data/br_ba.json`.
 
-Runtime via CDN:
+Origem externa (fora do caminho crítico de CSS/JS):
 
-- Bootstrap 4.1.3 e jQuery nas páginas institucionais.
-- Bootstrap 5.3.0 nas páginas de mapas.
-- Font Awesome 6.4.0.
-- Tiles do mapa base via OpenStreetMap.
+- Tiles do mapa base via OpenStreetMap (dados do mapa, apenas nas páginas WebGIS).
 
-> O Turf.js foi **removido**; o único uso (máscara de recorte por estado) foi substituído por _point-in-polygon_ local.
+> O Bootstrap foi **unificado em uma única versão vendorizada (5.3.8)**; Bootstrap 4, jQuery e Popper foram **removidos**. O Turf.js também já havia sido removido (máscara de recorte por estado substituída por _point-in-polygon_ local).
 
 Dev tooling (em `package.json`, ver também `.nvmrc` = Node 24 LTS):
 
 - ESLint 10.
 - Stylelint 17 (+ `stylelint-config-standard` 40).
 - Prettier 3.9.
-- CI em `.github/workflows/ci.yml` (lint + format-check + `npm audit`); Dependabot em `.github/dependabot.yml`.
+- `build.js` — gerador estático de páginas (sem dependências; só a stdlib do Node).
+- CI em `.github/workflows/ci.yml` (`build:check` + lint + format-check + `npm audit`); Dependabot em `.github/dependabot.yml`.
 
 ## Decisões Da Refatoração
 
+- Header, footer, `<head>` e blocos de script foram extraídos para `src/partials/` e passaram a ser montados por `build.js`, eliminando a duplicação (e a divergência) entre páginas.
+- O Bootstrap foi unificado em uma única versão vendorizada (5.3.8); as páginas institucionais migraram de Bootstrap 4 + jQuery para Bootstrap 5 (navbar `data-bs-*`, utilitários `ms/me/ps/pe`, badges `text-bg-*`, modais `btn-close`/`data-bs-*`).
 - CSS antigo (`template.css`, `style.css`, `modern.css`, `custom-themes.css`) foi substituído por módulos menores e explícitos.
 - Código legado de vídeos (`script-mapas.js`, `video.js`, `assets/video/`) foi removido.
 - `mapas_meteorologicos.html` foi preservado como redirect de compatibilidade.
@@ -394,6 +410,13 @@ Dev tooling (em `package.json`, ver também `.nvmrc` = Node 24 LTS):
 - `site/.htaccess` adiciona compressão e política de cache adequada a dados que reusam nomes de arquivo.
 
 ## Pontos De Extensão
+
+### Adicionar Página
+
+1. Criar `src/pages/<nome>.html` com apenas o conteúdo único (sem head/nav/footer).
+2. Adicionar uma entrada em `PAGES` no `build.js` (`file`, `layout`, `active`, `title`, `description` e, para mapas, `bodyAttrs`).
+3. Se a página for um destino de navegação, adicionar uma entrada em `NAV` (aparece automaticamente na navbar e no rodapé de todas as páginas).
+4. Rodar `make build` e commitar o `site/<nome>.html` gerado.
 
 ### Adicionar Variável
 
