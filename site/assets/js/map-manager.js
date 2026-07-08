@@ -3,7 +3,7 @@
  */
 
 const PLAYBACK_INTERVAL_MS = 800;
-const WORKER_CACHE_VERSION = "5";
+const WORKER_CACHE_VERSION = "6";
 const DEFAULT_MAP_CENTER = [-12.97, -38.5];
 const DOMAIN_CONFIG = {
   D01: { label: "BA/NE", center: DEFAULT_MAP_CENTER, zoom: 5.5 },

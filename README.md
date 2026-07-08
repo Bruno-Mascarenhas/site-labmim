@@ -215,7 +215,7 @@ Outras otimizações da camada de mapa:
 - A grade (`GeoJSON/{domain}.geojson`) fica em cache por domínio e **não** é descartada ao trocar de variável ou altura — só muda quando o domínio muda.
 - Valores e grade são buscados em paralelo (`Promise.all`), não em sequência.
 - A interpolação de cores roda em `color-calc.worker.js`, com _fallback_ para a thread principal e descarte de respostas obsoletas por `requestId`.
-- As bibliotecas vendorizadas usam versionamento por query (`?v=`) para invalidação de cache no deploy.
+- As bibliotecas vendorizadas usam versionamento por query (`?v=<versão da lib>`) para invalidação de cache no deploy — necessário porque `assets/vendor/` recebe cache `immutable` de 1 ano no `.htaccess`.
 
 ## Dark Mode
 
@@ -239,7 +239,7 @@ O dark mode é dividido em dois passos:
 - Para lógica de mapa, prefira métodos em `MeteoMapManager` e preserve a API global exposta em `window.MeteoMapManager`.
 - Para busca/cache de dados, use `LabmimDataService` em vez de `fetch` direto; mantenha a API de `data-service.js` estável para os consumidores.
 - Para gráficos temporais, altere `ChartsManager` e preserve os IDs usados no modal.
-- Ao atualizar uma biblioteca vendorizada, substitua o arquivo em `assets/vendor/` e incremente o `?v=` correspondente nas páginas.
+- Ao atualizar uma biblioteca vendorizada, substitua o arquivo em `assets/vendor/` e atualize o `?v=` correspondente em `src/partials/`/`src/layouts/` (depois rode `make build`).
 
 ## Checklist Manual Rápido
 

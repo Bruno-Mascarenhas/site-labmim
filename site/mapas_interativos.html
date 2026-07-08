@@ -37,10 +37,10 @@
     />
 
     <!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico) -->
-    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css?v=5.3.8" />
 
     <!-- Font Awesome 6.4.0 (vendorizado localmente) -->
-    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css" />
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
 
     <!-- LabMiM modular CSS -->
     <link rel="stylesheet" href="assets/css/base.css" />
@@ -53,8 +53,8 @@
     <script src="assets/js/ui-shell.js" defer></script>
 
     <!-- Leaflet 1.9.4 (vendorizado localmente — sem CDN no caminho crítico; defer libera o primeiro paint) -->
-    <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
-    <script src="assets/vendor/leaflet/leaflet.js" defer></script>
+    <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4" />
+    <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
 
     <!-- Maps-specific CSS (extracted from inline) -->
     <link rel="stylesheet" type="text/css" href="assets/css/maps.css" />
@@ -861,13 +861,14 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
 
     <!-- Scripts ao final do body — não bloqueiam o rendering -->
     <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
-    <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+    <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
 
     <!-- Chart.js 3.9.1 (vendorizado localmente) -->
-    <script defer src="assets/vendor/chartjs/chart.min.js"></script>
+    <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
 
     <!-- Configuração de variáveis + serviço de dados + gráficos + mapa.
-         Token de versão único e coordenado (?v=) para invalidação de cache no deploy. -->
+         Token ?v= dos scripts de app; os Web Workers usam WORKER_CACHE_VERSION em
+         map-manager.js e devem ser incrementados junto. -->
     <script src="assets/js/variables-config.js?v=6" defer></script>
     <script src="assets/js/data-service.js?v=6" defer></script>
     <script src="assets/js/charts-manager.js?v=6" defer></script>
