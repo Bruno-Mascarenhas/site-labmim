@@ -98,10 +98,18 @@ class ChartsManager {
   async findCellIndex(lat, lng, domain, signal) {
     try {
       const cacheKey = domain;
-      const cachedLayer = this.app?.gridLayers?.[cacheKey];
+      let gridLayer = this.app?.gridLayers?.[cacheKey];
 
-      if (cachedLayer) {
-        const layers = cachedLayer.getLayers();
+      // Not cached yet: load through the app's shared grid loader (compact
+      // format aware, worker parsing, in-flight dedup) instead of a raw
+      // multi-MB legacy GeoJSON fetch of our own.
+      if (!gridLayer && this.app?.loadGridLayer) {
+        gridLayer = await this.app.loadGridLayer(domain);
+        if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      }
+
+      if (gridLayer) {
+        const layers = gridLayer.getLayers();
         let closestIndex = 0,
           minDist = Infinity;
         layers.forEach((layer, i) => {
@@ -117,6 +125,7 @@ class ChartsManager {
         return closestIndex;
       }
 
+      // Last resort (no app available): legacy direct fetch.
       const res = await fetch(`GeoJSON/${domain}.geojson`, { signal });
       if (!res.ok) return null;
       const geoJson = await res.json();
@@ -774,7 +783,8 @@ class ChartsManager {
    */
   async _fetchHourJson(variableId, domain, hour, signal) {
     const idNum = String(hour).padStart(3, "0");
-    const url = `JSON/${domain}_${variableId}_${idNum}.json`;
+    const plainUrl = `JSON/${domain}_${variableId}_${idNum}.json`;
+    const url = this.app?.dataUrl ? this.app.dataUrl(plainUrl) : plainUrl;
     try {
       if (this.app?._cachedFetch) {
         return await this.app._cachedFetch(url, { signal });

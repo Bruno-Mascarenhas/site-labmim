@@ -12,6 +12,7 @@
  */
 "use strict";
 
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
@@ -174,6 +175,36 @@ function expandPartials(layout) {
   return out;
 }
 
+// --- Cache-busting por hash de conteúdo ---------------------------------------
+// CSS/JS próprios (assets/css/, assets/js/ — vendor fica de fora, já versionado
+// por release) recebem ?v=<hash md5 curto do conteúdo>. O .htaccess serve
+// URLs versionadas com cache longo; qualquer edição no arquivo muda o token
+// em todas as páginas no próximo build. Os Web Workers não passam por aqui:
+// são carregados pelo map-manager.js via WORKER_CACHE_VERSION.
+// O bootstrap.purged.min.css TAMBÉM entra no hash: apesar de morar em vendor/,
+// seu conteúdo é função do HTML/JS do site (PurgeCSS) — um token fixo de
+// release deixaria visitantes recorrentes com o CSS antigo após um re-purge.
+const HASHED_VENDOR_ASSETS = new Set(["assets/vendor/bootstrap/bootstrap.purged.min.css"]);
+const assetHashCache = new Map();
+function assetHash(relPath) {
+  if (!assetHashCache.has(relPath)) {
+    const content = fs.readFileSync(path.join(SITE, relPath));
+    assetHashCache.set(relPath, crypto.createHash("md5").update(content).digest("hex").slice(0, 8));
+  }
+  return assetHashCache.get(relPath);
+}
+
+function stampAssetVersions(html) {
+  return html.replace(
+    /(href|src)="(assets\/[^"?]+)(\?v=[^"]*)?"/g,
+    (match, attrName, relPath) => {
+      const firstParty = /^assets\/(?:css|js)\//.test(relPath);
+      if (!firstParty && !HASHED_VENDOR_ASSETS.has(relPath)) return match;
+      return `${attrName}="${relPath}?v=${assetHash(relPath)}"`;
+    }
+  );
+}
+
 function buildPage(page) {
   const layout = read(path.join(SRC, "layouts", `${page.layout}.html`));
   const content = read(path.join(SRC, "pages", page.file)).replace(/\n$/, "");
@@ -190,6 +221,8 @@ function buildPage(page) {
 
   const leftover = html.match(/\{\{[^}]+\}\}/g);
   if (leftover) throw new Error(`${page.file}: unresolved tokens ${leftover.join(", ")}`);
+
+  html = stampAssetVersions(html);
 
   fs.writeFileSync(path.join(SITE, page.file), html);
   return page.file;

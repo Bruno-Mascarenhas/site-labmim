@@ -1,14 +1,19 @@
 <!-- Navigation -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
   <a class="navbar-brand ms-4" href="index.html">
-    <img
-      loading="eager"
-      src="assets/img/logonova1.png"
-      alt="LabMiM Logo"
-      width="1280"
-      height="409"
-      class="brand-logo"
-    />
+    <!-- Versão redimensionada (2x da altura de exibição de 40px) — o PNG
+         original de 1280x409 continua no repositório apenas como og:image. -->
+    <picture>
+      <source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
+      <img
+        loading="eager"
+        src="assets/img/logonova1-nav.png"
+        alt="LabMiM Logo"
+        width="250"
+        height="80"
+        class="brand-logo"
+      />
+    </picture>
   </a>
   <button
     class="navbar-toggler"
@@ -36,14 +41,17 @@
       <i id="themeIcon" class="fas fa-moon" aria-hidden="true"></i>
     </button>
     <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
-      <img
-        loading="lazy"
-        src="assets/img/logo_cienam.png"
-        alt="CIEnAm"
-        width="834"
-        height="290"
-        class="brand-logo-sm"
-      />
+      <picture>
+        <source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
+        <img
+          loading="lazy"
+          src="assets/img/logo_cienam-nav.png"
+          alt="CIEnAm"
+          width="230"
+          height="80"
+          class="brand-logo-sm"
+        />
+      </picture>
     </a>
   </div>
 </nav>

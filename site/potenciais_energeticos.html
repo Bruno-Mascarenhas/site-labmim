@@ -36,29 +36,48 @@
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
     />
 
-    <!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico) -->
-    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css?v=5.3.8" />
+    <!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico).
+     Versão PURGADA: só os seletores usados pelo site (~27KB em vez de 232KB);
+     o bootstrap.min.css completo permanece ao lado e `npm run lint:purge`
+     acusa quando uma classe nova exigir regenerar (scripts/purgecss.config.cjs). -->
+    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.purged.min.css?v=b6ca8446" />
 
-    <!-- Font Awesome 6.4.0 (vendorizado localmente) -->
+    <!-- Font Awesome 6.4.0 (vendorizado localmente). O preload quebra a cadeia
+     HTML -> CSS -> fonte: todas as páginas usam ícones solid e a fonte tem
+     font-display:block (ícones invisíveis até carregar). crossorigin é
+     obrigatório em preload de fonte, mesmo same-origin, senão baixa 2x. -->
+    <link
+      rel="preload"
+      href="assets/vendor/fontawesome/webfonts/fa-solid-900.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
 
     <!-- LabMiM modular CSS -->
-    <link rel="stylesheet" href="assets/css/base.css" />
-    <link rel="stylesheet" href="assets/css/layout.css" />
-    <link rel="stylesheet" href="assets/css/components.css" />
-    <link rel="stylesheet" href="assets/css/theme.css" />
+    <link rel="stylesheet" href="assets/css/base.css?v=95c15a43" />
+    <link rel="stylesheet" href="assets/css/layout.css?v=63bd6ac3" />
+    <link rel="stylesheet" href="assets/css/components.css?v=20619319" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=e05c40cf" />
 
-    <script src="assets/js/theme-boot.js"></script>
-    <script src="assets/js/theme-toggle.js" defer></script>
-    <script src="assets/js/ui-shell.js" defer></script>
+    <script src="assets/js/theme-boot.js?v=6fe47826"></script>
+    <script src="assets/js/theme-toggle.js?v=ee2d3a01" defer></script>
+    <script src="assets/js/ui-shell.js?v=482aa431" defer></script>
 
     <!-- Leaflet 1.9.4 (vendorizado localmente — sem CDN no caminho crítico; defer libera o primeiro paint) -->
     <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4" />
     <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
 
     <!-- Maps-specific CSS (extracted from inline) -->
-    <link rel="stylesheet" type="text/css" href="assets/css/maps.css" />
+    <link rel="stylesheet" type="text/css" href="assets/css/maps.css?v=3ba1691c" />
 
+    <!-- preconnect: os tiles são pedidos ~1s após a navegação, então a
+         conexão aquecida (DNS + TCP + TLS) é sempre aproveitada; dns-prefetch
+         permanece como fallback para navegadores antigos. -->
+    <link rel="preconnect" href="https://a.tile.osm.org" />
+    <link rel="preconnect" href="https://b.tile.osm.org" />
+    <link rel="preconnect" href="https://c.tile.osm.org" />
     <link rel="dns-prefetch" href="https://a.tile.osm.org" />
     <link rel="dns-prefetch" href="https://b.tile.osm.org" />
     <link rel="dns-prefetch" href="https://c.tile.osm.org" />
@@ -70,14 +89,19 @@
       <!-- Navigation -->
       <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
         <a class="navbar-brand ms-4" href="index.html">
-          <img
-            loading="eager"
-            src="assets/img/logonova1.png"
-            alt="LabMiM Logo"
-            width="1280"
-            height="409"
-            class="brand-logo"
-          />
+          <!-- Versão redimensionada (2x da altura de exibição de 40px) — o PNG
+         original de 1280x409 continua no repositório apenas como og:image. -->
+          <picture>
+            <source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
+            <img
+              loading="eager"
+              src="assets/img/logonova1-nav.png"
+              alt="LabMiM Logo"
+              width="250"
+              height="80"
+              class="brand-logo"
+            />
+          </picture>
         </a>
         <button
           class="navbar-toggler"
@@ -123,14 +147,17 @@
             <i id="themeIcon" class="fas fa-moon" aria-hidden="true"></i>
           </button>
           <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
-            <img
-              loading="lazy"
-              src="assets/img/logo_cienam.png"
-              alt="CIEnAm"
-              width="834"
-              height="290"
-              class="brand-logo-sm"
-            />
+            <picture>
+              <source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
+              <img
+                loading="lazy"
+                src="assets/img/logo_cienam-nav.png"
+                alt="CIEnAm"
+                width="230"
+                height="80"
+                class="brand-logo-sm"
+              />
+            </picture>
           </a>
         </div>
       </nav>
@@ -145,14 +172,20 @@
       <div class="sidebar" id="sidebar">
         <div class="sidebar-logo-header">
           <a href="index.html" title="Voltar ao início">
-            <img
-              loading="lazy"
-              src="assets/img/logonova1.png"
-              alt="LabMiM Logo"
-              width="1280"
-              height="409"
-              class="brand-logo"
-            />
+            <!-- O logo do sidebar renderiza a ~353x113 CSS px (maps.css
+             .sidebar-logo-header img), maior que o do navbar — usa uma
+             exportação própria de 720x230 (2x). -->
+            <picture>
+              <source srcset="assets/img/logonova1-sidebar.webp" type="image/webp" />
+              <img
+                loading="lazy"
+                src="assets/img/logonova1-sidebar.png"
+                alt="LabMiM Logo"
+                width="720"
+                height="230"
+                class="brand-logo"
+              />
+            </picture>
           </a>
         </div>
         <div class="sidebar-header">
@@ -707,12 +740,13 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
 
     <!-- Configuração de variáveis + serviço de dados + gráficos + mapa.
-         Token ?v= dos scripts de app; os Web Workers usam WORKER_CACHE_VERSION em
-         map-manager.js e devem ser incrementados junto. -->
-    <script src="assets/js/variables-config.js?v=6" defer></script>
-    <script src="assets/js/data-service.js?v=6" defer></script>
-    <script src="assets/js/charts-manager.js?v=6" defer></script>
-    <script src="assets/js/map-manager.js?v=6" defer></script>
-    <script src="assets/js/map-init.js?v=6" defer></script>
+         O build.js estampa ?v=<hash do conteúdo> em todo CSS/JS próprio; os
+         Web Workers usam WORKER_CACHE_VERSION em map-manager.js e devem ser
+         incrementados quando um worker mudar. -->
+    <script src="assets/js/variables-config.js?v=7ebbc8b6" defer></script>
+    <script src="assets/js/data-service.js?v=ded9bc72" defer></script>
+    <script src="assets/js/charts-manager.js?v=bc5d6f3e" defer></script>
+    <script src="assets/js/map-manager.js?v=dce89190" defer></script>
+    <script src="assets/js/map-init.js?v=72cfe92b" defer></script>
   </body>
 </html>

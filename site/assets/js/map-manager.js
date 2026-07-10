@@ -3,7 +3,8 @@
  */
 
 const PLAYBACK_INTERVAL_MS = 800;
-const WORKER_CACHE_VERSION = "6";
+const WORKER_CACHE_VERSION = "7";
+const PREFETCH_AHEAD_STEPS = 2;
 const DEFAULT_MAP_CENTER = [-12.97, -38.5];
 const DOMAIN_CONFIG = {
   D01: { label: "BA/NE", center: DEFAULT_MAP_CENTER, zoom: 5.5 },
@@ -75,6 +76,10 @@ class MeteoMapManager {
   constructor(options = {}) {
     this.mapContext = this.resolveMapContext(options.context);
     this.contextConfig = VARIABLE_CONTEXTS[this.mapContext] || VARIABLE_CONTEXTS.forecast;
+    // Pipeline run version from JSON/manifest.json (resolved by map-init):
+    // appended as ?v= to every data URL so the server can cache the
+    // fixed-name data files long-term. Null (no manifest) keeps plain URLs.
+    this.dataVersion = typeof options.dataVersion === "string" && options.dataVersion ? options.dataVersion : null;
     this.map = null;
     this.currentGeoJsonLayer = null;
     this.currentValueData = null;
@@ -181,6 +186,16 @@ class MeteoMapManager {
    */
   _cachedFetch(url, options = {}) {
     return this.dataService.fetchJson(url, options);
+  }
+
+  /**
+   * Appends the pipeline run version (from JSON/manifest.json) to a data
+   * URL. A new run publishes a new version, so versioned URLs may be cached
+   * aggressively by the browser without ever pinning stale forecasts; when
+   * no manifest exists the plain URL keeps today's revalidation behavior.
+   */
+  dataUrl(path) {
+    return this.dataVersion ? `${path}?v=${encodeURIComponent(this.dataVersion)}` : path;
   }
 
   getVariableId(variableType) {
@@ -614,14 +629,21 @@ class MeteoMapManager {
       this.ui.windCanvas = canvas;
       if (!this.windCanvasUpdateHandler) {
         this.windCanvasUpdateHandler = () => {
-          canvas.width = this.map.getSize().x;
-          canvas.height = this.map.getSize().y;
-
+          // With the overlay off the canvas is already blank and
+          // _renderWindFromData re-sizes it when re-enabled — skip the work.
+          // This handler runs on every 'move' event (per frame during pans),
+          // and assigning width/height discards the canvas backing store,
+          // so only do it when the size actually changed.
           const windCheckbox = this.ui.windCheckbox || document.getElementById("windLayerCheckbox");
-          if (windCheckbox && windCheckbox.checked) {
-            cancelAnimationFrame(this.windRenderScheduled);
-            this.windRenderScheduled = requestAnimationFrame(() => this.renderWindVectors());
+          if (!windCheckbox || !windCheckbox.checked) return;
+
+          const size = this.map.getSize();
+          if (canvas.width !== size.x || canvas.height !== size.y) {
+            canvas.width = size.x;
+            canvas.height = size.y;
           }
+          cancelAnimationFrame(this.windRenderScheduled);
+          this.windRenderScheduled = requestAnimationFrame(() => this.renderWindVectors());
         };
 
         this.windCanvasUpdateHandler();
@@ -912,9 +934,12 @@ class MeteoMapManager {
           this.ui.clipStateBtn.style.display = "inline-block";
         }
 
-        if (this.currentGeoJsonLayer) {
+        // The mask is only computed when clipping is active — it costs an
+        // O(cells x boundary points) ray cast (hundreds of ms on mobile),
+        // so it must never run on the plain startup path.
+        if (this.currentGeoJsonLayer && this.state.isClippedToState) {
           this._precomputeStateMask(this.currentGeoJsonLayer);
-          if (this.state.isClippedToState && this.currentValueData) {
+          if (this.currentValueData) {
             this.applyValuesToGrid(this.currentGeoJsonLayer, this.currentValueData);
           }
         }
@@ -1008,8 +1033,19 @@ class MeteoMapManager {
       : `<i class="fas fa-map"></i> ${abbr} Off`;
     btn.classList.toggle("active", this.state.isClippedToState);
 
-    if (this.currentGeoJsonLayer && this.currentValueData) {
-      this.applyValuesToGrid(this.currentGeoJsonLayer, this.currentValueData);
+    if (this.currentGeoJsonLayer) {
+      // Lazily computed on first activation (and per domain in
+      // loadValueData); a no-op once the layer's mask exists.
+      if (this.state.isClippedToState) {
+        try {
+          this._precomputeStateMask(this.currentGeoJsonLayer);
+        } catch (maskErr) {
+          console.warn("State mask unavailable, rendering without clipping:", maskErr);
+        }
+      }
+      if (this.currentValueData) {
+        this.applyValuesToGrid(this.currentGeoJsonLayer, this.currentValueData);
+      }
     }
   }
 
@@ -1140,7 +1176,7 @@ class MeteoMapManager {
 
     const id_num = String(index).padStart(3, "0");
     const variableId = this.getVariableId(type);
-    const filePath = `JSON/${domain}_${variableId}_${id_num}.json`;
+    const filePath = this.dataUrl(`JSON/${domain}_${variableId}_${id_num}.json`);
     const loadKey = `${domain}:${variableId}:${index}`;
 
     return Promise.all([this._cachedFetch(filePath), this.loadGridLayer(domain)])
@@ -1160,10 +1196,14 @@ class MeteoMapManager {
           return null;
         }
 
-        try {
-          this._precomputeStateMask(gridLayer);
-        } catch (maskErr) {
-          console.warn("State mask unavailable, rendering without clipping:", maskErr);
+        // Only when clipping is active: the mask ray cast is expensive and
+        // its output is unused while the clip toggle is off.
+        if (this.state.isClippedToState) {
+          try {
+            this._precomputeStateMask(gridLayer);
+          } catch (maskErr) {
+            console.warn("State mask unavailable, rendering without clipping:", maskErr);
+          }
         }
 
         this.currentValueData = valueData;
@@ -1176,6 +1216,8 @@ class MeteoMapManager {
         if (this.ui.windCheckbox && this.ui.windCheckbox.checked) {
           setTimeout(() => this.renderWindVectors(), 100);
         }
+
+        this._prefetchUpcoming(index, type);
 
         return valueData;
       })
@@ -1190,6 +1232,38 @@ class MeteoMapManager {
         }
         return null;
       });
+  }
+
+  /**
+   * Warms the shared data-service cache with the next timesteps of the
+   * current view (fire-and-forget). During playback and manual stepping the
+   * next frame then paints from memory instead of paying fetch + parse
+   * inside the 800ms tick budget. Mirrors the animation loop's SWDOWN
+   * daylight skip; duplicate calls are free thanks to in-flight dedup and
+   * the negative cache. Skipped for users who opted into data saving.
+   */
+  _prefetchUpcoming(index, type, count = PREFETCH_AHEAD_STEPS) {
+    if (navigator.connection?.saveData) return;
+    const config = VARIABLES_CONFIG[type];
+    if (!config) return;
+    const domain = this.state.domain;
+    const variableId = this.getVariableId(type);
+
+    let next = index;
+    for (let i = 0; i < count; i++) {
+      next += 1;
+      const nextHour = (next - 1) % 24;
+      if (config.id === "SWDOWN" && (nextHour < 6 || nextHour > 18)) {
+        next = nextHour < 6 ? Math.floor(next / 24) * 24 + 7 : Math.ceil(next / 24) * 24 + 7;
+      }
+      if (next > this.state.maxLayer) {
+        next = config.id === "SWDOWN" ? 7 : 1;
+      }
+      const idNum = String(next).padStart(3, "0");
+      this.dataService.fetchJson(this.dataUrl(`JSON/${domain}_${variableId}_${idNum}.json`)).catch(() => {
+        /* prefetch is best-effort; the real load reports errors */
+      });
+    }
   }
 
   updateDomainIndicator() {
@@ -1266,6 +1340,76 @@ class MeteoMapManager {
     });
   }
 
+  /**
+   * Rebuilds the legacy FeatureCollection from a compact grid payload
+   * (grid-edges-v1 / grid-bounds-v1, written by the pipeline alongside the
+   * .geojson) so everything downstream — Leaflet layer construction,
+   * linear_index mapping, bounds-based hover/click/mask — stays identical
+   * to the legacy path. Throws on malformed payloads so the caller can fall
+   * back to the .geojson file.
+   */
+  _featureCollectionFromCompactGrid(compact) {
+    const shape = Array.isArray(compact?.shape) ? compact.shape : [];
+    const nRows = shape[0];
+    const nCols = shape[1];
+    if (!Number.isInteger(nRows) || !Number.isInteger(nCols) || nRows < 1 || nCols < 1) {
+      throw new Error("Malformed compact grid payload: bad shape");
+    }
+
+    // Same ring vertex order as the legacy writer: [left,bottom],
+    // [right,bottom], [right,top], [left,top], closed. Leaflet normalizes
+    // bounds, so the grid's latitude orientation does not matter.
+    const cellFeature = (left, bottom, right, top, linearIndex) => ({
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [left, bottom],
+            [right, bottom],
+            [right, top],
+            [left, top],
+            [left, bottom],
+          ],
+        ],
+      },
+      properties: { linear_index: linearIndex },
+    });
+
+    const features = new Array(nRows * nCols);
+    if (compact.format === "grid-edges-v1") {
+      const lonEdges = compact.lon_edges;
+      const latEdges = compact.lat_edges;
+      if (
+        !Array.isArray(lonEdges) ||
+        !Array.isArray(latEdges) ||
+        lonEdges.length !== nCols + 1 ||
+        latEdges.length !== nRows + 1
+      ) {
+        throw new Error("Malformed grid-edges-v1 payload: edge lengths");
+      }
+      for (let i = 0; i < nRows; i++) {
+        for (let j = 0; j < nCols; j++) {
+          const k = i * nCols + j;
+          features[k] = cellFeature(lonEdges[j], latEdges[i + 1], lonEdges[j + 1], latEdges[i], k);
+        }
+      }
+    } else if (compact.format === "grid-bounds-v1") {
+      const bounds = compact.bounds;
+      if (!Array.isArray(bounds) || bounds.length !== nRows * nCols) {
+        throw new Error("Malformed grid-bounds-v1 payload: bounds length");
+      }
+      for (let k = 0; k < bounds.length; k++) {
+        const cell = bounds[k];
+        features[k] = cellFeature(cell[0], cell[1], cell[2], cell[3], k);
+      }
+    } else {
+      throw new Error(`Unknown compact grid format: ${compact?.format}`);
+    }
+
+    return { type: "FeatureCollection", metadata: compact.metadata, features };
+  }
+
   loadGridLayer(domain) {
     const cacheKey = domain;
 
@@ -1277,11 +1421,20 @@ class MeteoMapManager {
       return this._gridLayerPromises.get(cacheKey);
     }
 
-    // Fetched through the data service: worker-side parsing for the multi-MB
-    // payload, in-flight dedup and 60s negative caching on failure (so a
-    // missing grid is not re-requested on every playback tick).
+    // Compact grid first (a few KB vs 1.2-2.6MB); the legacy GeoJSON is the
+    // fallback for servers still holding data from an older pipeline run.
+    // Both go through the data service: worker-side parsing, in-flight dedup
+    // and 60s negative caching on failure (so a missing grid is not
+    // re-requested on every playback tick).
     const gridPromise = this.dataService
-      .fetchJson(`GeoJSON/${domain}.geojson`)
+      .fetchJson(this.dataUrl(`GeoJSON/${domain}.grid.json`))
+      .then((compact) => this._featureCollectionFromCompactGrid(compact))
+      .catch((compactErr) => {
+        if (compactErr?.notFound !== true) {
+          console.warn(`Compact grid unavailable for ${domain}, using legacy GeoJSON:`, compactErr);
+        }
+        return this.dataService.fetchJson(this.dataUrl(`GeoJSON/${domain}.geojson`));
+      })
       .then((geojson) => {
         const gridMetadata = geojson.metadata;
         const layer = L.geoJSON(geojson, {
@@ -1368,10 +1521,19 @@ class MeteoMapManager {
 
   _applyColorsOnMainThread(layers, values, scaleValues, config) {
     const colors = new Array(values.length);
+    // Values are quantized to 2 decimals, so a few thousand cells share far
+    // fewer distinct values — memoize per call (palette/scale can change
+    // between calls, so the map must not outlive this repaint).
+    const memo = new Map();
     for (let i = 0; i < values.length; i++) {
       const value = values[i];
       if (value !== undefined && value !== null) {
-        colors[i] = this._colorFromScale(value, scaleValues, config);
+        let color = memo.get(value);
+        if (color === undefined) {
+          color = this._colorFromScale(value, scaleValues, config);
+          memo.set(value, color);
+        }
+        colors[i] = color;
       }
     }
 
@@ -1387,31 +1549,52 @@ class MeteoMapManager {
 
   applyComputedColorsToGrid(layers, values, colors) {
     const isClipped = this.state.isClippedToState;
+    // Scratch style reused across cells: setStyle copies the properties into
+    // each layer's own options, so mutating one shared object between calls
+    // is safe and avoids ~10k short-lived allocations per repaint.
+    const visibleStyle = { ...GRID_VISIBLE_STYLE, fillColor: undefined };
 
     for (let i = 0; i < layers.length; i++) {
-      const cellIndex = this.getCellIndexForLayer(layers[i], i);
+      const layer = layers[i];
+      const cellIndex = this.getCellIndexForLayer(layer, i);
       const color = colors[cellIndex];
-      const inState = layers[i]._inStateMask !== false;
+      const inState = layer._inStateMask !== false;
       const hiddenByClip = isClipped && !inState;
 
       if (color === undefined) {
         // No data at this timestep: reset the previous timestep's value and
         // color instead of leaving a stale reading on the map.
-        layers[i].feature.properties.valor = null;
-        layers[i].setStyle(hiddenByClip ? GRID_HIDDEN_STYLE : GRID_NODATA_STYLE);
+        layer.feature.properties.valor = null;
+        this._setGridCellStyle(layer, hiddenByClip ? GRID_HIDDEN_STYLE : GRID_NODATA_STYLE);
         continue;
       }
 
-      layers[i].feature.properties.valor = values[cellIndex];
+      layer.feature.properties.valor = values[cellIndex];
 
-      layers[i].setStyle(
-        hiddenByClip
-          ? GRID_HIDDEN_STYLE
-          : {
-              ...GRID_VISIBLE_STYLE,
-              fillColor: color,
-            }
-      );
+      if (hiddenByClip) {
+        this._setGridCellStyle(layer, GRID_HIDDEN_STYLE);
+      } else {
+        visibleStyle.fillColor = color;
+        this._setGridCellStyle(layer, visibleStyle);
+      }
+    }
+  }
+
+  /**
+   * setStyle only when the layer's current options differ from the target
+   * on some property the style would actually change (setStyle merges, so
+   * untouched options are irrelevant). Revisiting a cached frame or toggling
+   * the clip then skips Leaflet's option merge and redraw bookkeeping for
+   * unchanged cells. A hovered cell (weight 1.2) never matches its resting
+   * style, so repaints restore it exactly as before.
+   */
+  _setGridCellStyle(layer, style) {
+    const options = layer.options;
+    for (const key in style) {
+      if (options[key] !== style[key]) {
+        layer.setStyle(style);
+        return;
+      }
     }
   }
 
@@ -1535,10 +1718,17 @@ class MeteoMapManager {
   }
 
   updateColorbar(config) {
+    const scaleValues = this.getScaleValues(config);
+    // Rebuilding the gradient + label DOM every playback tick forces style
+    // and layout work for identical output; skip when nothing changed.
+    // The signature covers the metadata-driven scale fallback too.
+    const signature = `${config.unit}|${config.colors.join(",")}|${scaleValues.join(",")}`;
+    if (signature === this._colorbarSignature) return;
+    this._colorbarSignature = signature;
+
     const gradient = `linear-gradient(to top, ${config.colors.join(", ")})`;
     this.ui.colorbarGradient.style.background = gradient;
     this.ui.colorbarUnit.textContent = config.unit;
-    const scaleValues = this.getScaleValues(config);
 
     const labelsContainer = this.ui.colorbarLabels;
     labelsContainer.innerHTML = "";
@@ -1585,7 +1775,9 @@ class MeteoMapManager {
         : null;
 
     let foundCell = null;
-    this.currentGeoJsonLayer.eachLayer((layer) => {
+    const cellLayers = this.currentGeoJsonLayer.getLayers();
+    for (let i = 0; i < cellLayers.length; i++) {
+      const layer = cellLayers[i];
       if (layer.getBounds().contains(e.latlng)) {
         const cellIndex = this.getCellIndexForLayer(layer, 0);
         foundCell = {
@@ -1596,8 +1788,11 @@ class MeteoMapManager {
           lng: e.latlng.lng,
           allValues: {},
         };
+        // Cells don't overlap: the first hit is the only hit (eachLayer
+        // could not break and always scanned all ~10k layers).
+        break;
       }
-    });
+    }
 
     if (!foundCell || foundCell.value === null) {
       this.showErrorMessage("Sem informações neste local");
@@ -1671,7 +1866,7 @@ class MeteoMapManager {
 
     const id_num = String(index).padStart(3, "0");
     const variableId = this.getVariableId(type);
-    const filePath = `JSON/${domain}_${variableId}_${id_num}.json`;
+    const filePath = this.dataUrl(`JSON/${domain}_${variableId}_${id_num}.json`);
 
     return this._cachedFetch(filePath).catch(() => null);
   }
@@ -1841,7 +2036,7 @@ class MeteoMapManager {
     } else {
       const domain = this.state.domain;
       const id_num = String(this.state.index).padStart(3, "0");
-      const filePath = `JSON/${domain}_WIND_VECTORS_${id_num}.json`;
+      const filePath = this.dataUrl(`JSON/${domain}_WIND_VECTORS_${id_num}.json`);
       const requestKey = `${domain}:${id_num}`;
       this._windRequestKey = requestKey;
 

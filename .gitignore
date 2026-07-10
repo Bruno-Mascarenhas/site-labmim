@@ -30,6 +30,7 @@ Thumbs.db
 # Generated Data & Pipeline Artifacts
 site/JSON/*.json
 site/GeoJSON/*.geojson
+site/GeoJSON/*.json
 site/assets/json/*.json
 
 # Environment variables
