@@ -39,6 +39,12 @@ jobs:
       - name: Run Stylelint
         run: npm run lint:css
 
+      - name: Check Font Awesome subset coverage
+        run: npm run lint:icons
+
+      - name: Check purged Bootstrap coverage
+        run: npm run lint:purge
+
       - name: Run Prettier formatting check
         run: npm run format:check
 

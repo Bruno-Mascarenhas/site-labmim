@@ -10,10 +10,23 @@
   href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
 />
 
-<!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico) -->
-<link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.min.css?v=5.3.8" />
+<!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico).
+     Versão PURGADA: só os seletores usados pelo site (~27KB em vez de 232KB);
+     o bootstrap.min.css completo permanece ao lado e `npm run lint:purge`
+     acusa quando uma classe nova exigir regenerar (scripts/purgecss.config.cjs). -->
+<link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.purged.min.css" />
 
-<!-- Font Awesome 6.4.0 (vendorizado localmente) -->
+<!-- Font Awesome 6.4.0 (vendorizado localmente). O preload quebra a cadeia
+     HTML -> CSS -> fonte: todas as páginas usam ícones solid e a fonte tem
+     font-display:block (ícones invisíveis até carregar). crossorigin é
+     obrigatório em preload de fonte, mesmo same-origin, senão baixa 2x. -->
+<link
+  rel="preload"
+  href="assets/vendor/fontawesome/webfonts/fa-solid-900.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
 <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
 
 <!-- LabMiM modular CSS -->

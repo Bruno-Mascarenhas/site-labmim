@@ -15,13 +15,21 @@
  *     constructor try/catch alone cannot catch that).
  */
 
-const DATA_SERVICE_CACHE_LIMIT = 200;
+// 400 entries x ~47KB average parsed payload keeps one full playback loop
+// (73 steps + wind overlays) AND an open time-series modal in memory at
+// once (~19MB, fine for a data-viz page); 200 caused mid-loop evictions.
+const DATA_SERVICE_CACHE_LIMIT = 400;
+// Deterministic 404s (files the pipeline never exports) stay negative-cached
+// for a full minute; transient failures (network/5xx) may recover at any
+// moment, so they only get a few playback ticks.
 const DATA_SERVICE_FAILURE_TTL_MS = 60000;
+const DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS = 4000;
 
 class LabmimDataService {
   constructor(options = {}) {
     this.cacheLimit = options.cacheLimit || DATA_SERVICE_CACHE_LIMIT;
     this.failureTtlMs = options.failureTtlMs || DATA_SERVICE_FAILURE_TTL_MS;
+    this.transientFailureTtlMs = options.transientFailureTtlMs || DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS;
     this._cache = new Map();
     this._inflight = new Map();
     this._failedAt = new Map();
@@ -100,12 +108,19 @@ class LabmimDataService {
     }
 
     if (this._cache.has(url)) {
-      return Promise.resolve(this._cache.get(url));
+      // Refresh recency (delete+set moves the key to the end of the Map) so
+      // eviction is LRU instead of insertion-order FIFO — otherwise entries
+      // still hot in the current playback loop get evicted first.
+      const cached = this._cache.get(url);
+      this._cache.delete(url);
+      this._cache.set(url, cached);
+      return Promise.resolve(cached);
     }
 
     const failure = this._failedAt.get(url);
     if (failure !== undefined) {
-      if (Date.now() - failure.at < this.failureTtlMs) {
+      const ttl = failure.notFound ? this.failureTtlMs : this.transientFailureTtlMs;
+      if (Date.now() - failure.at < ttl) {
         return Promise.reject(this._failureError(url, failure.notFound));
       }
       this._failedAt.delete(url);

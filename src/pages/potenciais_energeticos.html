@@ -6,14 +6,20 @@
   <div class="sidebar" id="sidebar">
     <div class="sidebar-logo-header">
       <a href="index.html" title="Voltar ao início">
-        <img
-          loading="lazy"
-          src="assets/img/logonova1.png"
-          alt="LabMiM Logo"
-          width="1280"
-          height="409"
-          class="brand-logo"
-        />
+        <!-- O logo do sidebar renderiza a ~353x113 CSS px (maps.css
+             .sidebar-logo-header img), maior que o do navbar — usa uma
+             exportação própria de 720x230 (2x). -->
+        <picture>
+          <source srcset="assets/img/logonova1-sidebar.webp" type="image/webp" />
+          <img
+            loading="lazy"
+            src="assets/img/logonova1-sidebar.png"
+            alt="LabMiM Logo"
+            width="720"
+            height="230"
+            class="brand-logo"
+          />
+        </picture>
       </a>
     </div>
     <div class="sidebar-header">

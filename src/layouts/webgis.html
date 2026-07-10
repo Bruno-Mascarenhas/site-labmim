@@ -10,6 +10,12 @@
     <!-- Maps-specific CSS (extracted from inline) -->
     <link rel="stylesheet" type="text/css" href="assets/css/maps.css" />
 
+    <!-- preconnect: os tiles são pedidos ~1s após a navegação, então a
+         conexão aquecida (DNS + TCP + TLS) é sempre aproveitada; dns-prefetch
+         permanece como fallback para navegadores antigos. -->
+    <link rel="preconnect" href="https://a.tile.osm.org" />
+    <link rel="preconnect" href="https://b.tile.osm.org" />
+    <link rel="preconnect" href="https://c.tile.osm.org" />
     <link rel="dns-prefetch" href="https://a.tile.osm.org" />
     <link rel="dns-prefetch" href="https://b.tile.osm.org" />
     <link rel="dns-prefetch" href="https://c.tile.osm.org" />
@@ -31,12 +37,13 @@
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
 
     <!-- Configuração de variáveis + serviço de dados + gráficos + mapa.
-         Token ?v= dos scripts de app; os Web Workers usam WORKER_CACHE_VERSION em
-         map-manager.js e devem ser incrementados junto. -->
-    <script src="assets/js/variables-config.js?v=6" defer></script>
-    <script src="assets/js/data-service.js?v=6" defer></script>
-    <script src="assets/js/charts-manager.js?v=6" defer></script>
-    <script src="assets/js/map-manager.js?v=6" defer></script>
-    <script src="assets/js/map-init.js?v=6" defer></script>
+         O build.js estampa ?v=<hash do conteúdo> em todo CSS/JS próprio; os
+         Web Workers usam WORKER_CACHE_VERSION em map-manager.js e devem ser
+         incrementados quando um worker mudar. -->
+    <script src="assets/js/variables-config.js" defer></script>
+    <script src="assets/js/data-service.js" defer></script>
+    <script src="assets/js/charts-manager.js" defer></script>
+    <script src="assets/js/map-manager.js" defer></script>
+    <script src="assets/js/map-init.js" defer></script>
   </body>
 </html>

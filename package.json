@@ -9,8 +9,10 @@
   "scripts": {
     "build": "node build.js && prettier --write \"site/*.html\"",
     "build:check": "npm run build && git diff --exit-code -- \"site/*.html\"",
-    "lint": "npm run lint:js && npm run lint:css",
-    "lint:all": "npm run lint:js && npm run lint:css && npm run lint:html && npm run lint:links",
+    "lint": "npm run lint:js && npm run lint:css && npm run lint:icons && npm run lint:purge",
+    "lint:all": "npm run lint:js && npm run lint:css && npm run lint:icons && npm run lint:purge && npm run lint:html && npm run lint:links",
+    "lint:icons": "node scripts/check-fa-subset.mjs",
+    "lint:purge": "node scripts/check-bootstrap-purge.mjs",
     "lint:js": "eslint \"site/assets/js/**/*.js\"",
     "lint:css": "stylelint \"site/assets/css/**/*.css\"",
     "lint:html": "html-validate \"site/*.html\"",

@@ -98,8 +98,36 @@ ErrorDocument 404 /404.html
 
   # Bibliotecas vendorizadas (assets/vendor/**): versionadas no deploy e
   # imutáveis — cache longo e agressivo (sobrepõe as regras acima para esse
-  # caminho). <If> é do core do Apache 2.4.
-  <If "%{REQUEST_URI} =~ m#^/assets/vendor/#">
+  # caminho). <If> é do core do Apache 2.4. EXCEÇÃO: as webfonts do Font
+  # Awesome ficam na regra de 7 dias das fontes — fa-solid-900.woff2 é um
+  # SUBSET regenerável (conteúdo muda sem mudar de URL), e um ano imutável
+  # deixaria visitantes recorrentes com a fonte antiga após um resubset.
+  <If "%{REQUEST_URI} =~ m#^/assets/vendor/# && %{REQUEST_URI} !~ m#^/assets/vendor/fontawesome/webfonts/#">
     Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+
+  # Gráficos do monitoramento: regenerados NO MESMO nome de arquivo pela
+  # estação (tempo quase real) — sobrepõe a regra de 7 dias das imagens com
+  # revalidação a cada uso (304 barato via ETag/Last-Modified).
+  <If "%{REQUEST_URI} =~ m#^/assets/graphs/#">
+    Header set Cache-Control "no-cache"
+  </If>
+
+  # CSS/JS próprios com token de versão (?v=<hash de conteúdo> estampado pelo
+  # build.js): a URL muda sempre que o conteúdo muda — cache longo e imutável.
+  # Sobrepõe a regra curta de CSS/JS acima (blocos <If> aplicam por último na
+  # fusão de configuração). Os Web Workers (assets/js/workers/) ficam de fora:
+  # o token deles (WORKER_CACHE_VERSION) é manual.
+  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(css|js)$# && %{REQUEST_URI} !~ m#/workers/#">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+
+  # Dados de previsão com token de versão (?v= vindo de JSON/manifest.json):
+  # 24h em vez de 1 ano — o teto limita o estrago caso um manifest órfão
+  # continue publicado (ex.: rollback do pipeline para uma versão que não
+  # escreve manifest, com os dados sendo trocados sob os mesmos nomes). As
+  # rodadas são diárias, então 24h ainda elimina as revalidações por sessão.
+  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(json|geojson)$#">
+    Header set Cache-Control "public, max-age=86400"
   </If>
 </IfModule>
