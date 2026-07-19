@@ -38,6 +38,3 @@ site/assets/json/*.json
 .env
 .env.local
 .env.*
-
-# Notas locais de manutenção — só para leitura dos agentes, fora do versionamento
-MELHORIAS-PENDENTES.md

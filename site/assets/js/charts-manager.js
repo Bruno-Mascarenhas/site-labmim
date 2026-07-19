@@ -42,11 +42,15 @@ class ChartsManager {
       modal.addEventListener("click", (e) => {
         if (e.target === modal) this.closeModal();
       });
-    // Fecha o modal (role=dialog) com Escape quando aberto.
+    // Fecha o modal (role=dialog) com Escape e prende Tab dentro dele
+    // enquanto aberto (focus trap).
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && modal && modal.style.display === "flex") {
+      if (!modal || modal.style.display !== "flex") return;
+      if (e.key === "Escape") {
         this.closeModal();
+        return;
       }
+      if (e.key === "Tab") this._trapModalFocus(e);
     });
     window.addEventListener("labmim-theme-change", () => this.refreshChartTheme());
   }
@@ -153,9 +157,33 @@ class ChartsManager {
 
   openModal() {
     if (this.ui.modal) {
+      // Guarda a origem do foco para devolvê-lo no fechamento.
+      this._returnFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       this.ui.modal.style.display = "flex";
       // Move o foco para o botão de fechar para acessibilidade por teclado.
       if (this.ui.closeBtn) this.ui.closeBtn.focus();
+    }
+  }
+
+  // Prende Tab/Shift+Tab dentro do modal aberto (focus trap do role=dialog).
+  _trapModalFocus(event) {
+    const modal = this.ui.modal;
+    const focusables = [
+      ...modal.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"),
+    ].filter((el) => !el.disabled && el.getClientRects().length > 0);
+    if (!focusables.length) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !modal.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (active === last || !modal.contains(active))) {
+      event.preventDefault();
+      first.focus();
     }
   }
 
@@ -169,6 +197,11 @@ class ChartsManager {
       this.abortController.abort();
       this.abortController = null;
     }
+    // Devolve o foco ao elemento de origem (par do focus trap).
+    if (this._returnFocusEl && document.contains(this._returnFocusEl)) {
+      this._returnFocusEl.focus();
+    }
+    this._returnFocusEl = null;
   }
 
   renderChartsForVariable(variableType) {

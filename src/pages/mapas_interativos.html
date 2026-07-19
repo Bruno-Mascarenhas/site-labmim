@@ -86,7 +86,7 @@
 
   <!-- HEIGHT SELECTOR (Eólico) -->
   <div class="height-selector-wrapper" id="heightSelector" role="group" aria-label="Altura (m)">
-    <label>Altura (m):</label>
+    <span class="height-selector-title">Altura (m):</span>
     <div class="height-button-group">
       <button type="button" class="height-btn active" aria-pressed="true" data-height="50">50</button>
       <button type="button" class="height-btn" aria-pressed="false" data-height="100">100</button>
@@ -160,16 +160,16 @@
         </button>
       </div>
 
-      <div class="documentation-tabs">
-        <button type="button" class="doc-tab active" data-tab="overview"><i class="fas fa-map"></i> Visão Geral</button>
-        <button type="button" class="doc-tab" data-tab="features"><i class="fas fa-cogs"></i> Funcionalidades</button>
-        <button type="button" class="doc-tab" data-tab="variables"><i class="fas fa-chart-bar"></i> Variáveis</button>
-        <button type="button" class="doc-tab" data-tab="wrf"><i class="fas fa-database"></i> Dados WRF</button>
+      <div class="documentation-tabs" role="tablist" aria-label="Seções da documentação">
+        <button type="button" class="doc-tab active" role="tab" id="docTab-overview" aria-selected="true" aria-controls="docPanel-overview" data-tab="overview"><i class="fas fa-map" aria-hidden="true"></i> Visão Geral</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-features" aria-selected="false" aria-controls="docPanel-features" data-tab="features"><i class="fas fa-cogs" aria-hidden="true"></i> Funcionalidades</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-variables" aria-selected="false" aria-controls="docPanel-variables" data-tab="variables"><i class="fas fa-chart-bar" aria-hidden="true"></i> Variáveis</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-wrf" aria-selected="false" aria-controls="docPanel-wrf" data-tab="wrf"><i class="fas fa-database" aria-hidden="true"></i> Dados WRF</button>
       </div>
 
       <div class="documentation-body">
         <!-- OVERVIEW TAB -->
-        <div class="doc-tab-content active" data-tab="overview">
+        <div class="doc-tab-content active" role="tabpanel" id="docPanel-overview" aria-labelledby="docTab-overview" data-tab="overview">
           <h3>Plataforma WebGIS de Previsão Meteorológica — LabMiM / UFBA</h3>
           <div class="doc-warning">
             <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
@@ -198,7 +198,7 @@
         </div>
 
         <!-- FEATURES TAB -->
-        <div class="doc-tab-content" data-tab="features">
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-features" aria-labelledby="docTab-features" data-tab="features">
           <h3>Funcionalidades Principais</h3>
 
           <h4>⏱️ Controle Temporal</h4>
@@ -236,7 +236,7 @@
         </div>
 
         <!-- VARIABLES TAB -->
-        <div class="doc-tab-content" data-tab="variables">
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-variables" aria-labelledby="docTab-variables" data-tab="variables">
           <h3>Variáveis de Previsão</h3>
           <p class="doc-muted-copy">
             Esta página reúne variáveis meteorológicas e radiativas do WRF. Cada seção abaixo documenta a fonte,
@@ -501,7 +501,7 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
         </div>
 
         <!-- WRF TAB -->
-        <div class="doc-tab-content" data-tab="wrf">
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-wrf" aria-labelledby="docTab-wrf" data-tab="wrf">
           <h3>Origem dos Dados — Modelo WRF</h3>
 
           <div class="doc-var-card">

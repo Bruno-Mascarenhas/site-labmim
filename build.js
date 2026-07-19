@@ -226,6 +226,7 @@ function buildPage(page) {
   let html = expandPartials(layout);
   html = sub(html, "{{NAV_ITEMS}}", navItems(page.active || ""));
   html = sub(html, "{{FOOTER_NAV}}", footerNav());
+  html = sub(html, "{{YEAR}}", String(new Date().getFullYear())); // © do rodapé; na virada do ano, rodar o build
   html = sub(html, "{{WORKER_HASHES}}", workerHashes());
   html = sub(html, "{{seoHead}}", seoHead(page));
   html = sub(html, "{{title}}", attr(page.title));

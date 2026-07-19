@@ -775,7 +775,7 @@ class MeteoMapManager {
       renderer: this._canvasRenderer,
     }).setView(DEFAULT_MAP_CENTER, 6);
 
-    L.tileLayer("https://{s}.tile.osm.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap | LabMiM-UFBA",
       minZoom: 3,
       maxZoom: 15,
@@ -964,12 +964,16 @@ class MeteoMapManager {
       tab.addEventListener("click", () => {
         const tabName = tab.getAttribute("data-tab");
 
-        docTabs.forEach((t) => t.classList.remove("active"));
+        docTabs.forEach((t) => {
+          t.classList.remove("active");
+          t.setAttribute("aria-selected", "false");
+        });
         docTabContents.forEach((content) => {
           content.classList.remove("active");
         });
 
         tab.classList.add("active");
+        tab.setAttribute("aria-selected", "true");
         docTabContents.find((content) => content.dataset.tab === tabName)?.classList.add("active");
       });
     });
@@ -1646,33 +1650,39 @@ class MeteoMapManager {
         const layer = L.geoJSON(geojson, {
           renderer: this._canvasRenderer,
           style: GRID_NODATA_STYLE,
-          onEachFeature: (feature, layer) => {
+          onEachFeature: (feature) => {
             feature.properties.valor = null;
-            layer.on({
-              mouseover: () => {
-                layer.setStyle({
-                  weight: 1.2,
-                  color: "#666",
-                  fillOpacity: 0.65,
-                });
-              },
-              mouseout: () => {
-                // Restore the cell's resting style from its current state. A
-                // state-clipped cell must return to GRID_HIDDEN_STYLE; a fixed
-                // visible style would repaint it and defeat the clip. Visible
-                // (and no-data gray) cells keep their stored fillColor.
-                const hiddenByClip = this.state.isClippedToState && layer._inStateMask === false;
-                layer.setStyle(
-                  hiddenByClip
-                    ? GRID_HIDDEN_STYLE
-                    : {
-                        ...GRID_VISIBLE_STYLE,
-                        fillColor: layer.options.fillColor,
-                      }
-                );
-              },
-            });
           },
+        });
+
+        // Hover delegado no grupo (e.propagatedFrom) em vez de 2 closures por
+        // célula — são até ~9.801 células por domínio, ~63k closures com os
+        // 4 domínios em cache.
+        layer.on("mouseover", (e) => {
+          const cell = e.propagatedFrom;
+          if (!cell) return;
+          cell.setStyle({
+            weight: 1.2,
+            color: "#666",
+            fillOpacity: 0.65,
+          });
+        });
+        layer.on("mouseout", (e) => {
+          const cell = e.propagatedFrom;
+          if (!cell) return;
+          // Restore the cell's resting style from its current state. A
+          // state-clipped cell must return to GRID_HIDDEN_STYLE; a fixed
+          // visible style would repaint it and defeat the clip. Visible
+          // (and no-data gray) cells keep their stored fillColor.
+          const hiddenByClip = this.state.isClippedToState && cell._inStateMask === false;
+          cell.setStyle(
+            hiddenByClip
+              ? GRID_HIDDEN_STYLE
+              : {
+                  ...GRID_VISIBLE_STYLE,
+                  fillColor: cell.options.fillColor,
+                }
+          );
         });
 
         const layersByLinearIndex = new Map();

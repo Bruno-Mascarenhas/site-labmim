@@ -1,4 +1,4 @@
-.PHONY: help install build build-check lint lint-js lint-css lint-html lint-links format format-check fix audit serve ci
+.PHONY: help install build build-check lint lint-js lint-css lint-icons lint-purge lint-html lint-links format format-check fix audit serve ci
 
 # Default target
 help:
@@ -6,9 +6,11 @@ help:
 	@echo "  make install       - Instala as dependências do Node (npm install)"
 	@echo "  make build         - Gera as páginas HTML estáticas a partir de src/ (partials + build.js)"
 	@echo "  make build-check   - Gera e verifica se site/*.html está atualizado (usado no CI)"
-	@echo "  make lint          - Roda o linter de JS (ESLint) e CSS (Stylelint), sem alterar arquivos"
+	@echo "  make lint          - Roda ESLint, Stylelint e os checks de assets (ícones/purge)"
 	@echo "  make lint-js       - Roda apenas o linter de JS"
 	@echo "  make lint-css      - Roda apenas o linter de CSS"
+	@echo "  make lint-icons    - Verifica a cobertura do subset do Font Awesome"
+	@echo "  make lint-purge    - Verifica a cobertura do Bootstrap purgado"
 	@echo "  make format        - Formata o código fonte usando o Prettier (altera os arquivos)"
 	@echo "  make format-check  - Verifica a formatação do código fonte (usado no CI)"
 	@echo "  make fix           - Aplica automaticamente as correções do Prettier e dos linters"
@@ -33,13 +35,19 @@ lint-js:
 lint-css:
 	npm run lint:css
 
+lint-icons:
+	npm run lint:icons
+
+lint-purge:
+	npm run lint:purge
+
 lint-html:
 	npm run lint:html
 
 lint-links:
 	npm run lint:links
 
-lint: lint-js lint-css
+lint: lint-js lint-css lint-icons lint-purge
 
 format:
 	npm run format

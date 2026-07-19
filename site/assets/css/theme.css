@@ -158,10 +158,6 @@ input:focus-visible {
 .dark-theme .partner-logo,
 .dark-theme .theme-surface,
 .dark-theme .doc-warning,
-.dark-theme .video-card,
-.dark-theme .videos-container,
-.dark-theme .publication-item,
-.dark-theme .contact-info,
 .dark-theme .stat-card,
 .dark-theme .parameter-item,
 .dark-theme .variable-selector-wrapper,
@@ -188,8 +184,7 @@ input:focus-visible {
   color: var(--dark-accent) !important;
 }
 
-.dark-theme .feature-card,
-.dark-theme .project-card-modern {
+.dark-theme .feature-card {
   border-top-color: var(--dark-accent) !important;
 }
 
@@ -205,12 +200,9 @@ input:focus-visible {
 }
 
 .dark-theme .feature-card p,
-.dark-theme .alert-card p,
 .dark-theme .explanation-content p,
 .dark-theme .explanation-content li,
-.dark-theme .footer-notice p,
-.dark-theme .publication-item,
-.dark-theme .project-card-modern p {
+.dark-theme .footer-notice p {
   color: #d8dee9 !important;
 }
 
@@ -286,11 +278,10 @@ input:focus-visible {
 .dark-theme .info-label,
 .dark-theme .slider-wrapper label,
 .dark-theme .variable-selector-wrapper label,
-.dark-theme .height-selector-wrapper label,
+.dark-theme .height-selector-wrapper .height-selector-title,
 .dark-theme .domain-label,
 .dark-theme .doc-tab-content h4,
 .dark-theme .chart-modal-header h2,
-.dark-theme .chart-title,
 .dark-theme .parameter-label {
   color: var(--text-primary) !important;
 }

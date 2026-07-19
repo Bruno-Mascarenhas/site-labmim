@@ -166,6 +166,15 @@ Se a porta 8000 estiver ocupada, use outra (ex.: `python3 -m http.server 8100`).
 
 Nota: o `http.server` do Python ignora cabeçalhos `Range` (responde 200 com o corpo inteiro); o leitor de `series.bin` detecta isso e fatia localmente, então as séries funcionam igual em dev — apenas com mais bytes no fio do que em produção (Apache responde 206).
 
+## Deploy (Produção)
+
+O deploy é manual (FTP) para `labmim.if.ufba.br` (Apache 2.4 CloudLinux); código e dados são publicados de forma desacoplada. Regras aprendidas em produção:
+
+- **Publicar o site completo junto com o `.htaccess`** — nunca subir o `.htaccess` sozinho sobre uma versão antiga do site: a CSP `script-src 'self'` quebra páginas que ainda usem CDN/scripts inline.
+- **Ordem segura para mudanças de formato de dados**: (1) publicar o site novo, (2) conferir em produção, (3) atualizar o pipeline no servidor de operação e regenerar os dados — o cliente tem fallback para todos os contratos, então site novo + dados velhos funciona; o inverso não é garantido.
+- **Rollback do pipeline**: se voltar a uma versão que não escreve `manifest.json`, deletar o manifest órfão do servidor junto (um manifest órfão congela o `?v=` enquanto os bytes mudam por baixo; o `.htaccess` limita o estrago a 24 h). Os artefatos `series.bin`/`summary.json` devem ir e vir junto com o manifest que os anuncia.
+- Após publicar, conferir os cabeçalhos servidos: `curl -sI -H 'Accept-Encoding: gzip' https://labmim.if.ufba.br/GeoJSON/D01.geojson` (compressão e `Cache-Control` dependem do `.htaccess` estar ativo no host).
+
 ## Dependências Externas Em Runtime
 
 Todo o site usa **uma única versão do Bootstrap — 5.3.8 — vendorizada localmente** em `assets/vendor/bootstrap/`. As páginas carregam o CSS **purgado** (`bootstrap.purged.min.css`, ~27 KB via PurgeCSS; o `bootstrap.min.css` completo fica como fonte do purge e para o `404.html`). **Não há jQuery no projeto.** O Font Awesome 6.4.0 usa um **subset de fonte** (`fa-solid-900.woff2` com só os glifos usados, ~6 KB; ver `scripts/subset-fontawesome.md`). Bootstrap, Font Awesome, Leaflet 1.9.4, Chart.js 3.9.1 e o contorno da Bahia são todos carregados **localmente** (`assets/vendor/` e `assets/data/`) — não há CDN no caminho crítico de renderização. `leaflet.js` é carregado com `defer`. O antigo Turf.js foi removido — a máscara de recorte por estado usa um _point-in-polygon_ local em `map-manager.js`.
@@ -207,7 +216,7 @@ Também há atalhos no `Makefile`:
 ```bash
 make build         # gera as páginas a partir de src/
 make build-check   # gera e verifica se site/*.html está atualizado
-make lint          # ESLint + Stylelint (atenção: NÃO inclui lint:icons/lint:purge)
+make lint          # ESLint + Stylelint + checks de assets (ícones/purge)
 make lint-html     # html-validate
 make lint-links    # linkinator
 make format-check  # Prettier (somente verifica)
@@ -217,9 +226,9 @@ make serve         # python3 -m http.server 8000 --directory site
 make ci            # build-check + format-check + lint + lint-html + lint-links + audit
 ```
 
-> Atenção: `make ci` não roda `lint:icons`/`lint:purge`, mas o CI do GitHub roda — um `make ci` verde ainda pode falhar no CI se um ícone novo ficar fora do subset ou o purge do Bootstrap perder cobertura. Use `npm run lint` (ou `lint:all`) para o espelho fiel.
+`make ci` espelha o CI do GitHub (o alvo `lint` inclui `lint:icons` e `lint:purge`).
 
-As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, linkinator) são `devDependencies` em `package.json`. Não há dependências de runtime instaladas via npm — o site é estático e `build.js` usa apenas a biblioteca padrão do Node (o PurgeCSS roda ad-hoc via `npx`, só na regeneração do CSS purgado). O CI (`.github/workflows/ci.yml`) roda, nesta ordem: `build:check`, `lint:js`, `lint:css`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links` e `npm audit --audit-level=high`; o Dependabot (`.github/dependabot.yml`) acompanha npm e GitHub Actions semanalmente, com PRs agrupados.
+As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, linkinator) são `devDependencies` em `package.json`. Não há dependências de runtime instaladas via npm — o site é estático e `build.js` usa apenas a biblioteca padrão do Node (o PurgeCSS é devDependency e roda só na regeneração do CSS purgado). O CI (`.github/workflows/ci.yml`) roda, nesta ordem: `build:check`, `lint:js`, `lint:css`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links` e `npm audit --audit-level=high`; o Dependabot (`.github/dependabot.yml`) acompanha npm e GitHub Actions semanalmente, com PRs agrupados.
 
 ## Páginas Principais
 

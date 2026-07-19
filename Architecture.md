@@ -430,6 +430,7 @@ Ao clicar em uma célula:
 - Reutiliza instâncias Chart.js com `.update("none")`; todos os gráficos são de linha (Chart.js 3.9.1).
 - Formata rótulos e CSV com `timeZone: "UTC"` para **preservar os dígitos de horário local** das saídas WRF, consistente com o rótulo do mapa; datas de metadados são parseadas por `parseDateTime`/`_parseMetadataDate` (seguro no Safari/WebKit).
 - Exporta CSV com data, hora, latitude, longitude, domínio, variável e valores (+ coluna de produção para `solar`/`eolico`).
+- Acessibilidade do modal: ao abrir, o foco vai ao botão de fechar; Tab/Shift+Tab ficam presos dentro do modal (focus trap); Escape fecha; ao fechar, o foco volta ao elemento de origem.
 
 Para `solar` e `eolico`, o modal também exibe uma série derivada de energia (canvas `chartCanvasEnergy`), calculada por `specificInfo()` com os parâmetros customizáveis.
 
@@ -449,15 +450,15 @@ Para `solar` e `eolico`, o modal também exibe uma série derivada de energia (c
 - **Compressão**: `mod_deflate` (dentro de `mod_filter`) para HTML, CSS, JS, JSON, GeoJSON e SVG, com bloco paralelo `mod_brotli` para clientes que suportam.
 - **Segurança**: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` (geolocation/camera/microphone desligados) e **CSP** com `script-src 'self'` (sem scripts inline; JSON-LD permitido por não ser executável), `style-src 'self' 'unsafe-inline'` (atributos style do Leaflet), `img-src` liberando tiles OSM e `data:`, `frame-src https://www.google.com` (mapa da equipe) e `upgrade-insecure-requests`.
 - **Cache-Control** (cascata; blocos `<If>` aplicam por último e vencem os `FilesMatch`):
-  - `.json`/`.geojson` **sem** `?v=` → `no-cache` (nomes reutilizados a cada rodada; revalidação 304 barata).
-  - `.json`/`.geojson` **com** `?v=` → `public, max-age=86400` (24 h, não 1 ano: teto de estrago para um manifest órfão após rollback do pipeline).
+  - `.json`/`.geojson`/`.bin` **sem** `?v=` → `no-cache` (nomes reutilizados a cada rodada; revalidação 304 barata).
+  - `.json`/`.geojson`/`.bin` **com** `?v=` → `public, max-age=86400` (24 h, não 1 ano: teto de estrago para um manifest órfão após rollback do pipeline).
   - `.html` → `no-cache`.
   - `.css`/`.js` sem `?v=` → cache curto com `stale-while-revalidate`.
-  - `.css`/`.js` **com** `?v=` (hash de conteúdo do build) → `immutable` de 1 ano — exceto `assets/js/workers/`, mantidos fora enquanto existir o fallback manual `WORKER_CACHE_VERSION`.
+  - `.css`/`.js` **com** `?v=` (hash de conteúdo do build) → `immutable` de 1 ano — inclui os workers (também content-hashed; o HTML publicado é sempre o gerado).
   - `assets/vendor/**` → `immutable` de 1 ano — exceto `fontawesome/webfonts/` (o subset regenera no mesmo nome; regra de 7 dias).
   - imagens e fontes → 7 dias; `assets/graphs/` → `no-cache` (estação regenera nos mesmos nomes).
 
-Nota: `.series.bin` não casa com nenhuma regra de compressão/cache explícita (extensão `.bin`) — fica nos defaults do Apache. As leituras Range de produção dependem do suporte nativo do Apache a `Range` (206).
+Nota: `.series.bin` fica deliberadamente **fora** das listas de compressão: o `mod_deflate` não comprime respostas 206, e comprimir o corpo inteiro anularia as leituras parciais (Range, ~300 B) que o site faz nesses arquivos. As leituras Range de produção dependem do suporte nativo do Apache (206).
 
 ## Dependências Externas
 
@@ -471,7 +472,7 @@ Vendorizadas localmente (sem CDN no caminho crítico):
 
 Origens externas (fora do caminho crítico de CSS/JS):
 
-- Tiles do mapa base via OpenStreetMap (apenas páginas WebGIS; preconnect para `a/b/c.tile.osm.org`).
+- Tiles do mapa base via OpenStreetMap (apenas páginas WebGIS; host `tile.openstreetmap.org`, com preconnect no layout webgis).
 - Iframe Google My Maps em `team.html` (liberado no CSP).
 
 > O Bootstrap foi **unificado em uma única versão vendorizada (5.3.8)**; Bootstrap 4, jQuery e Popper foram **removidos**. O Turf.js também foi removido (máscara de recorte por _point-in-polygon_ local).
@@ -482,10 +483,10 @@ Dev tooling (em `package.json`, ver também `.nvmrc` = Node 24 LTS):
 - Stylelint 17 (+ `stylelint-config-standard` 40).
 - Prettier 3.9 (também roda dentro de `npm run build`; `src/` fica fora — os templates contêm tokens `{{...}}`).
 - html-validate 10 (`lint:html`, config em `.htmlvalidate.json`) e linkinator (`lint:links`, só links internos).
-- Guards de assets: `scripts/check-fa-subset.mjs` (`lint:icons`) e `scripts/check-bootstrap-purge.mjs` (`lint:purge`); PurgeCSS roda ad-hoc via `npx` com `scripts/purgecss.config.cjs`.
+- Guards de assets: `scripts/check-fa-subset.mjs` (`lint:icons`) e `scripts/check-bootstrap-purge.mjs` (`lint:purge`); PurgeCSS (devDependency) regenera o CSS purgado com `scripts/purgecss.config.cjs`.
 - CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm audit --audit-level=high`. Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, semanal, PRs agrupados).
 
-Atenção: `make lint`/`make ci` **não** rodam `lint:icons`/`lint:purge` (o CI do GitHub roda) — use `npm run lint`/`lint:all` como espelho fiel.
+`make ci` espelha o CI do GitHub — o alvo `make lint` roda ESLint, Stylelint, `lint:icons` e `lint:purge`.
 
 ## Decisões Da Refatoração
 
@@ -511,6 +512,8 @@ Rodada 2026-07-18/19 (linha do tempo por manifest — `feat/manifest-timeline-in
 - Re-checagem do manifest em sessão (15 min + foco da aba) com ressincronização completa na troca de rodada.
 - Ingestão dos artefatos consolidados: `series.bin` (série de célula via HTTP Range) e `summary.json` (resumo de domínio), com fallback para a varredura legada.
 - Cache busting por hash de conteúdo nos assets próprios e nos workers (meta `labmim-asset-hashes`), com regras `immutable` correspondentes no `.htaccess`.
+- Acessibilidade: padrão ARIA de abas na documentação do WebGIS, focus trap + devolução de foco no modal de séries, `<span>` no título do seletor de altura (era um `<label>` órfão).
+- Hover da grade delegado ao grupo Leaflet (`e.propagatedFrom`) em vez de 2 closures por célula; tiles OSM movidos para `tile.openstreetmap.org` (host canônico); regras de cache do `.htaccess` estendidas aos `.series.bin`; ano do rodapé gerado no build (`{{YEAR}}`).
 
 ## Pontos De Extensão
 

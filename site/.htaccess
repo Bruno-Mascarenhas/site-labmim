@@ -69,14 +69,17 @@ ErrorDocument 404 /404.html
   # style="display:none"). script-src permanece 'self' — sem 'unsafe-inline'/'eval'.
   # data: em img-src cobre o favicon e o ícone SVG do navbar-toggler; os hosts
   # OSM cobrem os tiles do mapa; frame-src libera o iframe do Google Maps.
-  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.osm.org https://*.tile.openstreetmap.org; font-src 'self'; connect-src 'self'; frame-src https://www.google.com; upgrade-insecure-requests"
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org https://*.tile.osm.org https://*.tile.openstreetmap.org; font-src 'self'; connect-src 'self'; frame-src https://www.google.com; upgrade-insecure-requests"
 
-  # Dados de previsão (JSON/GeoJSON): o pipeline REUTILIZA os mesmos nomes de
-  # arquivo a cada nova rodada, então o navegador nunca pode confiar em cópia
-  # antiga sem revalidar. "no-cache" permite armazenar, mas exige revalidação
-  # a cada uso — respostas 304 baratas via ETag/Last-Modified e previsões
-  # sempre atualizadas.
-  <FilesMatch "\.(json|geojson)$">
+  # Dados de previsão (JSON/GeoJSON e séries binárias .series.bin): o pipeline
+  # REUTILIZA os mesmos nomes de arquivo a cada nova rodada, então o navegador
+  # nunca pode confiar em cópia antiga sem revalidar. "no-cache" permite
+  # armazenar, mas exige revalidação a cada uso — respostas 304 baratas via
+  # ETag/Last-Modified e previsões sempre atualizadas. Os .bin ficam FORA das
+  # listas de compressão acima de propósito: mod_deflate não comprime
+  # respostas 206, e comprimir o corpo inteiro anularia as leituras parciais
+  # (Range, ~300B) que o site faz nesses arquivos.
+  <FilesMatch "\.(json|geojson|bin)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
 
@@ -116,20 +119,22 @@ ErrorDocument 404 /404.html
   # CSS/JS próprios com token de versão (?v=<hash de conteúdo> estampado pelo
   # build.js): a URL muda sempre que o conteúdo muda — cache longo e imutável.
   # Sobrepõe a regra curta de CSS/JS acima (blocos <If> aplicam por último na
-  # fusão de configuração). Os Web Workers (assets/js/workers/) ficam de fora
-  # por cautela: o build.js também os content-hasheia (meta labmim-asset-hashes),
-  # mas o fallback sem build (WORKER_CACHE_VERSION) é um token manual — manter
-  # fora do immutable enquanto esse fallback existir.
-  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(css|js)$# && %{REQUEST_URI} !~ m#/workers/#">
+  # fusão de configuração). Inclui os Web Workers: eles também são
+  # content-hashed pelo build (meta labmim-asset-hashes), e o HTML publicado é
+  # sempre o gerado (build:check exige os artefatos commitados) — o fallback
+  # manual WORKER_CACHE_VERSION só é usado ao servir o repo sem build, cenário
+  # que não passa por este Apache.
+  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(css|js)$#">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </If>
 
-  # Dados de previsão com token de versão (?v= vindo de JSON/manifest.json):
-  # 24h em vez de 1 ano — o teto limita o estrago caso um manifest órfão
-  # continue publicado (ex.: rollback do pipeline para uma versão que não
-  # escreve manifest, com os dados sendo trocados sob os mesmos nomes). As
-  # rodadas são diárias, então 24h ainda elimina as revalidações por sessão.
-  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(json|geojson)$#">
+  # Dados de previsão com token de versão (?v= vindo de JSON/manifest.json),
+  # incluindo os .series.bin: 24h em vez de 1 ano — o teto limita o estrago
+  # caso um manifest órfão continue publicado (ex.: rollback do pipeline para
+  # uma versão que não escreve manifest, com os dados sendo trocados sob os
+  # mesmos nomes). As rodadas são diárias, então 24h ainda elimina as
+  # revalidações por sessão.
+  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(json|geojson|bin)$#">
     Header set Cache-Control "public, max-age=86400"
   </If>
 </IfModule>
