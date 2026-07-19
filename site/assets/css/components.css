@@ -137,7 +137,6 @@
   text-transform: uppercase;
 }
 
-
 .sponsors-strip {
   max-width: 760px;
   margin-inline: auto;
@@ -326,7 +325,6 @@
   text-decoration: underline;
 }
 
-
 .doc-warning {
   margin-bottom: 16px;
   padding: 12px;
@@ -360,7 +358,6 @@
   overflow-y: auto;
   padding: 15px;
 }
-
 
 .chart-loading-overlay {
   position: absolute;
@@ -407,8 +404,6 @@
     max-height: 1000px;
   }
 }
-
-
 
 @media (width <= 768px) {
   .partners-grid {

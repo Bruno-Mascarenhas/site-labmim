@@ -27,10 +27,7 @@ function fetchManifest() {
 // from delaying the FIRST DATA LOAD — map construction and all control
 // listeners never wait for it (see below).
 const manifestFetch = fetchManifest();
-const manifestPromise = Promise.race([
-  manifestFetch,
-  new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
-]);
+const manifestPromise = Promise.race([manifestFetch, new Promise((resolve) => setTimeout(() => resolve(null), 3000))]);
 
 document.addEventListener("DOMContentLoaded", () => {
   // Construct immediately: the map, Play/slider/domain/variable listeners

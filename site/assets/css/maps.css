@@ -2134,7 +2134,6 @@ header.maps-header {
     max-height: none;
     overflow: visible;
   }
-
 }
 
 @media (width <= 560px) {
