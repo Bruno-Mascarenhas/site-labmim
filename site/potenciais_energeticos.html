@@ -744,8 +744,9 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
 
     <!-- Configuração de variáveis + serviço de dados + gráficos + mapa.
          O build.js estampa ?v=<hash do conteúdo> em todo CSS/JS próprio; os
-         Web Workers usam WORKER_CACHE_VERSION em map-manager.js e devem ser
-         incrementados quando um worker mudar. -->
+         Web Workers recebem hash pela <meta name="labmim-asset-hashes">
+         (lida por workerScriptUrl em map-manager.js; WORKER_CACHE_VERSION
+         é apenas o fallback quando o build não rodou). -->
     <script src="assets/js/variables-config.js?v=8d7990d1" defer></script>
     <script src="assets/js/data-service.js?v=32732b7c" defer></script>
     <script src="assets/js/charts-manager.js?v=058510ed" defer></script>

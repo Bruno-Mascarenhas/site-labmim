@@ -116,8 +116,10 @@ ErrorDocument 404 /404.html
   # CSS/JS próprios com token de versão (?v=<hash de conteúdo> estampado pelo
   # build.js): a URL muda sempre que o conteúdo muda — cache longo e imutável.
   # Sobrepõe a regra curta de CSS/JS acima (blocos <If> aplicam por último na
-  # fusão de configuração). Os Web Workers (assets/js/workers/) ficam de fora:
-  # o token deles (WORKER_CACHE_VERSION) é manual.
+  # fusão de configuração). Os Web Workers (assets/js/workers/) ficam de fora
+  # por cautela: o build.js também os content-hasheia (meta labmim-asset-hashes),
+  # mas o fallback sem build (WORKER_CACHE_VERSION) é um token manual — manter
+  # fora do immutable enquanto esse fallback existir.
   <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(css|js)$# && %{REQUEST_URI} !~ m#/workers/#">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </If>
