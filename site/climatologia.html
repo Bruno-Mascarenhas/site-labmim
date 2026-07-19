@@ -7,6 +7,9 @@
       name="description"
       content="LabMiM — Climatologia: análise climática da Região Metropolitana de Salvador e Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
     />
+    <!-- Content hashes of the Web Workers (stamped by build.js): map-manager.js
+     builds worker URLs from these so worker edits cache-bust automatically. -->
+    <meta name="labmim-asset-hashes" content="color-calc.worker.js:2936a3e1;json-parser.worker.js:f8327a15" />
     <title>LabMiM — Climatologia · UFBA</title>
 
     <!-- SEO: canonical + Open Graph + Twitter (gerado por build.js a partir de PROD) -->
@@ -56,13 +59,13 @@
     <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
 
     <!-- LabMiM modular CSS -->
-    <link rel="stylesheet" href="assets/css/base.css?v=95c15a43" />
-    <link rel="stylesheet" href="assets/css/layout.css?v=63bd6ac3" />
-    <link rel="stylesheet" href="assets/css/components.css?v=20619319" />
-    <link rel="stylesheet" href="assets/css/theme.css?v=e05c40cf" />
+    <link rel="stylesheet" href="assets/css/base.css?v=79a43496" />
+    <link rel="stylesheet" href="assets/css/layout.css?v=9d955cf4" />
+    <link rel="stylesheet" href="assets/css/components.css?v=99b3bc73" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=5037cd63" />
 
     <script src="assets/js/theme-boot.js?v=6fe47826"></script>
-    <script src="assets/js/theme-toggle.js?v=ee2d3a01" defer></script>
+    <script src="assets/js/theme-toggle.js?v=5d8061cc" defer></script>
     <script src="assets/js/ui-shell.js?v=482aa431" defer></script>
   </head>
 
@@ -120,12 +123,12 @@
 
           <button
             type="button"
-            id="themeToggleBtn"
             class="btn btn-outline-light me-3"
             title="Alternar Tema"
+            data-theme-toggle
             aria-label="Alternar Tema"
           >
-            <i id="themeIcon" class="fas fa-moon" aria-hidden="true"></i>
+            <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
           <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
             <picture>

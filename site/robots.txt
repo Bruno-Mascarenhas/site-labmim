@@ -6,4 +6,3 @@ Sitemap: https://labmim.if.ufba.br/sitemap.xml
 # Dados gerados pelo pipeline externo — sem valor de SEO e potencialmente grandes.
 Disallow: /JSON/
 Disallow: /GeoJSON/
-Disallow: /figuras/

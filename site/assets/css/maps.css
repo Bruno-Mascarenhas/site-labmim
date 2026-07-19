@@ -148,10 +148,6 @@ header.maps-header {
   color: var(--map-accent-2);
 }
 
-.sidebar-overlay {
-  display: none;
-}
-
 /* FLOATING CLOSE BUTTON (Botão flutuante no canto) */
 .sidebar-content {
   flex: 1;
@@ -437,7 +433,7 @@ header.maps-header {
   display: flex;
 }
 
-.height-selector-wrapper label {
+.height-selector-wrapper .height-selector-title {
   font-weight: 600;
   color: #555;
   font-size: 0.9rem;
@@ -901,42 +897,6 @@ header.maps-header {
     box-shadow: 0 2px 8px rgba(var(--map-accent-rgb), 0.4) !important;
   }
 
-  /* Lab Button - Mostrado em mobile no topo-direito */
-  .lab-btn-container {
-    display: flex !important;
-    position: fixed !important;
-    top: 8px !important;
-    right: 50px !important;
-    left: auto !important;
-    z-index: var(--z-controls-bar) !important;
-    align-items: center !important;
-    justify-content: center !important;
-    pointer-events: none !important;
-  }
-
-  .lab-btn {
-    width: 56px !important;
-    height: 56px !important;
-    border-radius: 0 !important;
-    background: none !important;
-    color: white !important;
-    border: none !important;
-    cursor: pointer !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-shadow: none !important;
-    text-decoration: none !important;
-  }
-
-  .lab-logo-img {
-    width: 90% !important;
-    height: 90% !important;
-    object-fit: contain !important;
-    transform: scale(3) !important;
-    padding: 0 !important;
-  }
-
   /* Height Selector - Reposicionado em mobile e compacto */
   .height-selector-wrapper {
     position: fixed !important;
@@ -946,7 +906,7 @@ header.maps-header {
     z-index: var(--z-controls) !important;
   }
 
-  .height-selector-wrapper label {
+  .height-selector-wrapper .height-selector-title {
     font-size: 0.75rem !important;
   }
 
@@ -1014,20 +974,6 @@ header.maps-header {
     margin: 8px 0;
   }
 
-  .chart-header {
-    padding-bottom: 8px;
-    margin-bottom: 8px;
-  }
-
-  .chart-canvas-wrapper {
-    height: 200px;
-  }
-
-  .chart-title {
-    font-size: 0.75rem;
-  }
-
-  .chart-expand-btn,
   .chart-export-btn {
     font-size: 0.65rem;
     padding: 4px 8px;
@@ -1053,24 +999,7 @@ header.maps-header {
     font-size: 0.9rem;
   }
 
-  /* Logo e Documentação no topo/canto */
-  .lab-btn-container {
-    top: 8px !important;
-    right: 50px !important;
-    left: auto !important;
-    z-index: var(--z-sidebar-elevated) !important;
-    pointer-events: none !important;
-    position: fixed !important;
-  }
-
-  .lab-logo-img {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: contain !important;
-    transform: scale(3) !important;
-    padding: 0 !important;
-  }
-
+  /* Documentação no topo/canto */
   .documentation-btn-container {
     position: fixed !important;
     inset: auto 8px 115px auto !important;
@@ -1245,10 +1174,6 @@ header.maps-header {
     font-size: 0.9rem;
   }
 
-  .chart-canvas-wrapper {
-    height: 180px;
-  }
-
   /* Height Selector - Ajuste ultra-mobile */
   .height-selector-wrapper {
     position: fixed !important;
@@ -1258,7 +1183,7 @@ header.maps-header {
     z-index: var(--z-sidebar-elevated) !important;
   }
 
-  .height-selector-wrapper label {
+  .height-selector-wrapper .height-selector-title {
     font-size: 0.65rem !important;
   }
 
@@ -1398,27 +1323,6 @@ header.maps-header {
   animation: slideIn 0.3s ease;
 }
 
-/* SPINNER LOADING */
-.loading-spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid #f3f3f3;
-  border-top: 2px solid var(--map-accent);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 /* PARAMETERS EDITOR */
 .parameters-editor {
   background: linear-gradient(135deg, #f5f7fa 0%, #e8f0ff 100%);
@@ -1539,48 +1443,6 @@ header.maps-header {
 .reset-parameters-btn:hover {
   background: #f8f9fa;
   border-color: var(--map-accent);
-}
-
-/* LAB BUTTON */
-.lab-btn-container {
-  position: fixed;
-  top: 40px;
-  right: 130px;
-  z-index: var(--z-controls);
-}
-
-.lab-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 0;
-  background: none;
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: none;
-  transition: all 0.3s ease;
-  text-decoration: none;
-}
-
-.lab-btn:hover {
-  transform: scale(1.05);
-  box-shadow: none;
-  text-decoration: none;
-}
-
-.lab-btn:active {
-  transform: scale(0.95);
-}
-
-.lab-logo-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 0;
-  transform: scale(5);
 }
 
 /* DOCUMENTATION BUTTON */
@@ -2254,13 +2116,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  .height-selector-wrapper.active {
-    position: static;
-    order: 3;
-    margin: 8px 10px 0;
-    justify-content: center;
-  }
-
   .variable-overview-panel {
     position: static;
     order: 4;
@@ -2278,10 +2133,6 @@ header.maps-header {
   .variable-overview-body {
     max-height: none;
     overflow: visible;
-  }
-
-  .documentation-btn-container {
-    bottom: 16px !important;
   }
 }
 
@@ -2342,36 +2193,6 @@ header.maps-header {
   animation: slideIn 0.3s ease;
 }
 
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.chart-title {
-  font-weight: 600;
-  color: #333;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.chart-title i {
-  color: var(--map-accent);
-  font-size: 1.1rem;
-}
-
-.chart-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.chart-expand-btn,
 .chart-export-btn {
   padding: 6px 12px;
   border: 1px solid #ddd;
@@ -2388,21 +2209,10 @@ header.maps-header {
   white-space: nowrap;
 }
 
-.chart-expand-btn:hover,
 .chart-export-btn:hover {
   background: #f8f9fa;
   border-color: var(--map-accent);
   color: var(--map-accent-2);
-}
-
-.chart-canvas-wrapper {
-  position: relative;
-  height: 280px;
-  margin: 12px 0;
-}
-
-.chart-canvas-wrapper canvas {
-  max-height: 280px;
 }
 
 /* MODAL DE GRÁFICO EXPANDIDO */
@@ -2504,63 +2314,15 @@ header.maps-header {
   }
 }
 
-.chart-no-data {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-  font-size: 0.9rem;
-}
-
-.chart-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  color: var(--map-accent);
-  font-size: 0.9rem;
-}
-
-.chart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
-  font-size: 0.85rem;
-}
-
-.chart-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.chart-legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-}
-
 @media (width <= 768px) {
   .chart-container {
     padding: 12px;
     margin: 10px 0;
   }
 
-  .chart-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
   .chart-export-btn {
     width: 100%;
     justify-content: center;
-  }
-
-  .chart-canvas-wrapper {
-    height: 250px;
   }
 
   .colorbar-container {

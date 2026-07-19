@@ -3,8 +3,25 @@
  */
 
 const PLAYBACK_INTERVAL_MS = 800;
-const WORKER_CACHE_VERSION = "7";
+// Timeline length when no v2 manifest provides one (historical pipeline).
+const DEFAULT_MAX_LAYER = 73;
 const PREFETCH_AHEAD_STEPS = 2;
+
+function workerScriptUrl(fileName) {
+  if (!workerScriptUrl._hashes) {
+    const hashes = {};
+    const meta = document.querySelector('meta[name="labmim-asset-hashes"]');
+    (meta?.content || "").split(";").forEach((pair) => {
+      const [name, hash] = pair.split(":");
+      if (name && hash) hashes[name.trim()] = hash.trim();
+    });
+    workerScriptUrl._hashes = hashes;
+  }
+  const version = workerScriptUrl._hashes[fileName];
+  // Sem hash (HTML sem build): URL sem ?v= — um token fixo seria congelado
+  // como immutable pela regra do .htaccess e prenderia um worker antigo.
+  return version ? `assets/js/workers/${fileName}?v=${encodeURIComponent(version)}` : `assets/js/workers/${fileName}`;
+}
 const DEFAULT_MAP_CENTER = [-12.97, -38.5];
 const DOMAIN_CONFIG = {
   D01: { label: "BA/NE", center: DEFAULT_MAP_CENTER, zoom: 5.5 },
@@ -73,13 +90,14 @@ function pointInGeoJsonFeature(lng, lat, feature) {
 }
 
 class MeteoMapManager {
-  constructor(options = {}) {
-    this.mapContext = this.resolveMapContext(options.context);
+  constructor() {
+    this.mapContext = this.resolveMapContext();
     this.contextConfig = VARIABLE_CONTEXTS[this.mapContext] || VARIABLE_CONTEXTS.forecast;
-    // Pipeline run version from JSON/manifest.json (resolved by map-init):
-    // appended as ?v= to every data URL so the server can cache the
-    // fixed-name data files long-term. Null (no manifest) keeps plain URLs.
-    this.dataVersion = typeof options.dataVersion === "string" && options.dataVersion ? options.dataVersion : null;
+    // Pipeline run version from JSON/manifest.json (adopted via applyManifest
+    // once map-init resolves the manifest): appended as ?v= to every data URL
+    // so the server can cache the fixed-name data files long-term. Null (no
+    // manifest) keeps plain URLs.
+    this.dataVersion = null;
     this.map = null;
     this.currentGeoJsonLayer = null;
     this.currentValueData = null;
@@ -92,15 +110,25 @@ class MeteoMapManager {
     this.gridLayers = {};
     this._gridLayerPromises = new Map();
     this.dataService = new LabmimDataService({
-      workerUrl: `assets/js/workers/json-parser.worker.js?v=${WORKER_CACHE_VERSION}`,
+      workerUrl: workerScriptUrl("json-parser.worker.js"),
     });
+
+    // Timeline contract from a v2 manifest (applyManifest). Until one
+    // arrives the hardcoded defaults below mirror the historical pipeline.
+    this.timeline = {
+      indexMin: 1,
+      indexMax: null,
+      availability: null,
+      features: null,
+      startLocal: null,
+    };
 
     this._colorWorker = null;
     this._colorRequestId = 0;
     this._pendingColorRequest = null;
     this._windRequestKey = null;
     try {
-      this._colorWorker = new Worker(`assets/js/workers/color-calc.worker.js?v=${WORKER_CACHE_VERSION}`);
+      this._colorWorker = new Worker(workerScriptUrl("color-calc.worker.js"));
       const onColorWorkerFailure = (event) => {
         console.warn("Color worker failed, falling back to main thread:", event?.message || event);
         try {
@@ -136,10 +164,9 @@ class MeteoMapManager {
       hasUserControlledPlayback: false,
       isClippedToState: false,
       stateAbbr: "BA",
-      maxLayer: 73,
+      maxLayer: DEFAULT_MAX_LAYER,
       initialDateTime: null,
       initialIndex: null,
-      dateTimePattern: null,
       intervalId: null,
       selectedCell: null,
     };
@@ -151,8 +178,8 @@ class MeteoMapManager {
     this.loadCustomParameters();
   }
 
-  resolveMapContext(explicitContext) {
-    const context = explicitContext || document.body?.dataset?.mapContext || "forecast";
+  resolveMapContext() {
+    const context = document.body?.dataset?.mapContext || "forecast";
     return VARIABLE_CONTEXTS[context] ? context : "forecast";
   }
 
@@ -168,14 +195,18 @@ class MeteoMapManager {
     return this.contextConfig.variables.filter((variableType) => VARIABLES_CONFIG[variableType]);
   }
 
+  /**
+   * The variables the sidebar actually consumes for the current selection:
+   * the active variable plus the companions its specificInfo reads
+   * (declared per-variable as `relatedVariables` in VARIABLES_CONFIG).
+   * Fetching every visible variable here made each map click download ~10
+   * full-domain files to display at most three numbers.
+   */
   getRelatedVariableTypes() {
-    const variables = new Set(this.getVisibleVariableTypes());
-    if (this.state.type === "solar" || this.state.type === "eolico") {
-      variables.add("temperature");
-    }
-    if (this.state.type === "windPowerDensity") {
-      variables.add("wind");
-    }
+    const variables = new Set([this.state.type]);
+    (VARIABLES_CONFIG[this.state.type]?.relatedVariables || []).forEach((variableType) => {
+      if (VARIABLES_CONFIG[variableType]) variables.add(variableType);
+    });
     return [...variables];
   }
 
@@ -198,6 +229,162 @@ class MeteoMapManager {
     return this.dataVersion ? `${path}?v=${encodeURIComponent(this.dataVersion)}` : path;
   }
 
+  /** Single source of the per-timestep value JSON path convention. */
+  valuesJsonPath(domain, variableId, index) {
+    return `JSON/${domain}_${variableId}_${String(index).padStart(3, "0")}.json`;
+  }
+
+  /**
+   * Adopts a pipeline manifest: run version for ?v= URLs and, when the v2
+   * fields are present, the timeline contract — step range, per-variable
+   * availability and consolidated-artifact descriptors — replacing the
+   * hardcoded defaults that would otherwise have to be edited in lockstep
+   * with every pipeline change (longer runs, new gated variables).
+   */
+  applyManifest(manifest) {
+    if (typeof manifest?.version === "string" && manifest.version) {
+      this.dataVersion = manifest.version;
+    }
+
+    if (Number.isInteger(manifest?.index_max) && manifest.index_max >= 1) {
+      this.timeline.indexMax = manifest.index_max;
+      this.timeline.indexMin = Number.isInteger(manifest.index_min) ? Math.max(1, manifest.index_min) : 1;
+      // One playback loop (values + wind overlay) plus an open modal must
+      // stay resident; scale with the timeline instead of thrashing at 121+.
+      this.dataService.ensureCacheLimit(Math.ceil(manifest.index_max * 5.5));
+    } else {
+      // A v1 manifest (or a rollback) carries no timeline: the previous
+      // run's longer range must not survive it.
+      this.timeline.indexMax = null;
+      this.timeline.indexMin = 1;
+    }
+    this.state.maxLayer = this.timeline.indexMax ?? DEFAULT_MAX_LAYER;
+    if (this.ui.slider) {
+      this.ui.slider.max = String(this.state.maxLayer);
+      if (parseInt(this.ui.slider.value, 10) > this.state.maxLayer) {
+        this.ui.slider.value = String(this.state.maxLayer);
+        this.state.index = this.state.maxLayer;
+      }
+    }
+
+    this.timeline.availability =
+      manifest?.availability && typeof manifest.availability === "object" ? manifest.availability : null;
+    this.timeline.features = manifest?.features && typeof manifest.features === "object" ? manifest.features : null;
+
+    // Anchor the date labels to the run start instead of waiting for the
+    // first loaded file's metadata. start_local is the local datetime of
+    // FILE INDEX 0 (the wrfout's first time step) — always paired with
+    // initialIndex 0, never with index_min (which is merely the first index
+    // the run wrote; skip-first runs have index_min > 0).
+    if (typeof manifest?.start_local === "string") {
+      try {
+        const parsed = this.parseDateTime(manifest.start_local);
+        if (parsed instanceof Date && !isNaN(parsed)) {
+          this.timeline.startLocal = manifest.start_local;
+          this.state.initialDateTime = parsed;
+          this.state.initialIndex = 0;
+        }
+      } catch {
+        /* older manifest or malformed date: keep the file-metadata anchor */
+      }
+    }
+
+    this.updateDateTime();
+  }
+
+  /**
+   * A manifest re-check found a manifest whose version differs from the one
+   * this session runs on. First manifest of the session (slow first fetch):
+   * adopt it in place. Genuinely NEW run under the same fixed file names:
+   * drop every cache keyed on the old bytes (parsed JSON, chart series,
+   * grid layers), close views built from them, re-anchor the timeline and
+   * repaint. No-op while the version is unchanged.
+   */
+  handleManifestUpdate(manifest, chartsManagerInstance = this.chartsManager) {
+    if (!manifest?.version) return;
+    if (!this.dataVersion) {
+      // Session ran unversioned so far — same run, just late; no cache nuke.
+      this.applyManifest(manifest);
+      this.applyMapChanges();
+      return;
+    }
+    if (manifest.version === this.dataVersion) return;
+
+    this.dataService.clear();
+    chartsManagerInstance?.clearCaches?.();
+    // The open modal/sidebar describe the previous run's series and cell
+    // values; closing beats silently showing yesterday's forecast next to
+    // today's map.
+    chartsManagerInstance?.closeModal?.();
+    this.closeSidebar();
+    // Grid geometry can change between runs (re-gridded domain): rebuild
+    // layers from the new run's files. The generation token keeps an
+    // in-flight old-run grid fetch from repopulating the cache after it.
+    this.gridLayers = {};
+    this._gridLayerPromises.clear();
+    this._gridGeneration = (this._gridGeneration || 0) + 1;
+
+    this.state.initialDateTime = null;
+    this.state.initialIndex = null;
+    this.applyManifest(manifest);
+
+    // The paused position may not exist in the new run's timeline.
+    if (!this.isIndexAvailable(this.state.index)) {
+      const next = this.nextPlayableIndex(this.state.index);
+      this.state.index = next;
+      if (this.ui.slider) this.ui.slider.value = String(next);
+    }
+    this.applyMapChanges();
+    this.scheduleVariablePreviewRefresh();
+  }
+
+  /**
+   * Whether the pipeline exports this variable at this timestep. Prefers the
+   * manifest's availability ranges (derived from the files actually
+   * written); the legacy fallback derives SWDOWN's daylight window from the
+   * forecast anchor (6h-18h local), and optimistically allows the index when
+   * no anchor is known yet — a miss is a handled 404, never a wrong blank.
+   */
+  isIndexAvailable(index, type = this.state.type) {
+    const config = VARIABLES_CONFIG[type];
+    if (!config) return true;
+
+    // A v2 manifest bounds the whole timeline (skip-first runs start above
+    // index 1); variables absent from `availability` cover that full range.
+    if (this.timeline.indexMax !== null && (index < this.timeline.indexMin || index > this.timeline.indexMax)) {
+      return false;
+    }
+
+    const ranges = this.timeline.availability?.[this.getVariableId(type)];
+    if (Array.isArray(ranges)) {
+      return ranges.some((range) => index >= range[0] && index <= range[1]);
+    }
+
+    if (config.id !== "SWDOWN") return true;
+    const date = this.calculateTargetDateFromIndex(index);
+    if (!date) return true;
+    const hour = date.getUTCHours();
+    return hour >= 6 && hour <= 18;
+  }
+
+  /**
+   * First index with data at or after `from`, wrapping past maxLayer to 1.
+   * Returns `from` unchanged when everything up to a full lap is
+   * unavailable (the load path then shows the honest no-data state).
+   */
+  nextPlayableIndex(from, type = this.state.type) {
+    const maxLayer = this.state.maxLayer;
+    const minIndex = this.timeline.indexMin;
+    const start = from > maxLayer || from < minIndex ? minIndex : from;
+    let index = start;
+    for (let hops = 0; hops <= maxLayer; hops++) {
+      if (index > maxLayer) index = minIndex;
+      if (this.isIndexAvailable(index, type)) return index;
+      index += 1;
+    }
+    return start;
+  }
+
   getVariableId(variableType) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return null;
@@ -215,26 +402,19 @@ class MeteoMapManager {
     if ([50, 100, 150].includes(height)) {
       this.windHeight = height;
       if (this.state.type === "eolico") {
-        const selectedCell = this.state.selectedCell;
-        if (selectedCell) {
-          this.applyMapChanges().then(() => {
-            // The selection may have been cleared while the data was loading.
-            if (!this.state.selectedCell) return;
-            this.handleMapClick({
-              latlng: L.latLng(selectedCell.lat, selectedCell.lng),
-            }).catch(() => this.closeSidebar());
-          });
-        } else {
-          this.applyMapChanges();
-        }
+        this._applyMapChangesReselecting(this.state.selectedCell);
+        // The overview panel summarizes the height-resolved variable
+        // (POT_EOLICO_50M/100M/150M) — refresh it, or its chart and stats
+        // keep describing the previous hub height under the new map.
+        this.scheduleVariablePreviewRefresh();
       }
     }
   }
 
   loadCustomParameters() {
     try {
-      const saved = localStorage.getItem("meteoMapCustomParameters");
-      this.customParameters = saved ? JSON.parse(saved) : {};
+      const saved = JSON.parse(localStorage.getItem("meteoMapCustomParameters"));
+      this.customParameters = saved && typeof saved === "object" ? saved : {};
     } catch (e) {
       console.warn("Error loading custom parameters:", e);
       this.customParameters = {};
@@ -242,11 +422,6 @@ class MeteoMapManager {
   }
 
   getCustomParameter(variableType, paramName) {
-    if (!this.customParameters) {
-      this.customParameters = {};
-      return null;
-    }
-
     const key = `${variableType}_${paramName}`;
     const customValue = this.customParameters[key];
 
@@ -261,10 +436,6 @@ class MeteoMapManager {
   }
 
   setCustomParameter(variableType, paramName, value) {
-    if (!this.customParameters) {
-      this.customParameters = {};
-    }
-
     const key = `${variableType}_${paramName}`;
 
     if (value === null || value === undefined || value === "") {
@@ -281,21 +452,13 @@ class MeteoMapManager {
 
     try {
       localStorage.setItem("meteoMapCustomParameters", JSON.stringify(this.customParameters));
-
-      if (typeof chartsManager !== "undefined" && chartsManager) {
-        chartsManager.reloadChartsWithNewParameters();
-      }
+      this.chartsManager?.reloadChartsWithNewParameters();
     } catch (e) {
       console.warn("Error saving parameters to localStorage:", e);
     }
   }
 
   resetCustomParameters(variableType) {
-    if (!this.customParameters) {
-      this.customParameters = {};
-      return;
-    }
-
     const prefix = `${variableType}_`;
     Object.keys(this.customParameters).forEach((key) => {
       if (key.startsWith(prefix)) {
@@ -305,10 +468,7 @@ class MeteoMapManager {
 
     try {
       localStorage.setItem("meteoMapCustomParameters", JSON.stringify(this.customParameters));
-
-      if (typeof chartsManager !== "undefined" && chartsManager) {
-        chartsManager.reloadChartsWithNewParameters();
-      }
+      this.chartsManager?.reloadChartsWithNewParameters();
     } catch (e) {
       console.warn("Error saving parameters to localStorage:", e);
     }
@@ -362,10 +522,6 @@ class MeteoMapManager {
 
     if (params.length === 0) {
       return "";
-    }
-
-    if (!this.customParameters) {
-      this.customParameters = {};
     }
 
     let html = `
@@ -527,19 +683,8 @@ class MeteoMapManager {
     this.updateSidebarSpecificInfo(specificInfo);
   }
 
-  updateSidebarSpecificInfo(specificInfo) {
-    const sidebarContent = this.ui.sidebarContent || document.getElementById("sidebarContent");
-    const existingSpecific = sidebarContent.querySelector(".variable-specific");
-
-    if (!existingSpecific) return;
-
-    const existingEditor = existingSpecific.querySelector(".parameters-editor");
-    let wasEditorOpen = false;
-    if (existingEditor) {
-      const existingList = existingEditor.querySelector(".parameters-list");
-      wasEditorOpen = existingList && existingList.classList.contains("active");
-    }
-
+  /** Inner HTML of the variable-specific sidebar section (title, stat cards, parameters editor). */
+  _specificInfoHtml(specificInfo) {
     let html = `
             <div class="info-section-title">
                 <i class="fas fa-bolt"></i> ${specificInfo.title}
@@ -560,10 +705,23 @@ class MeteoMapManager {
             `;
     });
 
-    const editorHTML = this.createParametersEditor(this.state.type);
-    html += editorHTML;
+    return html + this.createParametersEditor(this.state.type);
+  }
 
-    existingSpecific.innerHTML = html;
+  updateSidebarSpecificInfo(specificInfo) {
+    const sidebarContent = this.ui.sidebarContent || document.getElementById("sidebarContent");
+    const existingSpecific = sidebarContent.querySelector(".variable-specific");
+
+    if (!existingSpecific) return;
+
+    const existingEditor = existingSpecific.querySelector(".parameters-editor");
+    let wasEditorOpen = false;
+    if (existingEditor) {
+      const existingList = existingEditor.querySelector(".parameters-list");
+      wasEditorOpen = existingList && existingList.classList.contains("active");
+    }
+
+    existingSpecific.innerHTML = this._specificInfoHtml(specificInfo);
 
     if (wasEditorOpen) {
       const newList = existingSpecific.querySelector(".parameters-list");
@@ -587,7 +745,7 @@ class MeteoMapManager {
       renderer: this._canvasRenderer,
     }).setView(DEFAULT_MAP_CENTER, 6);
 
-    L.tileLayer("https://{s}.tile.osm.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap | LabMiM-UFBA",
       minZoom: 3,
       maxZoom: 15,
@@ -626,7 +784,6 @@ class MeteoMapManager {
   setupWindCanvas() {
     const canvas = document.getElementById("windVectorCanvas");
     if (canvas) {
-      this.ui.windCanvas = canvas;
       if (!this.windCanvasUpdateHandler) {
         this.windCanvasUpdateHandler = () => {
           // With the overlay off the canvas is already blank and
@@ -660,18 +817,7 @@ class MeteoMapManager {
     this.configureVariableSelect();
 
     const _debouncedSliderApply = _debounce(() => {
-      const selectedCell = this.state.selectedCell;
-      if (selectedCell && !this.state.isPlaying) {
-        this.applyMapChanges().then(() => {
-          // The selection may have been cleared while the data was loading.
-          if (!this.state.selectedCell) return;
-          this.handleMapClick({
-            latlng: L.latLng(selectedCell.lat, selectedCell.lng),
-          }).catch(() => this.closeSidebar());
-        });
-      } else {
-        this.applyMapChanges();
-      }
+      this._applyMapChangesReselecting(this.state.isPlaying ? null : this.state.selectedCell);
     }, 100);
 
     this.ui.slider.addEventListener("input", (e) => {
@@ -772,17 +918,35 @@ class MeteoMapManager {
       }
     });
 
-    docTabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        const tabName = tab.getAttribute("data-tab");
+    const selectTab = (tab) => {
+      const tabName = tab.getAttribute("data-tab");
 
-        docTabs.forEach((t) => t.classList.remove("active"));
-        docTabContents.forEach((content) => {
-          content.classList.remove("active");
-        });
+      docTabs.forEach((t) => {
+        const isSelected = t === tab;
+        t.classList.toggle("active", isSelected);
+        t.setAttribute("aria-selected", String(isSelected));
+        // Roving tabindex do padrão ARIA de abas: só a aba ativa é tab-stop.
+        t.setAttribute("tabindex", isSelected ? "0" : "-1");
+      });
+      docTabContents.forEach((content) => {
+        content.classList.toggle("active", content.dataset.tab === tabName);
+      });
+    };
 
-        tab.classList.add("active");
-        docTabContents.find((content) => content.dataset.tab === tabName)?.classList.add("active");
+    docTabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => selectTab(tab));
+      tab.addEventListener("keydown", (e) => {
+        const n = docTabs.length;
+        let next = null;
+        if (e.key === "ArrowRight") next = docTabs[(i + 1) % n];
+        else if (e.key === "ArrowLeft") next = docTabs[(i - 1 + n) % n];
+        else if (e.key === "Home") next = docTabs[0];
+        else if (e.key === "End") next = docTabs[n - 1];
+        if (next) {
+          e.preventDefault();
+          next.focus();
+          selectTab(next);
+        }
       });
     });
 
@@ -794,7 +958,7 @@ class MeteoMapManager {
   }
 
   setupVariableOverview(chartsManagerInstance) {
-    this.variableOverviewCharts = chartsManagerInstance;
+    this.chartsManager = chartsManagerInstance;
     this.ui.variableOverviewPanel = document.getElementById("variableOverviewPanel");
     this.ui.variableOverviewToggle = document.getElementById("variableOverviewToggle");
     this.ui.variableCardsGrid = document.getElementById("variableCardsGrid");
@@ -908,10 +1072,10 @@ class MeteoMapManager {
     this.updateVariableGuideSelection(variableType);
     this.updateVariablePreviewShell(variableType);
 
-    if (!this.variableOverviewCharts || !this.ui.variableOverviewPanel) return;
+    if (!this.chartsManager || !this.ui.variableOverviewPanel) return;
     if (this.ui.variableOverviewPanel.classList.contains("is-collapsed")) return;
 
-    this.variableOverviewCharts.renderDomainSummary(variableType, this.state.domain, {
+    this.chartsManager.renderDomainSummary(variableType, this.state.domain, {
       canvasId: "variablePreviewCanvas",
       statsContainer: this.ui.variablePreviewStats,
       titleElement: this.ui.variablePreviewTitle,
@@ -959,11 +1123,8 @@ class MeteoMapManager {
   }
 
   updateDateTime() {
-    const config = VARIABLES_CONFIG[this.state.type];
-    const hour = (this.state.index - 1) % 24;
-
     if (this.ui.layerLabel) {
-      const hasData = !(config.id === "SWDOWN" && (hour < 6 || hour > 18));
+      const hasData = this.isIndexAvailable(this.state.index);
       const targetDate = this.calculateTargetDateFromIndex(this.state.index);
       this.ui.layerLabel.textContent = this.formatForecastDateTimeLabel(targetDate, hasData);
     }
@@ -996,9 +1157,11 @@ class MeteoMapManager {
     if (hasData) {
       return `${year}-${month}-${day} · ${hours}:${minutes} UTC−03:00`;
     } else {
+      // Generic wording: availability gaps are not only night hours (e.g.
+      // skip-first spin-up steps a v2 manifest marks unavailable).
       const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
       const monthStr = months[monthIndex];
-      return `${day} ${monthStr} ${year} · ${hours}:${minutes} UTC−03:00 — sem dados noturnos`;
+      return `${day} ${monthStr} ${year} · ${hours}:${minutes} UTC−03:00 — sem dados neste horário`;
     }
   }
 
@@ -1014,7 +1177,6 @@ class MeteoMapManager {
       this.startAnimation();
     } else {
       if (!this.state.isPlaying && !this.state.intervalId) return;
-      this.ui.playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
       this.stopAnimation();
     }
   }
@@ -1053,23 +1215,9 @@ class MeteoMapManager {
     if (this.state.intervalId) {
       clearInterval(this.state.intervalId);
     }
-    this.state.intervalId = setInterval(() => {
-      let nextIndex = parseInt(this.ui.slider.value) + 1;
-
-      const config = VARIABLES_CONFIG[this.state.type];
-      const nextHour = (nextIndex - 1) % 24;
-
-      if (config.id === "SWDOWN" && (nextHour < 6 || nextHour > 18)) {
-        nextIndex = nextHour < 6 ? Math.floor(nextIndex / 24) * 24 + 7 : Math.ceil(nextIndex / 24) * 24 + 7;
-      }
-
-      if (nextIndex > this.state.maxLayer) {
-        nextIndex = config.id === "SWDOWN" ? 7 : 1;
-      }
-
-      this.ui.slider.value = nextIndex;
-      this.ui.slider.dispatchEvent(new Event("input"));
-    }, PLAYBACK_INTERVAL_MS);
+    // Skip straight to the next timestep the pipeline actually exports
+    // (e.g. SWDOWN daylight hours), wrapping at the end of the timeline.
+    this.state.intervalId = setInterval(() => this._advanceToNextPlayable(), PLAYBACK_INTERVAL_MS);
   }
 
   stopAnimation() {
@@ -1077,6 +1225,13 @@ class MeteoMapManager {
     this.state.intervalId = null;
     this.state.isPlaying = false;
     this.ui.playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
+  }
+
+  /** Advances the slider to the next available timestep and fires its input pipeline (label, preview, load). */
+  _advanceToNextPlayable() {
+    const next = this.nextPlayableIndex(parseInt(this.ui.slider.value, 10) + 1);
+    this.ui.slider.value = String(next);
+    this.ui.slider.dispatchEvent(new Event("input"));
   }
 
   switchVariable(variableType) {
@@ -1088,34 +1243,16 @@ class MeteoMapManager {
       ctx.clearRect(0, 0, this.ui.windCanvas.width, this.ui.windCanvas.height);
     }
 
-    if (variableType === "eolico") {
-      if (this.ui.heightSelector) this.ui.heightSelector.classList.add("active");
-    } else {
-      if (this.ui.heightSelector) this.ui.heightSelector.classList.remove("active");
-    }
+    this.ui.heightSelector?.classList.toggle("active", variableType === "eolico");
 
     this.updateWindLayerToggleVisibility(variableType);
     this.refreshVariableOverviewPreview(variableType);
 
-    const selectedCellCoords = this.state.selectedCell
-      ? {
-          lat: this.state.selectedCell.lat,
-          lng: this.state.selectedCell.lng,
-        }
-      : null;
+    const selectedCell = this.state.selectedCell;
 
-    if (this.selectedMarker) {
-      this.map.removeLayer(this.selectedMarker);
-      this.selectedMarker = null;
-    }
+    this._removeSelectedMarker();
 
-    this.applyMapChanges().then(() => {
-      if (this.state.selectedCell && selectedCellCoords) {
-        this.handleMapClick({
-          latlng: L.latLng(selectedCellCoords.lat, selectedCellCoords.lng),
-        }).catch(() => this.closeSidebar());
-      }
-    });
+    this._applyMapChangesReselecting(selectedCell);
   }
 
   updateWindLayerToggleVisibility(variableType = this.state.type) {
@@ -1132,11 +1269,28 @@ class MeteoMapManager {
   }
 
   /**
-   * Key identifying a (domain, variable, timestep) view. The variable part is
-   * the resolved data id (getVariableId), so eolico 50/100/150 m are distinct.
+   * Re-applies the current view, then re-clicks `cell` ({lat, lng}) so the
+   * sidebar and marker track the selection across slider, variable,
+   * hub-height and domain changes. No re-click when no cell was given or the
+   * selection was cleared while data loaded; a failed re-click closes the
+   * sidebar.
+   */
+  _applyMapChangesReselecting(cell) {
+    return this.applyMapChanges().then(() => {
+      if (!cell || !this.state.selectedCell) return;
+      this.handleMapClick({ latlng: L.latLng(cell.lat, cell.lng) }).catch(() => this.closeSidebar());
+    });
+  }
+
+  /**
+   * Key identifying a (run, domain, variable, timestep) view. The variable
+   * part is the resolved data id (getVariableId), so eolico 50/100/150 m are
+   * distinct; the run version makes an in-flight response from BEFORE a
+   * detected pipeline-run switch fail the staleness guards instead of
+   * repainting old-run data over the resynchronized view.
    */
   _loadKey(index = this.state.index, type = this.state.type, domain = this.state.domain) {
-    return `${domain}:${this.getVariableId(type)}:${index}`;
+    return `${this.dataVersion || "v0"}:${domain}:${this.getVariableId(type)}:${index}`;
   }
 
   /**
@@ -1152,15 +1306,9 @@ class MeteoMapManager {
   }
 
   applyMapChanges() {
-    const config = VARIABLES_CONFIG[this.state.type];
-    const hour = (this.state.index - 1) % 24;
-
-    if (config.id === "SWDOWN" && (hour < 6 || hour > 18)) {
+    if (!this.isIndexAvailable(this.state.index)) {
       this._clearCurrentData();
-      if (this.selectedMarker) {
-        this.map.removeLayer(this.selectedMarker);
-        this.selectedMarker = null;
-      }
+      this._removeSelectedMarker();
       this.updateDateTime();
       this._currentApply = null;
       return Promise.resolve(null);
@@ -1174,10 +1322,9 @@ class MeteoMapManager {
   loadValueData(index, type) {
     const domain = this.state.domain;
 
-    const id_num = String(index).padStart(3, "0");
     const variableId = this.getVariableId(type);
-    const filePath = this.dataUrl(`JSON/${domain}_${variableId}_${id_num}.json`);
-    const loadKey = `${domain}:${variableId}:${index}`;
+    const filePath = this.dataUrl(this.valuesJsonPath(domain, variableId, index));
+    const loadKey = this._loadKey(index, type, domain);
 
     return Promise.all([this._cachedFetch(filePath), this.loadGridLayer(domain)])
       .then(([valueData, gridLayer]) => {
@@ -1208,6 +1355,7 @@ class MeteoMapManager {
 
         this.currentValueData = valueData;
         this._currentValueKey = loadKey;
+        this._emptyFrameStreak = 0;
         this.applyValuesToGrid(gridLayer, valueData);
 
         this.showGeoJsonLayer(gridLayer);
@@ -1229,9 +1377,29 @@ class MeteoMapManager {
         // playback from re-hitting the network for the same missing file.
         if (loadKey === this._currentApply?.key) {
           this._clearCurrentData();
+          this._maybeFastSkipEmptyFrame(err);
         }
         return null;
       });
+  }
+
+  /**
+   * Degraded-mode playback helper. Without a v2 manifest OR a timeline
+   * anchor (old data, first session frames), unavailable indices (e.g.
+   * SWDOWN night hours) can only be discovered by fetching — isIndexAvailable
+   * optimistically allowed them. Instead of spending a full playback tick
+   * per blank frame, hop to the next index right away; the streak cap stops
+   * the hopping when there is no data at all (it resets on any successful
+   * load, which also establishes the anchor that makes this path moot).
+   */
+  _maybeFastSkipEmptyFrame(err) {
+    if (!this.state.isPlaying || err?.notFound !== true) return;
+    this._emptyFrameStreak = (this._emptyFrameStreak || 0) + 1;
+    if (this._emptyFrameStreak > this.state.maxLayer) return;
+    setTimeout(() => {
+      if (!this.state.isPlaying) return;
+      this._advanceToNextPlayable();
+    }, 50);
   }
 
   /**
@@ -1248,21 +1416,23 @@ class MeteoMapManager {
     if (!config) return;
     const domain = this.state.domain;
     const variableId = this.getVariableId(type);
+    // The 'wind' overlay draws from standalone WIND_VECTORS files (eolico
+    // embeds its vectors in the values JSON) — warm those too, or the arrows
+    // paint one fetch round-trip behind the field they annotate.
+    const prefetchWind = type === "wind" && this.ui.windCheckbox?.checked;
+
+    const warm = (path) =>
+      this.dataService.fetchJson(this.dataUrl(path)).catch(() => {
+        /* prefetch is best-effort; the real load reports errors */
+      });
 
     let next = index;
     for (let i = 0; i < count; i++) {
-      next += 1;
-      const nextHour = (next - 1) % 24;
-      if (config.id === "SWDOWN" && (nextHour < 6 || nextHour > 18)) {
-        next = nextHour < 6 ? Math.floor(next / 24) * 24 + 7 : Math.ceil(next / 24) * 24 + 7;
+      next = this.nextPlayableIndex(next + 1, type);
+      warm(this.valuesJsonPath(domain, variableId, next));
+      if (prefetchWind) {
+        warm(this.valuesJsonPath(domain, "WIND_VECTORS", next));
       }
-      if (next > this.state.maxLayer) {
-        next = config.id === "SWDOWN" ? 7 : 1;
-      }
-      const idNum = String(next).padStart(3, "0");
-      this.dataService.fetchJson(this.dataUrl(`JSON/${domain}_${variableId}_${idNum}.json`)).catch(() => {
-        /* prefetch is best-effort; the real load reports errors */
-      });
     }
   }
 
@@ -1271,18 +1441,14 @@ class MeteoMapManager {
     const domainButtons = this.ui.domainButtons || [];
 
     domainButtons.forEach((btn) => {
-      btn.classList.remove("active");
-      btn.setAttribute("aria-pressed", "false");
-      btn.textContent = this.getDomainLabel(btn.dataset.domain);
-      btn.title = `Domínio ${this.getDomainLabel(btn.dataset.domain)}`;
-      btn.setAttribute("aria-label", `Domínio ${this.getDomainLabel(btn.dataset.domain)}`);
+      const label = this.getDomainLabel(btn.dataset.domain);
+      const isActive = btn.dataset.domain === domain;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-pressed", String(isActive));
+      btn.textContent = label;
+      btn.title = `Domínio ${label}`;
+      btn.setAttribute("aria-label", `Domínio ${label}`);
     });
-
-    const activeBtn = domainButtons.find((button) => button.dataset.domain === domain);
-    if (activeBtn) {
-      activeBtn.classList.add("active");
-      activeBtn.setAttribute("aria-pressed", "true");
-    }
   }
 
   setupDomainIndicators() {
@@ -1317,16 +1483,9 @@ class MeteoMapManager {
           const moveendGen = (this._domainMoveendGen = (this._domainMoveendGen || 0) + 1);
           this.map.once("moveend", () => {
             if (moveendGen !== this._domainMoveendGen) return;
-            this.applyMapChanges().then(() => {
-              // The user may have closed the sidebar / started playback during
-              // the 1.5s flyTo; don't resurrect a cleared selection.
-              if (!this.state.selectedCell) return;
-              this.handleMapClick({
-                latlng: L.latLng(selectedLat, selectedLng),
-              }).catch(() => {
-                this.closeSidebar();
-              });
-            });
+            // The user may have closed the sidebar / started playback during
+            // the 1.5s flyTo; don't resurrect a cleared selection.
+            this._applyMapChangesReselecting({ lat: selectedLat, lng: selectedLng });
           });
         } else {
           this.applyMapChanges().then(() => {
@@ -1421,6 +1580,10 @@ class MeteoMapManager {
       return this._gridLayerPromises.get(cacheKey);
     }
 
+    // Bumped by handleManifestUpdate: an in-flight fetch started under the
+    // previous run must not repopulate the cache it just cleared.
+    const generation = this._gridGeneration || 0;
+
     // Compact grid first (a few KB vs 1.2-2.6MB); the legacy GeoJSON is the
     // fallback for servers still holding data from an older pipeline run.
     // Both go through the data service: worker-side parsing, in-flight dedup
@@ -1440,33 +1603,39 @@ class MeteoMapManager {
         const layer = L.geoJSON(geojson, {
           renderer: this._canvasRenderer,
           style: GRID_NODATA_STYLE,
-          onEachFeature: (feature, layer) => {
+          onEachFeature: (feature) => {
             feature.properties.valor = null;
-            layer.on({
-              mouseover: () => {
-                layer.setStyle({
-                  weight: 1.2,
-                  color: "#666",
-                  fillOpacity: 0.65,
-                });
-              },
-              mouseout: () => {
-                // Restore the cell's resting style from its current state. A
-                // state-clipped cell must return to GRID_HIDDEN_STYLE; a fixed
-                // visible style would repaint it and defeat the clip. Visible
-                // (and no-data gray) cells keep their stored fillColor.
-                const hiddenByClip = this.state.isClippedToState && layer._inStateMask === false;
-                layer.setStyle(
-                  hiddenByClip
-                    ? GRID_HIDDEN_STYLE
-                    : {
-                        ...GRID_VISIBLE_STYLE,
-                        fillColor: layer.options.fillColor,
-                      }
-                );
-              },
-            });
           },
+        });
+
+        // Hover delegado no grupo (e.propagatedFrom) em vez de 2 closures por
+        // célula — são até ~9.801 células por domínio, ~63k closures com os
+        // 4 domínios em cache.
+        layer.on("mouseover", (e) => {
+          const cell = e.propagatedFrom;
+          if (!cell) return;
+          cell.setStyle({
+            weight: 1.2,
+            color: "#666",
+            fillOpacity: 0.65,
+          });
+        });
+        layer.on("mouseout", (e) => {
+          const cell = e.propagatedFrom;
+          if (!cell) return;
+          // Restore the cell's resting style from its current state. A
+          // state-clipped cell must return to GRID_HIDDEN_STYLE; a fixed
+          // visible style would repaint it and defeat the clip. Visible
+          // (and no-data gray) cells keep their stored fillColor.
+          const hiddenByClip = this.state.isClippedToState && cell._inStateMask === false;
+          cell.setStyle(
+            hiddenByClip
+              ? GRID_HIDDEN_STYLE
+              : {
+                  ...GRID_VISIBLE_STYLE,
+                  fillColor: cell.options.fillColor,
+                }
+          );
         });
 
         const layersByLinearIndex = new Map();
@@ -1478,7 +1647,9 @@ class MeteoMapManager {
 
         layer._gridMetadata = gridMetadata;
         layer._layersByLinearIndex = layersByLinearIndex;
-        this.gridLayers[cacheKey] = layer;
+        if (generation === (this._gridGeneration || 0)) {
+          this.gridLayers[cacheKey] = layer;
+        }
         return layer;
       })
       .catch((err) => {
@@ -1659,6 +1830,12 @@ class MeteoMapManager {
   }
 
   showGeoJsonLayer(newLayer) {
+    // Playback repaints the SAME cached per-domain layer every tick — a full
+    // Leaflet teardown/re-add of ~10k vector paths (plus marker churn and a
+    // hover reset) would be paid per frame for no visual change.
+    if (this.currentGeoJsonLayer === newLayer && this.map.hasLayer(newLayer)) {
+      return;
+    }
     if (this.currentGeoJsonLayer) {
       this.map.removeLayer(this.currentGeoJsonLayer);
     }
@@ -1666,10 +1843,7 @@ class MeteoMapManager {
     this.currentGeoJsonLayer = newLayer;
 
     if (this.state.selectedCell) {
-      if (this.selectedMarker) {
-        this.map.removeLayer(this.selectedMarker);
-        this.selectedMarker = null;
-      }
+      this._removeSelectedMarker();
       this.selectedMarker = this.createPingMarker(this.state.selectedCell.lat, this.state.selectedCell.lng);
     }
   }
@@ -1799,10 +1973,7 @@ class MeteoMapManager {
       return Promise.reject(new Error("No cell data found at this location"));
     }
 
-    if (this.selectedMarker) {
-      this.map.removeLayer(this.selectedMarker);
-    }
-
+    this._removeSelectedMarker();
     this.selectedMarker = this.createPingMarker(e.latlng.lat, e.latlng.lng);
 
     return this.loadAllVariableValuesForCell(foundCell)
@@ -1810,10 +1981,7 @@ class MeteoMapManager {
         // A programmatic refresh must not resurrect a selection the user
         // cleared (closed the sidebar / started playback) while data loaded.
         if (!options.userInitiated && !this.state.selectedCell) {
-          if (this.selectedMarker) {
-            this.map.removeLayer(this.selectedMarker);
-            this.selectedMarker = null;
-          }
+          this._removeSelectedMarker();
           return null;
         }
         foundCell.allValues = allValues;
@@ -1824,22 +1992,18 @@ class MeteoMapManager {
       .catch((err) => {
         console.error("Error loading values:", err);
         this.showErrorMessage("Erro ao carregar informações");
-        if (this.selectedMarker) {
-          this.map.removeLayer(this.selectedMarker);
-          this.selectedMarker = null;
-        }
+        this._removeSelectedMarker();
         throw err;
       });
   }
 
   createPingMarker(lat, lng) {
     const iconSize = 32;
-    const scaleFactor = 1;
 
     const pingIcon = L.divIcon({
       className: "ping-pin",
       html: `
-                <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" style="transform: scale(${scaleFactor});">
+                <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
                           fill="#ff006e" stroke="#ffffff" stroke-width="0.5"/>
                     <circle cx="12" cy="9" r="2.5" fill="white"/>
@@ -1857,6 +2021,14 @@ class MeteoMapManager {
     }).addTo(this.map);
   }
 
+  /** Removes the selected-cell ping marker from the map, if present. */
+  _removeSelectedMarker() {
+    if (this.selectedMarker) {
+      this.map.removeLayer(this.selectedMarker);
+      this.selectedMarker = null;
+    }
+  }
+
   loadValueDataOnly(index, type) {
     const domain = this.state.domain;
 
@@ -1864,9 +2036,8 @@ class MeteoMapManager {
       return Promise.resolve(null);
     }
 
-    const id_num = String(index).padStart(3, "0");
     const variableId = this.getVariableId(type);
-    const filePath = this.dataUrl(`JSON/${domain}_${variableId}_${id_num}.json`);
+    const filePath = this.dataUrl(this.valuesJsonPath(domain, variableId, index));
 
     return this._cachedFetch(filePath).catch(() => null);
   }
@@ -1974,30 +2145,7 @@ class MeteoMapManager {
 
     const specificInfo = config.specificInfo(cell.value, cell.allValues);
     if (specificInfo) {
-      html += `
-                <div class="info-section variable-specific">
-                    <div class="info-section-title">
-                        <i class="fas fa-bolt"></i> ${specificInfo.title}
-                    </div>
-            `;
-
-      specificInfo.items.forEach((item) => {
-        html += `
-                    <div class="stat-card">
-                        <div class="stat-card-label">
-                            <i class="fas ${item.icon}"></i> ${item.label}
-                        </div>
-                        <div class="stat-card-value">
-                            ${item.value}
-                            <span class="stat-card-unit">${item.unit || ""}</span>
-                        </div>
-                    </div>
-                `;
-      });
-
-      html += this.createParametersEditor(this.state.type);
-
-      html += `</div>`;
+      html += `<div class="info-section variable-specific">${this._specificInfoHtml(specificInfo)}</div>`;
     }
 
     content.innerHTML = html;
@@ -2008,12 +2156,7 @@ class MeteoMapManager {
 
   closeSidebar() {
     this.ui.sidebar?.classList.remove("active");
-
-    if (this.selectedMarker) {
-      this.map.removeLayer(this.selectedMarker);
-      this.selectedMarker = null;
-    }
-
+    this._removeSelectedMarker();
     this.state.selectedCell = null;
   }
 
@@ -2032,12 +2175,15 @@ class MeteoMapManager {
     }
 
     if (this.currentValueData?.metadata?.wind) {
+      // Invalidate any in-flight WIND_VECTORS fetch: a late response from
+      // the previous variable (same domain:index key) must not repaint its
+      // 10m arrows over the embedded hub-height arrows rendered here.
+      this._windRequestKey = null;
       this._renderWindFromData(this.currentValueData.metadata.wind);
     } else {
       const domain = this.state.domain;
-      const id_num = String(this.state.index).padStart(3, "0");
-      const filePath = this.dataUrl(`JSON/${domain}_WIND_VECTORS_${id_num}.json`);
-      const requestKey = `${domain}:${id_num}`;
+      const filePath = this.dataUrl(this.valuesJsonPath(domain, "WIND_VECTORS", this.state.index));
+      const requestKey = `${this.dataVersion || "v0"}:${domain}:${this.state.index}`;
       this._windRequestKey = requestKey;
 
       this._cachedFetch(filePath)
@@ -2114,7 +2260,7 @@ class MeteoMapManager {
         const magnitude = magnitudes[idx];
 
         if (point.x >= 0 && point.x <= canvas.width && point.y >= 0 && point.y <= canvas.height) {
-          this.drawWindArrow(ctx, point.x, point.y, angle, magnitude, minMag, maxMag, magRange);
+          this.drawWindArrow(ctx, point.x, point.y, angle, magnitude, minMag, magRange);
         }
       } catch {
         return;
@@ -2122,7 +2268,7 @@ class MeteoMapManager {
     });
   }
 
-  drawWindArrow(ctx, x, y, angle, magnitude, minMag, maxMag, magRange) {
+  drawWindArrow(ctx, x, y, angle, magnitude, minMag, magRange) {
     const normalizedMag = (magnitude - minMag) / magRange;
     const arrowLength = 8 + normalizedMag * 16;
     const lineWidth = 0.8 + normalizedMag * 1.2;

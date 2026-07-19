@@ -18,6 +18,8 @@
 // 400 entries x ~47KB average parsed payload keeps one full playback loop
 // (73 steps + wind overlays) AND an open time-series modal in memory at
 // once (~19MB, fine for a data-viz page); 200 caused mid-loop evictions.
+// When the manifest advertises a longer timeline the map manager raises the
+// limit via ensureCacheLimit() so longer runs never thrash mid-loop.
 const DATA_SERVICE_CACHE_LIMIT = 400;
 // Deterministic 404s (files the pipeline never exports) stay negative-cached
 // for a full minute; transient failures (network/5xx) may recover at any
@@ -27,9 +29,9 @@ const DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS = 4000;
 
 class LabmimDataService {
   constructor(options = {}) {
-    this.cacheLimit = options.cacheLimit || DATA_SERVICE_CACHE_LIMIT;
-    this.failureTtlMs = options.failureTtlMs || DATA_SERVICE_FAILURE_TTL_MS;
-    this.transientFailureTtlMs = options.transientFailureTtlMs || DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS;
+    this.cacheLimit = DATA_SERVICE_CACHE_LIMIT;
+    this.failureTtlMs = DATA_SERVICE_FAILURE_TTL_MS;
+    this.transientFailureTtlMs = DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS;
     this._cache = new Map();
     this._inflight = new Map();
     this._failedAt = new Map();
@@ -202,6 +204,24 @@ class LabmimDataService {
       this._cache.delete(firstKey);
     }
     this._cache.set(url, data);
+  }
+
+  /** Grow (never shrink) the cache so a full playback loop stays resident. */
+  ensureCacheLimit(limit) {
+    if (Number.isFinite(limit) && limit > this.cacheLimit) {
+      this.cacheLimit = limit;
+    }
+  }
+
+  /**
+   * Drops every cached payload and negative-cache entry (in-flight requests
+   * finish on their own). Used when a new pipeline run is detected: the
+   * fixed-name files now hold different data, so nothing cached under the
+   * old run may be served again.
+   */
+  clear() {
+    this._cache.clear();
+    this._failedAt.clear();
   }
 }
 

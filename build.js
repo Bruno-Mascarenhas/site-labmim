@@ -22,6 +22,17 @@ const SITE = path.join(ROOT, "site");
 
 // Production origin (no trailing slash). Absolute URLs for SEO are derived from this.
 const PROD = "https://labmim.if.ufba.br";
+
+// Ano do © do rodapé ({{YEAR}}), derivado da data do último commit — build
+// determinístico (mesmo input → mesmo output, independente do relógio/fuso do
+// runner); o primeiro PR de janeiro renova o ano no seu próprio build:check.
+const YEAR = (() => {
+  try {
+    return require("child_process").execSync("git log -1 --format=%cs", { encoding: "utf8" }).slice(0, 4);
+  } catch {
+    return String(new Date().getFullYear());
+  }
+})();
 const OG_IMAGE = `${PROD}/assets/img/logonova1.png`;
 
 // --- Single source of truth for the navigation (order matters) ---------------
@@ -88,6 +99,8 @@ const PAGES = [
     layout: "webgis",
     active: "mapas",
     bodyAttrs: ' data-map-context="forecast"',
+    kicker: "Previsões",
+    docModalTitle: "Documentação - Mapa Interativo",
     h1: "Mapas Interativos WRF",
     title: "LabMiM — Mapas Interativos WRF · UFBA",
     description:
@@ -98,6 +111,8 @@ const PAGES = [
     layout: "webgis",
     active: "potenciais",
     bodyAttrs: ' data-map-context="energy"',
+    kicker: "Potenciais Energéticos",
+    docModalTitle: "Documentação - Potenciais Energéticos",
     h1: "Potenciais Energéticos",
     title: "LabMiM — Potenciais Energéticos · UFBA",
     description:
@@ -150,6 +165,9 @@ const partials = {
   nav: read(path.join(SRC, "partials", "nav.html")),
   footer: read(path.join(SRC, "partials", "footer.html")),
   scripts: read(path.join(SRC, "partials", "scripts.html")),
+  // Abas compartilhadas da documentação do WebGIS (idênticas nas duas páginas).
+  "webgis-doc-features": read(path.join(SRC, "partials", "webgis-doc-features.html")),
+  "webgis-doc-wrf": read(path.join(SRC, "partials", "webgis-doc-wrf.html")),
 };
 
 function navItems(active) {
@@ -180,7 +198,8 @@ function expandPartials(layout) {
 // por release) recebem ?v=<hash md5 curto do conteúdo>. O .htaccess serve
 // URLs versionadas com cache longo; qualquer edição no arquivo muda o token
 // em todas as páginas no próximo build. Os Web Workers não passam por aqui:
-// são carregados pelo map-manager.js via WORKER_CACHE_VERSION.
+// são carregados pelo map-manager.js com o hash da meta labmim-asset-hashes
+// (workerHashes abaixo).
 // O bootstrap.purged.min.css TAMBÉM entra no hash: apesar de morar em vendor/,
 // seu conteúdo é função do HTML/JS do site (PurgeCSS) — um token fixo de
 // release deixaria visitantes recorrentes com o CSS antigo após um re-purge.
@@ -192,6 +211,20 @@ function assetHash(relPath) {
     assetHashCache.set(relPath, crypto.createHash("md5").update(content).digest("hex").slice(0, 8));
   }
   return assetHashCache.get(relPath);
+}
+
+// Os Web Workers não aparecem em href/src no HTML (são carregados pelo
+// map-manager.js), então recebem seus hashes via meta labmim-asset-hashes —
+// editar um worker passa a invalidar o cache sem bump manual de constante.
+function workerHashes() {
+  const workersDir = path.join(SITE, "assets", "js", "workers");
+  if (!fs.existsSync(workersDir)) return "";
+  return fs
+    .readdirSync(workersDir)
+    .filter((name) => name.endsWith(".js"))
+    .sort()
+    .map((name) => `${name}:${assetHash(path.posix.join("assets/js/workers", name))}`)
+    .join(";");
 }
 
 function stampAssetVersions(html) {
@@ -207,15 +240,20 @@ function stampAssetVersions(html) {
 
 function buildPage(page) {
   const layout = read(path.join(SRC, "layouts", `${page.layout}.html`));
-  const content = read(path.join(SRC, "pages", page.file)).replace(/\n$/, "");
+  // Páginas também podem usar {{> partial}} (ex.: abas compartilhadas do WebGIS).
+  const content = expandPartials(read(path.join(SRC, "pages", page.file))).replace(/\n$/, "");
 
   let html = expandPartials(layout);
   html = sub(html, "{{NAV_ITEMS}}", navItems(page.active || ""));
   html = sub(html, "{{FOOTER_NAV}}", footerNav());
+  html = sub(html, "{{YEAR}}", YEAR);
+  html = sub(html, "{{WORKER_HASHES}}", workerHashes());
   html = sub(html, "{{seoHead}}", seoHead(page));
   html = sub(html, "{{title}}", attr(page.title));
   html = sub(html, "{{description}}", attr(page.description));
   html = sub(html, "{{bodyAttrs}}", page.bodyAttrs || "");
+  if (page.kicker !== undefined) html = sub(html, "{{kicker}}", page.kicker);
+  if (page.docModalTitle !== undefined) html = sub(html, "{{docModalTitle}}", page.docModalTitle);
   html = sub(html, "{{content}}", content);
   html = sub(html, "{{h1}}", attr(page.h1 || page.title)); // resolved after content so it works in either
 

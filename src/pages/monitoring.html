@@ -8,7 +8,6 @@
   <div class="text-center mb-3">
     <button
       class="btn btn-sm btn-outline-secondary"
-      id="toggleExplanation"
       type="button"
       data-ui-toggle="explanationContentMonitor"
       data-label-open="Ocultar Explicação"
@@ -69,7 +68,6 @@
           class="btn btn-primary overlay"
           data-bs-toggle="modal"
           data-bs-target="#modalTemperatura"
-          id="btn-temperatura"
         >
           <span class="text">Temperatura do ar</span>
         </button>
@@ -92,7 +90,6 @@
           class="btn btn-primary overlay"
           data-bs-toggle="modal"
           data-bs-target="#modalUmidade"
-          id="btn-umidade"
         >
           <span class="text">Umidade do Ar</span>
         </button>
@@ -115,7 +112,6 @@
           class="btn btn-primary overlay"
           data-bs-toggle="modal"
           data-bs-target="#modalPressao"
-          id="btn-pressao"
         >
           <span class="text">Pressão atmosférica</span>
         </button>
@@ -138,7 +134,6 @@
           class="btn btn-primary overlay"
           data-bs-toggle="modal"
           data-bs-target="#modalPrecipitacao"
-          id="btn-precipitacao"
         >
           <span class="text">Precipitação</span>
         </button>
@@ -161,7 +156,6 @@
           class="btn btn-primary overlay"
           data-bs-toggle="modal"
           data-bs-target="#modalVelocidade"
-          id="btn-velocidade"
         >
           <span class="text">Velocidade do Vento</span>
         </button>
@@ -184,7 +178,6 @@
           class="btn btn-primary overlay"
           data-bs-toggle="modal"
           data-bs-target="#modalDirecao"
-          id="btn-direcao"
         >
           <span class="text">Direção do Vento</span>
         </button>
@@ -207,7 +200,6 @@
           class="btn btn-primary overlay"
           data-bs-toggle="modal"
           data-bs-target="#modalBalanco"
-          id="btn-balanco"
         >
           <span class="text">Balanço de Radiação</span>
         </button>
@@ -230,7 +222,6 @@
           class="btn btn-primary overlay"
           data-bs-toggle="modal"
           data-bs-target="#modalRadiacaoDifusa"
-          id="btn-radiacao-difusa"
         >
           <span class="text">Radiação Difusa</span>
         </button>
@@ -253,7 +244,6 @@
           class="btn btn-primary overlay"
           data-bs-toggle="modal"
           data-bs-target="#modalRadiacaoPar"
-          id="btn-radiacao-par"
         >
           <span class="text">Radiação PAR</span>
         </button>
@@ -278,10 +268,9 @@
   class="modal fade"
   id="modalTemperatura"
   tabindex="-1"
-  role="dialog"
   aria-labelledby="modalTemperaturaLabel"
 >
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalTemperaturaLabel">Temperatura do ar</h5>
@@ -305,10 +294,9 @@
   class="modal fade"
   id="modalUmidade"
   tabindex="-1"
-  role="dialog"
   aria-labelledby="modalUmidadeLabel"
 >
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalUmidadeLabel">Umidade do Ar</h5>
@@ -332,10 +320,9 @@
   class="modal fade"
   id="modalPressao"
   tabindex="-1"
-  role="dialog"
   aria-labelledby="modalPressaoLabel"
 >
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalPressaoLabel">Pressão atmosférica</h5>
@@ -359,10 +346,9 @@
   class="modal fade"
   id="modalPrecipitacao"
   tabindex="-1"
-  role="dialog"
   aria-labelledby="modalPrecipitacaoLabel"
 >
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalPrecipitacaoLabel">Precipitação</h5>
@@ -386,10 +372,9 @@
   class="modal fade"
   id="modalVelocidade"
   tabindex="-1"
-  role="dialog"
   aria-labelledby="modalVelocidadeLabel"
 >
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalVelocidadeLabel">Velocidade do Vento</h5>
@@ -413,10 +398,9 @@
   class="modal fade"
   id="modalDirecao"
   tabindex="-1"
-  role="dialog"
   aria-labelledby="modalDirecaoLabel"
 >
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalDirecaoLabel">Direção do Vento</h5>
@@ -440,10 +424,9 @@
   class="modal fade"
   id="modalBalanco"
   tabindex="-1"
-  role="dialog"
   aria-labelledby="modalBalancoLabel"
 >
-  <div class="modal-dialog modal-xl" role="document">
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalBalancoLabel">Balanço de Radiação</h5>
@@ -467,10 +450,9 @@
   class="modal fade"
   id="modalRadiacaoDifusa"
   tabindex="-1"
-  role="dialog"
   aria-labelledby="modalRadiacaoDifusaLabel"
 >
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalRadiacaoDifusaLabel">Radiação Difusa</h5>
@@ -494,10 +476,9 @@
   class="modal fade"
   id="modalRadiacaoPar"
   tabindex="-1"
-  role="dialog"
   aria-labelledby="modalRadiacaoParLabel"
 >
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalRadiacaoParLabel">Radiação PAR</h5>

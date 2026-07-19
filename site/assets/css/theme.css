@@ -20,7 +20,6 @@
   --accent-violet: #667eea;
 }
 
-#themeToggleBtn,
 [data-theme-toggle] {
   display: inline-flex !important;
   align-items: center;
@@ -37,7 +36,6 @@
   cursor: pointer;
 }
 
-#themeToggleBtn::after,
 [data-theme-toggle]::after {
   content: "Tema";
   font-size: 0.78rem;
@@ -45,7 +43,6 @@
   line-height: 1;
 }
 
-#themeToggleBtn:hover,
 [data-theme-toggle]:hover {
   transform: translateY(-1px);
   background: var(--white) !important;
@@ -54,7 +51,6 @@
   color: var(--brand-secondary) !important;
 }
 
-#themeToggleBtn:focus-visible,
 [data-theme-toggle]:focus-visible,
 .control-btn:focus-visible,
 .sidebar-close-btn:focus-visible,
@@ -64,9 +60,7 @@ input:focus-visible {
 }
 
 .dark-theme body,
-.dark-theme .container-main,
-.dark-theme .bg-light,
-.dark-theme .bg-white {
+.dark-theme .container-main {
   background-color: var(--bg-primary) !important;
   color: var(--text-primary) !important;
 }
@@ -79,7 +73,6 @@ input:focus-visible {
   background-color: #1f5b88 !important;
 }
 
-.dark-theme #themeToggleBtn,
 .dark-theme [data-theme-toggle] {
   background: rgba(12, 28, 48, 0.88) !important;
   border-color: rgba(var(--dark-accent-rgb), 0.45) !important;
@@ -87,15 +80,13 @@ input:focus-visible {
   color: #e8f1ff !important;
 }
 
-.dark-theme #themeToggleBtn:hover,
 .dark-theme [data-theme-toggle]:hover {
   background: rgba(28, 45, 72, 0.96) !important;
   border-color: var(--dark-accent) !important;
   color: var(--white) !important;
 }
 
-.dark-theme .navbar .btn-outline-lab,
-.dark-theme .navbar .nav-link {
+.dark-theme .navbar .btn-outline-lab {
   background-color: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.48) !important;
   color: #f8fbff !important;
@@ -104,9 +95,7 @@ input:focus-visible {
 .dark-theme .navbar .btn-outline-lab:hover,
 .dark-theme .navbar .btn-outline-lab:focus,
 .dark-theme .navbar .btn-outline-lab.active,
-.dark-theme .navbar .btn-outline-lab[aria-current="page"],
-.dark-theme .navbar .nav-link:hover,
-.dark-theme .navbar .nav-link:focus {
+.dark-theme .navbar .btn-outline-lab[aria-current="page"] {
   background-color: rgba(255, 255, 255, 0.2) !important;
   border-color: rgba(255, 255, 255, 0.82) !important;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
@@ -141,11 +130,9 @@ input:focus-visible {
   color: var(--text-secondary) !important;
 }
 
-.dark-theme .card,
 .dark-theme .modal-content,
 .dark-theme .modal-header,
 .dark-theme .modal-body,
-.dark-theme .modal-footer,
 .dark-theme .documentation-content,
 .dark-theme .chart-modal-content,
 .dark-theme .chart-container,
@@ -158,10 +145,6 @@ input:focus-visible {
 .dark-theme .partner-logo,
 .dark-theme .theme-surface,
 .dark-theme .doc-warning,
-.dark-theme .video-card,
-.dark-theme .videos-container,
-.dark-theme .publication-item,
-.dark-theme .contact-info,
 .dark-theme .stat-card,
 .dark-theme .parameter-item,
 .dark-theme .variable-selector-wrapper,
@@ -179,8 +162,7 @@ input:focus-visible {
    mode) precisam de override para não ficarem ilegíveis sobre superfícies
    escuras — contraste navy #06235e sobre #2d2d2d é ~1.1:1. */
 .dark-theme .partner-logo-text,
-.dark-theme .partner-logo-text small,
-.dark-theme .video-title {
+.dark-theme .partner-logo-text small {
   color: var(--text-primary) !important;
 }
 
@@ -188,8 +170,7 @@ input:focus-visible {
   color: var(--dark-accent) !important;
 }
 
-.dark-theme .feature-card,
-.dark-theme .project-card-modern {
+.dark-theme .feature-card {
   border-top-color: var(--dark-accent) !important;
 }
 
@@ -205,12 +186,9 @@ input:focus-visible {
 }
 
 .dark-theme .feature-card p,
-.dark-theme .alert-card p,
 .dark-theme .explanation-content p,
 .dark-theme .explanation-content li,
-.dark-theme .footer-notice p,
-.dark-theme .publication-item,
-.dark-theme .project-card-modern p {
+.dark-theme .footer-notice p {
   color: #d8dee9 !important;
 }
 
@@ -255,7 +233,6 @@ input:focus-visible {
 .dark-theme input,
 .dark-theme select,
 .dark-theme textarea,
-.dark-theme .form-control,
 .dark-theme .variable-select,
 .dark-theme .parameter-input {
   background-color: var(--bg-primary) !important;
@@ -269,28 +246,15 @@ input:focus-visible {
   color: #777 !important;
 }
 
-.dark-theme table,
-.dark-theme .table,
-.dark-theme .table-custom {
-  border-color: var(--border-color) !important;
-  color: var(--text-primary) !important;
-}
-
-.dark-theme .table td,
-.dark-theme .table th {
-  border-color: var(--border-color) !important;
-}
-
 .dark-theme .sidebar-header h3,
 .dark-theme .info-section-title,
 .dark-theme .info-label,
 .dark-theme .slider-wrapper label,
 .dark-theme .variable-selector-wrapper label,
-.dark-theme .height-selector-wrapper label,
+.dark-theme .height-selector-wrapper .height-selector-title,
 .dark-theme .domain-label,
 .dark-theme .doc-tab-content h4,
 .dark-theme .chart-modal-header h2,
-.dark-theme .chart-title,
 .dark-theme .parameter-label {
   color: var(--text-primary) !important;
 }
@@ -304,9 +268,7 @@ input:focus-visible {
 
 .dark-theme .info-section,
 .dark-theme .sidebar-header,
-.dark-theme .colorbar-unit,
-.dark-theme .chart-header,
-.dark-theme .documentation-tabs {
+.dark-theme .colorbar-unit {
   border-color: var(--border-color) !important;
 }
 
@@ -325,8 +287,7 @@ input:focus-visible {
 .dark-theme .stat-card-label,
 .dark-theme .stat-card-unit,
 .dark-theme .parameter-unit,
-.dark-theme .parameter-hint,
-.dark-theme .chart-no-data {
+.dark-theme .parameter-hint {
   color: var(--text-secondary) !important;
 }
 
@@ -344,8 +305,7 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
-.dark-theme .chart-export-btn,
-.dark-theme .chart-export-button {
+.dark-theme .chart-export-btn {
   border-color: var(--dark-accent) !important;
   color: var(--dark-accent) !important;
 }

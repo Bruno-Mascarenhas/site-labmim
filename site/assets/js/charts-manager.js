@@ -42,11 +42,15 @@ class ChartsManager {
       modal.addEventListener("click", (e) => {
         if (e.target === modal) this.closeModal();
       });
-    // Fecha o modal (role=dialog) com Escape quando aberto.
+    // Fecha o modal (role=dialog) com Escape e prende Tab dentro dele
+    // enquanto aberto (focus trap).
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && modal && modal.style.display === "flex") {
+      if (!modal || modal.style.display !== "flex") return;
+      if (e.key === "Escape") {
         this.closeModal();
+        return;
       }
+      if (e.key === "Tab") this._trapModalFocus(e);
     });
     window.addEventListener("labmim-theme-change", () => this.refreshChartTheme());
   }
@@ -86,9 +90,7 @@ class ChartsManager {
       this.timeSeriesData = timeSeriesData;
       return timeSeriesData;
     } catch (error) {
-      if (error.name === "AbortError") {
-        return {};
-      } else {
+      if (error.name !== "AbortError") {
         console.error("[Charts] Error loading time series:", error);
       }
       return {};
@@ -97,8 +99,7 @@ class ChartsManager {
 
   async findCellIndex(lat, lng, domain, signal) {
     try {
-      const cacheKey = domain;
-      let gridLayer = this.app?.gridLayers?.[cacheKey];
+      let gridLayer = this.app?.gridLayers?.[domain];
 
       // Not cached yet: load through the app's shared grid loader (compact
       // format aware, worker parsing, in-flight dedup) instead of a raw
@@ -153,9 +154,33 @@ class ChartsManager {
 
   openModal() {
     if (this.ui.modal) {
+      // Guarda a origem do foco para devolvê-lo no fechamento.
+      this._returnFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       this.ui.modal.style.display = "flex";
       // Move o foco para o botão de fechar para acessibilidade por teclado.
       if (this.ui.closeBtn) this.ui.closeBtn.focus();
+    }
+  }
+
+  // Prende Tab/Shift+Tab dentro do modal aberto (focus trap do role=dialog).
+  _trapModalFocus(event) {
+    const modal = this.ui.modal;
+    const focusables = [
+      ...modal.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"),
+    ].filter((el) => !el.disabled && el.getClientRects().length > 0);
+    if (!focusables.length) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !modal.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (active === last || !modal.contains(active))) {
+      event.preventDefault();
+      first.focus();
     }
   }
 
@@ -169,13 +194,18 @@ class ChartsManager {
       this.abortController.abort();
       this.abortController = null;
     }
+    // Devolve o foco ao elemento de origem (par do focus trap).
+    if (this._returnFocusEl && document.contains(this._returnFocusEl)) {
+      this._returnFocusEl.focus();
+    }
+    this._returnFocusEl = null;
   }
 
   renderChartsForVariable(variableType) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
 
-    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType, "value")}"></i> Série Temporal: ${config.label}`;
+    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}"></i> Série Temporal: ${config.label}`;
 
     const isSolarOrWind = variableType === "solar" || variableType === "eolico";
 
@@ -197,11 +227,14 @@ class ChartsManager {
     }
   }
 
-  clearCharts() {
-    this.charts.forEach((chart) => chart?.destroy());
-    this.charts.clear();
-    this.timeSeriesData = {};
+  /**
+   * Invalidates every cached series (cell series and domain summaries).
+   * Called when a new pipeline run replaces the data files in place, so
+   * nothing computed from the previous run's bytes survives.
+   */
+  clearCaches() {
     this.timeSeriesCache.clear();
+    this.domainSummaryCache.clear();
   }
 
   // ─── Internal Methods ─────────────────────────────────────────────────────
@@ -257,9 +290,20 @@ class ChartsManager {
     const variableId = this._getVariableId(variableType, config);
     const maxHour = this._getAvailableHourCount();
     const currentHour = parseInt(this.app?.state?.index, 10) || 1;
-    const cacheKey = `${domain}:${variableId}:domain-summary:${maxHour}`;
+    // Run version in the key: after a daily regeneration the same names hold
+    // a different forecast, so entries from the old run must never be served.
+    const cacheKey = `${this.app?.dataVersion || "v0"}:${domain}:${variableId}:domain-summary:${maxHour}`;
     const cached = this.domainSummaryCache.get(cacheKey);
     if (cached) return this._withCurrentStats(cached, currentHour);
+
+    // Preferred path: ONE consolidated summary artifact instead of fetching
+    // every hour's full-domain JSON to average it client-side.
+    const artifactSeries = await this._loadSummaryArtifactSeries(variableId, domain, maxHour, signal);
+    if (artifactSeries) {
+      const baseResult = { series: artifactSeries };
+      this.domainSummaryCache.set(cacheKey, baseResult);
+      return this._withCurrentStats(baseResult, currentHour);
+    }
 
     const { series, transientFailures } = await this._collectHourlySeries(
       variableId,
@@ -280,13 +324,52 @@ class ChartsManager {
       }
     );
 
-    const baseResult = { series, stats: this._aggregateSeriesStats(series, currentHour) };
+    const baseResult = { series };
     // Cache unless a transient failure truncated the series: a series missing
     // only structurally-absent hours (404) is complete and safe to cache.
     if (transientFailures === 0) {
       this.domainSummaryCache.set(cacheKey, baseResult);
     }
-    return baseResult;
+    return this._withCurrentStats(baseResult, currentHour);
+  }
+
+  /**
+   * Loads the pipeline's {D}_{VAR}.summary.json (domain-summary-v1): the
+   * per-step domain mean/min/max in one request. Returns null when the
+   * manifest doesn't advertise the artifact, or on any fetch/shape problem —
+   * callers then fall back to the legacy one-fetch-per-hour sweep.
+   */
+  async _loadSummaryArtifactSeries(variableId, domain, maxHour, signal) {
+    const feature = this.app?.timeline?.features?.domain_summary;
+    if (feature?.format !== "domain-summary-v1" || typeof feature.template !== "string") return null;
+
+    try {
+      const url = this._artifactUrl(feature.template, domain, variableId);
+      const data = this.app?._cachedFetch
+        ? await this.app._cachedFetch(url, { signal })
+        : await fetch(url, { signal }).then((res) => (res.ok ? res.json() : null));
+      if (data?.format !== "domain-summary-v1" || !Array.isArray(data.indices)) return null;
+
+      const series = [];
+      for (let i = 0; i < data.indices.length; i++) {
+        const hour = data.indices[i];
+        // The interactive timeline starts at index 1 (slider min).
+        if (!Number.isInteger(hour) || hour < 1 || hour > maxHour) continue;
+        const value = data.mean?.[i];
+        if (!Number.isFinite(value)) continue;
+        series.push({
+          hour,
+          value,
+          min: Number.isFinite(data.min?.[i]) ? data.min[i] : value,
+          max: Number.isFinite(data.max?.[i]) ? data.max[i] : value,
+          timestamp: this._timestampForHour(hour, { metadata: { date_time: data.date_times?.[i] } }),
+        });
+      }
+      return series.length ? series : null;
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      return null;
+    }
   }
 
   /**
@@ -355,12 +438,15 @@ class ChartsManager {
   _aggregateSeriesStats(series, currentHour) {
     if (!series?.length) return null;
 
-    const current = series.find((entry) => entry.hour === currentHour) || series[0];
+    // No entry for the current timestep (e.g. SWDOWN night hours) means
+    // "Atual" is genuinely unavailable — substituting another hour's value
+    // would present a wrong reading next to a map that says "sem dados".
+    const current = series.find((entry) => entry.hour === currentHour) || null;
     const mean = series.reduce((sum, entry) => sum + entry.value, 0) / series.length;
     const min = Math.min(...series.map((entry) => entry.min));
     const max = Math.max(...series.map((entry) => entry.max));
 
-    return { current: current.value, mean, min, max };
+    return { current: current ? current.value : null, mean, min, max };
   }
 
   _renderPreviewStats(container, stats, config) {
@@ -404,18 +490,14 @@ class ChartsManager {
     const chartData = series.map((entry) => entry.value);
     const chartColor = config.colors?.[config.colors.length - 1] || "#0d6efd";
     const chartLabel = `Média do domínio · ${config.label}`;
+    const tooltipLabel = (ctx) => this._formatPreviewValue(ctx.parsed.y, config.unit);
 
     let chartInstance = this.previewCharts.get(canvasId);
 
     if (chartInstance) {
-      chartInstance.data.labels = labels;
-      chartInstance.data.datasets[0].data = chartData;
-      chartInstance.data.datasets[0].label = chartLabel;
-      chartInstance.data.datasets[0].borderColor = chartColor;
-      chartInstance.data.datasets[0].backgroundColor = `${chartColor}20`;
+      this._applySeriesToChart(chartInstance, labels, chartData, chartLabel, chartColor);
       chartInstance.options.scales.y.title.text = config.unit;
-      chartInstance.options.plugins.tooltip.callbacks.label = (ctx) =>
-        `${this._formatPreviewValue(ctx.parsed.y, config.unit)}`;
+      chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
       this._applyChartTheme(chartInstance, chartColor);
       chartInstance.update("none");
       return;
@@ -428,8 +510,7 @@ class ChartsManager {
     chartInstance.options.plugins.legend.display = false;
     chartInstance.options.scales.x.ticks.maxTicksLimit = 6;
     chartInstance.options.elements = { point: { radius: 0 } };
-    chartInstance.options.plugins.tooltip.callbacks.label = (ctx) =>
-      `${this._formatPreviewValue(ctx.parsed.y, config.unit)}`;
+    chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
     chartInstance.update("none");
     this.previewCharts.set(canvasId, chartInstance);
   }
@@ -446,7 +527,9 @@ class ChartsManager {
   }
 
   _formatPreviewValue(value, unit) {
-    if (!Number.isFinite(Number(value))) return "N/D";
+    // Explicit null/undefined check: Number(null) is 0, which would render
+    // a fake "0 <unit>" instead of N/D.
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return "N/D";
     const numericValue = Number(value);
     const precision = unit === "%" || unit === "W/m²" || unit === "hPa" || unit === "mm" ? 0 : 1;
     return `${numericValue.toFixed(precision)} ${unit}`;
@@ -482,11 +565,7 @@ class ChartsManager {
     let chartInstance = this.charts.get(canvasId);
 
     if (chartInstance) {
-      chartInstance.data.labels = labels;
-      chartInstance.data.datasets[0].data = chartData;
-      chartInstance.data.datasets[0].label = chartLabel;
-      chartInstance.data.datasets[0].borderColor = chartColor;
-      chartInstance.data.datasets[0].backgroundColor = `${chartColor}20`;
+      this._applySeriesToChart(chartInstance, labels, chartData, chartLabel, chartColor);
       chartInstance.data.datasets[0].pointRadius = chartData.length > 96 ? 0 : 3;
       chartInstance.data.datasets[0].pointBackgroundColor = chartColor;
       chartInstance.options.scales.y.title.text = chartUnit;
@@ -531,11 +610,24 @@ class ChartsManager {
     chart.options.scales.y.title.color = theme.textSecondary;
   }
 
+  /** Fills a manifest artifact path template and routes it through the app's versioned data URLs. */
+  _artifactUrl(template, domain, variableId) {
+    const path = template.replace("{domain}", domain).replace("{variable}", variableId);
+    return this.app?.dataUrl ? this.app.dataUrl(path) : path;
+  }
+
+  /** Applies a new series (labels + primary dataset line styling) to an existing chart instance. */
+  _applySeriesToChart(chartInstance, labels, data, label, color) {
+    chartInstance.data.labels = labels;
+    chartInstance.data.datasets[0].data = data;
+    chartInstance.data.datasets[0].label = label;
+    chartInstance.data.datasets[0].borderColor = color;
+    chartInstance.data.datasets[0].backgroundColor = `${color}20`;
+  }
+
   _getThemeColors() {
     const rootStyles = getComputedStyle(document.documentElement);
-    const bodyStyles = getComputedStyle(document.body);
     return {
-      textPrimary: rootStyles.getPropertyValue("--text-primary").trim() || bodyStyles.color || "#fff",
       textSecondary: rootStyles.getPropertyValue("--text-secondary").trim() || "#888",
       legendText: document.documentElement.classList.contains("dark-theme") ? "#fff" : "#666",
       grid: rootStyles.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
@@ -654,9 +746,14 @@ class ChartsManager {
 
   _getRequiredVariableKeys(variableType) {
     const keys = new Set();
-    if (VARIABLES_CONFIG[variableType]?.id) keys.add(variableType);
-    if (variableType === "solar" || variableType === "eolico") keys.add("temperature");
-    if (variableType === "windPowerDensity") keys.add("wind");
+    const config = VARIABLES_CONFIG[variableType];
+    if (config?.id) keys.add(variableType);
+    // Companion SERIES the charts need (declared next to the variable, like
+    // relatedVariables for the sidebar) — e.g. temperature drives the
+    // solar/eolico energy-production chart.
+    (config?.chartCompanions || []).forEach((key) => {
+      if (VARIABLES_CONFIG[key]?.id) keys.add(key);
+    });
     return [...keys];
   }
 
@@ -666,9 +763,20 @@ class ChartsManager {
 
     const variableId = this._getVariableId(variableKey, config);
     const maxHour = this._getAvailableHourCount();
-    const cacheKey = `${domain}:${variableId}:${cellIndex}:${maxHour}`;
+    // Run version in the key: see _loadDomainMeanSeries.
+    const cacheKey = `${this.app?.dataVersion || "v0"}:${domain}:${variableId}:${cellIndex}:${maxHour}`;
     const cached = this.timeSeriesCache.get(cacheKey);
     if (cached) return cached;
+
+    // Preferred path: one ~300-byte Range request into the cell-series
+    // binary instead of downloading every hour's full-domain JSON (dozens of
+    // requests, megabytes on the wire) to read a single cell per file.
+    const binarySeries = await this._loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal);
+    if (binarySeries) {
+      const result = { config, data: binarySeries };
+      this.timeSeriesCache.set(cacheKey, result);
+      return result;
+    }
 
     const { series, transientFailures } = await this._collectHourlySeries(
       variableId,
@@ -696,12 +804,94 @@ class ChartsManager {
     return result;
   }
 
-  _getVariableId(variableKey, config) {
-    if (variableKey === "eolico" && this.app?.windHeight) {
-      if (this.app.windHeight === 100) return config.id_100m;
-      if (this.app.windHeight === 150) return config.id_150m;
+  /**
+   * Reads ONE cell's full time-series from {D}_{VAR}.series.bin
+   * (cell-series-int32-le-v1: row-major cells x steps int32 LE matrix,
+   * value = raw * scale, `missing` sentinel for absent steps) via an HTTP
+   * Range request. A server without Range support answers 200 with the full
+   * body, which is sliced locally. Returns null when the manifest doesn't
+   * advertise the artifact or on any error — callers fall back to the
+   * legacy per-hour path.
+   */
+  async _loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal) {
+    const feature = this.app?.timeline?.features?.cell_series;
+    if (
+      feature?.format !== "cell-series-int32-le-v1" ||
+      typeof feature.template !== "string" ||
+      !Number.isInteger(feature.index_min) ||
+      !Number.isInteger(feature.index_max) ||
+      !Number.isInteger(cellIndex) ||
+      cellIndex < 0
+    ) {
+      return null;
     }
-    return config.id;
+
+    const steps = feature.index_max - feature.index_min + 1;
+    if (steps <= 0) return null;
+    const bytesPerCell = steps * 4;
+    const offset = cellIndex * bytesPerCell;
+    // Integrity check against a stale artifact from a previous run (in-place
+    // regeneration can leave last run's file with a different step count —
+    // reading it with this run's stride would return other cells' values):
+    // the file must be exactly cells x steps x 4 bytes.
+    const gridCellCount = this.app?.gridLayers?.[domain]?.getLayers?.().length || null;
+    const expectedTotal = gridCellCount ? gridCellCount * bytesPerCell : null;
+
+    try {
+      const url = this._artifactUrl(feature.template, domain, variableId);
+      const res = await fetch(url, {
+        signal,
+        headers: { Range: `bytes=${offset}-${offset + bytesPerCell - 1}` },
+      });
+
+      let buffer;
+      if (res.status === 206) {
+        // Content-Range: "bytes start-end/total" carries the full file size.
+        const totalMatch = /\/(\d+)\s*$/.exec(res.headers.get("Content-Range") || "");
+        const total = totalMatch ? parseInt(totalMatch[1], 10) : null;
+        if (total !== null && (total % bytesPerCell !== 0 || (expectedTotal !== null && total !== expectedTotal))) {
+          return null;
+        }
+        buffer = await res.arrayBuffer();
+        if (buffer.byteLength < bytesPerCell) return null;
+      } else if (res.ok) {
+        const full = await res.arrayBuffer();
+        if (full.byteLength % bytesPerCell !== 0 || (expectedTotal !== null && full.byteLength !== expectedTotal)) {
+          return null;
+        }
+        if (full.byteLength < offset + bytesPerCell) return null;
+        buffer = full.slice(offset, offset + bytesPerCell);
+      } else {
+        return null;
+      }
+
+      const view = new DataView(buffer);
+      const scale = Number.isFinite(feature.scale) ? feature.scale : 0.01;
+      const missing = Number.isInteger(feature.missing) ? feature.missing : -2147483648;
+      const series = [];
+      for (let step = 0; step < steps; step++) {
+        const hour = feature.index_min + step;
+        // The interactive timeline starts at index 1 (slider min).
+        if (hour < 1 || hour > maxHour) continue;
+        const raw = view.getInt32(step * 4, true);
+        if (raw === missing) continue;
+        series.push({
+          hour,
+          value: raw * scale,
+          timestamp: this._timestampForHour(hour, null),
+        });
+      }
+      return series.length ? series : null;
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      return null;
+    }
+  }
+
+  _getVariableId(variableKey, config) {
+    // Same resolution as the map (including the eolico hub-height variants);
+    // the config fallback only matters in app-less unit contexts.
+    return this.app?.getVariableId?.(variableKey) ?? config.id;
   }
 
   _getAvailableHourCount() {
@@ -744,17 +934,12 @@ class ChartsManager {
         second: "2-digit",
       });
 
-      const rawV = chartDataValue[i];
-      const numV =
-        typeof rawV === "string" ? parseFloat(rawV.replace(/[^\d.,]/g, "").replace(",", ".")) : parseFloat(rawV);
-
-      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${config.label}",${this._formatCsvValue(numV)}`;
+      // Chart series are numeric throughout (_prepareChartData never emits
+      // formatted strings anymore).
+      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${config.label}",${this._formatCsvValue(Number(chartDataValue[i]))}`;
 
       if (isEnergy && chartDataEnergy) {
-        const rawE = chartDataEnergy[i];
-        const numE =
-          typeof rawE === "string" ? parseFloat(rawE.replace(/[^\d.,]/g, "").replace(",", ".")) : parseFloat(rawE);
-        csv += `,${this._formatCsvValue(numE)}`;
+        csv += `,${this._formatCsvValue(Number(chartDataEnergy[i]))}`;
       }
       csv += "\n";
     });
@@ -782,8 +967,9 @@ class ChartsManager {
    * propagates.
    */
   async _fetchHourJson(variableId, domain, hour, signal) {
-    const idNum = String(hour).padStart(3, "0");
-    const plainUrl = `JSON/${domain}_${variableId}_${idNum}.json`;
+    const plainUrl = this.app?.valuesJsonPath
+      ? this.app.valuesJsonPath(domain, variableId, hour)
+      : `JSON/${domain}_${variableId}_${String(hour).padStart(3, "0")}.json`;
     const url = this.app?.dataUrl ? this.app.dataUrl(plainUrl) : plainUrl;
     try {
       if (this.app?._cachedFetch) {
@@ -874,8 +1060,7 @@ class ChartsManager {
     return { lat: lat / n, lng: lng / n };
   }
 
-  _getIcon(variableType, chartType) {
-    if (chartType === "energy") return variableType === "solar" ? "solar-panel" : "fan";
+  _getIcon(variableType) {
     return VARIABLES_CONFIG[variableType]?.faIcon || "chart-line";
   }
 }

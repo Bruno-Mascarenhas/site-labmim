@@ -5,7 +5,6 @@ node_modules/
 src/
 site/JSON/
 site/GeoJSON/
-site/assets/json/
 site/assets/vendor/
 site/assets/data/
 *.json

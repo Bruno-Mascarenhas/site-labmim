@@ -8,12 +8,17 @@
  * - id: File identifier (e.g., SWDOWN, POT_EOLICO_100M)
  * - label: Name displayed in the UI
  * - unit: Measurement unit
- * - colormap: Color palette type
  * - colors: Array of hex colors for the gradient
+ * - relatedVariables: Companion variables this variable's specificInfo reads
+ *   from allValues (omit when none). The map only fetches these on a cell
+ *   click, instead of every visible variable.
+ * - chartCompanions: Companion SERIES the time-series modal loads alongside
+ *   the variable (omit when none) — e.g. temperature drives the solar/eolico
+ *   energy-production chart.
  * - specificInfo: Function returning variable-specific details
  *   * Signature: (value, allValues = {})
  *   * value: Current variable value
- *   * allValues: Object containing values for ALL variables at the same cell/date
+ *   * allValues: Object with the current variable plus its relatedVariables
  *     Example: { temperature: { value: 25, label: '...', unit: '°C' }, ... }
  *   * Enables multivariate calculations (e.g., solar production with temp adjustments)
  */
@@ -60,7 +65,6 @@ const PRESSURE_COLORS = [
 
 const VARIABLE_CONTEXTS = {
   forecast: {
-    label: "Previsões",
     optionGroupLabel: "Variáveis meteorológicas e radiativas",
     defaultVariable: "wind",
     variables: [
@@ -78,28 +82,45 @@ const VARIABLE_CONTEXTS = {
     ],
   },
   energy: {
-    label: "Potenciais Energéticos",
     optionGroupLabel: "Potenciais energéticos",
     defaultVariable: "solar",
     variables: ["solar", "eolico", "windPowerDensity"],
   },
 };
 
+/**
+ * Shared "no data at this cell/timestep" payload for specificInfo — the
+ * panel title is the only per-variable part of the former 14 copies.
+ */
+function unavailableInfo(title) {
+  return {
+    title,
+    items: [
+      {
+        label: "Status",
+        value: "⚠ Dados Indisponíveis",
+        unit: "",
+        icon: "fa-exclamation-triangle",
+      },
+    ],
+  };
+}
+
 const VARIABLES_CONFIG = {
   solar: {
     id: "SWDOWN",
+    relatedVariables: ["temperature"],
+    chartCompanions: ["temperature"],
     label: "Radiação Solar",
     optionLabel: "Potencial Fotovoltaico",
     icon: "☀️",
     faIcon: "sun",
-    category: "energy",
     unit: "W/m²",
     sourceId: "SWDOWN",
     summary:
       "Radiação solar incidente na superfície. A produção fotovoltaica exibida é uma estimativa calculada no frontend.",
     scaleMin: 0,
     scaleMax: 1200,
-    colormap: "hot_r",
     colors: [
       "#ffffff",
       "#fff0a0",
@@ -114,17 +135,7 @@ const VARIABLES_CONFIG = {
     ],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined) {
-        return {
-          title: "Geração Fotovoltaica",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Geração Fotovoltaica");
       }
 
       const air_temp = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 25;
@@ -158,7 +169,6 @@ const VARIABLES_CONFIG = {
             // Structured numeric value for charts/CSV (unformatted); the
             // displayed `value`/`unit` above are unchanged.
             energyValue: energy_gen * 1000,
-            energyUnit: "Wh/m²",
           },
         ],
       };
@@ -167,35 +177,24 @@ const VARIABLES_CONFIG = {
 
   eolico: {
     id: "POT_EOLICO_50M",
+    relatedVariables: ["temperature"],
+    chartCompanions: ["temperature"],
     id_100m: "POT_EOLICO_100M",
     id_150m: "POT_EOLICO_150M",
-    defaultHeight: 50,
     label: "Velocidade do Vento",
     optionLabel: "Potencial Eólico",
     icon: "💨",
     faIcon: "wind",
-    category: "energy",
     unit: "m/s",
     sourceId: "POT_EOLICO_50M / POT_EOLICO_100M / POT_EOLICO_150M",
     summary:
       "Velocidade do vento interpolada para alturas de hub. A produção eólica é estimada no frontend a partir de parâmetros da turbina.",
     scaleMin: 0,
     scaleMax: 20,
-    colormap: "Blues",
     colors: ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.eolico?.ausente) {
-        return {
-          title: "Geração Eólica",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Geração Eólica");
       }
 
       const tempValue = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 15;
@@ -229,7 +228,6 @@ const VARIABLES_CONFIG = {
             // Structured numeric value for charts/CSV (unformatted); the
             // displayed `value`/`unit` above are unchanged.
             energyValue: (0.5 * densityOfAir * Math.pow(value, 3) * rotorArea * Cp) / 1000,
-            energyUnit: "kWh",
           },
         ],
       };
@@ -238,31 +236,20 @@ const VARIABLES_CONFIG = {
 
   temperature: {
     id: "TEMP",
+    relatedVariables: ["relativeHumidity", "humidity", "wind"],
     label: "Temperatura (2m)",
     optionLabel: "Temperatura",
     icon: "🌡️",
     faIcon: "thermometer",
-    category: "forecast",
     unit: "°C",
     sourceId: "TEMP",
     summary: "Temperatura do ar a 2 metros usada como referência meteorológica de superfície.",
     scaleMin: 10,
     scaleMax: 40,
-    colormap: "hot_r",
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.temperature?.ausente) {
-        return {
-          title: "Informações Térmicas",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Informações Térmicas");
       }
 
       const humidityValue =
@@ -299,31 +286,20 @@ const VARIABLES_CONFIG = {
 
   skinTemperature: {
     id: "TSK",
+    relatedVariables: ["temperature"],
     label: "Temperatura de Superfície",
     optionLabel: "Temperatura de Superfície",
     icon: "🌡️",
     faIcon: "temperature-high",
-    category: "forecast",
     unit: "°C",
     sourceId: "TSK",
     summary: "Temperatura da superfície do modelo, útil para contraste com a temperatura do ar a 2 metros.",
     scaleMin: 10,
     scaleMax: 50,
-    colormap: "hot_r",
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.skinTemperature?.ausente) {
-        return {
-          title: "Temperatura de Superfície",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Temperatura de Superfície");
       }
 
       const airTemp = allValues.temperature?.value;
@@ -360,27 +336,15 @@ const VARIABLES_CONFIG = {
     optionLabel: "Pressão Atmosférica",
     icon: "🎯",
     faIcon: "cloud",
-    category: "forecast",
     unit: "hPa",
     sourceId: "PRES",
     summary: "Pressão atmosférica na superfície, exibida em hectopascal para leitura operacional.",
     scaleMin: 950,
     scaleMax: 1030,
-    colormap: "RdBu_r",
     colors: PRESSURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.pressure?.ausente) {
-        return {
-          title: "Condições Atmosféricas",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Condições Atmosféricas");
       }
 
       return {
@@ -413,27 +377,15 @@ const VARIABLES_CONFIG = {
     optionLabel: "Vapor d'Água",
     icon: "💧",
     faIcon: "droplet",
-    category: "forecast",
     unit: "g/kg",
     sourceId: "VAPOR",
     summary: "Razão de mistura de vapor d'água próximo à superfície, expressa em g/kg.",
     scaleMin: 0,
     scaleMax: 25,
-    colormap: "Blues",
     colors: HUMIDITY_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.humidity?.ausente) {
-        return {
-          title: "Condições de Umidade",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Condições de Umidade");
       }
 
       return {
@@ -466,28 +418,16 @@ const VARIABLES_CONFIG = {
     optionLabel: "Umidade Relativa",
     icon: "💧",
     faIcon: "droplet",
-    category: "forecast",
     unit: "%",
     sourceId: "RH2",
     summary:
       "Percentual de saturação do ar próximo à superfície, estimado a partir de temperatura, pressão e vapor d'água.",
     scaleMin: 0,
     scaleMax: 100,
-    colormap: "YlGnBu",
     colors: HUMIDITY_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.relativeHumidity?.ausente) {
-        return {
-          title: "Umidade Relativa",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Umidade Relativa");
       }
 
       return {
@@ -520,27 +460,15 @@ const VARIABLES_CONFIG = {
     optionLabel: "Precipitação",
     icon: "🌧️",
     faIcon: "cloud-rain",
-    category: "forecast",
     unit: "mm",
     sourceId: "RAIN",
     summary: "Precipitação horária acumulada no timestep do modelo.",
     scaleMin: 0,
     scaleMax: 30,
-    colormap: "hot_r",
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.rain?.ausente) {
-        return {
-          title: "Previsão de Precipitação",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Previsão de Precipitação");
       }
 
       return {
@@ -573,27 +501,15 @@ const VARIABLES_CONFIG = {
     optionLabel: "Vento (10m)",
     icon: "🌬️",
     faIcon: "wind",
-    category: "forecast",
     unit: "m/s",
     sourceId: "WIND",
     summary: "Velocidade do vento a 10 metros calculada a partir das componentes U10 e V10.",
     scaleMin: 0,
     scaleMax: 15,
-    colormap: "PuBu",
     colors: ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.wind?.ausente) {
-        return {
-          title: "Informações do Vento",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Informações do Vento");
       }
 
       return {
@@ -626,13 +542,11 @@ const VARIABLES_CONFIG = {
     optionLabel: "Radiação Global",
     icon: "☀️",
     faIcon: "sun",
-    category: "forecast",
     unit: "W/m²",
     sourceId: "SWDOWN",
     summary: "Radiação solar de onda curta incidente na superfície. Não inclui cálculo fotovoltaico nesta página.",
     scaleMin: 0,
     scaleMax: 1200,
-    colormap: "hot_r",
     colors: [
       "#ffffff",
       "#fff0a0",
@@ -647,17 +561,7 @@ const VARIABLES_CONFIG = {
     ],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.globalRadiation?.ausente) {
-        return {
-          title: "Radiação Global",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Radiação Global");
       }
 
       return {
@@ -691,27 +595,15 @@ const VARIABLES_CONFIG = {
     optionLabel: "Onda Longa Incidente",
     icon: "🌙",
     faIcon: "moon",
-    category: "forecast",
     unit: "W/m²",
     sourceId: "GLW",
     summary: "Radiação de onda longa incidente na superfície, usada no balanço radiativo.",
     scaleMin: 250,
     scaleMax: 500,
-    colormap: "magma",
     colors: RADIATION_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.longwave?.ausente) {
-        return {
-          title: "Radiação de Onda Longa",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Radiação de Onda Longa");
       }
 
       return {
@@ -744,27 +636,15 @@ const VARIABLES_CONFIG = {
     optionLabel: "Calor Sensível",
     icon: "🔥",
     faIcon: "fire",
-    category: "forecast",
     unit: "W/m²",
     sourceId: "HFX",
     summary: "Fluxo turbulento de calor sensível entre superfície e atmosfera.",
     scaleMin: -200,
     scaleMax: 600,
-    colormap: "hot_r",
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.hfx?.ausente) {
-        return {
-          title: "Fluxo de Calor Sensível",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Fluxo de Calor Sensível");
       }
 
       return {
@@ -797,27 +677,15 @@ const VARIABLES_CONFIG = {
     optionLabel: "Calor Latente",
     icon: "💧",
     faIcon: "water",
-    category: "forecast",
     unit: "W/m²",
     sourceId: "LH",
     summary: "Fluxo turbulento de calor latente associado a evaporação e condensação.",
     scaleMin: -100,
     scaleMax: 700,
-    colormap: "hot",
     colors: [...TEMPERATURE_COLORS].reverse(),
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.lh?.ausente) {
-        return {
-          title: "Fluxo de Calor Latente",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Fluxo de Calor Latente");
       }
 
       return {
@@ -846,31 +714,21 @@ const VARIABLES_CONFIG = {
 
   windPowerDensity: {
     id: "WIND_POWER_DENSITY_10M",
+    relatedVariables: ["wind"],
+    chartCompanions: ["wind"],
     label: "Densidade de Potência Eólica (10m)",
     optionLabel: "Densidade Eólica 10m",
     icon: "💨",
     faIcon: "fan",
-    category: "energy",
     unit: "W/m²",
     sourceId: "WIND_POWER_DENSITY_10M",
     summary: "Densidade de potência disponível no vento a 10 metros. Não é geração real de turbina.",
     scaleMin: 0,
     scaleMax: 1500,
-    colormap: "YlOrRd",
     colors: ["#ffffcc", "#ffeda0", "#fed976", "#feb24c", "#fd8d3c", "#e31a1c", "#800026"],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.windPowerDensity?.ausente) {
-        return {
-          title: "Densidade de Potência Eólica",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Densidade de Potência Eólica");
       }
 
       const windValue = allValues.wind?.value;
@@ -951,14 +809,5 @@ function getHeatIndex(temperatureC, humidity) {
   return heatIndex;
 }
 
-/**
- * Export all configurations
- */
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    VARIABLE_CONTEXTS,
-    VARIABLES_CONFIG,
-    getWindCategory,
-    getTemperatureFeelsLike,
-  };
-}
+window.VARIABLES_CONFIG = VARIABLES_CONFIG;
+window.VARIABLE_CONTEXTS = VARIABLE_CONTEXTS;

@@ -29,14 +29,11 @@ Thumbs.db
 
 # Generated Data & Pipeline Artifacts
 site/JSON/*.json
+site/JSON/*.series.bin
 site/GeoJSON/*.geojson
 site/GeoJSON/*.json
-site/assets/json/*.json
 
 # Environment variables
 .env
 .env.local
 .env.*
-
-# Notas locais de manutenção — só para leitura dos agentes, fora do versionamento
-MELHORIAS-PENDENTES.md

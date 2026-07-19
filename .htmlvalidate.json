@@ -15,7 +15,6 @@
     "wcag/h30": "off",
     "wcag/h63": "off",
     "wcag/h67": "off",
-    "no-implicit-input-type": "off",
-    "meta-refresh": "off"
+    "no-implicit-input-type": "off"
   }
 }
