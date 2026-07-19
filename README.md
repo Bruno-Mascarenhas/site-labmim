@@ -51,7 +51,9 @@ Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gera
 │   │   ├── head.html          # <head> compartilhado (meta, CSS, tema, hashes dos workers)
 │   │   ├── nav.html           # navbar (itens gerados do array NAV em build.js)
 │   │   ├── footer.html        # rodapé compartilhado
-│   │   └── scripts.html       # Bootstrap bundle (fim do body)
+│   │   ├── scripts.html       # Bootstrap bundle (fim do body)
+│   │   ├── webgis-doc-features.html  # aba compartilhada da documentação
+│   │   └── webgis-doc-wrf.html       # aba compartilhada da documentação
 │   └── pages/                 # conteúdo único de cada página (sem head/nav/footer)
 │       ├── index.html
 │       ├── monitoring.html

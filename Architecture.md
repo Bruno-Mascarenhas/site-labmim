@@ -43,7 +43,9 @@ src/                                # FONTE das páginas — edite aqui, nunca e
 │   ├── head.html                   # <head> compartilhado (inclui meta labmim-asset-hashes)
 │   ├── nav.html                    # navbar (itens gerados do array NAV em build.js)
 │   ├── footer.html                 # rodapé compartilhado
-│   └── scripts.html                # Bootstrap bundle (fim do body)
+│   ├── scripts.html                # Bootstrap bundle (fim do body)
+│   ├── webgis-doc-features.html    # aba "Funcionalidades" (compartilhada)
+│   └── webgis-doc-wrf.html         # aba "Dados WRF" (compartilhada)
 └── pages/                          # conteúdo único de cada página (sem head/nav/footer)
 
 site/                               # SAÍDA publicada (HTML gerado por build.js + assets)
@@ -101,12 +103,12 @@ Observações:
 `build.js` (stdlib do Node: `crypto`, `fs`, `path`) monta cada página assim:
 
 1. Carrega o layout (`institutional` ou `webgis`), que inclui partials via `{{> head}}`, `{{> nav}}`, `{{> footer}}`, `{{> scripts}}`.
-2. Injeta o conteúdo da página (`{{content}}` de `src/pages/`), e resolve os tokens `{{NAV_ITEMS}}`, `{{FOOTER_NAV}}`, `{{WORKER_HASHES}}`, `{{seoHead}}`, `{{title}}`, `{{description}}`, `{{bodyAttrs}}` e `{{h1}}` (resolvido por último, com fallback para `title`). Substituição é literal (split/join); qualquer token `{{...}}` não resolvido **quebra o build**.
+2. Injeta o conteúdo da página (`{{content}}` de `src/pages/`, que também pode usar `{{> partial}}` — as abas compartilhadas da documentação do WebGIS vivem em `webgis-doc-*.html`), e resolve os tokens `{{NAV_ITEMS}}`, `{{FOOTER_NAV}}`, `{{YEAR}}`, `{{WORKER_HASHES}}`, `{{seoHead}}`, `{{title}}`, `{{description}}`, `{{bodyAttrs}}`, `{{kicker}}`/`{{docModalTitle}}` (páginas WebGIS) e `{{h1}}` (resolvido por último, com fallback para `title`). Substituição é literal (split/join); qualquer token `{{...}}` não resolvido **quebra o build**.
 3. `seoHead(page)` gera canonical + Open Graph + Twitter card a partir de `PROD = https://labmim.if.ufba.br` (`index.html` colapsa para a raiz).
 4. `stampAssetVersions()` reescreve todo `href`/`src` de `assets/css/` e `assets/js/` acrescentando `?v=<primeiros 8 hex do md5 do conteúdo>`. Vendor mantém tokens manuais de release, **exceto** os listados em `HASHED_VENDOR_ASSETS` (hoje só `bootstrap.purged.min.css`, cujo conteúdo depende do HTML do site).
 5. `workerHashes()` calcula o hash de cada `assets/js/workers/*.js` e o publica na `<meta name="labmim-asset-hashes" content="nome:hash;nome:hash">` (workers não aparecem em `href`/`src`, então o HTML não pode versioná-los diretamente). Em runtime, `workerScriptUrl()` em `map-manager.js` lê essa meta e monta `assets/js/workers/<arquivo>?v=<hash>`; sem hash disponível a URL sai sem `?v=` e cai nas regras de cache curto.
 
-`PAGES` define as 6 páginas (`file`, `layout`, `active`, `h1`, `title`, `description` e, nos mapas, `bodyAttrs` com `data-map-context="forecast|energy"`). `npm run build` roda `node build.js` + Prettier na saída; `npm run build:check` falha se o `site/*.html` commitado divergir do regenerado (**as páginas geradas são artefatos commitados** — toda mudança em `src/`, `build.js` ou no conteúdo de um asset hasheado exige regenerar e commitar o HTML).
+`PAGES` define as 6 páginas (`file`, `layout`, `active`, `h1`, `title`, `description` e, nos mapas, `bodyAttrs` com `data-map-context="forecast|energy"` mais `kicker`/`docModalTitle`). O shell inteiro do WebGIS (mapa, sidebar, controles, modais) vive no layout `webgis.html`; as páginas trazem só as abas de documentação específicas (Visão Geral e Variáveis). `npm run build` roda `node build.js` + Prettier na saída; `npm run build:check` falha se o `site/*.html` commitado divergir do regenerado (**as páginas geradas são artefatos commitados** — toda mudança em `src/`, `build.js` ou no conteúdo de um asset hasheado exige regenerar e commitar o HTML).
 
 ## CSS
 

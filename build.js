@@ -99,6 +99,8 @@ const PAGES = [
     layout: "webgis",
     active: "mapas",
     bodyAttrs: ' data-map-context="forecast"',
+    kicker: "Previsões",
+    docModalTitle: "Documentação - Mapa Interativo",
     h1: "Mapas Interativos WRF",
     title: "LabMiM — Mapas Interativos WRF · UFBA",
     description:
@@ -109,6 +111,8 @@ const PAGES = [
     layout: "webgis",
     active: "potenciais",
     bodyAttrs: ' data-map-context="energy"',
+    kicker: "Potenciais Energéticos",
+    docModalTitle: "Documentação - Potenciais Energéticos",
     h1: "Potenciais Energéticos",
     title: "LabMiM — Potenciais Energéticos · UFBA",
     description:
@@ -161,6 +165,9 @@ const partials = {
   nav: read(path.join(SRC, "partials", "nav.html")),
   footer: read(path.join(SRC, "partials", "footer.html")),
   scripts: read(path.join(SRC, "partials", "scripts.html")),
+  // Abas compartilhadas da documentação do WebGIS (idênticas nas duas páginas).
+  "webgis-doc-features": read(path.join(SRC, "partials", "webgis-doc-features.html")),
+  "webgis-doc-wrf": read(path.join(SRC, "partials", "webgis-doc-wrf.html")),
 };
 
 function navItems(active) {
@@ -233,7 +240,8 @@ function stampAssetVersions(html) {
 
 function buildPage(page) {
   const layout = read(path.join(SRC, "layouts", `${page.layout}.html`));
-  const content = read(path.join(SRC, "pages", page.file)).replace(/\n$/, "");
+  // Páginas também podem usar {{> partial}} (ex.: abas compartilhadas do WebGIS).
+  const content = expandPartials(read(path.join(SRC, "pages", page.file))).replace(/\n$/, "");
 
   let html = expandPartials(layout);
   html = sub(html, "{{NAV_ITEMS}}", navItems(page.active || ""));
@@ -244,6 +252,8 @@ function buildPage(page) {
   html = sub(html, "{{title}}", attr(page.title));
   html = sub(html, "{{description}}", attr(page.description));
   html = sub(html, "{{bodyAttrs}}", page.bodyAttrs || "");
+  if (page.kicker !== undefined) html = sub(html, "{{kicker}}", page.kicker);
+  if (page.docModalTitle !== undefined) html = sub(html, "{{docModalTitle}}", page.docModalTitle);
   html = sub(html, "{{content}}", content);
   html = sub(html, "{{h1}}", attr(page.h1 || page.title)); // resolved after content so it works in either
 
