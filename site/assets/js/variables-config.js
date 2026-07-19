@@ -10,10 +10,16 @@
  * - unit: Measurement unit
  * - colormap: Color palette type
  * - colors: Array of hex colors for the gradient
+ * - relatedVariables: Companion variables this variable's specificInfo reads
+ *   from allValues (omit when none). The map only fetches these on a cell
+ *   click, instead of every visible variable.
+ * - chartCompanions: Companion SERIES the time-series modal loads alongside
+ *   the variable (omit when none) — e.g. temperature drives the solar/eolico
+ *   energy-production chart.
  * - specificInfo: Function returning variable-specific details
  *   * Signature: (value, allValues = {})
  *   * value: Current variable value
- *   * allValues: Object containing values for ALL variables at the same cell/date
+ *   * allValues: Object with the current variable plus its relatedVariables
  *     Example: { temperature: { value: 25, label: '...', unit: '°C' }, ... }
  *   * Enables multivariate calculations (e.g., solar production with temp adjustments)
  */
@@ -85,9 +91,29 @@ const VARIABLE_CONTEXTS = {
   },
 };
 
+/**
+ * Shared "no data at this cell/timestep" payload for specificInfo — the
+ * panel title is the only per-variable part of the former 14 copies.
+ */
+function unavailableInfo(title) {
+  return {
+    title,
+    items: [
+      {
+        label: "Status",
+        value: "⚠ Dados Indisponíveis",
+        unit: "",
+        icon: "fa-exclamation-triangle",
+      },
+    ],
+  };
+}
+
 const VARIABLES_CONFIG = {
   solar: {
     id: "SWDOWN",
+    relatedVariables: ["temperature"],
+    chartCompanions: ["temperature"],
     label: "Radiação Solar",
     optionLabel: "Potencial Fotovoltaico",
     icon: "☀️",
@@ -114,17 +140,7 @@ const VARIABLES_CONFIG = {
     ],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined) {
-        return {
-          title: "Geração Fotovoltaica",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Geração Fotovoltaica");
       }
 
       const air_temp = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 25;
@@ -167,6 +183,8 @@ const VARIABLES_CONFIG = {
 
   eolico: {
     id: "POT_EOLICO_50M",
+    relatedVariables: ["temperature"],
+    chartCompanions: ["temperature"],
     id_100m: "POT_EOLICO_100M",
     id_150m: "POT_EOLICO_150M",
     defaultHeight: 50,
@@ -185,17 +203,7 @@ const VARIABLES_CONFIG = {
     colors: ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.eolico?.ausente) {
-        return {
-          title: "Geração Eólica",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Geração Eólica");
       }
 
       const tempValue = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 15;
@@ -238,6 +246,7 @@ const VARIABLES_CONFIG = {
 
   temperature: {
     id: "TEMP",
+    relatedVariables: ["relativeHumidity", "humidity", "wind"],
     label: "Temperatura (2m)",
     optionLabel: "Temperatura",
     icon: "🌡️",
@@ -252,17 +261,7 @@ const VARIABLES_CONFIG = {
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.temperature?.ausente) {
-        return {
-          title: "Informações Térmicas",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Informações Térmicas");
       }
 
       const humidityValue =
@@ -299,6 +298,7 @@ const VARIABLES_CONFIG = {
 
   skinTemperature: {
     id: "TSK",
+    relatedVariables: ["temperature"],
     label: "Temperatura de Superfície",
     optionLabel: "Temperatura de Superfície",
     icon: "🌡️",
@@ -313,17 +313,7 @@ const VARIABLES_CONFIG = {
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.skinTemperature?.ausente) {
-        return {
-          title: "Temperatura de Superfície",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Temperatura de Superfície");
       }
 
       const airTemp = allValues.temperature?.value;
@@ -370,17 +360,7 @@ const VARIABLES_CONFIG = {
     colors: PRESSURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.pressure?.ausente) {
-        return {
-          title: "Condições Atmosféricas",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Condições Atmosféricas");
       }
 
       return {
@@ -423,17 +403,7 @@ const VARIABLES_CONFIG = {
     colors: HUMIDITY_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.humidity?.ausente) {
-        return {
-          title: "Condições de Umidade",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Condições de Umidade");
       }
 
       return {
@@ -477,17 +447,7 @@ const VARIABLES_CONFIG = {
     colors: HUMIDITY_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.relativeHumidity?.ausente) {
-        return {
-          title: "Umidade Relativa",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Umidade Relativa");
       }
 
       return {
@@ -530,17 +490,7 @@ const VARIABLES_CONFIG = {
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.rain?.ausente) {
-        return {
-          title: "Previsão de Precipitação",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Previsão de Precipitação");
       }
 
       return {
@@ -583,17 +533,7 @@ const VARIABLES_CONFIG = {
     colors: ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.wind?.ausente) {
-        return {
-          title: "Informações do Vento",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Informações do Vento");
       }
 
       return {
@@ -647,17 +587,7 @@ const VARIABLES_CONFIG = {
     ],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.globalRadiation?.ausente) {
-        return {
-          title: "Radiação Global",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Radiação Global");
       }
 
       return {
@@ -701,17 +631,7 @@ const VARIABLES_CONFIG = {
     colors: RADIATION_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.longwave?.ausente) {
-        return {
-          title: "Radiação de Onda Longa",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Radiação de Onda Longa");
       }
 
       return {
@@ -754,17 +674,7 @@ const VARIABLES_CONFIG = {
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.hfx?.ausente) {
-        return {
-          title: "Fluxo de Calor Sensível",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Fluxo de Calor Sensível");
       }
 
       return {
@@ -807,17 +717,7 @@ const VARIABLES_CONFIG = {
     colors: [...TEMPERATURE_COLORS].reverse(),
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.lh?.ausente) {
-        return {
-          title: "Fluxo de Calor Latente",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Fluxo de Calor Latente");
       }
 
       return {
@@ -846,6 +746,8 @@ const VARIABLES_CONFIG = {
 
   windPowerDensity: {
     id: "WIND_POWER_DENSITY_10M",
+    relatedVariables: ["wind"],
+    chartCompanions: ["wind"],
     label: "Densidade de Potência Eólica (10m)",
     optionLabel: "Densidade Eólica 10m",
     icon: "💨",
@@ -860,17 +762,7 @@ const VARIABLES_CONFIG = {
     colors: ["#ffffcc", "#ffeda0", "#fed976", "#feb24c", "#fd8d3c", "#e31a1c", "#800026"],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.windPowerDensity?.ausente) {
-        return {
-          title: "Densidade de Potência Eólica",
-          items: [
-            {
-              label: "Status",
-              value: "⚠ Dados Indisponíveis",
-              unit: "",
-              icon: "fa-exclamation-triangle",
-            },
-          ],
-        };
+        return unavailableInfo("Densidade de Potência Eólica");
       }
 
       const windValue = allValues.wind?.value;
