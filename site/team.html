@@ -282,9 +282,12 @@
         </div>
 
         <div class="mt-2 mb-5">
+          <!-- Embed simples (?output=embed) no lugar do My Maps: mesmo host no CSP,
+         sem os avisos de deprecação que o frontend do My Maps emite no console
+         (Marker/PlacesService legados dentro do iframe do Google). -->
           <iframe
             loading="lazy"
-            src="https://www.google.com/maps/d/u/0/embed?mid=1sUXwVKDDw6HHQTVHcMu6r7nRKmREp45L"
+            src="https://www.google.com/maps?q=-13.0007998,-38.507221&amp;z=16&amp;output=embed"
             height="350"
             class="embedded-map"
             title="Localização do LabMiM"
