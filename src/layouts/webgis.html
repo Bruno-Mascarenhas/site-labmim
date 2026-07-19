@@ -8,7 +8,7 @@
     <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
 
     <!-- Maps-specific CSS (extracted from inline) -->
-    <link rel="stylesheet" type="text/css" href="assets/css/maps.css" />
+    <link rel="stylesheet" href="assets/css/maps.css" />
 
     <!-- preconnect: os tiles são pedidos ~1s após a navegação, então a
          conexão aquecida (DNS + TCP + TLS) é sempre aproveitada; dns-prefetch
@@ -35,8 +35,8 @@
     <!-- Configuração de variáveis + serviço de dados + gráficos + mapa.
          O build.js estampa ?v=<hash do conteúdo> em todo CSS/JS próprio; os
          Web Workers recebem hash pela <meta name="labmim-asset-hashes">
-         (lida por workerScriptUrl em map-manager.js; WORKER_CACHE_VERSION
-         é apenas o fallback quando o build não rodou). -->
+         (lida por workerScriptUrl em map-manager.js; sem hash a URL sai
+         sem ?v= e cai nas regras de cache curto). -->
     <script src="assets/js/variables-config.js" defer></script>
     <script src="assets/js/data-service.js" defer></script>
     <script src="assets/js/charts-manager.js" defer></script>

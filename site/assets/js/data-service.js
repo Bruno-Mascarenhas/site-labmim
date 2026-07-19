@@ -29,9 +29,9 @@ const DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS = 4000;
 
 class LabmimDataService {
   constructor(options = {}) {
-    this.cacheLimit = options.cacheLimit || DATA_SERVICE_CACHE_LIMIT;
-    this.failureTtlMs = options.failureTtlMs || DATA_SERVICE_FAILURE_TTL_MS;
-    this.transientFailureTtlMs = options.transientFailureTtlMs || DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS;
+    this.cacheLimit = DATA_SERVICE_CACHE_LIMIT;
+    this.failureTtlMs = DATA_SERVICE_FAILURE_TTL_MS;
+    this.transientFailureTtlMs = DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS;
     this._cache = new Map();
     this._inflight = new Map();
     this._failedAt = new Map();

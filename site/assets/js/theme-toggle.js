@@ -1,69 +1,50 @@
 /**
  * theme-toggle.js
- * Gerencia o tema escuro/claro do sistema.
+ * Gerencia o tema escuro/claro do sistema. Todos os botões de tema (navbar e
+ * rodapé) usam os atributos [data-theme-toggle]/[data-theme-icon].
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-  const themeToggleBtns = document.querySelectorAll("#themeToggleBtn, [data-theme-toggle]");
-  const themeIcons = document.querySelectorAll("#themeIcon, [data-theme-icon]");
+  const themeToggleBtns = document.querySelectorAll("[data-theme-toggle]");
+  const themeIcons = document.querySelectorAll("[data-theme-icon]");
 
   if (!themeToggleBtns.length) return;
 
   function updateIcon(isDark) {
+    const label = isDark ? "Alternar para tema claro" : "Alternar para tema escuro";
+
     themeIcons.forEach((themeIcon) => {
-      if (isDark) {
-        themeIcon.classList.remove("fa-moon");
-        themeIcon.classList.add("fa-sun");
-      } else {
-        themeIcon.classList.remove("fa-sun");
-        themeIcon.classList.add("fa-moon");
-      }
+      themeIcon.classList.toggle("fa-sun", isDark);
+      themeIcon.classList.toggle("fa-moon", !isDark);
     });
 
     themeToggleBtns.forEach((themeToggleBtn) => {
-      themeToggleBtn.setAttribute("aria-label", isDark ? "Alternar para tema claro" : "Alternar para tema escuro");
+      themeToggleBtn.setAttribute("aria-label", label);
       themeToggleBtn.setAttribute("aria-pressed", String(isDark));
-      themeToggleBtn.setAttribute("title", isDark ? "Alternar para tema claro" : "Alternar para tema escuro");
+      themeToggleBtn.setAttribute("title", label);
     });
   }
 
-  function announceThemeChange(isDark) {
+  function applyTheme(isDark) {
+    document.documentElement.classList.toggle("dark-theme", isDark);
+    updateIcon(isDark);
     window.dispatchEvent(new CustomEvent("labmim-theme-change", { detail: { isDark } }));
   }
 
-  // Verifica o estado inicial (aplicado pelo script no <head>)
-  let isDark = document.documentElement.classList.contains("dark-theme");
-  updateIcon(isDark);
+  // Estado inicial já aplicado pelo theme-boot.js no <head>.
+  updateIcon(document.documentElement.classList.contains("dark-theme"));
 
   themeToggleBtns.forEach((themeToggleBtn) => {
     themeToggleBtn.addEventListener("click", (e) => {
       e.preventDefault();
-      isDark = document.documentElement.classList.contains("dark-theme");
-      const newDark = !isDark;
-
-      if (newDark) {
-        document.documentElement.classList.add("dark-theme");
-        localStorage.setItem("labmim-theme", "dark");
-      } else {
-        document.documentElement.classList.remove("dark-theme");
-        localStorage.setItem("labmim-theme", "light");
-      }
-      updateIcon(newDark);
-      announceThemeChange(newDark);
+      const newDark = !document.documentElement.classList.contains("dark-theme");
+      localStorage.setItem("labmim-theme", newDark ? "dark" : "light");
+      applyTheme(newDark);
     });
   });
 
-  // Ouve mudanças na preferência do sistema se o usuário não definiu manualmente
+  // Segue o SO apenas enquanto o usuário não definiu preferência manual.
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-    if (!localStorage.getItem("labmim-theme")) {
-      isDark = e.matches;
-      if (isDark) {
-        document.documentElement.classList.add("dark-theme");
-      } else {
-        document.documentElement.classList.remove("dark-theme");
-      }
-      updateIcon(isDark);
-      announceThemeChange(isDark);
-    }
+    if (!localStorage.getItem("labmim-theme")) applyTheme(e.matches);
   });
 });

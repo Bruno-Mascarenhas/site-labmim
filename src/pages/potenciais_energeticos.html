@@ -34,7 +34,7 @@
   </div>
 
   <!-- COLORBAR -->
-  <div class="colorbar-container" id="colorbarContainer">
+  <div class="colorbar-container">
     <div class="colorbar-content">
       <div class="colorbar-gradient" id="colorbarGradient"></div>
       <div class="colorbar-labels" id="colorbarLabels"></div>
@@ -43,7 +43,7 @@
   </div>
 
   <!-- DOMAIN INDICATORS -->
-  <div class="domain-indicators-container" id="domainIndicatorsContainer">
+  <div class="domain-indicators-container">
     <span class="domain-label">Domínios:</span>
     <div class="domain-buttons-group">
       <button type="button" class="domain-btn active" aria-pressed="true" data-domain="D01" data-zoom="5.5">BA/NE</button>
@@ -161,15 +161,15 @@
       </div>
 
       <div class="documentation-tabs" role="tablist" aria-label="Seções da documentação">
-        <button type="button" class="doc-tab active" role="tab" id="docTab-overview" aria-selected="true" aria-controls="docPanel-overview" data-tab="overview"><i class="fas fa-map" aria-hidden="true"></i> Visão Geral</button>
-        <button type="button" class="doc-tab" role="tab" id="docTab-features" aria-selected="false" aria-controls="docPanel-features" data-tab="features"><i class="fas fa-cogs" aria-hidden="true"></i> Funcionalidades</button>
-        <button type="button" class="doc-tab" role="tab" id="docTab-variables" aria-selected="false" aria-controls="docPanel-variables" data-tab="variables"><i class="fas fa-chart-bar" aria-hidden="true"></i> Variáveis</button>
-        <button type="button" class="doc-tab" role="tab" id="docTab-wrf" aria-selected="false" aria-controls="docPanel-wrf" data-tab="wrf"><i class="fas fa-database" aria-hidden="true"></i> Dados WRF</button>
+        <button type="button" class="doc-tab active" role="tab" id="docTab-overview" aria-selected="true" tabindex="0" aria-controls="docPanel-overview" data-tab="overview"><i class="fas fa-map" aria-hidden="true"></i> Visão Geral</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-features" aria-selected="false" tabindex="-1" aria-controls="docPanel-features" data-tab="features"><i class="fas fa-cogs" aria-hidden="true"></i> Funcionalidades</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-variables" aria-selected="false" tabindex="-1" aria-controls="docPanel-variables" data-tab="variables"><i class="fas fa-chart-bar" aria-hidden="true"></i> Variáveis</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-wrf" aria-selected="false" tabindex="-1" aria-controls="docPanel-wrf" data-tab="wrf"><i class="fas fa-database" aria-hidden="true"></i> Dados WRF</button>
       </div>
 
       <div class="documentation-body">
         <!-- OVERVIEW TAB -->
-        <div class="doc-tab-content active" role="tabpanel" id="docPanel-overview" aria-labelledby="docTab-overview" data-tab="overview">
+        <div class="doc-tab-content active" role="tabpanel" id="docPanel-overview" aria-labelledby="docTab-overview" tabindex="0" data-tab="overview">
           <h3>Plataforma WebGIS de Potenciais Energéticos — LabMiM / UFBA</h3>
           <div class="doc-warning">
             <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
@@ -199,7 +199,7 @@
         </div>
 
         <!-- FEATURES TAB -->
-        <div class="doc-tab-content" role="tabpanel" id="docPanel-features" aria-labelledby="docTab-features" data-tab="features">
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-features" aria-labelledby="docTab-features" tabindex="0" data-tab="features">
           <h3>Funcionalidades Principais</h3>
 
           <h4>⏱️ Controle Temporal</h4>
@@ -237,7 +237,7 @@
         </div>
 
         <!-- VARIABLES TAB -->
-        <div class="doc-tab-content" role="tabpanel" id="docPanel-variables" aria-labelledby="docTab-variables" data-tab="variables">
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-variables" aria-labelledby="docTab-variables" tabindex="0" data-tab="variables">
           <h3>Potenciais Energéticos</h3>
           <p class="doc-muted-copy">
             Esta página mostra apenas produtos energéticos. As variáveis meteorológicas usadas como suporte entram
@@ -343,7 +343,7 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
         </div>
 
         <!-- WRF TAB -->
-        <div class="doc-tab-content" role="tabpanel" id="docPanel-wrf" aria-labelledby="docTab-wrf" data-tab="wrf">
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-wrf" aria-labelledby="docTab-wrf" tabindex="0" data-tab="wrf">
           <h3>Origem dos Dados — Modelo WRF</h3>
 
           <div class="doc-var-card">
@@ -506,7 +506,7 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
       <h2 id="timeSeriesModalTitle">Série Temporal</h2>
       <div class="chart-modal-actions">
         <button type="button"
-          class="chart-export-btn chart-export-button btn btn-sm btn-outline-lab"
+          class="chart-export-btn btn btn-sm btn-outline-lab"
           id="timeSeriesExportBtn"
           title="Exportar CSV"
         >
@@ -527,7 +527,7 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
       </div>
 
       <!-- Containers for the charts -->
-      <div id="chartContainerValue" class="chart-container">
+      <div class="chart-container">
         <canvas id="chartCanvasValue"></canvas>
       </div>
       <div id="chartContainerEnergy" class="chart-container chart-container-secondary">

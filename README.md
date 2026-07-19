@@ -61,7 +61,7 @@ Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gera
 │       └── potenciais_energeticos.html
 └── site/                      # SAÍDA publicada (HTML gerado + assets estáticos)
     ├── .htaccess              # MIME, compressão (deflate+brotli), cache, segurança/CSP, 404, 301
-    ├── robots.txt             # regras de crawl (bloqueia /JSON/, /GeoJSON/, /figuras/)
+    ├── robots.txt             # regras de crawl (bloqueia /JSON/, /GeoJSON/)
     ├── sitemap.xml            # 6 URLs canônicas
     ├── 404.html               # página de erro (standalone, caminhos absolutos — não gerada)
     ├── index.html             # ┐
@@ -70,10 +70,8 @@ Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gera
     ├── climatologia.html      # │
     ├── mapas_interativos.html # │
     ├── potenciais_energeticos.html  # ┘
-    ├── mapas_meteorologicos.html   # redirect de compatibilidade (mantido à mão; 301 no .htaccess)
     ├── GeoJSON/               # grades geradas pelo pipeline (git-ignored)
     ├── JSON/                  # valores, séries, resumos e manifest (git-ignored)
-    ├── figuras/               # reservado (placeholder)
     └── assets/
         ├── css/
         │   ├── base.css       # tokens e fundamentos
@@ -104,8 +102,7 @@ Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gera
         ├── data/
         │   └── br_ba.json     # contorno da Bahia (recorte por estado)
         ├── graphs/            # PNGs do monitoramento (regenerados pela estação)
-        ├── img/
-        └── json/              # reservado (apenas .gitkeep)
+        └── img/
 ```
 
 ## Dados Do WebGIS (Pipeline Externo)
@@ -226,7 +223,7 @@ make serve         # python3 -m http.server 8000 --directory site
 make ci            # build-check + format-check + lint + lint-html + lint-links + audit
 ```
 
-`make ci` espelha o CI do GitHub (o alvo `lint` inclui `lint:icons` e `lint:purge`).
+`make ci` roda os mesmos checks do CI do GitHub (o alvo `lint` inclui `lint:icons` e `lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`.
 
 As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, linkinator) são `devDependencies` em `package.json`. Não há dependências de runtime instaladas via npm — o site é estático e `build.js` usa apenas a biblioteca padrão do Node (o PurgeCSS é devDependency e roda só na regeneração do CSS purgado). O CI (`.github/workflows/ci.yml`) roda, nesta ordem: `build:check`, `lint:js`, `lint:css`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links` e `npm audit --audit-level=high`; o Dependabot (`.github/dependabot.yml`) acompanha npm e GitHub Actions semanalmente, com PRs agrupados.
 
@@ -238,7 +235,6 @@ As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, l
 - `site/climatologia.html`: página em construção.
 - `site/mapas_interativos.html`: WebGIS de previsões meteorológicas.
 - `site/potenciais_energeticos.html`: WebGIS de potenciais fotovoltaico, eólico e densidade eólica.
-- `site/mapas_meteorologicos.html`: compatibilidade — 301 no `.htaccess` + meta-refresh de fallback para `mapas_interativos.html`.
 - `site/404.html`: página de erro standalone (caminhos absolutos, servida via `ErrorDocument`).
 
 ## Mapas Interativos
@@ -290,7 +286,7 @@ Outras otimizações da camada de mapa:
 Cache busting dos assets (build):
 
 - CSS/JS próprios: `?v=<hash md5-8 do conteúdo>` estampado por `build.js` em todo `href`/`src` (regra `immutable` de 1 ano no `.htaccess` para URLs versionadas).
-- Web Workers: hashes publicados na `<meta name="labmim-asset-hashes">` e lidos por `workerScriptUrl()` (`WORKER_CACHE_VERSION` é só o fallback sem build).
+- Web Workers: hashes publicados na `<meta name="labmim-asset-hashes">` e lidos por `workerScriptUrl()` (sem a meta, a URL sai sem `?v=` e cai no cache curto).
 - Vendor: tokens manuais de release (`?v=1.9.4`, `?v=3.9.1`, `?v=5.3.8`, `?v=6.4.0`) + cache `immutable` de 1 ano — **exceto** `bootstrap.purged.min.css`, que é content-hashed pelo build (o conteúdo depende do HTML do site), e as webfonts do Font Awesome, que ficam na regra de 7 dias (o subset regenera no mesmo nome).
 
 ## Dark Mode

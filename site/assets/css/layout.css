@@ -97,15 +97,13 @@
 }
 
 .footer-nav a,
-.modern-footer a,
-.modern-footer .footer-links a {
+.modern-footer a {
   color: #f4f8ff !important;
   text-decoration: none;
 }
 
 .footer-nav a:hover,
-.modern-footer a:hover,
-.modern-footer .footer-links a:hover {
+.modern-footer a:hover {
   color: var(--accent-color) !important;
 }
 

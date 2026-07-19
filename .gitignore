@@ -32,7 +32,6 @@ site/JSON/*.json
 site/JSON/*.series.bin
 site/GeoJSON/*.geojson
 site/GeoJSON/*.json
-site/assets/json/*.json
 
 # Environment variables
 .env

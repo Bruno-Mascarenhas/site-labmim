@@ -90,9 +90,7 @@ class ChartsManager {
       this.timeSeriesData = timeSeriesData;
       return timeSeriesData;
     } catch (error) {
-      if (error.name === "AbortError") {
-        return {};
-      } else {
+      if (error.name !== "AbortError") {
         console.error("[Charts] Error loading time series:", error);
       }
       return {};
@@ -101,8 +99,7 @@ class ChartsManager {
 
   async findCellIndex(lat, lng, domain, signal) {
     try {
-      const cacheKey = domain;
-      let gridLayer = this.app?.gridLayers?.[cacheKey];
+      let gridLayer = this.app?.gridLayers?.[domain];
 
       // Not cached yet: load through the app's shared grid loader (compact
       // format aware, worker parsing, in-flight dedup) instead of a raw
@@ -208,7 +205,7 @@ class ChartsManager {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
 
-    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType, "value")}"></i> Série Temporal: ${config.label}`;
+    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}"></i> Série Temporal: ${config.label}`;
 
     const isSolarOrWind = variableType === "solar" || variableType === "eolico";
 
@@ -228,13 +225,6 @@ class ChartsManager {
     if (type && selectedCell && this.timeSeriesData) {
       this.renderChartsForVariable(type);
     }
-  }
-
-  clearCharts() {
-    this.charts.forEach((chart) => chart?.destroy());
-    this.charts.clear();
-    this.timeSeriesData = {};
-    this.timeSeriesCache.clear();
   }
 
   /**
@@ -354,8 +344,7 @@ class ChartsManager {
     if (feature?.format !== "domain-summary-v1" || typeof feature.template !== "string") return null;
 
     try {
-      const path = feature.template.replace("{domain}", domain).replace("{variable}", variableId);
-      const url = this.app?.dataUrl ? this.app.dataUrl(path) : path;
+      const url = this._artifactUrl(feature.template, domain, variableId);
       const data = this.app?._cachedFetch
         ? await this.app._cachedFetch(url, { signal })
         : await fetch(url, { signal }).then((res) => (res.ok ? res.json() : null));
@@ -501,18 +490,14 @@ class ChartsManager {
     const chartData = series.map((entry) => entry.value);
     const chartColor = config.colors?.[config.colors.length - 1] || "#0d6efd";
     const chartLabel = `Média do domínio · ${config.label}`;
+    const tooltipLabel = (ctx) => this._formatPreviewValue(ctx.parsed.y, config.unit);
 
     let chartInstance = this.previewCharts.get(canvasId);
 
     if (chartInstance) {
-      chartInstance.data.labels = labels;
-      chartInstance.data.datasets[0].data = chartData;
-      chartInstance.data.datasets[0].label = chartLabel;
-      chartInstance.data.datasets[0].borderColor = chartColor;
-      chartInstance.data.datasets[0].backgroundColor = `${chartColor}20`;
+      this._applySeriesToChart(chartInstance, labels, chartData, chartLabel, chartColor);
       chartInstance.options.scales.y.title.text = config.unit;
-      chartInstance.options.plugins.tooltip.callbacks.label = (ctx) =>
-        `${this._formatPreviewValue(ctx.parsed.y, config.unit)}`;
+      chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
       this._applyChartTheme(chartInstance, chartColor);
       chartInstance.update("none");
       return;
@@ -525,8 +510,7 @@ class ChartsManager {
     chartInstance.options.plugins.legend.display = false;
     chartInstance.options.scales.x.ticks.maxTicksLimit = 6;
     chartInstance.options.elements = { point: { radius: 0 } };
-    chartInstance.options.plugins.tooltip.callbacks.label = (ctx) =>
-      `${this._formatPreviewValue(ctx.parsed.y, config.unit)}`;
+    chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
     chartInstance.update("none");
     this.previewCharts.set(canvasId, chartInstance);
   }
@@ -581,11 +565,7 @@ class ChartsManager {
     let chartInstance = this.charts.get(canvasId);
 
     if (chartInstance) {
-      chartInstance.data.labels = labels;
-      chartInstance.data.datasets[0].data = chartData;
-      chartInstance.data.datasets[0].label = chartLabel;
-      chartInstance.data.datasets[0].borderColor = chartColor;
-      chartInstance.data.datasets[0].backgroundColor = `${chartColor}20`;
+      this._applySeriesToChart(chartInstance, labels, chartData, chartLabel, chartColor);
       chartInstance.data.datasets[0].pointRadius = chartData.length > 96 ? 0 : 3;
       chartInstance.data.datasets[0].pointBackgroundColor = chartColor;
       chartInstance.options.scales.y.title.text = chartUnit;
@@ -630,11 +610,24 @@ class ChartsManager {
     chart.options.scales.y.title.color = theme.textSecondary;
   }
 
+  /** Fills a manifest artifact path template and routes it through the app's versioned data URLs. */
+  _artifactUrl(template, domain, variableId) {
+    const path = template.replace("{domain}", domain).replace("{variable}", variableId);
+    return this.app?.dataUrl ? this.app.dataUrl(path) : path;
+  }
+
+  /** Applies a new series (labels + primary dataset line styling) to an existing chart instance. */
+  _applySeriesToChart(chartInstance, labels, data, label, color) {
+    chartInstance.data.labels = labels;
+    chartInstance.data.datasets[0].data = data;
+    chartInstance.data.datasets[0].label = label;
+    chartInstance.data.datasets[0].borderColor = color;
+    chartInstance.data.datasets[0].backgroundColor = `${color}20`;
+  }
+
   _getThemeColors() {
     const rootStyles = getComputedStyle(document.documentElement);
-    const bodyStyles = getComputedStyle(document.body);
     return {
-      textPrimary: rootStyles.getPropertyValue("--text-primary").trim() || bodyStyles.color || "#fff",
       textSecondary: rootStyles.getPropertyValue("--text-secondary").trim() || "#888",
       legendText: document.documentElement.classList.contains("dark-theme") ? "#fff" : "#666",
       grid: rootStyles.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
@@ -845,8 +838,7 @@ class ChartsManager {
     const expectedTotal = gridCellCount ? gridCellCount * bytesPerCell : null;
 
     try {
-      const path = feature.template.replace("{domain}", domain).replace("{variable}", variableId);
-      const url = this.app?.dataUrl ? this.app.dataUrl(path) : path;
+      const url = this._artifactUrl(feature.template, domain, variableId);
       const res = await fetch(url, {
         signal,
         headers: { Range: `bytes=${offset}-${offset + bytesPerCell - 1}` },
@@ -1068,8 +1060,7 @@ class ChartsManager {
     return { lat: lat / n, lng: lng / n };
   }
 
-  _getIcon(variableType, chartType) {
-    if (chartType === "energy") return variableType === "solar" ? "solar-panel" : "fan";
+  _getIcon(variableType) {
     return VARIABLES_CONFIG[variableType]?.faIcon || "chart-line";
   }
 }

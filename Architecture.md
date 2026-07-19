@@ -18,10 +18,9 @@ Não há backend de aplicação neste repositório. Os dados são gerados pelo p
 | `site/climatologia.html`           | Página de climatologia em construção                                  |
 | `site/mapas_interativos.html`      | WebGIS de previsões meteorológicas                                    |
 | `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
-| `site/mapas_meteorologicos.html`   | Redirect de compatibilidade (301 no `.htaccess` + meta-refresh)       |
 | `site/404.html`                    | Página de erro standalone (caminhos absolutos, `ErrorDocument 404`)   |
 
-As seis primeiras são geradas por `build.js`; `mapas_meteorologicos.html` e `404.html` são mantidas à mão (o 404 usa caminhos absolutos `/assets/...` para resolver em qualquer profundidade de URL, por isso não passa pelo build — e carrega o `bootstrap.min.css` completo, não o purgado).
+As seis primeiras são geradas por `build.js`; `404.html` é mantida à mão (usa caminhos absolutos `/assets/...` para resolver em qualquer profundidade de URL, por isso não passa pelo build — e carrega o `bootstrap.min.css` completo, não o purgado).
 
 Todas as páginas usam **Bootstrap 5.3.8 vendorizado localmente**; as páginas geradas carregam o **CSS purgado** (`bootstrap.purged.min.css`, ~27 KB). Não há Bootstrap 4 nem jQuery no projeto. Leaflet e Chart.js também são carregados localmente (ver [Dependências Externas](#dependências-externas)).
 
@@ -49,11 +48,10 @@ src/                                # FONTE das páginas — edite aqui, nunca e
 
 site/                               # SAÍDA publicada (HTML gerado por build.js + assets)
 ├── .htaccess                       # MIME, compressão, cache, segurança/CSP, 404, 301 (Apache)
-├── robots.txt                      # bloqueia /JSON/, /GeoJSON/, /figuras/
+├── robots.txt                      # bloqueia /JSON/, /GeoJSON/
 ├── sitemap.xml                     # 6 URLs canônicas
 ├── 404.html                        # standalone (não gerado)
-├── *.html                          # gerados por build.js (exceto mapas_meteorologicos.html e 404.html)
-├── figuras/                        # reservado (placeholder)
+├── *.html                          # gerados por build.js (exceto 404.html)
 ├── assets/
 │   ├── css/
 │   │   ├── base.css
@@ -83,8 +81,7 @@ site/                               # SAÍDA publicada (HTML gerado por build.js
 │   ├── data/
 │   │   └── br_ba.json              # contorno da Bahia (recorte por estado)
 │   ├── graphs/                     # PNGs do monitoramento (regenerados pela estação)
-│   ├── img/
-│   └── json/                       # reservado (apenas .gitkeep)
+│   └── img/
 ├── GeoJSON/                        # grades geradas pelo pipeline (git-ignored)
 └── JSON/                           # valores, séries, resumos, manifest (git-ignored)
 ```
@@ -95,7 +92,7 @@ Observações:
 - `assets/img/` contém logos e imagens institucionais (WebP + fallback PNG via `<picture>` para as versões redimensionadas).
 - `assets/vendor/` contém bibliotecas de terceiros servidas localmente, evitando dependência de CDN no caminho crítico.
 - `assets/data/br_ba.json` é o contorno da Bahia usado pelo recorte por estado.
-- `assets/json/` está reservado; há apenas marcador de pasta. O manifest real fica em `site/JSON/manifest.json` (gerado pelo pipeline).
+- O manifest real fica em `site/JSON/manifest.json` (gerado pelo pipeline).
 - `GeoJSON/` e `JSON/` contêm dados gerados e ficam fora do controle de versão (`.gitignore` cobre `site/JSON/*.json`, `site/JSON/*.series.bin`, `site/GeoJSON/*.geojson` e `site/GeoJSON/*.json`).
 - Não abra, varra, formate ou reprocesse `/data`; evite ler conteúdo de `GeoJSON/` e `JSON/` fora de depuração estritamente necessária, porque esses diretórios contêm artefatos grandes do pipeline externo.
 
@@ -107,7 +104,7 @@ Observações:
 2. Injeta o conteúdo da página (`{{content}}` de `src/pages/`), e resolve os tokens `{{NAV_ITEMS}}`, `{{FOOTER_NAV}}`, `{{WORKER_HASHES}}`, `{{seoHead}}`, `{{title}}`, `{{description}}`, `{{bodyAttrs}}` e `{{h1}}` (resolvido por último, com fallback para `title`). Substituição é literal (split/join); qualquer token `{{...}}` não resolvido **quebra o build**.
 3. `seoHead(page)` gera canonical + Open Graph + Twitter card a partir de `PROD = https://labmim.if.ufba.br` (`index.html` colapsa para a raiz).
 4. `stampAssetVersions()` reescreve todo `href`/`src` de `assets/css/` e `assets/js/` acrescentando `?v=<primeiros 8 hex do md5 do conteúdo>`. Vendor mantém tokens manuais de release, **exceto** os listados em `HASHED_VENDOR_ASSETS` (hoje só `bootstrap.purged.min.css`, cujo conteúdo depende do HTML do site).
-5. `workerHashes()` calcula o hash de cada `assets/js/workers/*.js` e o publica na `<meta name="labmim-asset-hashes" content="nome:hash;nome:hash">` (workers não aparecem em `href`/`src`, então o HTML não pode versioná-los diretamente). Em runtime, `workerScriptUrl()` em `map-manager.js` lê essa meta e monta `assets/js/workers/<arquivo>?v=<hash>`; `WORKER_CACHE_VERSION` é apenas o fallback quando a página não passou pelo build.
+5. `workerHashes()` calcula o hash de cada `assets/js/workers/*.js` e o publica na `<meta name="labmim-asset-hashes" content="nome:hash;nome:hash">` (workers não aparecem em `href`/`src`, então o HTML não pode versioná-los diretamente). Em runtime, `workerScriptUrl()` em `map-manager.js` lê essa meta e monta `assets/js/workers/<arquivo>?v=<hash>`; sem hash disponível a URL sai sem `?v=` e cai nas regras de cache curto.
 
 `PAGES` define as 6 páginas (`file`, `layout`, `active`, `h1`, `title`, `description` e, nos mapas, `bodyAttrs` com `data-map-context="forecast|energy"`). `npm run build` roda `node build.js` + Prettier na saída; `npm run build:check` falha se o `site/*.html` commitado divergir do regenerado (**as páginas geradas são artefatos commitados** — toda mudança em `src/`, `build.js` ou no conteúdo de um asset hasheado exige regenerar e commitar o HTML).
 
@@ -166,7 +163,7 @@ Fluxo atual:
 1. `theme-boot.js` roda no `<head>`.
 2. Ele lê `localStorage.getItem("labmim-theme")`.
 3. Se o valor for `dark`, ou se não houver valor e o sistema preferir dark, aplica `.dark-theme`.
-4. `theme-toggle.js` inicializa no `DOMContentLoaded`, atualiza ícones e atributos acessíveis (há dois toggles: navbar por id `#themeToggleBtn`, footer por atributos `[data-theme-toggle]`).
+4. `theme-toggle.js` inicializa no `DOMContentLoaded`, atualiza ícones e atributos acessíveis (os dois toggles — navbar e footer — usam os atributos `[data-theme-toggle]`/`[data-theme-icon]`).
 5. Ao alternar tema, `theme-toggle.js` salva `labmim-theme` e dispara `labmim-theme-change`; sem valor salvo, segue mudanças do SO via `matchMedia`.
 6. `ChartsManager` escuta esse evento e chama `refreshChartTheme()`.
 
@@ -377,9 +374,9 @@ As variáveis ficam em `VARIABLES_CONFIG` (14 chaves):
 | `lh`               | `LH`                     | Calor latente                                          |
 | `windPowerDensity` | `WIND_POWER_DENSITY_10M` | Densidade de potência eólica a 10m                     |
 
-Cada entrada define ao menos `id`, `label`, `unit`, `colors`, `scaleMin`/`scaleMax` e `specificInfo(value, allValues)`. Campos opcionais: `relatedVariables` (variáveis auxiliares buscadas para a sidebar), `chartCompanions` (séries companheiras carregadas para os gráficos — ex.: temperatura para `solar`/`eolico`), `id_100m`/`id_150m` + `defaultHeight` (eólico), `optionLabel`, `icon`/`faIcon`, `category`, `sourceId`, `summary`, e `scaleTicks`/`scaleTickCount` (ticks explícitos da colorbar). A ordem de resolução da escala em `getScaleValues()` é: `scaleTicks` → rampa linear de `scaleMin`/`scaleMax` (`scaleTickCount`, padrão 10) → `metadata.scale_values` do arquivo. (Os antigos `useDynamicScale`/`normalValue` não existem mais.)
+Cada entrada define ao menos `id`, `label`, `unit`, `colors`, `scaleMin`/`scaleMax` e `specificInfo(value, allValues)`. Campos opcionais: `relatedVariables` (variáveis auxiliares buscadas para a sidebar), `chartCompanions` (séries companheiras carregadas para os gráficos — ex.: temperatura para `solar`/`eolico`), `id_100m`/`id_150m` (eólico), `optionLabel`, `icon`/`faIcon`, `sourceId`, `summary`, e `scaleTicks`/`scaleTickCount` (ticks explícitos da colorbar). A ordem de resolução da escala em `getScaleValues()` é: `scaleTicks` → rampa linear de `scaleMin`/`scaleMax` (`scaleTickCount`, padrão 10) → `metadata.scale_values` do arquivo. (Os antigos `useDynamicScale`/`normalValue` não existem mais.)
 
-Parâmetros dos modelos de energia do frontend (editáveis na sidebar, persistidos em `localStorage` `meteoMapCustomParameters`): solar — `panelEfficiency` 18%, `inversorEfficiency` 95%, `noct` 45 °C, `ptc` −0,38%/°C; eólico — `airDensity` 1,225 kg/m³, `rotorDiameter` 40 m, `Cp` 0,4. `specificInfo()` emite itens estruturados com `energyValue`/`energyUnit`, consumidos pelo gráfico de energia e pelo CSV (nunca por parsing de texto formatado).
+Parâmetros dos modelos de energia do frontend (editáveis na sidebar, persistidos em `localStorage` `meteoMapCustomParameters`): solar — `panelEfficiency` 18%, `inversorEfficiency` 95%, `noct` 45 °C, `ptc` −0,38%/°C; eólico — `airDensity` 1,225 kg/m³, `rotorDiameter` 40 m, `Cp` 0,4. `specificInfo()` emite itens estruturados com `energyValue`, consumidos pelo gráfico de energia e pelo CSV (nunca por parsing de texto formatado).
 
 > Nota sobre `specificInfo()`: quantidades físicas que podem valer `0` (temperatura, vento, radiação) usam guardas `Number.isFinite` em vez de `||`, para que um `0` legítimo não seja substituído por um valor padrão.
 
@@ -445,7 +442,7 @@ Para `solar` e `eolico`, o modal também exibe uma série derivada de energia (c
 
 `site/.htaccess` configura o Apache com diretivas protegidas por `<IfModule>` (o site nunca deve retornar 500 se um módulo faltar):
 
-- **Charset/erros/redirects**: `AddDefaultCharset UTF-8`; `ErrorDocument 404 /404.html`; `Redirect 301 /mapas_meteorologicos.html → /mapas_interativos.html` (o arquivo legado permanece como fallback meta-refresh se `mod_alias` faltar).
+- **Charset/erros/redirects**: `AddDefaultCharset UTF-8`; `ErrorDocument 404 /404.html`; `Redirect 301 /mapas_meteorologicos.html → /mapas_interativos.html` (o stub legado foi removido; o 301 é a única ponte para bookmarks antigos).
 - **MIME**: `application/json` para `.json` e `application/geo+json` para `.geojson`.
 - **Compressão**: `mod_deflate` (dentro de `mod_filter`) para HTML, CSS, JS, JSON, GeoJSON e SVG, com bloco paralelo `mod_brotli` para clientes que suportam.
 - **Segurança**: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` (geolocation/camera/microphone desligados) e **CSP** com `script-src 'self'` (sem scripts inline; JSON-LD permitido por não ser executável), `style-src 'self' 'unsafe-inline'` (atributos style do Leaflet), `img-src` liberando tiles OSM e `data:`, `frame-src https://www.google.com` (mapa da equipe) e `upgrade-insecure-requests`.
@@ -486,7 +483,7 @@ Dev tooling (em `package.json`, ver também `.nvmrc` = Node 24 LTS):
 - Guards de assets: `scripts/check-fa-subset.mjs` (`lint:icons`) e `scripts/check-bootstrap-purge.mjs` (`lint:purge`); PurgeCSS (devDependency) regenera o CSS purgado com `scripts/purgecss.config.cjs`.
 - CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm audit --audit-level=high`. Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, semanal, PRs agrupados).
 
-`make ci` espelha o CI do GitHub — o alvo `make lint` roda ESLint, Stylelint, `lint:icons` e `lint:purge`.
+`make ci` roda os mesmos checks do CI do GitHub (`make lint` inclui `lint:icons`/`lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`.
 
 ## Decisões Da Refatoração
 
@@ -496,7 +493,7 @@ Rodada 2026-06 (overhaul estático):
 - O Bootstrap foi unificado em uma única versão vendorizada (5.3.8); as páginas institucionais migraram de Bootstrap 4 + jQuery para Bootstrap 5.
 - CSS antigo (`template.css`, `style.css`, `modern.css`, `custom-themes.css`) foi substituído por módulos menores e explícitos.
 - Código legado de vídeos (`script-mapas.js`, `video.js`, `assets/video/`) foi removido.
-- `mapas_meteorologicos.html` foi preservado como redirect de compatibilidade.
+- `mapas_meteorologicos.html` foi preservado como redirect de compatibilidade (stub removido em 2026-07; hoje só o 301 do `.htaccess` atende a URL legada).
 - Dark mode separado em bootstrap inicial (`theme-boot.js`) e controle interativo (`theme-toggle.js`).
 - Acesso a dados extraído para `LabmimDataService`; Canvas renderer no mapa; interpolação de cores em worker.
 - `site/.htaccess` com compressão, segurança e política de cache adequada a dados que reusam nomes de arquivo.
@@ -512,8 +509,9 @@ Rodada 2026-07-18/19 (linha do tempo por manifest — `feat/manifest-timeline-in
 - Re-checagem do manifest em sessão (15 min + foco da aba) com ressincronização completa na troca de rodada.
 - Ingestão dos artefatos consolidados: `series.bin` (série de célula via HTTP Range) e `summary.json` (resumo de domínio), com fallback para a varredura legada.
 - Cache busting por hash de conteúdo nos assets próprios e nos workers (meta `labmim-asset-hashes`), com regras `immutable` correspondentes no `.htaccess`.
-- Acessibilidade: padrão ARIA de abas na documentação do WebGIS, focus trap + devolução de foco no modal de séries, `<span>` no título do seletor de altura (era um `<label>` órfão).
-- Hover da grade delegado ao grupo Leaflet (`e.propagatedFrom`) em vez de 2 closures por célula; tiles OSM movidos para `tile.openstreetmap.org` (host canônico); regras de cache do `.htaccess` estendidas aos `.series.bin`; ano do rodapé gerado no build (`{{YEAR}}`).
+- Acessibilidade: padrão ARIA de abas completo na documentação do WebGIS (roles, roving tabindex, setas/Home/End), focus trap + devolução de foco no modal de séries, `<span>` no título do seletor de altura (era um `<label>` órfão).
+- Hover da grade delegado ao grupo Leaflet (`e.propagatedFrom`) em vez de 2 closures por célula; tiles OSM movidos para `tile.openstreetmap.org` (host canônico); regras de cache do `.htaccess` estendidas aos `.series.bin`; ano do rodapé gerado no build (`{{YEAR}}`, derivado da data do último commit).
+- Varredura de código morto (2026-07-19): stub de redirect, diretórios reservados, logos originais órfãos, ~500 linhas de CSS/JS/HTML sem referência e campos de config não lidos removidos; toggles de tema unificados nos atributos `[data-theme-toggle]`; fallback manual de versão dos workers eliminado (URL sem `?v=` quando não há build).
 
 ## Pontos De Extensão
 

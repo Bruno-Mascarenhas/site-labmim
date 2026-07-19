@@ -137,10 +137,6 @@
   text-transform: uppercase;
 }
 
-.sponsor-logo {
-  height: 38px;
-  object-fit: contain;
-}
 
 .sponsors-strip {
   max-width: 760px;
@@ -330,10 +326,6 @@
   text-decoration: underline;
 }
 
-.video-title {
-  color: var(--primary-color);
-  font-weight: 600;
-}
 
 .doc-warning {
   margin-bottom: 16px;
@@ -369,12 +361,6 @@
   padding: 15px;
 }
 
-.chart-export-button {
-  padding: 2px 8px;
-  border-color: #0d2b4d;
-  color: #0d2b4d;
-  font-size: 0.85rem;
-}
 
 .chart-loading-overlay {
   position: absolute;
@@ -422,29 +408,7 @@
   }
 }
 
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
 
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideOutRight {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-}
 
 @media (width <= 768px) {
   .partners-grid {

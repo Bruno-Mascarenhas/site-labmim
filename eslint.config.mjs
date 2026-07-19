@@ -8,7 +8,6 @@ export default defineConfig([
     ".venv/",
     "site/JSON/",
     "site/GeoJSON/",
-    "site/assets/json/",
     "site/assets/vendor/",
     "site/assets/data/",
     "**/*.json",
@@ -22,7 +21,6 @@ export default defineConfig([
       sourceType: "module",
       globals: {
         ...globals.browser,
-        ...globals.jquery,
         L: "readonly",
         Chart: "readonly",
         VARIABLES_CONFIG: "readonly",
@@ -32,7 +30,6 @@ export default defineConfig([
         ChartsManager: "readonly",
         chartsManager: "writable",
         app: "writable",
-        module: "writable",
       },
     },
     rules: {

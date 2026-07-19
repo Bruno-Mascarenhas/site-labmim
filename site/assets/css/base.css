@@ -169,9 +169,6 @@ button {
   vertical-align: middle;
 }
 
-.is-hidden {
-  display: none !important;
-}
 
 .stack-sm {
   display: flex;
@@ -209,13 +206,6 @@ button {
 }
 
 @media (width <= 800px) {
-  .dropdown,
-  .dropleft,
-  .dropright,
-  .dropup {
-    margin-left: 5%;
-  }
-
   .navbar-brand {
     width: 75%;
     margin-left: 15% !important;

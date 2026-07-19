@@ -30,7 +30,7 @@ const manifestFetch = fetchManifest();
 const manifestPromise = Promise.race([
   manifestFetch,
   new Promise((resolve) => setTimeout(() => resolve(null), 3000)),
-]).catch(() => null);
+]);
 
 document.addEventListener("DOMContentLoaded", () => {
   // Construct immediately: the map, Play/slider/domain/variable listeners
@@ -66,10 +66,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (Object.keys(data).length > 0) {
           chartsManager.renderChartsForVariable(app.state.type);
         }
-        if (loadingOverlay) loadingOverlay.style.display = "none";
       })
       .catch((err) => {
         console.error("Error loading and rendering charts:", err);
+      })
+      .finally(() => {
         if (loadingOverlay) loadingOverlay.style.display = "none";
       });
   };

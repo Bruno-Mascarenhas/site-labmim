@@ -22,6 +22,17 @@ const SITE = path.join(ROOT, "site");
 
 // Production origin (no trailing slash). Absolute URLs for SEO are derived from this.
 const PROD = "https://labmim.if.ufba.br";
+
+// Ano do © do rodapé ({{YEAR}}), derivado da data do último commit — build
+// determinístico (mesmo input → mesmo output, independente do relógio/fuso do
+// runner); o primeiro PR de janeiro renova o ano no seu próprio build:check.
+const YEAR = (() => {
+  try {
+    return require("child_process").execSync("git log -1 --format=%cs", { encoding: "utf8" }).slice(0, 4);
+  } catch {
+    return String(new Date().getFullYear());
+  }
+})();
 const OG_IMAGE = `${PROD}/assets/img/logonova1.png`;
 
 // --- Single source of truth for the navigation (order matters) ---------------
@@ -180,7 +191,8 @@ function expandPartials(layout) {
 // por release) recebem ?v=<hash md5 curto do conteúdo>. O .htaccess serve
 // URLs versionadas com cache longo; qualquer edição no arquivo muda o token
 // em todas as páginas no próximo build. Os Web Workers não passam por aqui:
-// são carregados pelo map-manager.js via WORKER_CACHE_VERSION.
+// são carregados pelo map-manager.js com o hash da meta labmim-asset-hashes
+// (workerHashes abaixo).
 // O bootstrap.purged.min.css TAMBÉM entra no hash: apesar de morar em vendor/,
 // seu conteúdo é função do HTML/JS do site (PurgeCSS) — um token fixo de
 // release deixaria visitantes recorrentes com o CSS antigo após um re-purge.
@@ -226,7 +238,7 @@ function buildPage(page) {
   let html = expandPartials(layout);
   html = sub(html, "{{NAV_ITEMS}}", navItems(page.active || ""));
   html = sub(html, "{{FOOTER_NAV}}", footerNav());
-  html = sub(html, "{{YEAR}}", String(new Date().getFullYear())); // © do rodapé; na virada do ano, rodar o build
+  html = sub(html, "{{YEAR}}", YEAR);
   html = sub(html, "{{WORKER_HASHES}}", workerHashes());
   html = sub(html, "{{seoHead}}", seoHead(page));
   html = sub(html, "{{title}}", attr(page.title));

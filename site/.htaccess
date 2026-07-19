@@ -10,8 +10,8 @@ AddDefaultCharset UTF-8
 ErrorDocument 404 /404.html
 
 # --- Redirect permanente da página legada -----------------------------------
-# A página antiga também tem um <meta refresh> como fallback caso mod_alias
-# esteja desativado.
+# mapas_meteorologicos.html não existe mais como arquivo; o 301 abaixo é a
+# única ponte para bookmarks antigos.
 <IfModule mod_alias.c>
   Redirect 301 /mapas_meteorologicos.html /mapas_interativos.html
 </IfModule>
@@ -120,10 +120,8 @@ ErrorDocument 404 /404.html
   # build.js): a URL muda sempre que o conteúdo muda — cache longo e imutável.
   # Sobrepõe a regra curta de CSS/JS acima (blocos <If> aplicam por último na
   # fusão de configuração). Inclui os Web Workers: eles também são
-  # content-hashed pelo build (meta labmim-asset-hashes), e o HTML publicado é
-  # sempre o gerado (build:check exige os artefatos commitados) — o fallback
-  # manual WORKER_CACHE_VERSION só é usado ao servir o repo sem build, cenário
-  # que não passa por este Apache.
+  # content-hashed pelo build (meta labmim-asset-hashes); sem a meta a URL
+  # sai sem ?v= e cai nas regras de cache curto acima.
   <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(css|js)$#">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </If>
