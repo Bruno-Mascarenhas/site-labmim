@@ -194,6 +194,20 @@ function assetHash(relPath) {
   return assetHashCache.get(relPath);
 }
 
+// Os Web Workers não aparecem em href/src no HTML (são carregados pelo
+// map-manager.js), então recebem seus hashes via meta labmim-asset-hashes —
+// editar um worker passa a invalidar o cache sem bump manual de constante.
+function workerHashes() {
+  const workersDir = path.join(SITE, "assets", "js", "workers");
+  if (!fs.existsSync(workersDir)) return "";
+  return fs
+    .readdirSync(workersDir)
+    .filter((name) => name.endsWith(".js"))
+    .sort()
+    .map((name) => `${name}:${assetHash(path.posix.join("assets/js/workers", name))}`)
+    .join(";");
+}
+
 function stampAssetVersions(html) {
   return html.replace(
     /(href|src)="(assets\/[^"?]+)(\?v=[^"]*)?"/g,
@@ -212,6 +226,7 @@ function buildPage(page) {
   let html = expandPartials(layout);
   html = sub(html, "{{NAV_ITEMS}}", navItems(page.active || ""));
   html = sub(html, "{{FOOTER_NAV}}", footerNav());
+  html = sub(html, "{{WORKER_HASHES}}", workerHashes());
   html = sub(html, "{{seoHead}}", seoHead(page));
   html = sub(html, "{{title}}", attr(page.title));
   html = sub(html, "{{description}}", attr(page.description));
