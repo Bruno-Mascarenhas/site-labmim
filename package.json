@@ -28,7 +28,7 @@
     "linkinator": "^7.6.1",
     "prettier": "^3.9.5",
     "purgecss": "^8.0.0",
-    "stylelint": "^17.14.0",
+    "stylelint": "^17.14.1",
     "stylelint-config-standard": "^40.0.0"
   }
 }
