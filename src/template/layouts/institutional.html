@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR" data-publication="{{PUBLICATION_ID}}" data-territory="{{TERRITORY_ID}}">
+  <head>
+{{> head}}
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Pular para o conteúdo</a>
+    <header>
+{{> nav}}
+    </header>
+
+    <main id="main">
+      <h1 class="visually-hidden">{{h1}}</h1>
+{{content}}
+    </main>
+
+{{> footer}}
+
+    <!-- Scripts ao final do body — não bloqueiam o rendering -->
+{{> scripts}}
+  </body>
+</html>

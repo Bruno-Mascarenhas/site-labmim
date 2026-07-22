@@ -30,7 +30,7 @@ const collectFiles = (dir, exts, out = []) => {
 };
 
 const sources = [
-  ...collectFiles("src", [".html"]),
+  ...collectFiles("src", [".html", ".js"]),
   ...collectFiles("site/assets/js", [".js"]),
   ...readdirSync(join(root, "site"))
     .filter((name) => name.endsWith(".html"))
@@ -57,10 +57,7 @@ for (const file of collectFiles("site/assets/css", [".css"])) {
 
 // Só nomes que são glifos de verdade (têm regra :before{content:"\f..."} no
 // CSS do Font Awesome); classes utilitárias (fa-2x, fa-fw, ...) não têm.
-const faCss = readFileSync(
-  join(root, "site/assets/vendor/fontawesome/css/all.min.css"),
-  "utf8"
-);
+const faCss = readFileSync(join(root, "site/assets/vendor/fontawesome/css/all.min.css"), "utf8");
 const glyphNames = new Set();
 for (const match of faCss.matchAll(/((?:\.fa-[a-z0-9-]+:before,?)+)\{content:"\\[0-9a-f]+"\}/g)) {
   for (const name of match[1].matchAll(/\.(fa-[a-z0-9-]+):before/g)) {
@@ -68,26 +65,19 @@ for (const match of faCss.matchAll(/((?:\.fa-[a-z0-9-]+:before,?)+)\{content:"\\
   }
 }
 
-const manifest = JSON.parse(
-  readFileSync(join(root, "site/assets/vendor/fontawesome/subset-glyphs.json"), "utf8")
-);
+const manifest = JSON.parse(readFileSync(join(root, "site/assets/vendor/fontawesome/subset-glyphs.json"), "utf8"));
 const subsetted = new Set(Object.keys(manifest.glyphs));
 
-const subsettedCodepoints = new Set(
-  Object.values(manifest.glyphs).map((code) => code.toLowerCase())
-);
+const subsettedCodepoints = new Set(Object.values(manifest.glyphs).map((code) => code.toLowerCase()));
 
-const missing = [...usedNames]
-  .filter((name) => glyphNames.has(name) && !subsetted.has(name))
-  .sort();
+const missing = [...usedNames].filter((name) => glyphNames.has(name) && !subsetted.has(name)).sort();
 for (const code of usedCodepoints) {
   if (!subsettedCodepoints.has(code)) missing.push(`(codepoint em CSS) \\${code}`);
 }
 
 if (missing.length > 0) {
   console.error(
-    "✗ Ícones usados no site mas AUSENTES do subset de fa-solid-900.woff2 " +
-      "(renderizariam como caixas vazias):"
+    "✗ Ícones usados no site mas AUSENTES do subset de fa-solid-900.woff2 " + "(renderizariam como caixas vazias):"
   );
   for (const name of missing) console.error(`  - ${name}`);
   console.error("\nRegenere o subset: ver scripts/subset-fontawesome.md");

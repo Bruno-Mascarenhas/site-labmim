@@ -65,7 +65,7 @@ o `.htaccess` serve `assets/vendor/fontawesome/webfonts/` com a regra de
 Após um resubset, visitantes recorrentes pegam a fonte nova em até 7 dias.
 
 Não mover as webfonts de volta para a regra imutável sem também versionar a
-URL da fonte nos DOIS lugares: o preload no `src/partials/head.html`
+URL da fonte nos DOIS lugares: o preload no `src/template/partials/head.html`
 (`rel=preload as=font crossorigin` — o `crossorigin` é obrigatório mesmo
 same-origin, senão a fonte baixa duas vezes) e o `url()` dentro do
 `all.min.css` (que exigiria bump manual do `?v=` dele).

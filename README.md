@@ -1,14 +1,14 @@
-# LabMiM Site
+# Sites LabMiM / LEAL
 
-Site estático do LabMiM - Laboratório de Micrometeorologia e Modelagem da UFBA. O projeto reúne páginas institucionais, visualização de gráficos de monitoramento ambiental e WebGIS para previsões meteorológicas e potenciais energéticos derivados de saídas do modelo WRF.
+Gerador de sites estáticos para publicações meteorológicas, atualmente **LabMiM/UFBA** e **LEAL/UFES**, preparado para incorporar outros estados e instituições sem duplicar a aplicação. O projeto reúne páginas institucionais, monitoramento ambiental e WebGIS para previsões meteorológicas e potenciais energéticos derivados de saídas do modelo WRF.
 
-O site é servido como frontend estático: HTML, CSS e JavaScript no navegador, sem backend próprio neste repositório. As páginas em `site/` são **geradas** a partir de fontes em `src/` por um passo de build local/CI sem dependências de runtime (`build.js`, apenas a biblioteca padrão do Node), que expande _partials_ compartilhados (head, navbar, footer, scripts), gera o bloco de SEO por página (canonical, Open Graph, Twitter card) e **carimba hashes de conteúdo (`?v=<md5-8>`) nos assets próprios** para invalidação automática de cache. O host continua servindo somente arquivos estáticos — não há build no servidor.
+O resultado continua sendo HTML, CSS e JavaScript puros, sem backend e sem Node no servidor. O build local/CI descobre automaticamente cada `src/sites/<id>/site.js`, valida sua configuração, combina conteúdo próprio com o template comum, gera SEO/404/robots/sitemap e **carimba hashes de conteúdo (`?v=<md5-8>`) nos assets próprios** para invalidação automática de cache.
 
 Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gerados aqui**: eles vêm do pipeline WRF do repositório irmão **[micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology)** — ver [Dados do WebGIS (pipeline externo)](#dados-do-webgis-pipeline-externo).
 
 ## Funcionalidades
 
-- Página inicial institucional com resumo do LabMiM e parceiros.
+- Página inicial institucional, equipe, identidade e SEO próprios de cada publicação.
 - Página de monitoramento com gráficos PNG em cards e modais Bootstrap.
 - Página de equipe com links de pesquisadores e localização incorporada.
 - Página de climatologia atualmente em construção.
@@ -24,92 +24,49 @@ Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gera
 
 ```text
 .
-├── README.md
-├── Architecture.md            # documentação técnica detalhada
-├── package.json / package-lock.json
-├── .nvmrc                     # Node 24 LTS (24.18.0) usado pelo projeto e pelo CI
-├── eslint.config.mjs
-├── .stylelintrc.json
-├── .htmlvalidate.json         # regras do lint:html (html-validate)
-├── .prettierrc / .prettierignore
-├── .editorconfig
-├── .github/
-│   ├── workflows/ci.yml       # build-check, lints (js/css/icons/purge), format-check, html, links, audit
-│   └── dependabot.yml         # atualizações npm e GitHub Actions (semanais, agrupadas)
-├── Makefile
-├── build.js                   # gerador estático (src/ -> site/*.html), só stdlib do Node
+├── build.js                       # seleciona, valida e renderiza uma publicação
 ├── scripts/
-│   ├── check-fa-subset.mjs        # lint:icons — cobertura do subset do Font Awesome
-│   ├── check-bootstrap-purge.mjs  # lint:purge — cobertura do Bootstrap purgado
-│   ├── purgecss.config.cjs        # config para regenerar bootstrap.purged.min.css
-│   └── subset-fontawesome.md      # como regenerar o subset de fontes
-├── src/                       # FONTE das páginas — edite AQUI, nunca em site/*.html
-│   ├── layouts/
-│   │   ├── institutional.html # index, monitoring, team, climatologia
-│   │   └── webgis.html        # mapas_interativos, potenciais_energeticos
-│   ├── partials/
-│   │   ├── head.html          # <head> compartilhado (meta, CSS, tema, hashes dos workers)
-│   │   ├── nav.html           # navbar (itens gerados do array NAV em build.js)
-│   │   ├── footer.html        # rodapé compartilhado
-│   │   ├── scripts.html       # Bootstrap bundle (fim do body)
-│   │   ├── webgis-doc-features.html  # aba compartilhada da documentação
-│   │   └── webgis-doc-wrf.html       # aba compartilhada da documentação
-│   └── pages/                 # conteúdo único de cada página (sem head/nav/footer)
-│       ├── index.html
-│       ├── monitoring.html
-│       ├── team.html
-│       ├── climatologia.html
-│       ├── mapas_interativos.html
-│       └── potenciais_energeticos.html
-└── site/                      # SAÍDA publicada (HTML gerado + assets estáticos)
-    ├── .htaccess              # MIME, compressão (deflate+brotli), cache, segurança/CSP, 404, 301
-    ├── robots.txt             # regras de crawl (bloqueia /JSON/, /GeoJSON/)
-    ├── sitemap.xml            # 6 URLs canônicas
-    ├── 404.html               # página de erro (standalone, caminhos absolutos — não gerada)
-    ├── index.html             # ┐
-    ├── monitoring.html        # │ gerados por build.js a partir de src/
-    ├── team.html              # │ (não edite à mão — serão sobrescritos)
-    ├── climatologia.html      # │
-    ├── mapas_interativos.html # │
-    ├── potenciais_energeticos.html  # ┘
-    ├── GeoJSON/               # grades geradas pelo pipeline (git-ignored)
-    ├── JSON/                  # valores, séries, resumos e manifest (git-ignored)
-    └── assets/
-        ├── css/
-        │   ├── base.css       # tokens e fundamentos
-        │   ├── layout.css
-        │   ├── components.css
-        │   ├── theme.css      # dark mode
-        │   └── maps.css       # exclusivo do WebGIS
-        ├── js/
-        │   ├── theme-boot.js
-        │   ├── theme-toggle.js
-        │   ├── ui-shell.js            # toggles genéricos [data-ui-toggle]
-        │   ├── variables-config.js
-        │   ├── data-service.js        # LabmimDataService (fetch/cache/worker)
-        │   ├── charts-manager.js
-        │   ├── map-manager.js
-        │   ├── map-init.js
-        │   └── workers/
-        │       ├── color-calc.worker.js
-        │       └── json-parser.worker.js
-        ├── vendor/            # bibliotecas vendorizadas localmente
-        │   ├── bootstrap/     # 5.3.8 — bootstrap.purged.min.css (servido, ~27KB),
-        │   │                  #   bootstrap.min.css (fonte do purge + 404.html), bundle JS
-        │   ├── fontawesome/   # 6.4.0 — all.min.css + fa-solid-900.woff2 (subset ~6KB),
-        │   │                  #   fa-solid-900.full.woff2 (original), brands/regular
-        │   │                  #   completas (nunca baixadas), subset-glyphs.json
-        │   ├── leaflet/       # Leaflet 1.9.4 (js, css, images)
-        │   └── chartjs/       # Chart.js 3.9.1
-        ├── data/
-        │   └── br_ba.json     # contorno da Bahia (recorte por estado)
-        ├── graphs/            # PNGs do monitoramento (regenerados pela estação)
-        └── img/
+│   ├── site-builder/              # descoberta, validação, renderização e assets
+│   ├── build-site.mjs             # wrapper de um build + formatação da saída
+│   ├── build-all.mjs              # cria um bundle por publicação em dist/
+│   └── check-publications.mjs     # valida todas e restaura a publicação padrão
+├── src/
+│   ├── template/                  # aplicação compartilhada, sem identidade institucional
+│   │   ├── layouts/               # esqueletos institutional e webgis
+│   │   ├── partials/              # head, navbar, footer, scripts e documentação
+│   │   ├── pages/                 # conteúdos realmente comuns
+│   │   ├── static/                # 404 e template de .htaccess
+│   │   └── page-types.js          # catálogo e helpers page/customPage
+│   ├── sites/
+│   │   ├── README.md              # receita operacional para nova publicação
+│   │   ├── ufba/
+│   │   │   ├── site.js            # composição da publicação
+│   │   │   ├── identity.js        # marca, instituição, origem e redirects
+│   │   │   ├── pages.js           # manifesto de páginas, SEO e navegação
+│   │   │   ├── theme.css          # paleta exclusiva
+│   │   │   ├── pages/             # conteúdos exclusivos
+│   │   │   └── fragments/         # trechos exclusivos anexáveis
+│   │   └── ufes/                  # mesma fronteira de módulo
+│   ├── territories/               # estado, contorno e viewport (ba.js, es.js, ...)
+│   └── datasets/                  # caminhos, timeline e domínios WRF por produto
+├── site/                           # saída compatível: uma publicação por vez
+│   ├── *.html, .htaccess, robots.txt, sitemap.xml
+│   ├── assets/                     # CSS/JS/imagens/vendor compartilhados
+│   ├── JSON/                       # dados operacionais externos, não gerados no build
+│   └── GeoJSON/                    # grades operacionais externas, não geradas no build
+└── dist/<id>/                      # bundles estáticos de build:all, sem JSON/GeoJSON
 ```
+
+As fronteiras são intencionais:
+
+- `src/template/` deve permanecer neutro quanto a instituição e estado.
+- `src/sites/<id>/` contém somente o que pertence à publicação.
+- `src/territories/` descreve a geografia; `src/datasets/` descreve o produto de dados. Ambos podem ser reutilizados por mais de uma publicação.
+- `site/` e `dist/` são saídas geradas. Edite sempre `src/` ou os assets-fonte existentes em `site/assets/`, nunca os HTMLs gerados.
 
 ## Dados Do WebGIS (Pipeline Externo)
 
-`site/JSON/` e `site/GeoJSON/` são dados gerados e ficam fora do controle de versão (ver `.gitignore`). Quem os gera é o repositório irmão **[micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology)**, pela CLI `labmim-wrf-geojson` (entry point `micrometeorology.cli.export_wrf_geojson`; escrita dos artefatos em `wrf/jobs.py` e `wrf/geojson.py`). Invocação típica a partir de saídas `wrfout_d0X_*` do WRF:
+`site/JSON/` e `site/GeoJSON/` são os caminhos operacionais das publicações atuais e ficam fora do controle de versão (ver `.gitignore`). Novos datasets podem declarar outros caminhos em `dataset.paths`; nesse caso, inclua-os também no `.gitignore`. Quem gera os dados atuais é o repositório irmão **[micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology)**, pela CLI `labmim-wrf-geojson` (entry point `micrometeorology.cli.export_wrf_geojson`; escrita dos artefatos em `wrf/jobs.py` e `wrf/geojson.py`). Invocação típica a partir de saídas `wrfout_d0X_*` do WRF:
 
 ```bash
 labmim-wrf-geojson --wrf-dir <dir com wrfout> --date YYYYMMDD -D 1,2,3,4 \
@@ -120,15 +77,15 @@ O fuso do produto é fixado por `LABMIM_TIMEZONE` (default `America/Bahia`); `--
 
 Artefatos que o site consome:
 
-| Arquivo | Formato | Uso no site |
-| ------------------------------------ | ------------------------- | ----------------------------------------------------------------------------- |
-| `JSON/manifest.json` | `labmim-data-manifest-v2` | Versão da rodada (`?v=` nos dados), intervalo do slider, âncora de data, disponibilidade por variável, descritores dos artefatos consolidados |
-| `GeoJSON/{D}.grid.json` | `grid-edges-v1` (ou `grid-bounds-v1`) | Grade compacta (~2 KB) expandida no cliente; preferida |
-| `GeoJSON/{D}.geojson` | FeatureCollection | Grade legada (1,2–2,6 MB); fallback quando não há `grid.json` |
-| `JSON/{D}_{VAR}_{NNN}.json` | valores por passo | Cores do mapa (`values[]` indexado por `linear_index`) |
-| `JSON/{D}_WIND_VECTORS_{NNN}.json` | vetores por passo | Setas de vento da variável `wind` (o `eolico` embute vetores em `metadata.wind`) |
-| `JSON/{D}_{VAR}.series.bin` | `cell-series-int32-le-v1` | Série temporal de uma célula via HTTP Range (~300 B por leitura) |
-| `JSON/{D}_{VAR}.summary.json` | `domain-summary-v1` | Média/mín/máx do domínio por passo (painel "Sobre as variáveis") |
+| Arquivo                            | Formato                               | Uso no site                                                                                                                                   |
+| ---------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JSON/manifest.json`               | `labmim-data-manifest-v2`             | Versão da rodada (`?v=` nos dados), intervalo do slider, âncora de data, disponibilidade por variável, descritores dos artefatos consolidados |
+| `GeoJSON/{D}.grid.json`            | `grid-edges-v1` (ou `grid-bounds-v1`) | Grade compacta (~2 KB) expandida no cliente; preferida                                                                                        |
+| `GeoJSON/{D}.geojson`              | FeatureCollection                     | Grade legada (1,2–2,6 MB); fallback quando não há `grid.json`                                                                                 |
+| `JSON/{D}_{VAR}_{NNN}.json`        | valores por passo                     | Cores do mapa (`values[]` indexado por `linear_index`)                                                                                        |
+| `JSON/{D}_WIND_VECTORS_{NNN}.json` | vetores por passo                     | Setas de vento da variável `wind` (o `eolico` embute vetores em `metadata.wind`)                                                              |
+| `JSON/{D}_{VAR}.series.bin`        | `cell-series-int32-le-v1`             | Série temporal de uma célula via HTTP Range (~300 B por leitura)                                                                              |
+| `JSON/{D}_{VAR}.summary.json`      | `domain-summary-v1`                   | Média/mín/máx do domínio por passo (painel "Sobre as variáveis")                                                                              |
 
 O site **degrada graciosamente**: sem manifest (ou com manifest v1) ele usa o intervalo padrão de 73 passos e a heurística solar legada; sem `grid.json` cai no `.geojson`; sem `series.bin`/`summary.json` volta à varredura hora-a-hora. Isso permite publicar site e dados em qualquer ordem (site primeiro é o preferido).
 
@@ -138,11 +95,28 @@ Não abra, formate ou reprocesse `/data`, `site/JSON/` ou `site/GeoJSON/` durant
 
 Não abra as páginas direto por `file://`. Os mapas e workers dependem de `fetch`, então use um servidor HTTP local.
 
-Se editou algo em `src/` (partials, layouts ou conteúdo de página), gere o HTML antes de servir/publicar:
+Liste as publicações descobertas e gere a desejada antes de servir/publicar:
 
 ```bash
-make build            # expande src/ -> site/*.html e roda o Prettier
+npm run sites:list
+npm run build -- --site=ufba
+npm run build -- --site=ufes
 ```
+
+Sem `--site`, o build usa a única publicação marcada com `isDefault: true`. `SITE_ID` é a forma equivalente por variável de ambiente; `--variant` e `SITE_VARIANT` permanecem somente como compatibilidade.
+
+```bash
+SITE_ID=ufes npm run build
+npm run build                 # publicação padrão
+npm run build:all             # todos os bundles em dist/<id>/
+npm run build:check           # valida todas e restaura a padrão em site/
+```
+
+O build individual sempre escreve em `site/`, preservando o fluxo de deploy existente. `build:all` materializa uma cópia autocontida do frontend em `dist/<id>/` para cada publicação; esses bundles omitem o manifest e os diretórios declarados em `dataset.paths`, pois os dados operacionais pertencem ao pipeline externo. O build também remove HTMLs antigos que não façam parte do manifesto selecionado, evitando vazamento de páginas entre publicações.
+
+> A publicação seleciona o **frontend**; ela não converte os dados operacionais. Cada deploy precisa receber, nos caminhos configurados pelo respectivo dataset, a rodada WRF e os gráficos de monitoramento produzidos para aquela instituição.
+
+Para adicionar um estado, uma publicação ou uma página, siga a receita em [`src/sites/README.md`](src/sites/README.md). Não é necessário registrar o novo ID em `build.js` ou em `package.json`: a existência de um `src/sites/<id>/site.js` válido é o registro.
 
 ```bash
 make serve            # serve site/ em http://localhost:8000
@@ -167,7 +141,7 @@ Nota: o `http.server` do Python ignora cabeçalhos `Range` (responde 200 com o c
 
 ## Deploy (Produção)
 
-O deploy é manual (FTP) para `labmim.if.ufba.br` (Apache 2.4 CloudLinux); código e dados são publicados de forma desacoplada. Regras aprendidas em produção:
+O deploy é manual e deve ser precedido por `npm run build -- --site=<id>` (ou pela seleção do bundle correspondente em `dist/<id>/`). Código e dados são publicados de forma desacoplada. Regras aprendidas em produção:
 
 - **Publicar o site completo junto com o `.htaccess`** — nunca subir o `.htaccess` sozinho sobre uma versão antiga do site: a CSP `script-src 'self'` quebra páginas que ainda usem CDN/scripts inline.
 - **Ordem segura para mudanças de formato de dados**: (1) publicar o site novo, (2) conferir em produção, (3) atualizar o pipeline no servidor de operação e regenerar os dados — o cliente tem fallback para todos os contratos, então site novo + dados velhos funciona; o inverso não é garantido.
@@ -176,7 +150,7 @@ O deploy é manual (FTP) para `labmim.if.ufba.br` (Apache 2.4 CloudLinux); códi
 
 ## Dependências Externas Em Runtime
 
-Todo o site usa **uma única versão do Bootstrap — 5.3.8 — vendorizada localmente** em `assets/vendor/bootstrap/`. As páginas carregam o CSS **purgado** (`bootstrap.purged.min.css`, ~27 KB via PurgeCSS; o `bootstrap.min.css` completo fica como fonte do purge e para o `404.html`). **Não há jQuery no projeto.** O Font Awesome 6.4.0 usa um **subset de fonte** (`fa-solid-900.woff2` com só os glifos usados, ~6 KB; ver `scripts/subset-fontawesome.md`). Bootstrap, Font Awesome, Leaflet 1.9.4, Chart.js 3.9.1 e o contorno da Bahia são todos carregados **localmente** (`assets/vendor/` e `assets/data/`) — não há CDN no caminho crítico de renderização. `leaflet.js` é carregado com `defer`. O antigo Turf.js foi removido — a máscara de recorte por estado usa um _point-in-polygon_ local em `map-manager.js`.
+Todo o site usa **uma única versão do Bootstrap — 5.3.8 — vendorizada localmente** em `assets/vendor/bootstrap/`. As páginas carregam o CSS **purgado** (`bootstrap.purged.min.css`, ~27 KB via PurgeCSS; o `bootstrap.min.css` completo fica como fonte do purge e para o `404.html`). **Não há jQuery no projeto.** O Font Awesome 6.4.0 usa um **subset de fonte** (`fa-solid-900.woff2` com só os glifos usados, ~6 KB; ver `scripts/subset-fontawesome.md`). Bootstrap, Font Awesome, Leaflet 1.9.4, Chart.js 3.9.1 e os contornos de BA/ES são carregados **localmente** (`assets/vendor/` e `assets/data/`) — não há CDN no caminho crítico de renderização. `leaflet.js` é carregado com `defer`. O antigo Turf.js foi removido — a máscara de recorte por estado usa um _point-in-polygon_ local em `map-manager.js`.
 
 Origens externas restantes:
 
@@ -196,17 +170,23 @@ npm ci
 Scripts npm:
 
 ```bash
-npm run build         # gera site/*.html a partir de src/ (+ Prettier na saída)
-npm run build:check   # gera e falha se site/*.html estiver desatualizado (usado no CI)
-npm run lint          # lint:js + lint:css + lint:icons + lint:purge
+npm run sites:list    # lista src/sites/<id>/site.js descobertos e marca o padrão
+npm run build         # gera a publicação padrão em site/ (+ Prettier na saída)
+npm run build -- --site=ufes # gera uma publicação específica em site/
+npm run build:ufba    # atalho para LabMiM/UFBA
+npm run build:ufes    # atalho para LEAL/UFES
+npm run build:all     # gera todos os bundles em dist/<id>/, sem dados operacionais
+npm run build:check   # gera/valida todas as publicações e restaura a padrão
+npm run lint          # JS/CSS + contrato de temas + checks de ícones/purge
 npm run lint:all      # lint + lint:html + lint:links
-npm run lint:js       # ESLint em site/assets/js/
-npm run lint:css      # Stylelint em site/assets/css/
+npm run lint:js       # ESLint no runtime, build e módulos de configuração
+npm run lint:css      # Stylelint no CSS compartilhado e nos temas dos sites
+npm run lint:themes   # contrato token-only, isolamento e ordem da cascata CSS
 npm run lint:icons    # cobertura do subset Font Awesome (scripts/check-fa-subset.mjs)
 npm run lint:purge    # cobertura do Bootstrap purgado (scripts/check-bootstrap-purge.mjs)
 npm run lint:html     # html-validate nas páginas geradas
-npm run lint:links    # linkinator (links internos; ignora externos e /JSON//GeoJSON/)
-npm run format        # Prettier --write em site/**/*.{html,css,js}
+npm run lint:links    # linkinator (ignora externos e os caminhos do dataset padrão)
+npm run format        # Prettier no output e nos módulos JS/CSS do gerador
 npm run format:check
 ```
 
@@ -214,8 +194,8 @@ Também há atalhos no `Makefile`:
 
 ```bash
 make build         # gera as páginas a partir de src/
-make build-check   # gera e verifica se site/*.html está atualizado
-make lint          # ESLint + Stylelint + checks de assets (ícones/purge)
+make build-check   # valida todas as publicações e a saída padrão
+make lint          # ESLint + Stylelint + contrato de temas + checks de assets
 make lint-html     # html-validate
 make lint-links    # linkinator
 make format-check  # Prettier (somente verifica)
@@ -227,7 +207,7 @@ make ci            # build-check + format-check + lint + lint-html + lint-links 
 
 `make ci` roda os mesmos checks do CI do GitHub (o alvo `lint` inclui `lint:icons` e `lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`.
 
-As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, linkinator) são `devDependencies` em `package.json`. Não há dependências de runtime instaladas via npm — o site é estático e `build.js` usa apenas a biblioteca padrão do Node (o PurgeCSS é devDependency e roda só na regeneração do CSS purgado). O CI (`.github/workflows/ci.yml`) roda, nesta ordem: `build:check`, `lint:js`, `lint:css`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links` e `npm audit --audit-level=high`; o Dependabot (`.github/dependabot.yml`) acompanha npm e GitHub Actions semanalmente, com PRs agrupados.
+As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, linkinator) são `devDependencies` em `package.json`. Não há dependências de runtime instaladas via npm: o servidor recebe somente os arquivos estáticos gerados. O PurgeCSS é uma dependência exclusiva de desenvolvimento.
 
 ## Páginas Principais
 
@@ -247,7 +227,7 @@ Navbar principal: Previsões, Potenciais Energéticos, Monitoramento, Climatolog
 
 Principais recursos:
 
-- Domínios com labels públicos `BA/NE`, `BA`, `RMS` e `SSA`; os IDs técnicos continuam `D01`, `D02`, `D03` e `D04` para arquivos, cache e estado interno.
+- Domínios, labels, centros e resoluções definidos no módulo de dataset da publicação; os IDs técnicos (como `D01`–`D04`) continuam nos arquivos, cache e estado interno.
 - Variáveis de Previsões configuradas em `VARIABLE_CONTEXTS.forecast`: `wind`, `temperature`, `skinTemperature`, `pressure`, `humidity`, `relativeHumidity`, `rain`, `globalRadiation`, `longwave`, `hfx` e `lh`.
 - Variáveis de Potenciais Energéticos configuradas em `VARIABLE_CONTEXTS.energy`: `solar`, `eolico` e `windPowerDensity`.
 - `humidity` representa Vapor d'Água / razão de mistura em `g/kg`; `relativeHumidity` representa RH2 em `%`.
@@ -302,15 +282,17 @@ O dark mode é dividido em dois passos:
 
 ## Manutenção
 
-- **Navbar, rodapé, `<head>` e blocos de script são compartilhados**: edite-os em `src/partials/` e rode `make build`. Nunca edite header/footer diretamente em `site/*.html` — esses arquivos são gerados por `build.js` e serão sobrescritos. A ordem e os rótulos da navegação vêm do array `NAV` em `build.js` (fonte única para navbar e footer); o estado ativo vem do campo `active` de cada página em `PAGES`.
-- Para adicionar uma página: crie `src/pages/<nome>.html` (apenas o conteúdo único), adicione uma entrada em `PAGES` no `build.js` (`file`, `layout`, `active`, `h1`, `title`, `description` e, para mapas, `bodyAttrs`) e, se for destino de navegação, uma entrada em `NAV`. Rode `make build` e commite o HTML gerado.
-- Para alterar cores, espaçamentos globais e tokens, comece por `assets/css/base.css`. Use `--brand-primary`/`--brand-secondary` para a marca navy (fixa entre temas) e `--map-accent*` para o accent roxo do WebGIS.
+- **Navbar, rodapé, `<head>` e blocos de script são compartilhados**: edite-os em `src/template/partials/`. Layouts ficam em `src/template/layouts/`; não edite `site/*.html`.
+- Para conteúdo compartilhado, crie o fragmento em `src/template/pages/` e referencie-o com `templateSource()`. Para conteúdo próprio, use `src/sites/<id>/pages/` e `siteSource()`.
+- Páginas, SEO e navegação são declarados em `src/sites/<id>/pages.js`; `page()` reutiliza um tipo do catálogo e `customPage()` cria uma rota fora dele.
+- Identidade, instituição, origem e redirects ficam em `identity.js`; a paleta fica no `theme.css` da publicação. Cores estruturais comuns permanecem em `site/assets/css/`.
+- Estado, contorno e viewport pertencem a `src/territories/`; caminhos, timeline e domínios WRF pertencem a `src/datasets/`.
 - Para navbar, footer e estrutura de página, use `assets/css/layout.css`; cards e blocos reutilizáveis em `components.css`; dark mode em `theme.css`; WebGIS em `maps.css`.
 - Para adicionar uma variável ao mapa, atualize `variables-config.js` e o contexto em `VARIABLE_CONTEXTS` — o `<select>` é montado em runtime, não há lista no HTML para sincronizar. Garanta que o pipeline exporte os arquivos da variável.
 - Para lógica de mapa, prefira métodos em `MeteoMapManager` e preserve a API global exposta em `window.MeteoMapManager`.
 - Para busca/cache de dados, use `LabmimDataService` em vez de `fetch` direto; mantenha a API de `data-service.js` estável para os consumidores.
 - Para gráficos temporais, altere `ChartsManager` e preserve os IDs usados no modal.
-- Ao atualizar uma biblioteca vendorizada (Leaflet, Chart.js, Bootstrap bundle, FA css), substitua o arquivo em `assets/vendor/` e atualize o `?v=` manual correspondente em `src/partials/`/`src/layouts/`, depois rode `make build`. CSS/JS próprios, `bootstrap.purged.min.css` e os workers **não** precisam de token manual — o hash é automático no build.
+- Ao atualizar uma biblioteca vendorizada (Leaflet, Chart.js, Bootstrap bundle, FA css), substitua o arquivo em `assets/vendor/` e atualize o `?v=` manual correspondente em `src/template/partials/` ou `src/template/layouts/`, depois rode o build. CSS/JS próprios, `bootstrap.purged.min.css` e os workers **não** precisam de token manual — o hash é automático.
 - O CSP do `.htaccess` é `script-src 'self'` (sem scripts inline). Qualquer script novo precisa ser um arquivo próprio; JSON-LD (`application/ld+json`) é permitido por não ser executável.
 
 ## Checklist Manual Rápido
@@ -321,7 +303,7 @@ Antes de publicar:
 - Abrir `mapas_interativos.html` e verificar se o mapa renderiza apenas variáveis meteorológicas/radiativas, incluindo Radiação Global.
 - Abrir `potenciais_energeticos.html` e verificar se o mapa renderiza apenas Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Testar troca de variável (a grade não deve piscar/recarregar do zero).
-- Testar botões de domínio `BA/NE`, `BA`, `RMS` e `SSA`, confirmando que as requisições continuam usando IDs técnicos `D01-D04`.
+- Testar todos os botões de domínio da publicação selecionada, confirmando que as requisições usam os IDs técnicos configurados no dataset.
 - Testar play/pause do slider temporal e conferir que o rótulo de data/hora segue o manifest (não deve haver passos "sem dados" em loop com manifest presente).
 - Confirmar que `windLayerToggle` aparece em `wind`/`eolico` e não aparece nas demais variáveis.
 - Clicar em uma célula do mapa e verificar sidebar e modal de série temporal (a série deve carregar quase instantânea via `series.bin` quando o manifest anuncia `features.cell_series`).

@@ -1,0 +1,21 @@
+:root {
+  --accent-color: #b0e0e6;
+  --brand-primary: #06235e;
+  --brand-secondary: #3761b4;
+  --brand-primary-rgb: 6, 35, 94;
+  --brand-secondary-rgb: 55, 97, 180;
+  --accent-rgb: 176, 224, 230;
+  --monitoring-overlay: #008cba;
+  --map-accent: #667eea;
+  --map-accent-2: #764ba2;
+  --map-accent-rgb: 102, 126, 234;
+  --lab-header-bg: linear-gradient(155deg, #f8fbfc 18%, #dce8ee 72%, #cbdce8 100%);
+  --lab-header-dark-bg: linear-gradient(155deg, #2f6fa3 0%, #1f5b88 58%, #143b5f 100%);
+  --lab-footer-bg: #285f8f;
+  --lab-footer-dark-bg: #285f8f;
+  --maps-header-bg: #0b3158;
+  --maps-header-dark-bg: #1f5b88;
+  --dark-accent: #a3bffa;
+  --dark-accent-hover: #c3d4ff;
+  --dark-accent-rgb: 163, 191, 250;
+}

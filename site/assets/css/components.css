@@ -89,7 +89,7 @@
 
 .partner-logo:hover {
   transform: translateY(-5px) scale(1.05);
-  background: linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.04) 0%, rgba(176, 224, 230, 0.08) 100%);
+  background: linear-gradient(135deg, rgba(var(--brand-primary-rgb), 0.04) 0%, rgba(var(--accent-rgb), 0.08) 100%);
   box-shadow: var(--shadow-hover);
 }
 
@@ -245,7 +245,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  background-color: #008cba;
+  background-color: var(--monitoring-overlay);
   border-radius: 10px;
   opacity: 0;
   transform: scale(0);

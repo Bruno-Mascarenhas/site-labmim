@@ -1,7 +1,7 @@
-.dark-theme {
-  /* NÃO reatribui --primary-color: a marca (navy #06235e definida em base.css :root)
-     permanece consistente entre temas. O antigo roxo #667eea vira um accent dedicado
-     (--accent-violet), usado só onde é um indicador de destaque sobre fundo escuro. */
+/* A classe de tema vive no próprio <html>. Os tokens institucionais claros e
+   escuros são declarados pelo site-theme.css da publicação ativa. */
+html.dark-theme {
+  /* A identidade da publicação permanece consistente entre os temas. */
   --bg-primary: #1e1e1e;
   --bg-secondary: #2d2d2d;
   --text-primary: #fff;
@@ -9,15 +9,12 @@
   --border-color: #404040;
   --bg-elevated: #252525;
   --chart-grid-color: rgba(255, 255, 255, 0.12);
-  --tooltip-bg: rgba(18, 18, 18, 0.96);
+  --chart-legend-color: #fff;
   --lab-header-bg: var(--lab-header-dark-bg);
   --lab-footer-bg: var(--lab-footer-dark-bg);
 
-  /* Tokens de accent do modo escuro — fonte única de verdade. */
-  --dark-accent: #a3bffa;
-  --dark-accent-hover: #c3d4ff;
-  --dark-accent-rgb: 163, 191, 250;
-  --accent-violet: #667eea;
+  /* O accent escuro também vem do tema da publicação ativa. */
+  --accent-violet: var(--map-accent);
 }
 
 [data-theme-toggle] {
@@ -70,18 +67,18 @@ input:focus-visible {
 }
 
 .dark-theme header.maps-header {
-  background-color: #1f5b88 !important;
+  background-color: var(--maps-header-dark-bg) !important;
 }
 
 .dark-theme [data-theme-toggle] {
-  background: rgba(12, 28, 48, 0.88) !important;
+  background: rgba(var(--brand-primary-rgb), 0.88) !important;
   border-color: rgba(var(--dark-accent-rgb), 0.45) !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
-  color: #e8f1ff !important;
+  color: var(--white) !important;
 }
 
 .dark-theme [data-theme-toggle]:hover {
-  background: rgba(28, 45, 72, 0.96) !important;
+  background: rgba(var(--brand-secondary-rgb), 0.88) !important;
   border-color: var(--dark-accent) !important;
   color: var(--white) !important;
 }
@@ -158,9 +155,8 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
-/* Elementos com cor de marca navy própria (que agora permanece navy no dark
-   mode) precisam de override para não ficarem ilegíveis sobre superfícies
-   escuras — contraste navy #06235e sobre #2d2d2d é ~1.1:1. */
+/* Elementos com cor de marca própria precisam de override para manter o
+   contraste sobre superfícies escuras, independentemente da publicação. */
 .dark-theme .partner-logo-text,
 .dark-theme .partner-logo-text small {
   color: var(--text-primary) !important;
@@ -175,7 +171,11 @@ input:focus-visible {
 }
 
 .dark-theme .feature-icon {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.22) 0%, rgba(176, 224, 230, 0.14) 100%) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--map-accent-rgb), 0.22) 0%,
+    rgba(var(--accent-rgb), 0.14) 100%
+  ) !important;
   color: var(--dark-accent) !important;
 }
 
@@ -206,7 +206,7 @@ input:focus-visible {
   color: #f4f8ff !important;
 }
 
-.dark-theme .modern-footer img[alt="LabMiM"] {
+.dark-theme .modern-footer .site-brand-logo {
   filter: brightness(1.28) contrast(1.06) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35)) !important;
 }
 
@@ -337,27 +337,22 @@ input:focus-visible {
 
 .variable-solar {
   --variable-accent: #ff6b00;
-  --variable-light: #ffe4cc;
 }
 
 .variable-wind {
   --variable-accent: #06c;
-  --variable-light: #cce5ff;
 }
 
 .variable-temperature {
   --variable-accent: #d62828;
-  --variable-light: #ffe0e0;
 }
 
 .variable-humidity {
   --variable-accent: #2a9d8f;
-  --variable-light: #d0ede9;
 }
 
 .variable-rain {
   --variable-accent: #457b9d;
-  --variable-light: #d4dce8;
 }
 
 .variable-solar .sidebar-header,
@@ -365,7 +360,7 @@ input:focus-visible {
 .variable-temperature .sidebar-header,
 .variable-humidity .sidebar-header,
 .variable-rain .sidebar-header {
-  background: linear-gradient(135deg, var(--variable-accent), var(--primary-dark));
+  background: linear-gradient(135deg, var(--variable-accent), var(--map-accent-2));
 }
 
 .variable-solar .info-section-title,

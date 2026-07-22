@@ -11,7 +11,7 @@ const MANIFEST_RECHECK_INTERVAL_MS = 15 * 60 * 1000;
 const MANIFEST_RECHECK_MIN_GAP_MS = 5 * 60 * 1000;
 
 function fetchManifest() {
-  return fetch("JSON/manifest.json", { cache: "no-cache" })
+  return fetch(window.SITE_RUNTIME_CONFIG.data.manifestPath, { cache: "no-cache" })
     .then((res) => (res.ok ? res.json() : null))
     .then((manifest) => (typeof manifest?.version === "string" && manifest.version ? manifest : null))
     .catch(() => null);

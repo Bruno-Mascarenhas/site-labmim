@@ -1,7 +1,8 @@
 :root {
-  --primary-color: #06235e;
-  --secondary-color: #3761b4;
-  --accent-color: #b0e0e6;
+  /* Contrato estrutural compartilhado. A identidade visual é fornecida pelo
+     arquivo gerado assets/css/site-theme.css da publicação selecionada. */
+  --primary-color: var(--brand-primary);
+  --secondary-color: var(--brand-secondary);
   --danger-color: #e74c3c;
   --warning-color: #f1c40f;
   --text-dark: #2c3e50;
@@ -14,37 +15,16 @@
   --radius-lg: 10px;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.15);
-
-  /* Cor institucional fixa (NÃO muda com o tema — diferente de --primary-color,
-     que é reatribuída em theme.css para light/dark). Use estes tokens para a
-     marca navy/azul do LabMiM. */
-  --brand-primary: #06235e;
-  --brand-secondary: #3761b4;
-  --brand-primary-rgb: 6, 35, 94;
-  --brand-secondary-rgb: 55, 97, 180;
-
-  /* Accent roxo do WebGIS (maps.css) — antes repetido dezenas de vezes. */
-  --map-accent: #667eea;
-  --map-accent-2: #764ba2;
-  --map-accent-rgb: 102, 126, 234;
   --map-accent-gradient: linear-gradient(135deg, var(--map-accent), var(--map-accent-2));
-
-  /* Altura da navbar, usada em cálculos de altura no WebGIS. */
   --navbar-height: 76px;
-  --lab-header-bg: linear-gradient(155deg, #f8fbfc 18%, #dce8ee 72%, #cbdce8 100%);
-  --lab-header-dark-bg: linear-gradient(155deg, #2f6fa3 0%, #1f5b88 58%, #143b5f 100%);
-  --lab-footer-bg: #285f8f;
-  --lab-footer-dark-bg: #285f8f;
-
-  /* Tokens de tema (valores light/default) — sobrescritos em .dark-theme (theme.css).
-     Antes viviam num seletor .light-theme morto (nenhum código adiciona essa classe),
-     por isso ficavam indefinidos no modo claro (ex.: quebrava o gradiente do
-     .variable-* .sidebar-header, que usa var(--primary-dark)). */
-  --primary-dark: #764ba2;
   --bg-primary: #fff;
   --bg-secondary: #f5f5f5;
   --text-primary: #333;
   --text-secondary: #666;
+  --chart-grid-color: #f0f0f0;
+  --chart-legend-color: #666;
+  --tooltip-bg: rgba(18, 18, 18, 0.96);
+  --tooltip-text: #fff;
 }
 
 * {
@@ -194,6 +174,29 @@ button {
 
 .brand-logo-bright {
   filter: brightness(1.2);
+}
+
+.site-affiliation-text {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  color: var(--brand-primary);
+  font-weight: 700;
+  line-height: 1.05;
+  text-align: right;
+  text-decoration: none;
+}
+
+.site-affiliation-text small {
+  color: var(--brand-secondary);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+}
+
+.modern-footer .site-affiliation-text,
+.modern-footer .site-affiliation-text small {
+  color: var(--white) !important;
 }
 
 .icon-chevron {

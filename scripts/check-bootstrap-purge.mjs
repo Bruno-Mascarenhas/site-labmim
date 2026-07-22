@@ -90,8 +90,7 @@ const tagTokens = (selector) =>
     .filter((tag) => !["not", "hover", "focus", "active", "disabled", "checked"].includes(tag));
 
 // Nomes de atributo do seletor ([data-bs-theme=dark] etc.).
-const attrTokens = (selector) =>
-  [...selector.matchAll(/\[([a-zA-Z-]+)/g)].map((m) => m[1]);
+const attrTokens = (selector) => [...selector.matchAll(/\[([a-zA-Z-]+)/g)].map((m) => m[1]);
 
 const originalSelectors = parseSelectors(read("site/assets/vendor/bootstrap/bootstrap.min.css"));
 const purgedSelectors = parseSelectors(read("site/assets/vendor/bootstrap/bootstrap.purged.min.css"));
@@ -109,9 +108,7 @@ for (const selector of originalSelectors) {
 }
 
 if (missing.length > 0) {
-  console.error(
-    "✗ Seletores Bootstrap aplicáveis ao site mas ausentes do bootstrap.purged.min.css:"
-  );
+  console.error("✗ Seletores Bootstrap aplicáveis ao site mas ausentes do bootstrap.purged.min.css:");
   for (const selector of missing.sort()) console.error(`  - ${selector}`);
   console.error("\nRegenere o purge: ver scripts/purgecss.config.cjs");
   process.exit(1);

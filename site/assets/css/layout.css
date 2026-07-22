@@ -12,7 +12,7 @@
 }
 
 .maps-header {
-  background-color: #0b3158 !important;
+  background-color: var(--maps-header-bg) !important;
 }
 
 .modern-section {

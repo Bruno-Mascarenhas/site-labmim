@@ -39,6 +39,9 @@ jobs:
       - name: Run Stylelint
         run: npm run lint:css
 
+      - name: Check publication theme boundaries
+        run: npm run lint:themes
+
       - name: Check Font Awesome subset coverage
         run: npm run lint:icons
 

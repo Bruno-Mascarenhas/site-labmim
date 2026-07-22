@@ -1,8 +1,8 @@
 node_modules/
 .venv/
-# Templates de origem (contêm tokens {{...}} e são a FONTE — o Prettier formata
-# apenas a saída gerada em site/). build.js monta e depois formata site/*.html.
-src/
+# Templates HTML de origem contêm tokens {{...}}; o build monta e formata a
+# saída gerada. Configurações JS e temas CSS em src/ continuam verificados.
+src/**/*.html
 site/JSON/
 site/GeoJSON/
 site/assets/vendor/

@@ -1,12 +1,28 @@
-# LabMiM Site Architecture
+# Arquitetura das publicações estáticas
 
-Este documento descreve a arquitetura atual do site LabMiM com base no estado real do repositório. Ele deve ser usado como referência para manutenção, evolução do WebGIS e prevenção de regressões.
+Este documento descreve o frontend estático compartilhado hoje por LabMiM/UFBA e LEAL/UFES e sua fronteira de extensão para futuras publicações brasileiras. Ele deve ser usado como referência para manutenção, evolução do WebGIS e prevenção de regressões.
 
 ## Visão Geral
 
-O projeto é um site estático em `site/`, composto por HTML, CSS modular e JavaScript sem framework frontend. As páginas HTML são **geradas** a partir de fontes em `src/` por um passo de build local/CI (`build.js`, apenas stdlib do Node) que expande _partials_ compartilhados, gera o bloco de SEO por página e carimba hashes de conteúdo nos assets — o deploy continua sendo de arquivos estáticos puros, sem build no servidor. O WebGIS usa Leaflet com renderização em Canvas para exibir grades meteorológicas e potenciais energéticos, carregando dados WRF a partir de arquivos gerados em `GeoJSON/` e `JSON/`.
+O projeto gera uma publicação por vez em `site/`, composta por HTML, CSS modular e JavaScript sem framework frontend. `build.js` descobre `src/sites/<id>/site.js`, valida o contrato completo, expande o template compartilhado, aplica conteúdo e tema próprios, gera SEO/404/robots/sitemap e carimba hashes de conteúdo nos assets. O deploy recebe arquivos estáticos puros; Node participa apenas do build local/CI.
 
 Não há backend de aplicação neste repositório. Os dados são gerados pelo pipeline do repositório irmão [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) (CLI `labmim-wrf-geojson`) e publicados de forma desacoplada do site; por isso todo contrato de dados tem fallback no cliente.
+
+## Modelo Modular
+
+A unidade de build é uma **publicação**, composta em `src/sites/<id>/site.js`. Ela referencia módulos menores em vez de concentrar todo o produto em uma configuração global:
+
+| Conceito      | Local                       | Responsabilidade                                                           |
+| ------------- | --------------------------- | -------------------------------------------------------------------------- |
+| Template      | `src/template/`             | Layouts, partials, páginas e estáticos neutros quanto a instituição/estado |
+| Publicação    | `src/sites/<id>/`           | Identidade, manifesto de páginas, conteúdo editorial próprio e paleta      |
+| Território    | `src/territories/<uf>.js`   | Estado, sigla, contorno, centro, zoom e política de `fitBounds`            |
+| Dataset       | `src/datasets/<produto>.js` | Atribuição, caminhos operacionais, timeline e domínios WRF                 |
+| Assets comuns | `site/assets/`              | Runtime JS, CSS estrutural, imagens e bibliotecas vendorizadas             |
+
+Essa composição evita três acoplamentos: uma publicação não é sinônimo de estado, um estado não determina os domínios WRF e uma página compartilhada não pertence implicitamente à publicação padrão. Toda fonte de página declara explicitamente `scope: "template"` ou `scope: "site"` por meio de `templateSource()` e `siteSource()`.
+
+O diretório `src/sites/` é o registro. A descoberta ordena os diretórios que contêm `site.js`, exige que o `id` seja igual ao nome da pasta, rejeita IDs/origens duplicados e exige exatamente um `isDefault: true`. Assim, uma nova publicação válida não requer alteração em `build.js`, `package.json` ou em uma lista central.
 
 ## Páginas HTML
 
@@ -20,43 +36,52 @@ Não há backend de aplicação neste repositório. Os dados são gerados pelo p
 | `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
 | `site/404.html`                    | Página de erro standalone (caminhos absolutos, `ErrorDocument 404`)   |
 
-As seis primeiras são geradas por `build.js`; `404.html` é mantida à mão (usa caminhos absolutos `/assets/...` para resolver em qualquer profundidade de URL, por isso não passa pelo build — e carrega o `bootstrap.min.css` completo, não o purgado).
+Todas são declaradas no array de `src/sites/<id>/pages.js` e geradas por `build.js`. A fonte de `404.html` fica em `src/template/static/404.html` e mantém caminhos absolutos `/assets/...` para resolver em qualquer profundidade.
 
 Todas as páginas usam **Bootstrap 5.3.8 vendorizado localmente**; as páginas geradas carregam o **CSS purgado** (`bootstrap.purged.min.css`, ~27 KB). Não há Bootstrap 4 nem jQuery no projeto. Leaflet e Chart.js também são carregados localmente (ver [Dependências Externas](#dependências-externas)).
 
-A navbar principal segue a ordem: Previsões, Potenciais Energéticos, Monitoramento, Climatologia e Equipe. Essa ordem é definida **uma única vez** no array `NAV` de `build.js`, que gera tanto a navbar quanto o menu do rodapé; o item ativo vem do campo `active` da página em `PAGES`. Editar navbar/rodapé/`<head>` significa editar `src/partials/`, não `site/*.html`.
+A navbar e o rodapé são derivados das entradas `nav` do manifesto da publicação, ordenadas por `nav.order`. A página pode existir sem aparecer na navegação omitindo `nav`. Editar a estrutura da navbar/rodapé/`<head>` significa editar `src/template/partials/`, não `site/*.html`.
 
 ## Organização De Pastas
 
 ```text
-build.js                            # gerador estático (src/ -> site/*.html), só stdlib do Node
-scripts/                            # guards de assets + guia de regeneração
-├── check-fa-subset.mjs             # lint:icons
-├── check-bootstrap-purge.mjs       # lint:purge
-├── purgecss.config.cjs             # regeneração do bootstrap.purged.min.css
-└── subset-fontawesome.md           # regeneração do subset de fontes
-src/                                # FONTE das páginas — edite aqui, nunca em site/*.html
-├── layouts/
-│   ├── institutional.html          # index, monitoring, team, climatologia
-│   └── webgis.html                 # mapas_interativos, potenciais_energeticos
-├── partials/
-│   ├── head.html                   # <head> compartilhado (inclui meta labmim-asset-hashes)
-│   ├── nav.html                    # navbar (itens gerados do array NAV em build.js)
-│   ├── footer.html                 # rodapé compartilhado
-│   ├── scripts.html                # Bootstrap bundle (fim do body)
-│   ├── webgis-doc-features.html    # aba "Funcionalidades" (compartilhada)
-│   └── webgis-doc-wrf.html         # aba "Dados WRF" (compartilhada)
-└── pages/                          # conteúdo único de cada página (sem head/nav/footer)
+build.js                              # orquestrador de descoberta, validação e renderização
+scripts/
+├── site-builder/
+│   ├── publications.js              # descoberta/seleção automática
+│   ├── validate.js                  # valida configuração, arquivos e GeoJSON do estado
+│   ├── renderer.js                  # HTML, SEO, runtime config e estáticos
+│   └── assets.js                    # tema da publicação e hashes de conteúdo
+├── build-site.mjs                   # build individual + formatação
+├── build-all.mjs                    # bundles dist/<id>/
+└── check-publications.mjs           # build/lints de todas + restauração da padrão
+src/
+├── template/
+│   ├── page-types.js                # catálogo page() e customPage()
+│   ├── layouts/                     # institutional.html e webgis.html
+│   ├── partials/                    # head, nav, footer, scripts e docs WebGIS
+│   ├── pages/                       # conteúdo reutilizado por publicações
+│   └── static/                      # 404 e htaccess.template
+├── sites/
+│   ├── README.md                    # guia de extensão
+│   ├── ufba/
+│   │   ├── site.js                  # composição identity + territory + dataset + pages
+│   │   ├── identity.js              # marca, instituição, origem e redirects
+│   │   ├── pages.js                 # páginas, SEO e navegação
+│   │   ├── theme.css                # tokens de marca
+│   │   ├── pages/                   # conteúdo exclusivo
+│   │   └── fragments/               # trechos exclusivos anexáveis
+│   └── ufes/                        # mesma interface
+├── territories/                     # ba.js, es.js e futuros estados
+└── datasets/                        # labmim-wrf.js, leal-wrf.js e futuros produtos
 
-site/                               # SAÍDA publicada (HTML gerado por build.js + assets)
-├── .htaccess                       # MIME, compressão, cache, segurança/CSP, 404, 301 (Apache)
-├── robots.txt                      # bloqueia /JSON/, /GeoJSON/
-├── sitemap.xml                     # 6 URLs canônicas
-├── 404.html                        # standalone (não gerado)
-├── *.html                          # gerados por build.js (exceto 404.html)
+site/                                 # saída compatível; uma publicação por vez
+├── .htaccess, robots.txt, sitemap.xml
+├── 404.html e *.html
 ├── assets/
 │   ├── css/
 │   │   ├── base.css
+│   │   ├── site-theme.css           # gerado do src/sites/<id>/theme.css
 │   │   ├── layout.css
 │   │   ├── components.css
 │   │   ├── theme.css
@@ -81,11 +106,15 @@ site/                               # SAÍDA publicada (HTML gerado por build.js
 │   │   ├── leaflet/                # 1.9.4 (js, css, images/)
 │   │   └── chartjs/                # 3.9.1
 │   ├── data/
-│   │   └── br_ba.json              # contorno da Bahia (recorte por estado)
+│   │   ├── br_ba.json              # contorno da Bahia
+│   │   └── br_es.json              # contorno do Espírito Santo
 │   ├── graphs/                     # PNGs do monitoramento (regenerados pela estação)
 │   └── img/
 ├── GeoJSON/                        # grades geradas pelo pipeline (git-ignored)
 └── JSON/                           # valores, séries, resumos, manifest (git-ignored)
+
+dist/<id>/                           # bundles de frontend gerados em lote
+└── ...                              # não inclui JSON/ nem GeoJSON/ operacionais
 ```
 
 Observações:
@@ -93,22 +122,25 @@ Observações:
 - `assets/graphs/` contém PNGs usados em `monitoring.html`, regenerados pela estação **nos mesmos nomes de arquivo** (por isso o `.htaccess` os serve com `no-cache`).
 - `assets/img/` contém logos e imagens institucionais (WebP + fallback PNG via `<picture>` para as versões redimensionadas).
 - `assets/vendor/` contém bibliotecas de terceiros servidas localmente, evitando dependência de CDN no caminho crítico.
-- `assets/data/br_ba.json` é o contorno da Bahia usado pelo recorte por estado.
+- `assets/data/br_ba.json` e `br_es.json` são os contornos referenciados pelos módulos de território atuais.
 - O manifest real fica em `site/JSON/manifest.json` (gerado pelo pipeline).
 - `GeoJSON/` e `JSON/` contêm dados gerados e ficam fora do controle de versão (`.gitignore` cobre `site/JSON/*.json`, `site/JSON/*.series.bin`, `site/GeoJSON/*.geojson` e `site/GeoJSON/*.json`).
 - Não abra, varra, formate ou reprocesse `/data`; evite ler conteúdo de `GeoJSON/` e `JSON/` fora de depuração estritamente necessária, porque esses diretórios contêm artefatos grandes do pipeline externo.
 
-## Build E Cache Busting (`build.js`)
+## Build, Validação E Cache Busting
 
-`build.js` (stdlib do Node: `crypto`, `fs`, `path`) monta cada página assim:
+O fluxo de um build é:
 
-1. Carrega o layout (`institutional` ou `webgis`), que inclui partials via `{{> head}}`, `{{> nav}}`, `{{> footer}}`, `{{> scripts}}`.
-2. Injeta o conteúdo da página (`{{content}}` de `src/pages/`, que também pode usar `{{> partial}}` — as abas compartilhadas da documentação do WebGIS vivem em `webgis-doc-*.html`), e resolve os tokens `{{NAV_ITEMS}}`, `{{FOOTER_NAV}}`, `{{YEAR}}`, `{{WORKER_HASHES}}`, `{{seoHead}}`, `{{title}}`, `{{description}}`, `{{bodyAttrs}}`, `{{kicker}}`/`{{docModalTitle}}` (páginas WebGIS) e `{{h1}}` (resolvido por último, com fallback para `title`). Substituição é literal (split/join); qualquer token `{{...}}` não resolvido **quebra o build**.
-3. `seoHead(page)` gera canonical + Open Graph + Twitter card a partir de `PROD = https://labmim.if.ufba.br` (`index.html` colapsa para a raiz).
-4. `stampAssetVersions()` reescreve todo `href`/`src` de `assets/css/` e `assets/js/` acrescentando `?v=<primeiros 8 hex do md5 do conteúdo>`. Vendor mantém tokens manuais de release, **exceto** os listados em `HASHED_VENDOR_ASSETS` (hoje só `bootstrap.purged.min.css`, cujo conteúdo depende do HTML do site).
-5. `workerHashes()` calcula o hash de cada `assets/js/workers/*.js` e o publica na `<meta name="labmim-asset-hashes" content="nome:hash;nome:hash">` (workers não aparecem em `href`/`src`, então o HTML não pode versioná-los diretamente). Em runtime, `workerScriptUrl()` em `map-manager.js` lê essa meta e monta `assets/js/workers/<arquivo>?v=<hash>`; sem hash disponível a URL sai sem `?v=` e cai nas regras de cache curto.
+1. `publications.js` descobre todos os `src/sites/<id>/site.js` e seleciona `--site`, `SITE_ID` ou a publicação padrão.
+2. `validate.js` acumula erros de identidade, páginas, fontes confinadas, redirects, tema, território, contorno GeoJSON, dataset e domínios antes de escrever a saída.
+3. `renderer.js` resolve cada fonte explicitamente no template ou na publicação, expande partials/tokens e rejeita qualquer `{{...}}` não resolvido.
+4. O renderer gera canonical, Open Graph, Twitter card, JSON-LD, `<meta name="site-config">`, `404.html`, `.htaccess`, `robots.txt` e `sitemap.xml` a partir do manifesto selecionado.
+5. `assets.js` grava `site/assets/css/site-theme.css` usando somente o tema selecionado e acrescenta `?v=<md5-8>` aos CSS/JS próprios. Os hashes dos workers são publicados em `labmim-asset-hashes`.
+6. Após sucesso, HTMLs raiz que não pertencem à publicação atual são removidos; os diretórios configurados em `dataset.paths` e demais dados operacionais não são tocados.
 
-`PAGES` define as 6 páginas (`file`, `layout`, `active`, `h1`, `title`, `description` e, nos mapas, `bodyAttrs` com `data-map-context="forecast|energy"` mais `kicker`/`docModalTitle`). O shell inteiro do WebGIS (mapa, sidebar, controles, modais) vive no layout `webgis.html`; as páginas trazem só as abas de documentação específicas (Visão Geral e Variáveis). `npm run build` roda `node build.js` + Prettier na saída; `npm run build:check` falha se o `site/*.html` commitado divergir do regenerado (**as páginas geradas são artefatos commitados** — toda mudança em `src/`, `build.js` ou no conteúdo de um asset hasheado exige regenerar e commitar o HTML).
+`npm run sites:list` mostra o registro descoberto. `npm run build -- --site=<id>` escreve uma publicação em `site/`; `npm run build:all` cria `dist/<id>/` para todas, omitindo o manifest e os diretórios operacionais declarados por cada `dataset.paths`; `npm run build:check` gera e valida todas as publicações, rejeita saída nova não versionada e sempre restaura a padrão em `site/`. Os atalhos `build:ufba` e `build:ufes` continuam disponíveis, mas não são necessários ao adicionar novos IDs.
+
+O build muda somente o frontend. Os diretórios configurados em `dataset.paths` precisam receber uma rodada WRF compatível com os domínios da publicação escolhida; `assets/graphs/` também é substituído pela estação de cada deploy.
 
 ## CSS
 
@@ -116,7 +148,8 @@ Observações:
 
 | Arquivo          | Responsabilidade                                                                    |
 | ---------------- | ----------------------------------------------------------------------------------- |
-| `base.css`       | Tokens CSS, reset, tipografia, utilitários pequenos, logos e cores base             |
+| `base.css`       | Tokens estruturais neutros, reset, tipografia, utilitários pequenos e logos         |
+| `site-theme.css` | Paleta da publicação selecionada; arquivo gerado, não editar diretamente            |
 | `layout.css`     | Navbar, seções de página, footer e estrutura compartilhada                          |
 | `components.css` | Cards, parceiros, financiadores, blocos de explicação, monitoramento, modal helpers |
 | `theme.css`      | Dark mode, overrides de tema, estados de controles, ajustes globais de contraste    |
@@ -124,10 +157,12 @@ Observações:
 
 ### Padrões
 
-- Use variáveis CSS em `:root` para cores, sombras, bordas e espaçamentos globais. `--primary-color` e `--brand-primary`/`--brand-secondary` são a marca navy, consistente entre temas (`theme.css` deliberadamente **não** reatribui `--primary-color`); o que muda no dark mode são os tokens de fundo/texto (`--bg-*`, `--text-*`) e a família `--dark-accent`. `--map-accent*` é o accent roxo do WebGIS.
+- Tokens de identidade (`--brand-*`, `--map-accent*`, `--dark-accent*`, `--accent-color` e fundos de header/footer) pertencem a `src/sites/<id>/theme.css` e são copiados para `site-theme.css`. Aliases como `--primary-color` e tokens estruturais comuns permanecem em `base.css`/`theme.css`.
+- Nunca selecione paleta por ID (`html[data-publication="..."]`) no CSS comum. Uma saída contém apenas o tema da publicação selecionada.
 - Dark mode é controlado pela classe `.dark-theme` no elemento `<html>`.
-- `maps.css` é carregado depois de `theme.css` nas páginas WebGIS; quando um estilo escuro precisa vencer regras do mapa, o override deve estar em `maps.css` ou ter especificidade compatível.
-- Evite estilos inline. Crie classes reutilizáveis em `components.css` ou `maps.css`, conforme o escopo.
+- A cascata é `vendor da página → base → site-theme → layout → components → page.styles → theme`; o color mode fica por último. CSS exclusivo de página deve ser declarado no array `styles` de `pages.js`, nunca inserido diretamente no layout. Referências `siteSource("styles/...")` e `templateSource("styles/...")` são copiadas sob `assets/css/generated/` conforme o ownership e apenas para a publicação ativa.
+- `npm run lint:themes` exige um único `:root` token-only em cada tema, compara o contrato entre publicações, proíbe branching por publicação no CSS comum e protege essa ordem de cascata.
+- Evite estilos inline. Crie classes reutilizáveis em `components.css` ou um stylesheet de página declarado em `page.styles`, conforme o escopo.
 - Mantenha responsividade com media queries já existentes; não use escala tipográfica baseada diretamente em viewport.
 
 ## JavaScript
@@ -142,15 +177,15 @@ Observações:
 
 ### Módulos Do WebGIS
 
-| Arquivo                         | Responsabilidade                                                                                                    |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `variables-config.js`           | Define `VARIABLES_CONFIG`, `VARIABLE_CONTEXTS`, IDs de arquivo, unidades, palhetas e `specificInfo()` por variável  |
-| `data-service.js`               | Classe `LabmimDataService`; fetch/cache LRU de JSON, dedup em voo, cache negativo e parsing em worker               |
-| `map-manager.js`                | Classe `MeteoMapManager`; estado do mapa, manifest/linha do tempo, domínio, dados, renderização, controles e vento  |
-| `charts-manager.js`             | Classe `ChartsManager`; séries temporais (series.bin/varredura), resumo de domínio (summary.json), modal, CSV       |
-| `map-init.js`                   | Bootstrap do WebGIS; busca o manifest (corrida de 3 s + re-checagem), cria `MeteoMapManager` e `ChartsManager`      |
+| Arquivo                         | Responsabilidade                                                                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `variables-config.js`           | Define `VARIABLES_CONFIG`, `VARIABLE_CONTEXTS`, IDs de arquivo, unidades, palhetas e `specificInfo()` por variável                                                 |
+| `data-service.js`               | Classe `LabmimDataService`; fetch/cache LRU de JSON, dedup em voo, cache negativo e parsing em worker                                                              |
+| `map-manager.js`                | Classe `MeteoMapManager`; estado do mapa, manifest/linha do tempo, domínio, dados, renderização, controles e vento                                                 |
+| `charts-manager.js`             | Classe `ChartsManager`; séries temporais (series.bin/varredura), resumo de domínio (summary.json), modal, CSV                                                      |
+| `map-init.js`                   | Bootstrap do WebGIS; busca o manifest (corrida de 3 s + re-checagem), cria `MeteoMapManager` e `ChartsManager`                                                     |
 | `workers/color-calc.worker.js`  | Interpolação de cores fora da thread principal (memoização por valor; ecoa `requestId` — o descarte de respostas obsoletas fica no consumidor em `map-manager.js`) |
-| `workers/json-parser.worker.js` | Fetch/parse JSON em worker quando disponível (repassa o status HTTP para a main thread)                             |
+| `workers/json-parser.worker.js` | Fetch/parse JSON em worker quando disponível (repassa o status HTTP para a main thread)                                                                            |
 
 `MeteoMapManager`, `ChartsManager` e `LabmimDataService` são expostos em `window` para preservar compatibilidade do bootstrap atual.
 
@@ -173,7 +208,7 @@ Cuidados:
 
 - Não remova `theme-boot.js`; ele reduz flash visual antes do carregamento do JS deferido.
 - Se criar novos componentes com fundo próprio em `maps.css`, crie também o equivalente para `.dark-theme` quando necessário.
-- Valide títulos de modal/sidebar em dark mode, porque `maps.css` é carregado por último na página de mapas.
+- Valide títulos de modal/sidebar em dark mode; `theme.css` é carregado após o CSS específico da página para manter os overrides de color mode previsíveis.
 
 ## Camada De Dados (`LabmimDataService`)
 
@@ -192,15 +227,15 @@ Responsabilidades:
 
 O pipeline publica `JSON/manifest.json` (formato `labmim-data-manifest-v2`) junto com os dados. Campos consumidos pelo site (`applyManifest` em `map-manager.js`):
 
-| Campo | Uso |
-| ----------------------- | ------------------------------------------------------------------------------------------------ |
-| `version` | Versão da rodada → `this.dataVersion`; `dataUrl()` anexa `?v=<version>` a **toda** URL de dados |
-| `index_min`/`index_max` | Intervalo da linha do tempo → máximo do slider, `state.maxLayer` (`indexMin` clampado a ≥ 1) |
-| `start_local` | Data/hora local do **índice 0** dos arquivos (nunca de `index_min`) → âncora dos rótulos |
-| `timezone` | Informativo (`America/Bahia`; o site exibe os dígitos de hora local como recebidos) |
-| `availability` | Mapa `variableId → [[início, fim], ...]` (inclusivo) → passos exibíveis/puláveis por variável |
-| `features.domain_summary` | Descritor `{format: "domain-summary-v1", template}` → habilita o resumo consolidado |
-| `features.cell_series` | Descritor `{format: "cell-series-int32-le-v1", template, dtype, byte_order, scale, missing, index_min, index_max}` → habilita a leitura binária de séries |
+| Campo                     | Uso                                                                                                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `version`                 | Versão da rodada → `this.dataVersion`; `dataUrl()` anexa `?v=<version>` a **toda** URL de dados                                                           |
+| `index_min`/`index_max`   | Intervalo da linha do tempo → máximo do slider, `state.maxLayer` (`indexMin` clampado a ≥ 1)                                                              |
+| `start_local`             | Data/hora local do **índice 0** dos arquivos (nunca de `index_min`) → âncora dos rótulos                                                                  |
+| `timezone`                | Informativo (`America/Bahia`; o site exibe os dígitos de hora local como recebidos)                                                                       |
+| `availability`            | Mapa `variableId → [[início, fim], ...]` (inclusivo) → passos exibíveis/puláveis por variável                                                             |
+| `features.domain_summary` | Descritor `{format: "domain-summary-v1", template}` → habilita o resumo consolidado                                                                       |
+| `features.cell_series`    | Descritor `{format: "cell-series-int32-le-v1", template, dtype, byte_order, scale, missing, index_min, index_max}` → habilita a leitura binária de séries |
 
 Ciclo de vida (`map-init.js`):
 
@@ -246,12 +281,9 @@ O painel "Sobre as variáveis" é controlado por `setupVariableOverview()`; inic
 
 ### Domínios
 
-`DOMAIN_CONFIG` separa o ID técnico do label exibido. Os IDs técnicos continuam nos nomes de arquivos, cache e estado:
+`dataset.domains` separa o ID técnico do label exibido e é serializado no `site-config` consumido pelo runtime. Cada domínio declara `id`, labels curto/longo, centro, zoom, resolução, descrição e se usa parametrização de cumulus. O dataset também declara `defaultDomain`.
 
-- `D01` → label `BA/NE` (grade 69×69, 27 km)
-- `D02` → label `BA` (99×99, 9 km)
-- `D03` → label `RMS` (99×99, 3 km)
-- `D04` → label `SSA` (84×84, 1 km)
+Os produtos atuais usam IDs técnicos `D01`–`D04`, mas apresentam labels geográficos próprios: LabMiM usa `BA/NE`, `BA`, `RMS` e `SSA`; LEAL usa `S/SE/NE`, `Sudeste`, `ES` e `Grande Vitória`. O ID técnico continua nos nomes dos arquivos, cache e estado e não deve ser inferido do label.
 
 Os botões `.domain-btn` atualizam `this.state.domain` e recarregam dados. O cache de grade **não** é limpo na troca de domínio/variável/altura — a grade depende só do domínio (só `handleManifestUpdate` descarta grades, na troca de rodada). O domínio não troca automaticamente por zoom.
 
@@ -368,7 +400,7 @@ As variáveis ficam em `VARIABLES_CONFIG` (14 chaves):
 | `skinTemperature`  | `TSK`                    | Temperatura de superfície                              |
 | `pressure`         | `PRES`                   | Pressão atmosférica                                    |
 | `humidity`         | `VAPOR`                  | Vapor d'Água / razão de mistura em `g/kg`              |
-| `relativeHumidity` | `RH2`                    | Umidade relativa em `%`                                 |
+| `relativeHumidity` | `RH2`                    | Umidade relativa em `%`                                |
 | `rain`             | `RAIN`                   | Precipitação                                           |
 | `wind`             | `WIND`                   | Vento a 10m                                            |
 | `longwave`         | `GLW`                    | Radiação de onda longa incidente                       |
@@ -444,7 +476,7 @@ Para `solar` e `eolico`, o modal também exibe uma série derivada de energia (c
 
 `site/.htaccess` configura o Apache com diretivas protegidas por `<IfModule>` (o site nunca deve retornar 500 se um módulo faltar):
 
-- **Charset/erros/redirects**: `AddDefaultCharset UTF-8`; `ErrorDocument 404 /404.html`; `Redirect 301 /mapas_meteorologicos.html → /mapas_interativos.html` (o stub legado foi removido; o 301 é a única ponte para bookmarks antigos).
+- **Charset/erros/redirects**: `AddDefaultCharset UTF-8`; `ErrorDocument 404 /404.html`; somente os redirects declarados em `src/sites/<id>/identity.js` para a publicação selecionada são emitidos.
 - **MIME**: `application/json` para `.json` e `application/geo+json` para `.geojson`.
 - **Compressão**: `mod_deflate` (dentro de `mod_filter`) para HTML, CSS, JS, JSON, GeoJSON e SVG, com bloco paralelo `mod_brotli` para clientes que suportam.
 - **Segurança**: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` (geolocation/camera/microphone desligados) e **CSP** com `script-src 'self'` (sem scripts inline; JSON-LD permitido por não ser executável), `style-src 'self' 'unsafe-inline'` (atributos style do Leaflet), `img-src` liberando tiles OSM e `data:`, `frame-src https://www.google.com` (mapa da equipe) e `upgrade-insecure-requests`.
@@ -467,7 +499,7 @@ Vendorizadas localmente (sem CDN no caminho crítico):
 - Font Awesome 6.4.0 — `assets/vendor/fontawesome/` (`css/all.min.css` + subset `fa-solid-900.woff2` com preload; original em `fa-solid-900.full.woff2`; manifesto `subset-glyphs.json`).
 - Leaflet 1.9.4 — `assets/vendor/leaflet/` (`leaflet.js` com `defer`).
 - Chart.js 3.9.1 — `assets/vendor/chartjs/`.
-- Contorno da Bahia — `assets/data/br_ba.json`.
+- Contornos da Bahia e do Espírito Santo — `assets/data/br_ba.json` e `assets/data/br_es.json`.
 
 Origens externas (fora do caminho crítico de CSS/JS):
 
@@ -480,18 +512,18 @@ Dev tooling (em `package.json`, ver também `.nvmrc` = Node 24 LTS):
 
 - ESLint 10 (flat config em `eslint.config.mjs`, com globals do projeto).
 - Stylelint 17 (+ `stylelint-config-standard` 40).
-- Prettier 3.9 (também roda dentro de `npm run build`; `src/` fica fora — os templates contêm tokens `{{...}}`).
+- Prettier 3.9 (também roda dentro de `npm run build`; os templates HTML em `src/` ficam fora por conterem tokens `{{...}}`).
 - html-validate 10 (`lint:html`, config em `.htmlvalidate.json`) e linkinator (`lint:links`, só links internos).
-- Guards de assets: `scripts/check-fa-subset.mjs` (`lint:icons`) e `scripts/check-bootstrap-purge.mjs` (`lint:purge`); PurgeCSS (devDependency) regenera o CSS purgado com `scripts/purgecss.config.cjs`.
-- CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm audit --audit-level=high`. Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, semanal, PRs agrupados).
+- Guards de arquitetura/assets: `scripts/check-site-themes.mjs` (`lint:themes`), `scripts/check-fa-subset.mjs` (`lint:icons`) e `scripts/check-bootstrap-purge.mjs` (`lint:purge`); PurgeCSS (devDependency) regenera o CSS purgado com `scripts/purgecss.config.cjs`.
+- CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:themes`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm audit --audit-level=high`. Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, semanal, PRs agrupados).
 
-`make ci` roda os mesmos checks do CI do GitHub (`make lint` inclui `lint:icons`/`lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`.
+`make ci` roda os mesmos checks do CI do GitHub (`make lint` inclui `lint:themes`, `lint:icons` e `lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`.
 
 ## Decisões Da Refatoração
 
 Rodada 2026-06 (overhaul estático):
 
-- Header, footer, `<head>` e blocos de script foram extraídos para `src/partials/` e montados por `build.js`, eliminando duplicação entre páginas.
+- Header, footer, `<head>` e blocos de script foram extraídos para partials compartilhados (hoje em `src/template/partials/`) e montados por `build.js`, eliminando duplicação entre páginas.
 - O Bootstrap foi unificado em uma única versão vendorizada (5.3.8); as páginas institucionais migraram de Bootstrap 4 + jQuery para Bootstrap 5.
 - CSS antigo (`template.css`, `style.css`, `modern.css`, `custom-themes.css`) foi substituído por módulos menores e explícitos.
 - Código legado de vídeos (`script-mapas.js`, `video.js`, `assets/video/`) foi removido.
@@ -515,14 +547,37 @@ Rodada 2026-07-18/19 (linha do tempo por manifest — `feat/manifest-timeline-in
 - Hover da grade delegado ao grupo Leaflet (`e.propagatedFrom`) em vez de 2 closures por célula; tiles OSM movidos para `tile.openstreetmap.org` (host canônico); regras de cache do `.htaccess` estendidas aos `.series.bin`; ano do rodapé gerado no build (`{{YEAR}}`, derivado da data do último commit).
 - Varredura de código morto (2026-07-19): stub de redirect, diretórios reservados, logos originais órfãos, ~500 linhas de CSS/JS/HTML sem referência e campos de config não lidos removidos; toggles de tema unificados nos atributos `[data-theme-toggle]`; fallback manual de versão dos workers eliminado (URL sem `?v=` quando não há build).
 
+Rodada 2026-07-22 (publicações modulares):
+
+- O perfil monolítico e os overrides implícitos deram lugar à descoberta automática de `src/sites/<id>/site.js`.
+- Identidade, páginas e tema ficaram isolados por publicação; território e dataset viraram módulos reutilizáveis e independentes.
+- Layouts, partials, páginas compartilhadas e estáticos foram reunidos sob `src/template/`, com referências de fonte explícitas.
+- Navegação, sitemap e conjunto de HTMLs passaram a derivar do manifesto de páginas de cada publicação.
+- A validação passou a verificar esquema, colisões, confinamento de caminhos, assets, redirects e geometria do contorno antes da renderização.
+- `build:all` passou a produzir bundles por ID, enquanto `site/` preserva o contrato de saída única usado pelo deploy existente.
+
 ## Pontos De Extensão
 
 ### Adicionar Página
 
-1. Criar `src/pages/<nome>.html` com apenas o conteúdo único (sem head/nav/footer).
-2. Adicionar uma entrada em `PAGES` no `build.js` (`file`, `layout`, `active`, `h1`, `title`, `description` e, para mapas, `bodyAttrs`).
-3. Se a página for um destino de navegação, adicionar uma entrada em `NAV` (aparece automaticamente na navbar e no rodapé).
-4. Rodar `make build` e commitar o `site/<nome>.html` gerado. Lembrar do CSP: nada de script inline.
+Para uma página baseada no catálogo, use `page("<tipo>", { seo: ... })` em `src/sites/<id>/pages.js`; os tipos atuais e seus layouts/fontes padrão ficam em `src/template/page-types.js`.
+
+Para conteúdo compartilhado novo:
+
+1. Criar `src/template/pages/<nome>.html` apenas com o conteúdo da página.
+2. Declarar uma `customPage()` em cada publicação que a oferece, usando `source: templateSource("pages/<nome>.html")`.
+3. Informar `id`, `file`, `layout`, SEO completo e, se aparecer na navegação, `nav` com `label`, `icon`, `order` e `elementId` únicos.
+
+Para conteúdo exclusivo, salvar o HTML em `src/sites/<id>/pages/` e usar `siteSource()`. Fragmentos adicionais podem ser anexados com `append: [siteSource(...)]`. A receita completa, incluindo nova publicação/território/dataset, fica em [`src/sites/README.md`](src/sites/README.md).
+
+### Adicionar Publicação
+
+1. Criar `src/sites/<id>/identity.js`, `pages.js`, `site.js`, `theme.css` e os conteúdos próprios necessários.
+2. Referenciar ou criar um módulo em `src/territories/` e outro em `src/datasets/`.
+3. Manter apenas uma publicação com `isDefault: true` e usar o mesmo ID minúsculo no diretório e em `identity.js`.
+4. Rodar `npm run sites:list`, `npm run build -- --site=<id>` e `npm run build:check`.
+
+Não adicione condicionais `if (id === ...)` ao renderer, template ou runtime para personalização editorial. Se surgir uma capacidade estrutural reutilizável, modele-a no contrato comum; se for apenas conteúdo/identidade, mantenha-a no módulo da publicação.
 
 ### Adicionar Variável
 
@@ -547,13 +602,13 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 
 - Preserve os IDs usados pelo JS nas páginas WebGIS: `map`, `layerSlider`, `playPauseBtn`, `variableSelect`, `windLayerToggle`, `windLayerCheckbox`, `windVectorCanvas`, `sidebar`, `sidebarContent`, `timeSeriesModal`, `chartCanvasValue`, `chartCanvasEnergy`, `variableOverviewPanel`.
 - Não altere nomes de chaves em `VARIABLES_CONFIG` sem revisar dados, gráficos e sidebar.
-- Não renomeie os IDs técnicos `D01-D04`; eles fazem parte do contrato dos arquivos. Altere apenas labels públicos.
+- Não renomeie IDs técnicos de domínio sem coordenar o pipeline; eles fazem parte do contrato dos arquivos. Altere apenas os labels públicos quando a grade subjacente for a mesma.
 - Não mude os formatos anunciados no manifest (`labmim-data-manifest-v2`, `grid-edges-v1`, `grid-bounds-v1`, `domain-summary-v1`, `cell-series-int32-le-v1`) sem versionar um formato novo **e** manter o fallback — site e dados são publicados de forma desacoplada.
 - `start_local` ancora o **índice 0** dos arquivos, nunca `index_min` — não "corrija" isso ao mexer em `applyManifest`.
 - A variável `humidity` deve aparecer como Vapor d'Água / razão de mistura em `g/kg`; `relativeHumidity` é a umidade relativa em `%`.
 - Não remova `theme-boot.js` do `<head>`.
-- Use `LabmimDataService` para buscar JSON; não introduza `fetch` direto que ignore cache/dedup/cache negativo (exceções conscientes existentes: manifest com `cache: "no-cache"`, leitura Range do `series.bin` e o contorno estático da Bahia).
-- Ao atualizar uma biblioteca vendorizada, substitua o arquivo e atualize o token `?v=` manual em `src/`; CSS/JS próprios, `bootstrap.purged.min.css` e workers são hasheados automaticamente pelo build — basta `make build` + commit do HTML.
+- Use `LabmimDataService` para buscar JSON; não introduza `fetch` direto que ignore cache/dedup/cache negativo (exceções conscientes existentes: manifest com `cache: "no-cache"`, leitura Range do `series.bin` e o contorno estático da publicação).
+- Ao atualizar uma biblioteca vendorizada, substitua o arquivo e atualize o token `?v=` manual no layout/partial de `src/template/`; CSS/JS próprios, `bootstrap.purged.min.css` e workers são hasheados automaticamente pelo build.
 - Ao mexer em `maps.css`, valide light e dark mode.
 - Ao mexer em `map-manager.js`, valide play/pause (incl. autoplay e pulos por disponibilidade), troca de domínio, troca de variável, troca de rodada (regenerar o manifest local), clique em célula e wind layer.
 - Ao mexer em `charts-manager.js`, valide carregamento via `series.bin` E via fallback (sem manifest), cancelamento, troca de tema e exportação CSV.
@@ -563,14 +618,14 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 
 Use antes de merge/publicação:
 
-- `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm audit`.
+- `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm audit`.
 - Servir `site/` por HTTP local (`make serve`).
 - Abrir páginas institucionais em desktop e mobile; alternar dark mode em cada página.
 - Abrir `mapas_interativos.html` e confirmar que Potencial Fotovoltaico não aparece como previsão; `SWDOWN` deve aparecer como Radiação Global.
 - Abrir `potenciais_energeticos.html` e confirmar que só aparecem Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Verificar se Leaflet renderiza (bundle local) e se não há erros no console.
 - Trocar variáveis e domínios (a grade não deve recarregar do zero).
-- Confirmar labels de domínio `BA/NE`, `BA`, `RMS` e `SSA` na UI, mantendo requisições internas com `D01-D04`.
+- Confirmar os labels de domínio configurados para cada publicação na UI, mantendo as requisições internas nos IDs técnicos do respectivo dataset.
 - Testar play/pause até passar do final da escala temporal (deve dar a volta para o primeiro passo disponível) e confirmar que passos indisponíveis são pulados.
 - Com dados + manifest locais presentes, conferir que o slider vai até `index_max` do manifest e que o rótulo de data bate com `start_local`.
 - Ativar `windLayerToggle` em `wind` e `eolico`; confirmar que fica oculto nas demais variáveis.

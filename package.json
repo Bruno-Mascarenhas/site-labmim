@@ -1,24 +1,29 @@
 {
   "name": "labmim-site",
   "version": "1.0.0",
-  "description": "Frontend tooling for LabMiM static site",
+  "description": "Static multi-publication frontend for Brazilian meteorology laboratories",
   "private": true,
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "build": "node build.js && prettier --write \"site/*.html\"",
-    "build:check": "npm run build && git diff --exit-code -- \"site/*.html\"",
-    "lint": "npm run lint:js && npm run lint:css && npm run lint:icons && npm run lint:purge",
-    "lint:all": "npm run lint:js && npm run lint:css && npm run lint:icons && npm run lint:purge && npm run lint:html && npm run lint:links",
+    "build": "node scripts/build-site.mjs",
+    "sites:list": "node build.js --list-sites",
+    "build:ufba": "npm run build -- --site=ufba",
+    "build:ufes": "npm run build -- --site=ufes",
+    "build:all": "node scripts/build-all.mjs",
+    "build:check": "node scripts/check-publications.mjs",
+    "lint": "npm run lint:js && npm run lint:css && npm run lint:themes && npm run lint:icons && npm run lint:purge",
+    "lint:all": "npm run lint && npm run lint:html && npm run lint:links",
     "lint:icons": "node scripts/check-fa-subset.mjs",
     "lint:purge": "node scripts/check-bootstrap-purge.mjs",
-    "lint:js": "eslint \"site/assets/js/**/*.js\"",
-    "lint:css": "stylelint \"site/assets/css/**/*.css\"",
+    "lint:js": "eslint \"site/assets/js/**/*.js\" build.js \"scripts/**/*.{js,cjs,mjs}\" \"src/**/*.js\"",
+    "lint:css": "stylelint \"site/assets/css/**/*.css\" \"src/**/*.css\"",
+    "lint:themes": "node scripts/check-site-themes.mjs",
     "lint:html": "html-validate \"site/*.html\"",
-    "lint:links": "linkinator / --server-root site --recurse --skip '^https?://(?!localhost|127\\.0\\.0\\.1)|^mailto:|^tel:|^data:|/JSON/|/GeoJSON/'",
-    "format": "prettier --write \"site/**/*.{html,css,js}\"",
-    "format:check": "prettier --check \"site/**/*.{html,css,js}\""
+    "lint:links": "node scripts/check-links.mjs",
+    "format": "prettier --write \"site/**/*.{html,css,js}\" build.js eslint.config.mjs \"scripts/**/*.{js,cjs,mjs}\" \"src/**/*.{css,js}\"",
+    "format:check": "prettier --check \"site/**/*.{html,css,js}\" build.js eslint.config.mjs \"scripts/**/*.{js,cjs,mjs}\" \"src/**/*.{css,js}\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

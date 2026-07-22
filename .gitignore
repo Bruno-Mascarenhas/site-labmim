@@ -28,6 +28,7 @@ Thumbs.db
 !.vscode/settings.json
 
 # Generated Data & Pipeline Artifacts
+dist/
 site/JSON/*.json
 site/JSON/*.series.bin
 site/GeoJSON/*.geojson
