@@ -95,7 +95,12 @@ for (const marker of cascadeMarkers) {
   const markerIndex = headTemplate.indexOf(marker);
   if (markerIndex < 0) {
     errors.push(`head template is missing CSS cascade marker ${marker}`);
-  } else if (markerIndex <= previousIndex) {
+    // Leave previousIndex on the last marker that WAS found: a missing marker
+    // (index -1) would otherwise reset the baseline and hide an ordering error
+    // in the markers that follow it.
+    continue;
+  }
+  if (markerIndex <= previousIndex) {
     errors.push(`CSS cascade order must be ${cascadeMarkers.join(" -> ")}`);
   }
   previousIndex = markerIndex;
