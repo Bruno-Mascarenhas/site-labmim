@@ -11,6 +11,7 @@ const require = createRequire(import.meta.url);
 const { defaultPublication, discoverPublications } = require("./site-builder/publications.js");
 const { publicationAssetSources } = require("./site-builder/assets.js");
 const { htmlReferences, cssReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
+const { finishWithFailure, makeRestore, installSignalRestore } = require("./site-builder/cli.js");
 const publications = discoverPublications(root);
 const providedAssets = new Set(publicationAssetSources(publications).keys());
 const defaultSite = defaultPublication(publications);
@@ -41,21 +42,13 @@ function runBuild(id) {
   );
 }
 
-/**
- * Put site/ back on the default publication. A Ctrl-C reaches the whole process
- * group, so the first restore attempt is often killed together with the build
- * it is replacing; retry once, since the signal is not delivered to a process
- * spawned afterwards.
- */
-function restoreDefault() {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const { ok, signal } = buildOnce(defaultSite.id);
-    if (ok) return true;
-    if (!signal) break;
-  }
-  console.error(`build-all: could not restore site/; run: npm run build -- --site=${defaultSite.id}`);
-  return false;
-}
+const restoreDefault = makeRestore({
+  execPath: process.execPath,
+  buildScript: path.join(root, "scripts", "build-site.mjs"),
+  defaultId: defaultSite.id,
+  label: "build-all",
+  cwd: root,
+});
 
 function bundleTarget(id) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) throw new Error(`Unsafe publication id: ${id}`);
@@ -211,20 +204,7 @@ function copyBundle(publication, providedAssets) {
   );
 }
 
-// Without a handler the default disposition of SIGINT kills this process
-// outright, leaving site/ on whichever publication was mid-build. Registering
-// one keeps the process alive so the finally below can restore the default;
-// the handler itself only gets to run when the signal lands while no child is
-// blocking the event loop.
-let interrupted = false;
-function restoreOnSignal(signal) {
-  if (interrupted) process.exit(130);
-  interrupted = true;
-  console.error(`\nbuild-all: ${signal} received; restoring site/ to ${defaultSite.id}`);
-  restoreDefault();
-  process.exit(signal === "SIGINT" ? 130 : 143);
-}
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => restoreOnSignal(signal));
+installSignalRestore(restoreDefault, { label: "build-all", defaultId: defaultSite.id });
 
 let failure;
 try {
@@ -243,11 +223,7 @@ try {
   if (!restoreDefault()) failure ||= new Error(`could not restore site/ to ${defaultSite.id}`);
 }
 
-if (failure) {
-  if (!(failure instanceof Error) || failure.constructor !== Error || failure.code !== undefined) throw failure;
-  console.error(`✗ build-all: ${failure.message}`);
-  process.exit(1);
-}
+if (failure) finishWithFailure(failure, "build-all");
 console.log(
   `build-all: ${publications.length} static publication bundles generated; site/ restored to ${defaultSite.id}`
 );

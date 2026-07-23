@@ -10,6 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { defaultPublication, discoverPublications } = require("./site-builder/publications.js");
 const { htmlReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
+const { finishWithFailure, makeRestore, installSignalRestore } = require("./site-builder/cli.js");
 const publications = discoverPublications(root);
 const defaultSite = defaultPublication(publications);
 const buildScript = path.join(root, "scripts", "build-site.mjs");
@@ -181,38 +182,14 @@ function buildAndValidate(publication) {
   assertLocalReferences(publication);
 }
 
-/**
- * Put site/ back on the default publication. A Ctrl-C reaches the whole process
- * group, so the first restore attempt is often killed together with the build
- * it is replacing; retry once, since the signal is not delivered to a process
- * spawned afterwards.
- */
-function restoreDefault() {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const result = spawnSync(process.execPath, [buildScript, `--site=${defaultSite.id}`], {
-      cwd: root,
-      stdio: "inherit",
-    });
-    if (!result.error && result.status === 0) return true;
-    if (!result.signal) break;
-  }
-  console.error(`build-check: could not restore site/; run: npm run build -- --site=${defaultSite.id}`);
-  return false;
-}
-
-// Without a handler the default disposition of SIGINT kills this process
-// outright, leaving site/ on whichever publication was being validated.
-// Registering one keeps the process alive so the finally below can restore the
-// default publication.
-let interrupted = false;
-function restoreOnSignal(signal) {
-  if (interrupted) process.exit(130);
-  interrupted = true;
-  console.error(`\nbuild-check: ${signal} received; restoring site/ to ${defaultSite.id}`);
-  restoreDefault();
-  process.exit(signal === "SIGINT" ? 130 : 143);
-}
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => restoreOnSignal(signal));
+const restoreDefault = makeRestore({
+  execPath: process.execPath,
+  buildScript,
+  defaultId: defaultSite.id,
+  label: "build-check",
+  cwd: root,
+});
+installSignalRestore(restoreDefault, { label: "build-check", defaultId: defaultSite.id });
 
 let failure;
 try {
@@ -233,9 +210,5 @@ if (!failure && !process.argv.includes("--skip-drift")) {
   }
 }
 
-if (failure) {
-  if (!(failure instanceof Error) || failure.constructor !== Error || failure.code !== undefined) throw failure;
-  console.error(`✗ build-check: ${failure.message}`);
-  process.exit(1);
-}
+if (failure) finishWithFailure(failure, "build-check");
 console.log(`build-check: validated ${publications.length} publications; site/ restored to ${defaultSite.id}`);

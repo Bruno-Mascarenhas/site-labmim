@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { defaultPublication, discoverPublications } = require("./site-builder/publications.js");
+const { finishWithFailure, installSignalRestore } = require("./site-builder/cli.js");
 const publications = discoverPublications(root);
 const defaultSite = defaultPublication(publications);
 const buildScript = path.join(root, "scripts", "build-site.mjs");
@@ -71,18 +72,7 @@ function restoreDefault() {
   return false;
 }
 
-// Without a handler the default disposition of SIGINT kills this process
-// outright, leaving site/ on whichever publication was being crawled.
-// Registering one keeps the process alive so the finally below can restore it.
-let interrupted = false;
-function restoreOnSignal(signal) {
-  if (interrupted) process.exit(130);
-  interrupted = true;
-  console.error(`\ncheck-links: ${signal} received; restoring site/ to ${defaultSite.id}`);
-  restoreDefault();
-  process.exit(signal === "SIGINT" ? 130 : 143);
-}
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => restoreOnSignal(signal));
+installSignalRestore(restoreDefault, { label: "check-links", defaultId: defaultSite.id });
 
 let failure;
 try {
@@ -95,9 +85,5 @@ try {
   }
 }
 
-if (failure) {
-  if (!(failure instanceof Error) || failure.constructor !== Error || failure.code !== undefined) throw failure;
-  console.error(`✗ check-links: ${failure.message}`);
-  process.exit(1);
-}
+if (failure) finishWithFailure(failure, "check-links");
 console.log(`\ncheck-links: crawled ${publications.length} publications; site/ restored to ${defaultSite.id}`);

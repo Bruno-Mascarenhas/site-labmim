@@ -22,6 +22,7 @@ const { defaultPublication, discoverPublications, selectPublication } = require(
 const { writePublicationAssets } = require("./scripts/site-builder/assets");
 const { renderPublication } = require("./scripts/site-builder/renderer");
 const { validatePublication } = require("./scripts/site-builder/validate");
+const { isExpectedFailure } = require("./scripts/site-builder/cli");
 
 const ROOT = __dirname;
 const OUTPUT_DIR = path.join(ROOT, "site");
@@ -95,15 +96,6 @@ function buildYear() {
     "could not resolve the copyright year: this is not a git checkout and site/index.html carries no © year.\n" +
       "Set BUILD_YEAR=<year> to build from a source tarball."
   );
-}
-
-/**
- * Expected failures are the configuration mistakes this build system reports on
- * purpose (plain `new Error`). Anything else — TypeError, fs errors carrying a
- * `code`, ... — is a bug in the build system and keeps its stack trace.
- */
-function isExpectedFailure(error) {
-  return error instanceof Error && error.constructor === Error && error.code === undefined;
 }
 
 function main() {
