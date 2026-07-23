@@ -10,6 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { defaultPublication, discoverPublications } = require("./site-builder/publications.js");
 const { publicationAssetSources } = require("./site-builder/assets.js");
+const { htmlReferences, cssReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
 const publications = discoverPublications(root);
 const providedAssets = new Set(publicationAssetSources(publications).keys());
 const defaultSite = defaultPublication(publications);
@@ -90,13 +91,6 @@ function declaredIdentityAssets(publication) {
   ].filter((value) => typeof value === "string" && value);
 }
 
-/** Normalize any HTML/CSS reference to the `assets/...`-rooted key used for lookups. */
-function assetKey(reference) {
-  const clean = reference.split(/[?#]/, 1)[0].trim();
-  const marker = clean.indexOf("assets/");
-  return marker >= 0 ? clean.slice(marker) : clean.replace(/^\//, "");
-}
-
 function collectFiles(directory, predicate) {
   if (!fs.existsSync(directory)) return [];
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -104,38 +98,6 @@ function collectFiles(directory, predicate) {
     if (entry.isDirectory()) return collectFiles(full, predicate);
     return entry.isFile() && predicate(entry.name) ? [full] : [];
   });
-}
-
-/**
- * Every asset reference an HTML page makes through href/src/srcset. Only srcset is
- * comma-separated; splitting other attributes on commas would shred a data: URI or a
- * query string that legitimately contains commas (the favicon SVG, a Maps embed).
- */
-function htmlReferences(html) {
-  const refs = [];
-  for (const match of html.matchAll(/\b(href|src|srcset)=(?:"([^"]+)"|'([^']+)')/g)) {
-    const attribute = match[1];
-    const value = match[2] ?? match[3];
-    if (attribute === "srcset") {
-      refs.push(...value.split(",").map((entry) => entry.trim().split(/\s+/, 1)[0]));
-    } else {
-      refs.push(value);
-    }
-  }
-  return refs;
-}
-
-/** Every asset reference a stylesheet makes through url(...). */
-function cssReferences(css) {
-  const refs = [];
-  for (const match of css.matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g)) refs.push(match[2]);
-  return refs;
-}
-
-function isExternalReference(reference, originPrefix) {
-  if (!reference) return true;
-  if (reference.startsWith(originPrefix)) return false;
-  return /^[a-z][a-z0-9+.-]*:/i.test(reference) || reference.startsWith("//") || reference.startsWith("#");
 }
 
 /**
@@ -162,9 +124,10 @@ function narrowableAssets(allPublications, provided) {
  * holds this publication's freshly built output.
  */
 function reachablePublicationAssets(publication, providedAssets) {
+  const originPrefix = `${publication.origin}/`;
   const reachable = new Set();
   const consider = (reference) => {
-    const key = assetKey(reference);
+    const key = assetKey(reference, originPrefix);
     if (providedAssets.has(key)) reachable.add(key);
   };
 
@@ -198,8 +161,7 @@ function assertBundleIntegrity(publication, target) {
 
   const check = (reference, fromFile) => {
     if (isExternalReference(reference, originPrefix)) return;
-    const relative = reference.startsWith(originPrefix) ? reference.slice(originPrefix.length) : reference;
-    const key = relative.split(/[?#]/, 1)[0].replace(/^\//, "");
+    const key = assetKey(reference, originPrefix);
     if (!key || isOperationalData(key, publication)) return;
     if (!fs.existsSync(path.join(target, ...key.split("/")))) missing.add(`${key} (referenced by ${fromFile})`);
   };
@@ -217,8 +179,9 @@ function assertBundleIntegrity(publication, target) {
     throw new Error(
       `Bundle ${publication.id} references assets it does not ship:\n` +
         [...missing].map((item) => `  - ${item}`).join("\n") +
-        "\nAn asset reached only through CSS url() or JS is dropped by reachability narrowing; " +
-        "reference it from the page HTML, or add its directory to the operational exclusions if the deploy supplies it."
+        "\nReachability narrowing scans page HTML and CSS url() but not JavaScript, so an asset a script builds " +
+        "at runtime is dropped; reference it from the page HTML/CSS, or add its directory to the operational " +
+        "exclusions if the deploy supplies it."
     );
   }
 }

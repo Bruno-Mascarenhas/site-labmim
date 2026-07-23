@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { defaultPublication, discoverPublications } = require("./site-builder/publications.js");
+const { htmlReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
 const publications = discoverPublications(root);
 const defaultSite = defaultPublication(publications);
 const buildScript = path.join(root, "scripts", "build-site.mjs");
@@ -88,30 +89,19 @@ function assertLocalReferences(publication) {
 
   for (const pageFile of pages) {
     const html = fs.readFileSync(path.join(siteRoot, pageFile), "utf8");
-    for (const match of html.matchAll(/\b(href|src|srcset)=(?:"([^"]+)"|'([^']+)')/g)) {
-      const attribute = match[1];
-      const value = match[2] || match[3];
-      const rawValues =
-        attribute === "srcset" ? value.split(",").map((entry) => entry.trim().split(/\s+/, 1)[0]) : [value];
-      for (const rawValue of rawValues) {
-        if (
-          !rawValue ||
-          rawValue.startsWith("#") ||
-          rawValue.startsWith("//") ||
-          /^[a-z][a-z0-9+.-]*:/i.test(rawValue)
-        ) {
-          continue;
-        }
-        const cleanValue = rawValue.split(/[?#]/, 1)[0];
-        if (!cleanValue) continue;
-        const relative = cleanValue.startsWith("/")
-          ? cleanValue.slice(1)
-          : path.posix.join(path.posix.dirname(pageFile), cleanValue);
-        if (isOperationalDataPath(publication, relative)) continue;
-        const candidate = path.resolve(siteRoot, relative);
-        if (!candidate.startsWith(`${siteRoot}${path.sep}`) || !fs.existsSync(candidate)) {
-          missing.push(`${pageFile}: ${rawValue}`);
-        }
+    for (const rawValue of htmlReferences(html)) {
+      // No originPrefix: a same-origin absolute URL to this publication's own host is
+      // external here (the reference check only resolves root- and page-relative paths).
+      if (isExternalReference(rawValue, "")) continue;
+      const cleanValue = rawValue.split(/[?#]/, 1)[0];
+      if (!cleanValue) continue;
+      const relative = cleanValue.startsWith("/")
+        ? assetKey(cleanValue, "")
+        : path.posix.join(path.posix.dirname(pageFile), cleanValue);
+      if (isOperationalDataPath(publication, relative)) continue;
+      const candidate = path.resolve(siteRoot, relative);
+      if (!candidate.startsWith(`${siteRoot}${path.sep}`) || !fs.existsSync(candidate)) {
+        missing.push(`${pageFile}: ${rawValue}`);
       }
     }
   }

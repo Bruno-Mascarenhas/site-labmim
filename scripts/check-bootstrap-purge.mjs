@@ -10,27 +10,16 @@
  * Apenas stdlib do Node, como o build.js.
  */
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const require = createRequire(import.meta.url);
+const { collectFiles, htmlFilesIn, bundleDirs } = require("./site-builder/corpus.js");
 
 const read = (rel) => readFileSync(join(root, rel), "utf8");
-
-const collectFiles = (dir, exts, out = []) => {
-  if (!existsSync(join(root, dir))) return out;
-  for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
-    const rel = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === "vendor" || entry.name === "node_modules") continue;
-      collectFiles(rel, exts, out);
-    } else if (exts.some((ext) => entry.name.endsWith(ext))) {
-      out.push(rel);
-    }
-  }
-  return out;
-};
 
 // ---------------------------------------------------------------------------
 // Classes usadas: atributos class="..." do HTML gerado + strings no JS próprio
@@ -53,20 +42,7 @@ const usedTags = new Set(["html", "body", "*"]);
 // site/ only ever holds one publication at a time. dist/<id>/ (npm run
 // build:all) holds all of them, so when the bundles exist the corpus covers
 // every publication instead of just the one currently rendered.
-const htmlFilesIn = (dir) =>
-  existsSync(join(root, dir))
-    ? readdirSync(join(root, dir))
-        .filter((name) => name.endsWith(".html"))
-        .map((name) => join(dir, name))
-    : [];
-const htmlFiles = [
-  ...htmlFilesIn("site"),
-  ...(existsSync(join(root, "dist"))
-    ? readdirSync(join(root, "dist"), { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .flatMap((entry) => htmlFilesIn(join("dist", entry.name)))
-    : []),
-];
+const htmlFiles = [...htmlFilesIn(root, "site"), ...bundleDirs(root).flatMap((dir) => htmlFilesIn(root, dir))];
 
 const htmlCorpus = [];
 for (const file of htmlFiles) {
@@ -77,7 +53,7 @@ for (const file of htmlFiles) {
   }
   for (const match of text.matchAll(/<([a-z][a-z0-9]*)/g)) usedTags.add(match[1]);
 }
-for (const file of collectFiles("site/assets/js", [".js"])) {
+for (const file of collectFiles(root, "site/assets/js", [".js"])) {
   const text = read(file);
   htmlCorpus.push(text);
   for (const match of text.matchAll(/["'`]([\w\s-]+)["'`]/g)) {
