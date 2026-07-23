@@ -3,6 +3,11 @@
 const fs = require("fs");
 const path = require("path");
 const { inspectPublicationThemeCss } = require("./theme-contract");
+const { observationModalId } = require("./renderer");
+
+// Default directory for station plots; a dataset may override dataset.paths.graphs.
+// Kept in sync with scripts/build-all.mjs, which excludes this directory from bundles.
+const DEFAULT_GRAPHS_DIRECTORY = "assets/graphs";
 
 const REDIRECT_STATUSES = new Set([301, 302, 307, 308]);
 const GEOJSON_CODE_PROPERTIES = ["SIGLA", "sigla", "UF", "uf", "stateCode", "code", "PK_sigla"];
@@ -315,30 +320,6 @@ function inspectBoundaryGeoJson(geojson, expectedCode, errors, field) {
   ];
 }
 
-function readBoundaryInput(input) {
-  if (typeof input !== "string") return input;
-  const text = fs.readFileSync(input, "utf8");
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    throw new Error(`Could not parse boundary GeoJSON ${input}: ${error.message}`, { cause: error });
-  }
-}
-
-/**
- * Compute Leaflet-compatible bounds from a Polygon/MultiPolygon
- * FeatureCollection. A path may be supplied instead of the parsed object.
- */
-function boundaryBounds(geojsonOrPath, expectedCode) {
-  const errors = [];
-  const geojson = readBoundaryInput(geojsonOrPath);
-  const bounds = inspectBoundaryGeoJson(geojson, expectedCode, errors, "boundary");
-  if (errors.length > 0) {
-    throw new Error(`Invalid boundary GeoJSON:\n${errors.map((error) => `  - ${error}`).join("\n")}`);
-  }
-  return bounds;
-}
-
 function validateAsset(errors, base, value, field, options = {}) {
   return validateConfinedFile(errors, base, value, field, options);
 }
@@ -412,20 +393,28 @@ function validateDeclaredImageSize(errors, filePath, width, height, field) {
   }
 }
 
-function validateLogo(errors, publicationDirectory, logo, field) {
-  if (!addRequiredObject(errors, logo, field)) return;
-  const srcPath = validateAsset(errors, publicationDirectory, logo.src, `${field}.src`, { nonEmpty: true });
+// Shared contract for a declared raster asset (logo or image affiliation): a
+// non-empty src, an optional non-empty webp companion, positive declared width and
+// height, and both files' intrinsic aspect ratio matching the declaration. Resolved
+// against the publication's own module directory (see validateBrand).
+function validateImageAsset(errors, publicationDirectory, spec, field) {
+  const srcPath = validateAsset(errors, publicationDirectory, spec.src, `${field}.src`, { nonEmpty: true });
   let webpPath = null;
-  if (logo.webp !== undefined && logo.webp !== null) {
-    webpPath = validateAsset(errors, publicationDirectory, logo.webp, `${field}.webp`, { nonEmpty: true });
+  if (spec.webp !== undefined && spec.webp !== null) {
+    webpPath = validateAsset(errors, publicationDirectory, spec.webp, `${field}.webp`, { nonEmpty: true });
   }
   for (const dimension of ["width", "height"]) {
-    if (!Number.isFinite(logo[dimension]) || logo[dimension] <= 0) {
+    if (!Number.isFinite(spec[dimension]) || spec[dimension] <= 0) {
       errors.push(`${field}.${dimension}: expected a positive number`);
     }
   }
-  validateDeclaredImageSize(errors, srcPath, logo.width, logo.height, `${field}.src`);
-  validateDeclaredImageSize(errors, webpPath, logo.width, logo.height, `${field}.webp`);
+  validateDeclaredImageSize(errors, srcPath, spec.width, spec.height, `${field}.src`);
+  validateDeclaredImageSize(errors, webpPath, spec.width, spec.height, `${field}.webp`);
+}
+
+function validateLogo(errors, publicationDirectory, logo, field) {
+  if (!addRequiredObject(errors, logo, field)) return;
+  validateImageAsset(errors, publicationDirectory, logo, field);
 }
 
 // Brand assets are validated against the publication's OWN module directory, not
@@ -458,20 +447,7 @@ function validateBrand(errors, publication, publicationDirectory) {
       addRequiredString(errors, affiliation.name, `${field}.name`);
       validateHttpUrl(errors, affiliation.href, `${field}.href`);
       if (affiliation.kind === "image") {
-        const srcPath = validateAsset(errors, publicationDirectory, affiliation.src, `${field}.src`, {
-          nonEmpty: true,
-        });
-        let webpPath = null;
-        if (affiliation.webp !== undefined && affiliation.webp !== null) {
-          webpPath = validateAsset(errors, publicationDirectory, affiliation.webp, `${field}.webp`, { nonEmpty: true });
-        }
-        for (const dimension of ["width", "height"]) {
-          if (!Number.isFinite(affiliation[dimension]) || affiliation[dimension] <= 0) {
-            errors.push(`${field}.${dimension}: expected a positive number`);
-          }
-        }
-        validateDeclaredImageSize(errors, srcPath, affiliation.width, affiliation.height, `${field}.src`);
-        validateDeclaredImageSize(errors, webpPath, affiliation.width, affiliation.height, `${field}.webp`);
+        validateImageAsset(errors, publicationDirectory, affiliation, field);
       } else if (affiliation.kind === "text") {
         addRequiredString(errors, affiliation.institution, `${field}.institution`);
       } else if (isNonEmptyString(affiliation.kind)) {
@@ -524,12 +500,17 @@ function validateTerritory(errors, territory, siteDirectory) {
   const boundaryPath = validateAsset(errors, siteDirectory, territory.boundaryAsset, "territory.boundaryAsset");
   if (boundaryPath) {
     let geojson;
+    let parsed = false;
     try {
       geojson = JSON.parse(fs.readFileSync(boundaryPath, "utf8"));
+      parsed = true;
     } catch (error) {
       errors.push(`territory.boundaryAsset: invalid JSON: ${error.message}`);
     }
-    if (geojson) {
+    // Gate on parse success, not truthiness: a boundary that parses to null/false/0
+    // is not a FeatureCollection and must be rejected, exactly as the direct
+    // boundaryBounds() path already does — a truthiness check would let it slip.
+    if (parsed) {
       bounds = inspectBoundaryGeoJson(geojson, territory.code, errors, "territory.boundaryAsset");
     }
   }
@@ -605,7 +586,7 @@ function validateDatasetPath(
  * publication has no station of its own; an empty or malformed list would render
  * an empty section with no other symptom, which is why the shape is checked here.
  */
-function validateObservations(errors, siteDirectory, observations) {
+function validateObservations(errors, observations, graphsDirectory) {
   if (observations === undefined || observations === null) return;
   if (!addRequiredObject(errors, observations, "dataset.observations")) return;
 
@@ -618,6 +599,7 @@ function validateObservations(errors, siteDirectory, observations) {
     return;
   }
 
+  const graphsPrefix = `${graphsDirectory}/`;
   const ids = new Map();
   observations.charts.forEach((chart, index) => {
     const field = `dataset.observations.charts[${index}]`;
@@ -631,23 +613,28 @@ function validateObservations(errors, siteDirectory, observations) {
       if (!/^[a-z][a-z0-9_-]*$/.test(chart.id)) {
         errors.push(`${field}.id: expected a lowercase slug (letters, digits, "-" or "_") starting with a letter`);
       }
-      // The renderer collapses every non-alphanumeric run when it derives the modal
-      // DOM id, so "radiacao-difusa" and "radiacao_difusa" would produce the same id
-      // and both cards would open the same modal. Dedupe on the collapsed form.
-      const modalKey = chart.id.replace(/[^a-z0-9]/gi, "").toLowerCase();
-      if (ids.has(modalKey)) {
+      // Dedupe on the exact DOM id the renderer will emit: "ab-cd" and "ab_cd" both
+      // become modalAbCd (a real collision), while "ab-cd" and "abc-d" stay distinct.
+      const modalId = observationModalId(chart.id);
+      if (ids.has(modalId)) {
         errors.push(
-          `${field}.id: "${chart.id}" collides with "${ids.get(modalKey)}" once reduced to a modal id; make them distinct beyond -/_`
+          `${field}.id: "${chart.id}" collides with "${ids.get(modalId)}" — both render as <${modalId}>; make them distinct`
         );
       } else {
-        ids.set(modalKey, chart.id);
+        ids.set(modalId, chart.id);
       }
     }
-    // Station plots are rewritten in place by the laboratory, so a missing file is
-    // a deployment state rather than a configuration error — but a path that points
-    // outside the output directory never is.
-    if (isNonEmptyString(chart.src) && !isSafeRelativeFilePath(chart.src)) {
-      errors.push(`${field}.src: expected a safe relative output path`);
+    // Station plots are rewritten in place by the laboratory, so a missing file is a
+    // deployment state rather than a configuration error — but the path must be safe
+    // AND under dataset.paths.graphs, the directory build-all excludes from other
+    // publications' bundles. Otherwise a lab reusing another's chart list would ship
+    // the neighbour's watermarked plots (paths.graphs would exclude the wrong dir).
+    if (isNonEmptyString(chart.src)) {
+      if (!isSafeRelativeFilePath(chart.src)) {
+        errors.push(`${field}.src: expected a safe relative output path`);
+      } else if (chart.src !== graphsDirectory && !chart.src.startsWith(graphsPrefix)) {
+        errors.push(`${field}.src: must live under dataset.paths.graphs (${graphsDirectory}/), not ${chart.src}`);
+      }
     }
     for (const dimension of ["width", "height"]) {
       const value = chart[dimension];
@@ -714,7 +701,7 @@ function validateDataset(errors, warnings, dataset, siteDirectory) {
     }
   }
 
-  validateObservations(errors, siteDirectory, dataset.observations);
+  validateObservations(errors, dataset.observations, dataset.paths?.graphs ?? DEFAULT_GRAPHS_DIRECTORY);
 
   if (addRequiredObject(errors, dataset.timeline, "dataset.timeline")) {
     const timeline = dataset.timeline;
@@ -1172,6 +1159,5 @@ function validatePublication({ root, templateRoot, siteDir, publication } = {}) 
 }
 
 module.exports = {
-  boundaryBounds,
   validatePublication,
 };
