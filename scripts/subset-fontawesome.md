@@ -49,9 +49,14 @@ juntos**, sempre.
    ```
 
 4. Atualize `assets/vendor/fontawesome/subset-glyphs.json`. O schema é
-   `{"comment": "...", "glyphs": {"<nome>": "<codepoint>"}}` — o check lê
+   `{"comment": "...", "glyphs": {"fa-<nome>": "<codepoint>"}}` — o check lê
    a chave `glyphs`; um objeto plano `nome -> codepoint` na raiz quebraria
    o `lint:icons`.
+
+   **A chave leva o prefixo `fa-`**, exatamente como a classe escrita no HTML:
+   `"fa-mountain-sun": "e52f"`, não `"mountain-sun"`. Sem o prefixo o
+   `lint:icons` continua acusando o ícone como ausente, porque a comparação é
+   feita contra o nome da classe.
 5. Rode `npm run lint:icons` para confirmar.
 
 ## Cache (por que a URL da fonte não tem `?v=`)

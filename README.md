@@ -173,8 +173,6 @@ Scripts npm:
 npm run sites:list    # lista src/sites/<id>/site.js descobertos e marca o padrão
 npm run build         # gera a publicação padrão em site/ (+ Prettier na saída)
 npm run build -- --site=ufes # gera uma publicação específica em site/
-npm run build:ufba    # atalho para LabMiM/UFBA
-npm run build:ufes    # atalho para LEAL/UFES
 npm run build:all     # gera todos os bundles em dist/<id>/, sem dados operacionais
 npm run build:check   # gera/valida todas as publicações e restaura a padrão
 npm run lint          # JS/CSS + contrato de temas + checks de ícones/purge
