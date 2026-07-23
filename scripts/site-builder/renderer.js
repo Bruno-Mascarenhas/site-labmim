@@ -50,17 +50,14 @@ const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";
 const OBSERVATION_CHART_WIDTH = 800;
 const OBSERVATION_CHART_HEIGHT = 400;
 
-function escapeXmlText(value) {
-  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
 /**
  * Inline SVG favicon built from a single glyph. Only the glyph varies and it is
- * XML-escaped, so the result can never contain a raw `"` and stays safe inside
- * the double-quoted `href` attribute (the surrounding `<svg>` markup is ours).
+ * escaped (the same `&<>"` -> entity substitutions used for HTML attributes), so
+ * the result can never contain a raw `"` and stays safe inside the double-quoted
+ * `href` attribute (the surrounding `<svg>` markup is ours).
  */
 function faviconHref(emoji) {
-  const glyph = escapeXmlText(emoji);
+  const glyph = escapeAttribute(emoji);
   return `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${glyph}</text></svg>`;
 }
 
@@ -264,11 +261,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     AFFILIATIONS_NAV: affiliationsMarkup("me-3"),
     AFFILIATIONS_FOOTER: affiliationsMarkup("", { imageClass: "brand-logo brand-logo-bright" }),
     COPYRIGHT_NAME: escapeAttribute(brand.copyrightName),
-    INSTITUTION_NAME: escapeAttribute(institution.name),
     INSTITUTION_ACRONYM: escapeAttribute(institution.acronym),
-    STATE_NAME: escapeAttribute(territory.name),
-    STATE_CODE: escapeAttribute(territory.code),
-    CITY_NAME: escapeAttribute(location.cityName),
     REGION_PHRASE: escapeAttribute(territory.regionPhrase),
     TERRAIN_EXAMPLE: escapeAttribute(territory.terrainExample),
     WEBGIS_BRAND: escapeAttribute(`${brand.name} / ${institution.acronym}`),
@@ -516,4 +509,6 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   return { pagesWritten, staticWritten, themeWritten: "assets/css/site-theme.css" };
 }
 
-module.exports = { renderPublication };
+// observationModalId is exported so validate.js can dedupe chart ids on the exact
+// DOM id the renderer will emit, instead of a divergent approximation.
+module.exports = { renderPublication, observationModalId };
