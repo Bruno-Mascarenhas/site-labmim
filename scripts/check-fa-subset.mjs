@@ -10,13 +10,14 @@
  * Apenas stdlib do Node, como o build.js.
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const collectFiles = (dir, exts, out = []) => {
+  if (!existsSync(join(root, dir))) return out;
   for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
     const rel = join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -29,12 +30,27 @@ const collectFiles = (dir, exts, out = []) => {
   return out;
 };
 
+const htmlFilesIn = (dir) =>
+  existsSync(join(root, dir))
+    ? readdirSync(join(root, dir))
+        .filter((name) => name.endsWith(".html"))
+        .map((name) => join(dir, name))
+    : [];
+
+// site/ only ever holds one publication at a time. dist/<id>/ (npm run
+// build:all) holds all of them, so the check covers every publication whenever
+// the bundles are around; when they are not, this falls back to site/ + src/.
+const bundleDirs = existsSync(join(root, "dist"))
+  ? readdirSync(join(root, "dist"), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join("dist", entry.name))
+  : [];
+
 const sources = [
   ...collectFiles("src", [".html", ".js"]),
   ...collectFiles("site/assets/js", [".js"]),
-  ...readdirSync(join(root, "site"))
-    .filter((name) => name.endsWith(".html"))
-    .map((name) => join("site", name)),
+  ...htmlFilesIn("site"),
+  ...bundleDirs.flatMap((dir) => htmlFilesIn(dir)),
 ];
 
 const usedNames = new Set();
@@ -47,8 +63,11 @@ for (const file of sources) {
 
 // CSS próprio pode consumir glifos por codepoint direto
 // (ex.: maps.css content: "\f078" com font-family "Font Awesome 6 Free").
+// Inclui o CSS por publicação em src/ (temas e estilos que só entram no site
+// gerado da publicação não-padrão) e os bundles em dist/, quando existirem.
+const cssDirs = ["site/assets/css", "src", ...bundleDirs.map((dir) => join(dir, "assets/css"))];
 const usedCodepoints = new Set();
-for (const file of collectFiles("site/assets/css", [".css"])) {
+for (const file of cssDirs.flatMap((dir) => collectFiles(dir, [".css"]))) {
   const text = readFileSync(join(root, file), "utf8");
   for (const match of text.matchAll(/content:\s*"\\([0-9a-fA-F]{4,6})"/g)) {
     usedCodepoints.add(match[1].toLowerCase());

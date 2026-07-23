@@ -10,7 +10,7 @@
  * Apenas stdlib do Node, como o build.js.
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,6 +19,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
 
 const collectFiles = (dir, exts, out = []) => {
+  if (!existsSync(join(root, dir))) return out;
   for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
     const rel = join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -48,9 +49,28 @@ const usedClasses = new Set([
 ]);
 
 const usedTags = new Set(["html", "body", "*"]);
+
+// site/ only ever holds one publication at a time. dist/<id>/ (npm run
+// build:all) holds all of them, so when the bundles exist the corpus covers
+// every publication instead of just the one currently rendered.
+const htmlFilesIn = (dir) =>
+  existsSync(join(root, dir))
+    ? readdirSync(join(root, dir))
+        .filter((name) => name.endsWith(".html"))
+        .map((name) => join(dir, name))
+    : [];
+const htmlFiles = [
+  ...htmlFilesIn("site"),
+  ...(existsSync(join(root, "dist"))
+    ? readdirSync(join(root, "dist"), { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .flatMap((entry) => htmlFilesIn(join("dist", entry.name)))
+    : []),
+];
+
 const htmlCorpus = [];
-for (const file of readdirSync(join(root, "site")).filter((n) => n.endsWith(".html"))) {
-  const text = read(join("site", file));
+for (const file of htmlFiles) {
+  const text = read(file);
   htmlCorpus.push(text);
   for (const match of text.matchAll(/class="([^"]*)"/g)) {
     for (const cls of match[1].split(/\s+/)) if (cls) usedClasses.add(cls);

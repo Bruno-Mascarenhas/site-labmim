@@ -9,10 +9,9 @@
   "scripts": {
     "build": "node scripts/build-site.mjs",
     "sites:list": "node build.js --list-sites",
-    "build:ufba": "npm run build -- --site=ufba",
-    "build:ufes": "npm run build -- --site=ufes",
     "build:all": "node scripts/build-all.mjs",
     "build:check": "node scripts/check-publications.mjs",
+    "purge:bootstrap": "node scripts/purge-bootstrap.mjs",
     "lint": "npm run lint:js && npm run lint:css && npm run lint:themes && npm run lint:icons && npm run lint:purge",
     "lint:all": "npm run lint && npm run lint:html && npm run lint:links",
     "lint:icons": "node scripts/check-fa-subset.mjs",
@@ -22,8 +21,8 @@
     "lint:themes": "node scripts/check-site-themes.mjs",
     "lint:html": "html-validate \"site/*.html\"",
     "lint:links": "node scripts/check-links.mjs",
-    "format": "prettier --write \"site/**/*.{html,css,js}\" build.js eslint.config.mjs \"scripts/**/*.{js,cjs,mjs}\" \"src/**/*.{css,js}\"",
-    "format:check": "prettier --check \"site/**/*.{html,css,js}\" build.js eslint.config.mjs \"scripts/**/*.{js,cjs,mjs}\" \"src/**/*.{css,js}\""
+    "format": "prettier --write \"site/**/*.{html,css,js}\" build.js eslint.config.mjs \"scripts/**/*.{js,cjs,mjs}\" \"src/**/*.{css,js,html}\"",
+    "format:check": "prettier --check \"site/**/*.{html,css,js}\" build.js eslint.config.mjs \"scripts/**/*.{js,cjs,mjs}\" \"src/**/*.{css,js,html}\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

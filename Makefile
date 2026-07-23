@@ -1,10 +1,11 @@
-.PHONY: help install build build-check lint lint-js lint-css lint-themes lint-icons lint-purge lint-html lint-links format format-check fix audit serve ci
+.PHONY: help install build build-all build-check lint lint-js lint-css lint-themes lint-icons lint-purge lint-html lint-links format format-check fix audit serve ci
 
 # Default target
 help:
 	@echo "Comandos disponíveis:"
 	@echo "  make install       - Instala as dependências do Node (npm install)"
 	@echo "  make build         - Gera a publicação estática selecionada a partir de src/"
+	@echo "  make build-all     - Gera todas as publicações em dist/<id>/ e restaura a padrão"
 	@echo "  make build-check   - Valida todas as publicações e a saída padrão (usado no CI)"
 	@echo "  make lint          - Roda ESLint, Stylelint, contrato de temas e checks de assets"
 	@echo "  make lint-js       - Roda apenas o linter de JS"
@@ -19,13 +20,16 @@ help:
 	@echo "  make serve         - Serve o site localmente em http://localhost:8000"
 	@echo "  make lint-html     - Valida o HTML gerado (html-validate)"
 	@echo "  make lint-links    - Verifica links/assets internos (linkinator)"
-	@echo "  make ci            - Roda todos os checks do CI (build-check, format-check, lint, html, links, audit)"
+	@echo "  make ci            - Roda todos os checks do CI (build-check, build-all, format-check, lint, html, links, audit)"
 
 install:
 	npm install
 
 build:
 	npm run build
+
+build-all:
+	npm run build:all
 
 build-check:
 	npm run build:check
@@ -70,4 +74,4 @@ audit:
 serve:
 	python3 -m http.server 8000 --directory site
 
-ci: build-check format-check lint lint-html lint-links audit
+ci: build-check build-all format-check lint lint-html lint-links audit
