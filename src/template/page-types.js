@@ -238,6 +238,20 @@ function optionValue(definition, options, field) {
   return Object.prototype.hasOwnProperty.call(options, field) ? options[field] : definition[field];
 }
 
+/**
+ * Concatenate a list-valued option (styles, vendorStyles) with the type's own
+ * defaults, validating the RAW option is an array first. Without that check a
+ * mistyped `styles: "x.css"` would spread into single characters that silently
+ * pass the item validation below and only break far downstream.
+ */
+function mergeArrayOption(definition, options, field, typeName) {
+  const provided = options[field];
+  if (provided !== undefined && !Array.isArray(provided)) {
+    throw new TypeError(`${typeName}.${field} must be an array`);
+  }
+  return [...(definition[field] ?? []), ...(provided ?? [])];
+}
+
 function finalizePage(definition, options, typeName) {
   const source = options.source ?? definition.source;
   if (!isSourceReference(source)) {
@@ -255,18 +269,15 @@ function finalizePage(definition, options, typeName) {
     throw new TypeError(`${typeName}.append must be an array of source references`);
   }
 
-  const declaredStyles = [...(definition.styles ?? []), ...(options.styles ?? [])];
+  const declaredStyles = mergeArrayOption(definition, options, "styles", typeName);
   const styles = [...missingLayoutAssets(contract.styles, declaredStyles), ...declaredStyles];
-  if (
-    !Array.isArray(styles) ||
-    styles.some((item) => !(typeof item === "string" ? item.trim() !== "" : isSourceReference(item)))
-  ) {
+  if (styles.some((item) => !(typeof item === "string" ? item.trim() !== "" : isSourceReference(item)))) {
     throw new TypeError(`${typeName}.styles must contain asset paths or template/site source references`);
   }
 
-  const declaredVendorStyles = [...(definition.vendorStyles ?? []), ...(options.vendorStyles ?? [])];
+  const declaredVendorStyles = mergeArrayOption(definition, options, "vendorStyles", typeName);
   const vendorStyles = [...missingLayoutAssets(contract.vendorStyles, declaredVendorStyles), ...declaredVendorStyles];
-  if (!Array.isArray(vendorStyles) || vendorStyles.some((item) => typeof item !== "string" || item.trim() === "")) {
+  if (vendorStyles.some((item) => typeof item !== "string" || item.trim() === "")) {
     throw new TypeError(`${typeName}.vendorStyles must be an array of versioned vendor asset paths`);
   }
 
