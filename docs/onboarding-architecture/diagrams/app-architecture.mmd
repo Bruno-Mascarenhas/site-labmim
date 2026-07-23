@@ -1,0 +1,15 @@
+%% Cuidado ao editar: labels com "?" junto de "=", ou losangos {...} com <br/>,
+%% quebram o render do Mermaid. Prefira texto simples.
+flowchart LR
+  DISC["src/sites/id/site.js<br/>descoberta automática"] --> VALID["validatePublication<br/>contrato e referências"]
+  MODS["identity + pages<br/>territory + dataset"] --> VALID
+  VALID --> RENDER["renderPublication<br/>template + conteúdo"]
+  THEME["src/sites/id/theme.css"] --> RENDER
+  RENDER --> HTML["HTML + SEO + nav<br/>sitemap · robots · htaccess"]
+  RENDER --> CSS["site-theme.css<br/>somente o tema ativo"]
+  HTML --> META["meta site-config<br/>configuração serializada"]
+  META --> BOOT["map-init.js"]
+  BOOT --> MM["MeteoMapManager"]
+  BOOT --> CM["ChartsManager"]
+  MM --> FILES["paths do dataset<br/>JSON · GeoJSON"]
+  CM --> FILES

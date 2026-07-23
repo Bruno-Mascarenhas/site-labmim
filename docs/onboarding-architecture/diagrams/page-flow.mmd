@@ -1,0 +1,12 @@
+%% Cuidado ao editar: labels com "?" junto de "=", ou losangos {...} contendo <br/>,
+%% quebram o render do Mermaid. Prefira texto simples.
+%% Use LR: num slide 16:9 um fluxo vertical fica pequeno demais para ser lido.
+flowchart LR
+  KIND{"conteúdo comum?"}
+  KIND -->|"sim"| T["src/template/pages/eventos.html<br/>templateSource"]
+  KIND -->|"não"| S["src/sites/id/pages/eventos.html<br/>siteSource"]
+  T --> P["src/sites/id/pages.js<br/>page ou customPage"]
+  S --> P
+  P --> BUILD["npm run build -- --site=id"]
+  BUILD --> OUT["HTML + navegação + SEO<br/>sitemap gerado"]
+  OUT --> CHECK["npm run build:check<br/>npm run lint:all"]

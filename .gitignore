@@ -38,6 +38,11 @@ site/JSON/*.series.bin
 site/GeoJSON/*.geojson
 site/GeoJSON/*.json
 
+# Onboarding deck (docs/) — versiona a fonte e o PDF; ignora gerados/pesados.
+# node_modules/ e dist/ (assets/dist) já caem nas regras acima.
+*.pptx
+docs/onboarding-architecture/assets/theme-previews/
+
 # Environment variables
 .env
 .env.local

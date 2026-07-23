@@ -1,0 +1,11 @@
+import { chromium } from 'playwright-chromium';
+import { readFileSync } from 'node:fs';
+const [,, svgPath, outPath, w, h] = process.argv;
+const svg = readFileSync(svgPath, 'utf8');
+const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const page = await browser.newPage({ viewport: { width: +w, height: +h }, deviceScaleFactor: 1.4 });
+await page.setContent(`<!doctype html><html><body style="margin:0;background:#fff">${svg}</body></html>`, { waitUntil: 'networkidle' });
+const el = await page.$('svg');
+await el.screenshot({ path: outPath });
+await browser.close();
+console.log('rendered', outPath);
