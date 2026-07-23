@@ -377,7 +377,7 @@
 
 .chart-loading-message {
   margin-top: 10px;
-  color: #0d2b4d;
+  color: var(--ink-deep, #0d2b4d);
   font-weight: 500;
 }
 

@@ -98,7 +98,7 @@
 
 .footer-nav a,
 .modern-footer a {
-  color: #f4f8ff !important;
+  color: var(--ink-on-brand, #f4f8ff) !important;
   text-decoration: none;
 }
 

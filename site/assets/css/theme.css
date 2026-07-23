@@ -8,8 +8,12 @@ html.dark-theme {
   --text-secondary: #b0b0b0;
   --border-color: #404040;
   --bg-elevated: #252525;
-  --chart-grid-color: rgba(255, 255, 255, 0.12);
-  --chart-legend-color: #fff;
+
+  /* Os tokens de gráfico do modo claro moram em base.css; aqui a publicação
+     pode opcionalmente fornecer a contraparte escura, como já acontece com
+     --lab-header-dark-bg. Sem declaração, o valor compartilhado continua. */
+  --chart-grid-color: var(--chart-grid-dark-color, rgba(255, 255, 255, 0.12));
+  --chart-legend-color: var(--chart-legend-dark-color, #fff);
   --lab-header-bg: var(--lab-header-dark-bg);
   --lab-footer-bg: var(--lab-footer-dark-bg);
 
@@ -86,7 +90,7 @@ input:focus-visible {
 .dark-theme .navbar .btn-outline-lab {
   background-color: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.48) !important;
-  color: #f8fbff !important;
+  color: var(--ink-on-dark, #f8fbff) !important;
 }
 
 .dark-theme .navbar .btn-outline-lab:hover,
@@ -189,7 +193,7 @@ input:focus-visible {
 .dark-theme .explanation-content p,
 .dark-theme .explanation-content li,
 .dark-theme .footer-notice p {
-  color: #d8dee9 !important;
+  color: var(--ink-on-dark-muted, #d8dee9) !important;
 }
 
 .dark-theme .team-group a,
@@ -203,7 +207,7 @@ input:focus-visible {
 
 .dark-theme .modern-footer {
   background: var(--lab-footer-bg) !important;
-  color: #f4f8ff !important;
+  color: var(--ink-on-brand, #f4f8ff) !important;
 }
 
 .dark-theme .modern-footer .site-brand-logo {

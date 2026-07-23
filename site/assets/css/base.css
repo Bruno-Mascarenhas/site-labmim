@@ -21,6 +21,12 @@
   --bg-secondary: #f5f5f5;
   --text-primary: #333;
   --text-secondary: #666;
+
+  /* Tokens opcionais do contrato de tema, lidos em runtime por
+     assets/js/charts-manager.js (_getThemeColors). Os valores abaixo são os
+     defaults compartilhados; uma publicação pode sobrescrevê-los no seu
+     site-theme.css, que vem depois deste arquivo na cascata. Os fallbacks
+     equivalentes no JS existem só para o caso de o CSS não ter carregado. */
   --chart-grid-color: #f0f0f0;
   --chart-legend-color: #666;
   --tooltip-bg: rgba(18, 18, 18, 0.96);
