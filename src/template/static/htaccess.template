@@ -2,6 +2,13 @@
 # Publicações WebGIS — configuração Apache (charset, MIME, compressão e cache)
 # Todas as diretivas estão protegidas por <IfModule> para que o site nunca
 # retorne 500 caso algum módulo não esteja habilitado no servidor.
+#
+# Este template é COMPARTILHADO por todas as publicações: só os redirects legados
+# variam por publicação (vêm do manifesto). CSP, origens de tile/frame e cache são
+# iguais para todos os sites — mudá-los para um único site exige editar este arquivo
+# (acoplamento aceito). Requer um host Apache com AllowOverride; num host sem .htaccess
+# (ou sem os módulos abaixo) toda esta camada some silenciosamente, então confirme as
+# capacidades do host antes de depender de CSP/redirect aqui.
 # ---------------------------------------------------------------------------
 
 AddDefaultCharset UTF-8

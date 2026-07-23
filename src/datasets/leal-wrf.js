@@ -1,8 +1,29 @@
 "use strict";
 
+const { LABMIM_STATION_CHARTS } = require("./labmim-station-charts");
+
 module.exports = {
   id: "leal-wrf",
   attribution: "LEAL-UFES",
+  // Nome real da CLI Python que gera os dados das duas publicações; não é
+  // derivado do id do dataset porque "leal-wrf-geojson" não existe.
+  generator: "labmim-wrf-geojson",
+  // Configuração da simulação (namelist) documentada na aba "Dados WRF".
+  model: {
+    initialConditions: "GFS (Global Forecast System) da NOAA, resolução 0.25°, atualizações a cada 6h.",
+    verticalLevels: "~40 níveis sigma, com maior concentração na camada limite planetária (CLP).",
+    radiation: "RRTMG",
+    microphysics: "Thompson/WSM6",
+    planetaryBoundaryLayer: "YSU/MYJ",
+    landSurface: "Noah-MP",
+    cumulus: "Kain-Fritsch",
+  },
+  // PROVISÓRIO: reaproveita os gráficos da estação do LabMiM (marca d'água
+  // "LabMiM ... UFBA" gravada nos PNG) apenas para preservar a saída atual.
+  // O LEAL precisa declarar a própria lista de gráficos.
+  observations: {
+    charts: LABMIM_STATION_CHARTS,
+  },
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",

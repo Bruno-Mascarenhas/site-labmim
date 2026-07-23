@@ -24,46 +24,42 @@
             <h4>Configuração desta Simulação</h4>
             <ul class="doc-list">
               <li>
-                <strong>4 Domínios Aninhados (Nesting):</strong> Técnica de two-way nesting que permite resolução
-                progressiva:
+                <strong>{{DOMAIN_COUNT}} Domínios Aninhados (Nesting):</strong> Técnica de two-way nesting que permite
+                resolução progressiva:
                 <ul>
                   {{DOMAIN_DOCUMENTATION}}
                 </ul>
               </li>
               <li>
-                <strong>Dados de Entrada (Condições Iniciais e de Contorno):</strong> GFS (Global Forecast System) da
-                NOAA, resolução 0.25°, atualizações a cada 6h.
+                <strong>Dados de Entrada (Condições Iniciais e de Contorno):</strong> {{MODEL_INITIAL_CONDITIONS}}
               </li>
               <li>
                 <strong>Resolução Temporal:</strong> Saídas {{TIMELINE_OUTPUT_FREQUENCY}}
                 ({{TIMELINE_STEP_COUNT}} timesteps para {{FORECAST_HORIZON_HOURS}}h de previsão).
               </li>
-              <li>
-                <strong>Coordenadas Verticais:</strong> ~40 níveis sigma, com maior concentração na camada limite
-                planetária (CLP).
-              </li>
+              <li><strong>Coordenadas Verticais:</strong> {{MODEL_VERTICAL_LEVELS}}</li>
             </ul>
 
             <h4>Parametrizações Físicas</h4>
             <ul class="doc-list">
               <li>
-                <strong>Radiação (RRTMG):</strong> Calcula os fluxos de radiação de onda curta e longa considerando
-                interação com nuvens, aerossóis e gases atmosféricos.
+                <strong>Radiação ({{MODEL_RADIATION}}):</strong> Calcula os fluxos de radiação de onda curta e longa
+                considerando interação com nuvens, aerossóis e gases atmosféricos.
               </li>
               <li>
-                <strong>Microfísica (Thompson/WSM6):</strong> Simula os processos de formação e evolução de
+                <strong>Microfísica ({{MODEL_MICROPHYSICS}}):</strong> Simula os processos de formação e evolução de
                 hidrometeoros (vapor, chuva, neve, graupel, gelo, gotículas de nuvem).
               </li>
               <li>
-                <strong>Camada Limite Planetária (YSU/MYJ):</strong> Parametriza o transporte turbulento de calor,
+                <strong>Camada Limite Planetária ({{MODEL_PBL}}):</strong> Parametriza o transporte turbulento de calor,
                 umidade e momento na CLP.
               </li>
               <li>
-                <strong>Superfície Terrestre (Noah-MP):</strong> Modelo acoplado de solo e vegetação que calcula fluxos
-                de calor sensível e latente na interface superfície-atmosfera.
+                <strong>Superfície Terrestre ({{MODEL_LAND_SURFACE}}):</strong> Modelo acoplado de solo e vegetação que
+                calcula fluxos de calor sensível e latente na interface superfície-atmosfera.
               </li>
               <li>
-                <strong>Cumulus (Kain-Fritsch):</strong> Parametriza a convecção sub-grade nos domínios
+                <strong>Cumulus ({{MODEL_CUMULUS}}):</strong> Parametriza a convecção sub-grade nos domínios
                 {{COARSE_DOMAIN_LABELS}}. Desativada em {{FINE_DOMAIN_LABELS}} (Δx &lt; 4 km), onde a convecção é
                 resolvida explicitamente.
               </li>
@@ -73,7 +69,7 @@
 
             <p>
               Os arquivos brutos do WRF (NetCDF) são processados pelo pipeline Python
-              <code>labmim-wrf-geojson</code>:
+              <code>{{DATA_PIPELINE_NAME}}</code>:
             </p>
           </div>
           <ul class="doc-list">
@@ -116,7 +112,7 @@
               </li>
               <li>
                 Variáveis de fluxo de superfície (HFX, LH) são especialmente sensíveis à representação do uso do solo no
-                modelo Noah-MP.
+                modelo {{MODEL_LAND_SURFACE}}.
               </li>
             </ul>
 

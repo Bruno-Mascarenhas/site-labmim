@@ -1,8 +1,25 @@
 "use strict";
 
+const { LABMIM_STATION_CHARTS } = require("./labmim-station-charts");
+
 module.exports = {
   id: "labmim-wrf",
   attribution: "LabMiM-UFBA",
+  // Nome real da CLI Python que converte o NetCDF do WRF no JSON/GeoJSON servido.
+  generator: "labmim-wrf-geojson",
+  // Configuração da simulação (namelist) documentada na aba "Dados WRF".
+  model: {
+    initialConditions: "GFS (Global Forecast System) da NOAA, resolução 0.25°, atualizações a cada 6h.",
+    verticalLevels: "~40 níveis sigma, com maior concentração na camada limite planetária (CLP).",
+    radiation: "RRTMG",
+    microphysics: "Thompson/WSM6",
+    planetaryBoundaryLayer: "YSU/MYJ",
+    landSurface: "Noah-MP",
+    cumulus: "Kain-Fritsch",
+  },
+  observations: {
+    charts: LABMIM_STATION_CHARTS,
+  },
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",

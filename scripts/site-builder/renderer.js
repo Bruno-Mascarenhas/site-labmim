@@ -6,8 +6,73 @@ const { createAssetPipeline, writePublicationTheme } = require("./assets");
 
 const read = (filePath) => fs.readFileSync(filePath, "utf8");
 const replaceAll = (text, token, value) => text.split(token).join(value);
+
+// Overwriting a file keeps its existing mode, and a delete+recreate lands at the
+// umask default; pin every generated file to 0644 so a publication with a smaller
+// page set (which deletes then recreates a page) can never surface as a spurious
+// mode-only diff in the committed site/ tree.
+const writeOutput = (filePath, content) => {
+  fs.writeFileSync(filePath, content);
+  fs.chmodSync(filePath, 0o644);
+};
 const escapeAttribute = (value) =>
   String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/**
+ * Escape hatch for pages that need to *document* the template syntax itself.
+ * These two tokens are ignored by the unresolved-token check and expanded into
+ * literal braces right after it, so `{{LITERAL_OPEN}}FOO{{LITERAL_CLOSE}}`
+ * renders as a literal `{{FOO}}` without failing the build.
+ */
+const LITERAL_BRACES = Object.freeze({ "{{LITERAL_OPEN}}": "{{", "{{LITERAL_CLOSE}}": "}}" });
+
+const DEFAULT_FAVICON_EMOJI = "🌦️";
+
+/**
+ * WRF namelist defaults. They describe the simulation that produced the data,
+ * so a dataset may override any of them through an optional `model` block; the
+ * defaults reproduce the configuration the shared documentation used to state
+ * as a hardcoded fact.
+ */
+const DEFAULT_MODEL = Object.freeze({
+  initialConditions: "GFS (Global Forecast System) da NOAA, resolução 0.25°, atualizações a cada 6h.",
+  verticalLevels: "~40 níveis sigma, com maior concentração na camada limite planetária (CLP).",
+  radiation: "RRTMG",
+  microphysics: "Thompson/WSM6",
+  planetaryBoundaryLayer: "YSU/MYJ",
+  landSurface: "Noah-MP",
+  cumulus: "Kain-Fritsch",
+});
+
+/** Name of the CLI that turns the raw WRF NetCDF output into the served JSON/GeoJSON. */
+const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";
+
+const OBSERVATION_CHART_WIDTH = 800;
+const OBSERVATION_CHART_HEIGHT = 400;
+
+function escapeXmlText(value) {
+  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/**
+ * Inline SVG favicon built from a single glyph. Only the glyph varies and it is
+ * XML-escaped, so the result can never contain a raw `"` and stays safe inside
+ * the double-quoted `href` attribute (the surrounding `<svg>` markup is ours).
+ */
+function faviconHref(emoji) {
+  const glyph = escapeXmlText(emoji);
+  return `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${glyph}</text></svg>`;
+}
+
+/** `radiacao_difusa` -> `modalRadiacaoDifusa`. */
+function observationModalId(chartId) {
+  const suffix = String(chartId)
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
+  return `modal${suffix}`;
+}
 
 function naturalList(values, conjunction = "ou") {
   if (values.length < 2) return values[0] || "";
@@ -49,6 +114,8 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   const assetPipeline = createAssetPipeline(outputDir);
 
   const domains = dataset.domains;
+  const model = { ...DEFAULT_MODEL, ...(dataset.model || {}) };
+  const observationCharts = dataset.observations?.charts ?? [];
   const defaultDomain = domains.find((domain) => domain.id === dataset.defaultDomain);
   const forecastHorizonHours = (dataset.timeline.defaultMaxLayer - 1) * dataset.timeline.stepHours;
   const timelineFrequency =
@@ -65,10 +132,19 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     return `<picture><source srcset="${escapeAttribute(logo.webp)}" type="image/webp" />${image}</picture>`;
   }
 
-  function affiliationMarkup(affiliation, extraClass = "") {
+  /**
+   * `imageClass` mirrors what `brandPicture` already does for the brand logo:
+   * the nav keeps the compact `brand-logo-sm`, while the footer sits on a dark
+   * background and needs the taller, brightened treatment.
+   *
+   * The `kind: "text"` variant deliberately takes no per-slot class: its footer
+   * treatment is a contextual CSS rule (`.modern-footer .site-affiliation-text`
+   * in site/assets/css/base.css), so the markup stays slot-agnostic.
+   */
+  function affiliationMarkup(affiliation, extraClass = "", { imageClass = "brand-logo-sm" } = {}) {
     const classes = ["site-affiliation", extraClass].filter(Boolean).join(" ");
     if (affiliation.kind === "image") {
-      const image = `<img loading="lazy" src="${escapeAttribute(affiliation.src)}" alt="${escapeAttribute(affiliation.name)}" width="${affiliation.width}" height="${affiliation.height}" class="brand-logo-sm" />`;
+      const image = `<img loading="lazy" src="${escapeAttribute(affiliation.src)}" alt="${escapeAttribute(affiliation.name)}" width="${affiliation.width}" height="${affiliation.height}" class="${escapeAttribute(imageClass)}" />`;
       const picture = affiliation.webp
         ? `<picture><source srcset="${escapeAttribute(affiliation.webp)}" type="image/webp" />${image}</picture>`
         : image;
@@ -77,8 +153,51 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     return `<a href="${escapeAttribute(affiliation.href)}" target="_blank" rel="noopener" class="${classes} site-affiliation-text"><span>${escapeAttribute(affiliation.name)}</span><small>${escapeAttribute(affiliation.institution)}</small></a>`;
   }
 
-  function affiliationsMarkup(extraClass = "") {
-    return brand.affiliations.map((affiliation) => affiliationMarkup(affiliation, extraClass)).join("\n");
+  function affiliationsMarkup(extraClass = "", options = {}) {
+    return brand.affiliations.map((affiliation) => affiliationMarkup(affiliation, extraClass, options)).join("\n");
+  }
+
+  function observationImage(chart) {
+    const width = chart.width ?? OBSERVATION_CHART_WIDTH;
+    const height = chart.height ?? OBSERVATION_CHART_HEIGHT;
+    return `<img loading="lazy" class="d-block w-100" src="${escapeAttribute(chart.src)}" width="${width}" height="${height}" alt="${escapeAttribute(chart.alt ?? chart.title)}" />`;
+  }
+
+  function observationChartCards() {
+    return observationCharts
+      .map(
+        (chart) => `<div class="col-sm-4 mb-3">
+  <div class="container-overlay">
+    ${observationImage(chart)}
+    <button type="button" class="btn btn-primary overlay" data-bs-toggle="modal" data-bs-target="#${escapeAttribute(observationModalId(chart.id))}">
+      <span class="text">${escapeAttribute(chart.title)}</span>
+    </button>
+  </div>
+</div>`
+      )
+      .join("\n");
+  }
+
+  function observationChartModals() {
+    return observationCharts
+      .map((chart) => {
+        const modalId = observationModalId(chart.id);
+        const labelId = `${modalId}Label`;
+        return `<div class="modal fade" id="${escapeAttribute(modalId)}" tabindex="-1" aria-labelledby="${escapeAttribute(labelId)}">
+  <div class="modal-dialog ${escapeAttribute(chart.modalSize ?? "modal-lg")}">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="${escapeAttribute(labelId)}">${escapeAttribute(chart.title)}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        ${observationImage(chart)}
+      </div>
+    </div>
+  </div>
+</div>`;
+      })
+      .join("\n\n");
   }
 
   function runtimeConfig() {
@@ -139,8 +258,11 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
       className: "brand-logo brand-logo-bright site-brand-logo",
     }),
     BRAND_SIDEBAR_PICTURE: brandPicture(brand.logos.sidebar),
+    // Raw (not attribute-escaped): faviconHref() already produces a value with
+    // no `"` and the surrounding `<svg>` is intentionally literal markup.
+    FAVICON: faviconHref(brand.favicon ?? DEFAULT_FAVICON_EMOJI),
     AFFILIATIONS_NAV: affiliationsMarkup("me-3"),
-    AFFILIATIONS_FOOTER: affiliationsMarkup(),
+    AFFILIATIONS_FOOTER: affiliationsMarkup("", { imageClass: "brand-logo brand-logo-bright" }),
     COPYRIGHT_NAME: escapeAttribute(brand.copyrightName),
     INSTITUTION_NAME: escapeAttribute(institution.name),
     INSTITUTION_ACRONYM: escapeAttribute(institution.acronym),
@@ -151,6 +273,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     TERRAIN_EXAMPLE: escapeAttribute(territory.terrainExample),
     WEBGIS_BRAND: escapeAttribute(`${brand.name} / ${institution.acronym}`),
     DOMAIN_BUTTONS: domainButtons(),
+    DOMAIN_COUNT: String(domains.length),
     DEFAULT_DOMAIN_LABEL: escapeAttribute(defaultDomain.label),
     DOMAIN_LABELS: escapeAttribute(naturalList(domains.map((domain) => domain.label))),
     COARSE_DOMAIN_LABELS: escapeAttribute(
@@ -172,6 +295,16 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     FORECAST_HORIZON_HOURS: String(forecastHorizonHours).replace(".", ","),
     TIMELINE_OUTPUT_FREQUENCY: timelineFrequency,
     TIMEZONE_LABEL: escapeAttribute(dataset.timeline.label),
+    DATA_PIPELINE_NAME: escapeAttribute(dataset.generator ?? DEFAULT_DATA_PIPELINE),
+    MODEL_INITIAL_CONDITIONS: escapeAttribute(model.initialConditions),
+    MODEL_VERTICAL_LEVELS: escapeAttribute(model.verticalLevels),
+    MODEL_RADIATION: escapeAttribute(model.radiation),
+    MODEL_MICROPHYSICS: escapeAttribute(model.microphysics),
+    MODEL_PBL: escapeAttribute(model.planetaryBoundaryLayer),
+    MODEL_LAND_SURFACE: escapeAttribute(model.landSurface),
+    MODEL_CUMULUS: escapeAttribute(model.cumulus),
+    OBSERVATION_CHART_CARDS: observationChartCards(),
+    OBSERVATION_CHART_MODALS: observationChartModals(),
   };
 
   function applySiteTokens(html) {
@@ -278,8 +411,23 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   }
 
   function assertResolved(file, html) {
-    const leftover = html.match(/\{\{[^}]+\}\}/g);
-    if (leftover) throw new Error(`${file}: unresolved tokens ${leftover.join(", ")}`);
+    const leftover = (html.match(/\{\{[^}]+\}\}/g) || []).filter((token) => !(token in LITERAL_BRACES));
+    if (leftover.length === 0) return;
+    const unique = [...new Set(leftover)];
+    throw new Error(
+      [
+        `${file}: ${unique.length} unresolved template ${unique.length === 1 ? "token" : "tokens"}: ${unique.join(", ")}`,
+        "  Layout, partial and page-body tokens are substituted BEFORE this check runs, so a surviving token is either",
+        "  misspelled or not published by scripts/site-builder/renderer.js (siteTokens / buildPage).",
+        `  To print literal braces in a page, write ${Object.keys(LITERAL_BRACES).join(" / ")} instead.`,
+      ].join("\n")
+    );
+  }
+
+  function resolveLiteralBraces(html) {
+    let output = html;
+    for (const [token, value] of Object.entries(LITERAL_BRACES)) output = replaceAll(output, token, value);
+    return output;
   }
 
   function buildPage(page) {
@@ -292,25 +440,29 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     html = replaceAll(html, "{{structuredData}}", structuredData(page));
     html = replaceAll(html, "{{title}}", escapeAttribute(page.seo.title));
     html = replaceAll(html, "{{description}}", escapeAttribute(page.seo.description));
+    // bodyAttrs is attribute markup by design; kicker and docModalTitle are text.
     html = replaceAll(html, "{{bodyAttrs}}", page.bodyAttrs || "");
-    html = replaceAll(html, "{{kicker}}", page.kicker || "");
-    html = replaceAll(html, "{{docModalTitle}}", page.docModalTitle || "");
+    html = replaceAll(html, "{{kicker}}", escapeAttribute(page.kicker || ""));
+    html = replaceAll(html, "{{docModalTitle}}", escapeAttribute(page.docModalTitle || ""));
     html = replaceAll(html, "{{pageVendorStyles}}", stylesheetLinks(page.vendorStyles));
     html = replaceAll(html, "{{pageStyles}}", stylesheetLinks(page.styles));
     html = replaceAll(html, "{{content}}", pageContent(page));
     html = replaceAll(html, "{{h1}}", escapeAttribute(page.seo.h1));
     html = applySiteTokens(html);
     assertResolved(page.file, html);
+    html = resolveLiteralBraces(html);
     html = assetPipeline.stampAssetVersions(html);
-    fs.writeFileSync(path.join(outputDir, page.file), html);
+    writeOutput(path.join(outputDir, page.file), html);
     return page.file;
   }
 
+  // mod_alias takes whitespace-delimited arguments; quoting both operands keeps
+  // the directive valid even if a path ever contains a space.
   function legacyRedirects() {
     return publication.redirects
       .map(
         (redirect) =>
-          `  Redirect ${redirect.status} ${redirect.from} ${redirect.to}${redirect.hash ? `#${redirect.hash}` : ""}`
+          `  Redirect ${redirect.status} "${redirect.from}" "${redirect.to}${redirect.hash ? `#${redirect.hash}` : ""}"`
       )
       .join("\n");
   }
@@ -319,8 +471,9 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     const staticDir = path.join(templateRoot, "static");
     let notFound = applySiteTokens(read(path.join(staticDir, "404.html")));
     assertResolved("404.html", notFound);
+    notFound = resolveLiteralBraces(notFound);
     notFound = assetPipeline.stampAssetVersions(notFound);
-    fs.writeFileSync(path.join(outputDir, "404.html"), notFound);
+    writeOutput(path.join(outputDir, "404.html"), notFound);
 
     let htaccess = replaceAll(
       read(path.join(staticDir, "htaccess.template")),
@@ -328,17 +481,18 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
       legacyRedirects()
     );
     assertResolved(".htaccess", htaccess);
-    fs.writeFileSync(path.join(outputDir, ".htaccess"), htaccess);
+    htaccess = resolveLiteralBraces(htaccess);
+    writeOutput(path.join(outputDir, ".htaccess"), htaccess);
 
     const sitemapEntries = publication.pages
       .filter((page) => page.indexable !== false)
       .map((page) => `  <url>\n    <loc>${escapeAttribute(absoluteUrl(page.file))}</loc>\n  </url>`)
       .join("\n");
-    fs.writeFileSync(
+    writeOutput(
       path.join(outputDir, "sitemap.xml"),
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapEntries}\n</urlset>\n`
     );
-    fs.writeFileSync(
+    writeOutput(
       path.join(outputDir, "robots.txt"),
       `User-agent: *\nAllow: /\n\nSitemap: ${productionOrigin}/sitemap.xml\n\n# Dados gerados pelo pipeline externo — sem valor de SEO e potencialmente grandes.\n${[
         dataset.paths.values,
@@ -354,7 +508,9 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   const staticWritten = buildStaticFiles();
   const expectedHtml = new Set([...pagesWritten, "404.html"]);
   for (const name of fs.readdirSync(outputDir)) {
-    if (name.endsWith(".html") && !expectedHtml.has(name)) fs.unlinkSync(path.join(outputDir, name));
+    if (!name.endsWith(".html") || expectedHtml.has(name)) continue;
+    fs.unlinkSync(path.join(outputDir, name));
+    console.log(`build.js: removed stale page not owned by ${publication.id} -> ${name}`);
   }
 
   return { pagesWritten, staticWritten, themeWritten: "assets/css/site-theme.css" };

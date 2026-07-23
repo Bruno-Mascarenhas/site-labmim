@@ -3,6 +3,17 @@
   <head>
 {{> head}}
 
+    <!-- Configuração da publicação e do mapa; JSON em meta preserva a CSP sem
+         exigir script executável inline. Fica neste layout (e não no partial
+         head) porque o único consumidor é assets/js/map-manager.js, carregado
+         apenas aqui; as páginas institucionais não precisam desses bytes. -->
+    <meta name="site-config" content="{{SITE_CONFIG}}" />
+
+    <!-- Content hashes dos Web Workers (carimbados por build.js): map-manager.js
+         monta as URLs dos workers a partir daqui, então editar um worker já
+         invalida o cache. Mesmo motivo do site-config para morar neste layout. -->
+    <meta name="labmim-asset-hashes" content="{{WORKER_HASHES}}" />
+
     <!-- Leaflet 1.9.4 vendorizado; o CSS entra pelo slot pageVendorStyles antes dos estilos próprios. -->
     <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
 

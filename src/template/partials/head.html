@@ -1,21 +1,12 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="description" content="{{description}}" />
-<!-- Configuração da publicação e do mapa; JSON em meta preserva a CSP sem
-     exigir script executável inline. -->
-<meta name="site-config" content="{{SITE_CONFIG}}" />
-<!-- Content hashes of the Web Workers (stamped by build.js): map-manager.js
-     builds worker URLs from these so worker edits cache-bust automatically. -->
-<meta name="labmim-asset-hashes" content="{{WORKER_HASHES}}" />
 <title>{{title}}</title>
 
 <!-- SEO: canonical + Open Graph + Twitter (gerado por build.js a partir de PROD) -->
 {{seoHead}}
 {{structuredData}}
-<link
-  rel="icon"
-  href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
-/>
+<link rel="icon" href="{{FAVICON}}" />
 
 <!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico).
      Versão PURGADA: só os seletores usados pelo site (~27KB em vez de 232KB);
