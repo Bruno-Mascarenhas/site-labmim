@@ -29,6 +29,10 @@ Thumbs.db
 
 # Generated Data & Pipeline Artifacts
 dist/
+# Publicado pelo build a partir do CSS de página em src/**/styles/; varia por
+# publicação, então fica fora do git (ao contrário de site/assets/img/, que é a
+# união estável de todas as publicações e é versionada para site/ ser deployável).
+site/assets/css/generated/
 site/JSON/*.json
 site/JSON/*.series.bin
 site/GeoJSON/*.geojson
