@@ -7,16 +7,8 @@ module.exports = {
   attribution: "LabMiM-UFBA",
   // Nome real da CLI Python que converte o NetCDF do WRF no JSON/GeoJSON servido.
   generator: "labmim-wrf-geojson",
-  // Configuração da simulação (namelist) documentada na aba "Dados WRF".
-  model: {
-    initialConditions: "GFS (Global Forecast System) da NOAA, resolução 0.25°, atualizações a cada 6h.",
-    verticalLevels: "~40 níveis sigma, com maior concentração na camada limite planetária (CLP).",
-    radiation: "RRTMG",
-    microphysics: "Thompson/WSM6",
-    planetaryBoundaryLayer: "YSU/MYJ",
-    landSurface: "Noah-MP",
-    cumulus: "Kain-Fritsch",
-  },
+  // O namelist WRF vem de DEFAULT_MODEL (renderer); só declare `model` aqui para
+  // sobrescrever campos quando esta simulação divergir da configuração padrão.
   observations: {
     charts: LABMIM_STATION_CHARTS,
   },
