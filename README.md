@@ -317,3 +317,11 @@ Antes de publicar:
 - Evite adicionar dependências de build para o runtime do site; hoje ele funciona como site estático.
 - Mudanças no formato dos dados devem ser **aditivas e com fallback no cliente** — site e dados são publicados de forma desacoplada em produção.
 - A documentação técnica detalhada fica em [Architecture.md](Architecture.md).
+
+## Licença
+
+O código deste repositório está sob a [Licença MIT](LICENSE): qualquer pessoa pode usar, copiar, modificar e redistribuir — inclusive em fork ou em uso comercial — sem pagar nada, desde que **mantenha o aviso de copyright e a licença** e cite este repositório como origem.
+
+A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados operacionais publicados em produção (`site/JSON/`, `site/GeoJSON/`, `site/assets/graphs/`), que pertencem às instituições correspondentes e vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology). Um fork deve substituí-los pela própria identidade e pelos próprios dados.
+
+As bibliotecas vendorizadas em `site/assets/vendor/` mantêm suas licenças originais (Bootstrap, Leaflet, Chart.js e Font Awesome).

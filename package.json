@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Static multi-publication frontend for Brazilian meteorology laboratories",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bruno-Mascarenhas/site-labmim.git"
+  },
   "engines": {
     "node": ">=24"
   },
