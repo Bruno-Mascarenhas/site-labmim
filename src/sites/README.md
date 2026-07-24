@@ -4,11 +4,13 @@ Cada pasta `src/sites/<id>/` é um módulo editorial independente. O build encon
 
 O resultado continua sendo um site estático. Node valida e monta os arquivos antes do deploy, mas o servidor entrega apenas HTML, CSS, JavaScript e assets.
 
-> **Primeira contribuição?** Este arquivo é a receita de edição; o processo em volta dela está em dois PDFs:
+> **Primeira contribuição?** Este arquivo é a receita de edição. O processo em volta dela está em
+> [`CONTRIBUTING.md`](../../CONTRIBUTING.md) e, detalhado, em
 > [Como contribuir no site-labmim](../../docs/onboarding-architecture/assets/guia-contribuicao-site.pdf)
-> (issue → branch → alteração → testes → pull request → revisão → merge na `main`) e
-> [Arquitetura multi-publicação](../../docs/onboarding-architecture/assets/labmim-onboarding.pdf)
-> (o deck que explica a composição `publicação + template + território + dataset`).
+> (issue → branch → alteração → testes → pull request → revisão → merge na `main`). O modelo mental da
+> arquitetura está em
+> [Onboarding da plataforma estática multi-publicação](../../docs/onboarding-architecture/assets/onboarding-plataforma-estatica-labmim-leal.pdf),
+> a documentação vigente do projeto.
 
 ## Fronteiras
 

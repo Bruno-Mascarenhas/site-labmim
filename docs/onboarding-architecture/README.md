@@ -44,11 +44,17 @@ docs/onboarding-architecture/
 │   ├── micrometeorology-overview.svg    # autoral — o pacote de pipeline
 │   └── add-wrf-variable.svg             # autoral — adicionar variável aos mapas
 └── assets/
-    ├── labmim-onboarding.pdf
-    ├── labmim-onboarding.pptx
-    ├── guia-contribuicao-site.pdf   # guia de contribuição (ver abaixo)
+    ├── onboarding-plataforma-estatica-labmim-leal.pdf    # export atual do deck
+    ├── onboarding-plataforma-estatica-labmim-leal.pptx   # idem, editável (git-ignored)
+    ├── labmim-onboarding.pdf       # export anterior, mantido como histórico
+    ├── guia-contribuicao-site.pdf  # guia de contribuição (ver abaixo)
     └── dist/                     # build estático opcional do deck
 ```
+
+O PDF distribuído é **`onboarding-plataforma-estatica-labmim-leal.pdf`** — é ele que o
+[`README.md`](../../README.md), o [`CONTRIBUTING.md`](../../CONTRIBUTING.md) e o
+[`src/sites/README.md`](../../src/sites/README.md) referenciam como documentação de arquitetura vigente.
+`labmim-onboarding.pdf` é o export anterior, de antes da revisão do deck, e não é mais regenerado.
 
 ## Guia de contribuição
 
@@ -62,7 +68,10 @@ final. É o material indicado para quem chega ao laboratório antes de tocar no 
 Diferente do deck, este PDF não é gerado pelo Slidev deste diretório; ele é versionado como artefato
 distribuível. Ele foi escrito enquanto a modularização em `src/sites/<id>/` ainda era um PR aberto, então
 os exemplos que citam `src/pages/` refletem a estrutura anterior — o fluxo de trabalho segue válido, e a
-árvore de arquivos atual é a de [`src/sites/README.md`](../../src/sites/README.md).
+árvore de arquivos atual está no deck e em [`src/sites/README.md`](../../src/sites/README.md).
+
+O resumo do mesmo processo, em Markdown e sempre à mão de quem abre uma issue ou um PR, está em
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ## Fonte de verdade arquitetural
 
@@ -157,8 +166,8 @@ npm run export:pptx
 Saídas:
 
 - `assets/dist/` — versão estática do deck;
-- `assets/labmim-onboarding.pdf`;
-- `assets/labmim-onboarding.pptx`.
+- `assets/onboarding-plataforma-estatica-labmim-leal.pdf`;
+- `assets/onboarding-plataforma-estatica-labmim-leal.pptx`.
 
 O PPTX usa imagens de página inteira; o PDF preserva texto selecionável e é preferível para distribuição.
 

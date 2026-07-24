@@ -159,14 +159,14 @@ Origens externas restantes:
 
 ## Onboarding E Contribuição
 
-Dois materiais em PDF cobrem o início, ambos em [`docs/onboarding-architecture/assets/`](docs/onboarding-architecture/):
+O resumo do processo está em [`CONTRIBUTING.md`](CONTRIBUTING.md). O material completo são dois PDFs em [`docs/onboarding-architecture/assets/`](docs/onboarding-architecture/):
 
+- **[Onboarding da plataforma estática multi-publicação](docs/onboarding-architecture/assets/onboarding-plataforma-estatica-labmim-leal.pdf)** — a documentação de arquitetura vigente (30 slides, exportada de `slides.md`): o modelo mental `publicação + template + território + dataset`, a descoberta e a validação de `src/sites/<id>/site.js`, onde colocar uma mudança de estilo, as receitas de página compartilhada e exclusiva, o que `build:check` protege, o runtime do WebGIS e o contrato com o pipeline `micrometeorology` — incluindo como adicionar uma variável nova aos mapas. A fonte e as instruções de regeneração estão em [`docs/onboarding-architecture/README.md`](docs/onboarding-architecture/README.md).
 - **[Como contribuir no site-labmim](docs/onboarding-architecture/assets/guia-contribuicao-site.pdf)** — o fluxo de trabalho de ponta a ponta: abrir a issue, criar a branch a partir da `main` atualizada, alterar o lugar certo, validar com `make build`/`make ci`/`make serve`, fazer commits pequenos, abrir o pull request, responder à revisão e mergear. Traz também o padrão de nomes de branch (`feat/`, `fix/`, `docs/`, `chore/`), o formato das mensagens de commit, os erros que costumam travar uma revisão e um checklist final.
-- **[Arquitetura multi-publicação](docs/onboarding-architecture/assets/labmim-onboarding.pdf)** — o deck de onboarding: como `publicação + template + território + dataset` se compõem, o que é código compartilhado e o que é identidade própria, e as receitas para criar uma publicação, adicionar páginas e atualizar tema, território e dataset. A fonte do deck e as instruções de regeneração estão em [`docs/onboarding-architecture/README.md`](docs/onboarding-architecture/README.md).
 
 A regra que os dois repetem: **a `main` é a linha estável e ninguém commita direto nela** — toda mudança nasce em uma branch curta, entra por pull request com CI verde e é revisada por outra pessoa. E edite sempre `src/`: `site/` é saída gerada, e o próximo build sobrescreve qualquer edição feita à mão lá.
 
-Para a estrutura de arquivos de uma publicação, a receita detalhada é [`src/sites/README.md`](src/sites/README.md). O guia de contribuição foi escrito enquanto a modularização ainda era um PR aberto, então os trechos dele que citam `src/pages/` descrevem a estrutura anterior — o fluxo de trabalho continua válido, a árvore de arquivos atual é a do `src/sites/README.md`.
+Para a estrutura de arquivos de uma publicação, a receita detalhada é [`src/sites/README.md`](src/sites/README.md). O guia de contribuição foi escrito enquanto a modularização ainda era um PR aberto, então os trechos dele que citam `src/pages/` descrevem a estrutura anterior — o fluxo de trabalho continua válido, e a árvore de arquivos atual está no deck de onboarding e no `src/sites/README.md`.
 
 ## Desenvolvimento
 
