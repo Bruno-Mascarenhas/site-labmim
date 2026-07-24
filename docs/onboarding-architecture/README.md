@@ -44,10 +44,36 @@ docs/onboarding-architecture/
 │   ├── micrometeorology-overview.svg    # autoral — o pacote de pipeline
 │   └── add-wrf-variable.svg             # autoral — adicionar variável aos mapas
 └── assets/
-    ├── labmim-onboarding.pdf
-    ├── labmim-onboarding.pptx
+    ├── labmim-onboarding.pdf                          # export do Slidev (npm run export:pdf)
+    ├── labmim-onboarding.pptx                         # idem, editável (git-ignored)
+    ├── onboarding-plataforma-estatica-labmim-leal.pdf # mesmo deck, renderização distribuída
+    ├── guia-contribuicao-site.pdf                     # guia de contribuição (ver abaixo)
     └── dist/                     # build estático opcional do deck
 ```
+
+Os dois PDFs de onboarding são **o mesmo deck de 30 slides**, na mesma versão da arquitetura, em
+renderizações diferentes: `labmim-onboarding.pdf` é a saída direta do Slidev com o tema `seriph`
+(reproduzível por `npm run export:pdf`), e `onboarding-plataforma-estatica-labmim-leal.pdf` é a
+renderização mais elaborada usada para distribuição — é ela que o [`README.md`](../../README.md), o
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md) e o [`src/sites/README.md`](../../src/sites/README.md)
+referenciam. Ao alterar `slides.md`, atualize as duas.
+
+## Guia de contribuição
+
+Ao lado do deck, [`assets/guia-contribuicao-site.pdf`](./assets/guia-contribuicao-site.pdf) documenta o
+**processo** de contribuir com o repositório, enquanto o deck documenta a **arquitetura**: abrir a issue,
+criar a branch a partir da `main`, alterar o lugar certo, validar com `make build`/`make ci`/`make serve`,
+fazer commits pequenos, abrir o pull request, responder à revisão e mergear — mais o padrão de nomes de
+branch, o formato das mensagens de commit, a configuração recomendada de proteção da `main` e um checklist
+final. É o material indicado para quem chega ao laboratório antes de tocar no código.
+
+Diferente do deck, este PDF não é gerado pelo Slidev deste diretório; ele é versionado como artefato
+distribuível. Ele foi escrito enquanto a modularização em `src/sites/<id>/` ainda era um PR aberto, então
+os exemplos que citam `src/pages/` refletem a estrutura anterior — o fluxo de trabalho segue válido, e a
+árvore de arquivos atual está no deck e em [`src/sites/README.md`](../../src/sites/README.md).
+
+O resumo do mesmo processo, em Markdown e sempre à mão de quem abre uma issue ou um PR, está em
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ## Fonte de verdade arquitetural
 
@@ -161,5 +187,6 @@ O PPTX usa imagens de página inteira; o PDF preserva texto selecionável e é p
 
 Esta pasta é isolada do site e possui `package.json` próprio. Ela não participa do build do frontend.
 
-No estado atual do workspace, `docs/` é intencionalmente não rastreado e deve continuar fora do commit e
-do PR da refatoração principal. Os exports são artefatos locais de apoio ao onboarding.
+`docs/` é versionado: entram a fonte do deck, os diagramas e os PDFs distribuíveis. Ficam fora do commit
+os artefatos pesados ou regeneráveis — `node_modules/`, `assets/dist/`, `assets/theme-previews/` e os
+`.pptx` (ver `.gitignore`).

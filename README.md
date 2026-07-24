@@ -157,6 +157,17 @@ Origens externas restantes:
 - Tiles do mapa base via OpenStreetMap (apenas nas páginas WebGIS).
 - Iframe do Google My Maps na página de equipe (`team.html`; liberado no CSP via `frame-src https://www.google.com`).
 
+## Onboarding E Contribuição
+
+O resumo do processo está em [`CONTRIBUTING.md`](CONTRIBUTING.md). O material completo são dois PDFs em [`docs/onboarding-architecture/assets/`](docs/onboarding-architecture/):
+
+- **[Onboarding da plataforma estática multi-publicação](docs/onboarding-architecture/assets/onboarding-plataforma-estatica-labmim-leal.pdf)** — a documentação de arquitetura vigente (30 slides, gerados de `slides.md`): o modelo mental `publicação + template + território + dataset`, a descoberta e a validação de `src/sites/<id>/site.js`, onde colocar uma mudança de estilo, as receitas de página compartilhada e exclusiva, o que `build:check` protege, o runtime do WebGIS e o contrato com o pipeline `micrometeorology` — incluindo como adicionar uma variável nova aos mapas. A fonte e as instruções de regeneração estão em [`docs/onboarding-architecture/README.md`](docs/onboarding-architecture/README.md).
+- **[Como contribuir no site-labmim](docs/onboarding-architecture/assets/guia-contribuicao-site.pdf)** — o fluxo de trabalho de ponta a ponta: abrir a issue, criar a branch a partir da `main` atualizada, alterar o lugar certo, validar com `make build`/`make ci`/`make serve`, fazer commits pequenos, abrir o pull request, responder à revisão e mergear. Traz também o padrão de nomes de branch (`feat/`, `fix/`, `docs/`, `chore/`), o formato das mensagens de commit, os erros que costumam travar uma revisão e um checklist final.
+
+A regra que os dois repetem: **a `main` é a linha estável e ninguém commita direto nela** — toda mudança nasce em uma branch curta, entra por pull request com CI verde e é revisada por outra pessoa. E edite sempre `src/`: `site/` é saída gerada, e o próximo build sobrescreve qualquer edição feita à mão lá.
+
+Para a estrutura de arquivos de uma publicação, a receita detalhada é [`src/sites/README.md`](src/sites/README.md). O guia de contribuição foi escrito enquanto a modularização ainda era um PR aberto, então os trechos dele que citam `src/pages/` descrevem a estrutura anterior — o fluxo de trabalho continua válido, e a árvore de arquivos atual está no deck de onboarding e no `src/sites/README.md`.
+
 ## Desenvolvimento
 
 O projeto usa a versão de Node fixada em `.nvmrc` (Node 24 LTS). Com `nvm`:
@@ -317,3 +328,11 @@ Antes de publicar:
 - Evite adicionar dependências de build para o runtime do site; hoje ele funciona como site estático.
 - Mudanças no formato dos dados devem ser **aditivas e com fallback no cliente** — site e dados são publicados de forma desacoplada em produção.
 - A documentação técnica detalhada fica em [Architecture.md](Architecture.md).
+
+## Licença
+
+O código deste repositório está sob a [Licença MIT](LICENSE): qualquer pessoa pode usar, copiar, modificar e redistribuir — inclusive em fork ou em uso comercial — sem pagar nada, desde que **mantenha o aviso de copyright e a licença** e cite este repositório como origem.
+
+A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados operacionais publicados em produção (`site/JSON/`, `site/GeoJSON/`, `site/assets/graphs/`), que pertencem às instituições correspondentes e vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology). Um fork deve substituí-los pela própria identidade e pelos próprios dados.
+
+As bibliotecas vendorizadas em `site/assets/vendor/` mantêm suas licenças originais (Bootstrap, Leaflet, Chart.js e Font Awesome).
