@@ -1,0 +1,26 @@
+{
+  "name": "labmim-onboarding-architecture",
+  "version": "1.0.0",
+  "description": "Apresentação técnica de onboarding do site-labmim (Slidev + Mermaid)",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "slidev slides.md --open",
+    "build": "slidev build slides.md --out assets/dist",
+    "export:pdf": "slidev export slides.md --format pdf --output assets/labmim-onboarding.pdf --timeout 120000",
+    "export:pptx": "slidev export slides.md --format pptx --output assets/labmim-onboarding.pptx --timeout 120000"
+  },
+  "dependencies": {
+    "@slidev/cli": "^52.0.0",
+    "@slidev/theme-default": "^0.25.0",
+    "@slidev/theme-seriph": "^0.25.0",
+    "playwright-chromium": "^1.56.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.16.0"
+  }
+}

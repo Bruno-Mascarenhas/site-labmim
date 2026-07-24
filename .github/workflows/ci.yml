@@ -33,11 +33,31 @@ jobs:
       - name: Verify generated pages are up to date
         run: npm run build:check
 
+      # site/ only ever carries the default publication, so the deployable
+      # output of every other one (.htaccess redirects, sitemap.xml, robots.txt)
+      # is otherwise impossible to review in a pull request. build:all restores
+      # site/ to the default publication before finishing, so the checks below
+      # still see the same tree build:check left behind — and they additionally
+      # pick up dist/ to cover every publication at once.
+      - name: Build every publication bundle
+        run: npm run build:all
+
+      - name: Upload publication bundles
+        uses: actions/upload-artifact@v5
+        with:
+          name: publication-bundles
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Run ESLint
         run: npm run lint:js
 
       - name: Run Stylelint
         run: npm run lint:css
+
+      - name: Check publication theme boundaries
+        run: npm run lint:themes
 
       - name: Check Font Awesome subset coverage
         run: npm run lint:icons

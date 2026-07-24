@@ -1,0 +1,11 @@
+flowchart LR
+  SITES["src/sites/id<br/>identidade · páginas · tema"] --> BUILD["site-builder<br/>descobrir · validar · renderizar"]
+  TEMPLATE["src/template<br/>layouts · partials · páginas"] --> BUILD
+  TERR["src/territories<br/>estado · contorno · viewport"] --> BUILD
+  DATASET["src/datasets<br/>paths · timeline · domínios"] --> BUILD
+  SHARED["site/assets<br/>CSS · JS · imagens · vendor"] --> BUILD
+  BUILD --> SITE["site/<br/>uma publicação selecionada"]
+  BUILD --> DIST["dist/id/<br/>um bundle por publicação"]
+  PIPE["micrometeorology"] --> DATA["manifest · values · grids · gráficos<br/>paths definidos no dataset"]
+  DATA --> SITE
+  DATA -.-> DIST

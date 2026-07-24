@@ -1,271 +1,149 @@
 #!/usr/bin/env node
 /**
- * build.js — dependency-free static-site assembler for the LabMiM site.
+ * Static publication builder.
  *
- * Expands the page sources in src/pages/ into full, plain HTML files in site/,
- * pulling the shared <head>, navbar, footer and script tags from src/partials/
- * so those blocks live in exactly one place. The deployed site stays 100% static
- * plain files — this only runs locally / in CI, never on the host.
+ * Discovers src/sites/<id>/site.js, validates the selected publication and
+ * renders plain HTML/CSS plus Apache metadata into site/. Nothing from this
+ * build system is required by the deployed site at runtime.
  *
- * Usage:  node build.js            (writes site/*.html, then run prettier)
- * Uses only Node's standard library (fs, path). No npm dependencies.
+ * Usage:
+ *   node build.js --site=ufba
+ *   node build.js --site=ufes
+ *   SITE_ID=ufes node build.js
+ *   node build.js --list-sites
+ *   BUILD_YEAR=2026 node build.js   # builds without a git checkout
  */
 "use strict";
 
-const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
+const { defaultPublication, discoverPublications, selectPublication } = require("./scripts/site-builder/publications");
+const { writePublicationAssets } = require("./scripts/site-builder/assets");
+const { renderPublication } = require("./scripts/site-builder/renderer");
+const { validatePublication } = require("./scripts/site-builder/validate");
+const { isExpectedFailure } = require("./scripts/site-builder/cli");
 
 const ROOT = __dirname;
-const SRC = path.join(ROOT, "src");
-const SITE = path.join(ROOT, "site");
+const OUTPUT_DIR = path.join(ROOT, "site");
+const TEMPLATE_ROOT = path.join(ROOT, "src", "template");
 
-// Production origin (no trailing slash). Absolute URLs for SEO are derived from this.
-const PROD = "https://labmim.if.ufba.br";
-
-// Ano do © do rodapé ({{YEAR}}), derivado da data do último commit — build
-// determinístico (mesmo input → mesmo output, independente do relógio/fuso do
-// runner); o primeiro PR de janeiro renova o ano no seu próprio build:check.
-const YEAR = (() => {
-  try {
-    return require("child_process").execSync("git log -1 --format=%cs", { encoding: "utf8" }).slice(0, 4);
-  } catch {
-    return String(new Date().getFullYear());
-  }
-})();
-const OG_IMAGE = `${PROD}/assets/img/logonova1.png`;
-
-// --- Single source of truth for the navigation (order matters) ---------------
-const NAV = [
-  { key: "mapas", href: "mapas_interativos.html", label: "Previsões", id: "nav-mapas", ficon: "fa-map" },
-  {
-    key: "potenciais",
-    href: "potenciais_energeticos.html",
-    label: "Potenciais Energéticos",
-    id: "nav-potenciais",
-    ficon: "fa-bolt",
-  },
-  { key: "monitoring", href: "monitoring.html", label: "Monitoramento", id: "nav-monitoring", ficon: "fa-chart-line" },
-  {
-    key: "climatologia",
-    href: "climatologia.html",
-    label: "Climatologia",
-    id: "nav-climatologia",
-    ficon: "fa-cloud-sun",
-  },
-  { key: "team", href: "team.html", label: "Equipe", id: "nav-team", ficon: "fa-users" },
-];
-
-// --- Page manifest: each page's metadata (content lives in src/pages/) --------
-const PAGES = [
-  {
-    file: "index.html",
-    layout: "institutional",
-    active: "", // homepage is not a nav target
-    h1: "LabMiM — Laboratório de Micrometeorologia e Modelagem",
-    title: "LabMiM — Laboratório de Micrometeorologia e Modelagem · UFBA",
-    description:
-      "LabMiM - Laboratório de Micrometeorologia e Modelagem da UFBA. Previsão numérica do tempo, monitoramento ambiental e pesquisa atmosférica em Salvador e Bahia.",
-  },
-  {
-    file: "monitoring.html",
-    layout: "institutional",
-    active: "monitoring",
-    h1: "Monitoramento Ambiental",
-    title: "LabMiM — Monitoramento Ambiental · UFBA",
-    description:
-      "LabMiM — Monitoramento Ambiental: variáveis meteorológicas medidas em tempo quase real por estações micrometeorológicas em Salvador, Bahia.",
-  },
-  {
-    file: "team.html",
-    layout: "institutional",
-    active: "team",
-    h1: "Equipe",
-    title: "LabMiM — Equipe · UFBA",
-    description:
-      "LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores.",
-  },
-  {
-    file: "climatologia.html",
-    layout: "institutional",
-    active: "climatologia",
-    h1: "Climatologia",
-    title: "LabMiM — Climatologia · UFBA",
-    description:
-      "LabMiM — Climatologia: análise climática da Região Metropolitana de Salvador e Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA.",
-  },
-  {
-    file: "mapas_interativos.html",
-    layout: "webgis",
-    active: "mapas",
-    bodyAttrs: ' data-map-context="forecast"',
-    kicker: "Previsões",
-    docModalTitle: "Documentação - Mapa Interativo",
-    h1: "Mapas Interativos WRF",
-    title: "LabMiM — Mapas Interativos WRF · UFBA",
-    description:
-      "LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA.",
-  },
-  {
-    file: "potenciais_energeticos.html",
-    layout: "webgis",
-    active: "potenciais",
-    bodyAttrs: ' data-map-context="energy"',
-    kicker: "Potenciais Energéticos",
-    docModalTitle: "Documentação - Potenciais Energéticos",
-    h1: "Potenciais Energéticos",
-    title: "LabMiM — Potenciais Energéticos · UFBA",
-    description:
-      "LabMiM — Potenciais Energéticos: mapas interativos de potencial fotovoltaico, potencial eólico e densidade eólica derivados do modelo WRF para Bahia.",
-  },
-];
-
-// --- Tiny template engine ----------------------------------------------------
-const read = (p) => fs.readFileSync(p, "utf8");
-// literal (non-regex) replace-all, safe against $ and other special chars
-const sub = (text, token, value) => text.split(token).join(value);
-
-// Escape a value for use inside an HTML double-quoted attribute.
-const attr = (s) =>
-  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
-// Absolute canonical URL for a page file (homepage collapses to the origin root).
-function absUrl(file) {
-  return PROD + (file === "index.html" ? "/" : "/" + file);
-}
-
-// Per-page SEO block: canonical + Open Graph + Twitter. Values come straight from
-// the page manifest so the meta tags stay in lockstep with <title>/<description>.
-function seoHead(page) {
-  const url = absUrl(page.file);
-  const t = attr(page.title);
-  const d = attr(page.description);
-  const img = attr(OG_IMAGE);
-  return [
-    `    <link rel="canonical" href="${attr(url)}" />`,
-    ``,
-    `    <!-- Open Graph -->`,
-    `    <meta property="og:type" content="website" />`,
-    `    <meta property="og:site_name" content="LabMiM" />`,
-    `    <meta property="og:title" content="${t}" />`,
-    `    <meta property="og:description" content="${d}" />`,
-    `    <meta property="og:url" content="${attr(url)}" />`,
-    `    <meta property="og:image" content="${img}" />`,
-    ``,
-    `    <!-- Twitter -->`,
-    `    <meta name="twitter:card" content="summary_large_image" />`,
-    `    <meta name="twitter:title" content="${t}" />`,
-    `    <meta name="twitter:description" content="${d}" />`,
-    `    <meta name="twitter:image" content="${img}" />`,
-  ].join("\n");
-}
-
-const partials = {
-  head: read(path.join(SRC, "partials", "head.html")),
-  nav: read(path.join(SRC, "partials", "nav.html")),
-  footer: read(path.join(SRC, "partials", "footer.html")),
-  scripts: read(path.join(SRC, "partials", "scripts.html")),
-  // Abas compartilhadas da documentação do WebGIS (idênticas nas duas páginas).
-  "webgis-doc-features": read(path.join(SRC, "partials", "webgis-doc-features.html")),
-  "webgis-doc-wrf": read(path.join(SRC, "partials", "webgis-doc-wrf.html")),
-};
-
-function navItems(active) {
-  return NAV.map((n) => {
-    const on = n.key === active;
-    const cls = "btn btn-outline-lab" + (on ? " active" : "");
-    const aria = on ? ' aria-current="page"' : "";
-    return `            <li class="nav-item me-2"><a class="${cls}" href="${n.href}" id="${n.id}"${aria}>${n.label}</a></li>`;
-  }).join("\n");
-}
-
-function footerNav() {
-  return NAV.map((n) => `            <a href="${n.href}"><i class="fas ${n.ficon} me-1"></i> ${n.label}</a>`).join(
-    "\n"
-  );
-}
-
-function expandPartials(layout) {
-  let out = layout;
-  for (const name of Object.keys(partials)) {
-    out = sub(out, `{{> ${name}}}`, partials[name]);
-  }
-  return out;
-}
-
-// --- Cache-busting por hash de conteúdo ---------------------------------------
-// CSS/JS próprios (assets/css/, assets/js/ — vendor fica de fora, já versionado
-// por release) recebem ?v=<hash md5 curto do conteúdo>. O .htaccess serve
-// URLs versionadas com cache longo; qualquer edição no arquivo muda o token
-// em todas as páginas no próximo build. Os Web Workers não passam por aqui:
-// são carregados pelo map-manager.js com o hash da meta labmim-asset-hashes
-// (workerHashes abaixo).
-// O bootstrap.purged.min.css TAMBÉM entra no hash: apesar de morar em vendor/,
-// seu conteúdo é função do HTML/JS do site (PurgeCSS) — um token fixo de
-// release deixaria visitantes recorrentes com o CSS antigo após um re-purge.
-const HASHED_VENDOR_ASSETS = new Set(["assets/vendor/bootstrap/bootstrap.purged.min.css"]);
-const assetHashCache = new Map();
-function assetHash(relPath) {
-  if (!assetHashCache.has(relPath)) {
-    const content = fs.readFileSync(path.join(SITE, relPath));
-    assetHashCache.set(relPath, crypto.createHash("md5").update(content).digest("hex").slice(0, 8));
-  }
-  return assetHashCache.get(relPath);
-}
-
-// Os Web Workers não aparecem em href/src no HTML (são carregados pelo
-// map-manager.js), então recebem seus hashes via meta labmim-asset-hashes —
-// editar um worker passa a invalidar o cache sem bump manual de constante.
-function workerHashes() {
-  const workersDir = path.join(SITE, "assets", "js", "workers");
-  if (!fs.existsSync(workersDir)) return "";
-  return fs
-    .readdirSync(workersDir)
-    .filter((name) => name.endsWith(".js"))
-    .sort()
-    .map((name) => `${name}:${assetHash(path.posix.join("assets/js/workers", name))}`)
-    .join(";");
-}
-
-function stampAssetVersions(html) {
-  return html.replace(
-    /(href|src)="(assets\/[^"?]+)(\?v=[^"]*)?"/g,
-    (match, attrName, relPath) => {
-      const firstParty = /^assets\/(?:css|js)\//.test(relPath);
-      if (!firstParty && !HASHED_VENDOR_ASSETS.has(relPath)) return match;
-      return `${attrName}="${relPath}?v=${assetHash(relPath)}"`;
+function readOption(argv, names, allowedValues) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    for (const name of names) {
+      if (argument === name) {
+        const value = argv[index + 1];
+        if (!value || value.startsWith("--")) {
+          throw new Error(`${name} requires a value (${allowedValues.join(" or ")})`);
+        }
+        return value;
+      }
+      if (argument.startsWith(`${name}=`)) {
+        const value = argument.slice(name.length + 1);
+        if (!value) throw new Error(`${name} requires a value (${allowedValues.join(" or ")})`);
+        return value;
+      }
     }
+  }
+  return undefined;
+}
+
+function yearFromGit() {
+  try {
+    const stamp = execSync("git log -1 --format=%cs", {
+      cwd: ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return /^\d{4}/.test(stamp) ? stamp.slice(0, 4) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function yearFromGeneratedOutput() {
+  try {
+    const html = fs.readFileSync(path.join(OUTPUT_DIR, "index.html"), "utf8");
+    const match = html.match(/&copy;\s*(\d{4})/);
+    return match ? match[1] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Copyright year stamped into the generated pages.
+ *
+ * Resolved from repository content only, never from the wall clock: an
+ * explicit BUILD_YEAR wins, then the date of the checked out commit, then the
+ * year already present in the committed site/index.html (tarballs without
+ * .git). Guessing `new Date().getFullYear()` used to make the same source tree
+ * render differently depending on when it was built, which is exactly what the
+ * generated-output drift check exists to catch.
+ */
+function buildYear() {
+  const override = (process.env.BUILD_YEAR ?? "").trim();
+  if (override) {
+    if (!/^\d{4}$/.test(override)) {
+      throw new Error(`BUILD_YEAR must be a four-digit year (received ${JSON.stringify(process.env.BUILD_YEAR)})`);
+    }
+    return override;
+  }
+  const year = yearFromGit() ?? yearFromGeneratedOutput();
+  if (year) return year;
+  throw new Error(
+    "could not resolve the copyright year: this is not a git checkout and site/index.html carries no © year.\n" +
+      "Set BUILD_YEAR=<year> to build from a source tarball."
   );
 }
 
-function buildPage(page) {
-  const layout = read(path.join(SRC, "layouts", `${page.layout}.html`));
-  // Páginas também podem usar {{> partial}} (ex.: abas compartilhadas do WebGIS).
-  const content = expandPartials(read(path.join(SRC, "pages", page.file))).replace(/\n$/, "");
+function main() {
+  const publications = discoverPublications(ROOT);
+  const publicationIds = publications.map((publication) => publication.id);
 
-  let html = expandPartials(layout);
-  html = sub(html, "{{NAV_ITEMS}}", navItems(page.active || ""));
-  html = sub(html, "{{FOOTER_NAV}}", footerNav());
-  html = sub(html, "{{YEAR}}", YEAR);
-  html = sub(html, "{{WORKER_HASHES}}", workerHashes());
-  html = sub(html, "{{seoHead}}", seoHead(page));
-  html = sub(html, "{{title}}", attr(page.title));
-  html = sub(html, "{{description}}", attr(page.description));
-  html = sub(html, "{{bodyAttrs}}", page.bodyAttrs || "");
-  if (page.kicker !== undefined) html = sub(html, "{{kicker}}", page.kicker);
-  if (page.docModalTitle !== undefined) html = sub(html, "{{docModalTitle}}", page.docModalTitle);
-  html = sub(html, "{{content}}", content);
-  html = sub(html, "{{h1}}", attr(page.h1 || page.title)); // resolved after content so it works in either
+  if (process.argv.includes("--list-sites")) {
+    for (const publication of publications) {
+      console.log(`${publication.id}${publication.isDefault ? " (default)" : ""}`);
+    }
+    return;
+  }
 
-  const leftover = html.match(/\{\{[^}]+\}\}/g);
-  if (leftover) throw new Error(`${page.file}: unresolved tokens ${leftover.join(", ")}`);
+  const cliSite = readOption(process.argv.slice(2), ["--site", "--variant"], publicationIds);
+  const requestedId = cliSite ?? process.env.SITE_ID ?? process.env.SITE_VARIANT;
+  const publication = requestedId ? selectPublication(publications, requestedId) : defaultPublication(publications);
 
-  html = stampAssetVersions(html);
+  // Publish every publication's own assets before validating: a publication keeps
+  // its logos inside its module, and validatePublication resolves brand.logos and
+  // brand.ogImage against the output directory they land in.
+  const assetSources = writePublicationAssets(publications, OUTPUT_DIR);
 
-  fs.writeFileSync(path.join(SITE, page.file), html);
-  return page.file;
+  const validation = validatePublication({
+    root: ROOT,
+    templateRoot: TEMPLATE_ROOT,
+    siteDir: OUTPUT_DIR,
+    publication,
+  });
+  const result = renderPublication({
+    root: ROOT,
+    outputDir: OUTPUT_DIR,
+    publication,
+    validation,
+    year: buildYear(),
+  });
+
+  console.log(
+    `build.js: site=${publication.id}; wrote ${result.pagesWritten.length} pages -> ${result.pagesWritten.join(", ")}`
+  );
+  console.log(`build.js: wrote static files -> ${result.staticWritten.join(", ")}`);
+  console.log(`build.js: wrote publication theme -> ${result.themeWritten}`);
+  console.log(`build.js: published ${assetSources.size} publication assets under assets/`);
 }
 
-const written = PAGES.map(buildPage);
-console.log(`build.js: wrote ${written.length} pages -> ${written.join(", ")}`);
-console.log("Run prettier on site/*.html to format (npm run build does this).");
+try {
+  main();
+} catch (error) {
+  if (!isExpectedFailure(error)) throw error;
+  console.error(`✗ build.js: ${error.message}`);
+  process.exit(1);
+}

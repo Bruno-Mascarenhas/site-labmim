@@ -1,0 +1,229 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1000" width="1680" height="1000" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="aBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2557a7"/>
+    </marker>
+    <marker id="aGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2e7d4f"/>
+    </marker>
+    <marker id="aPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b4fa0"/>
+    </marker>
+    <marker id="aGray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a7a8c"/>
+    </marker>
+  </defs>
+
+  <style>
+    .t   { font-size: 34px; font-weight: 800; fill: #16233d; }
+    .st  { font-size: 19px; font-style: italic; fill: #59617a; }
+    .h   { font-size: 19px; font-weight: 700; }
+    .h2  { font-size: 16px; font-weight: 700; }
+    .b   { font-size: 14.5px; fill: #333a4d; }
+    .bs  { font-size: 13px; fill: #4a5164; }
+    .mono{ font-family: "JetBrains Mono", Consolas, monospace; font-size: 13.5px; }
+    .lbl { font-size: 13px; font-weight: 600; fill: #59617a; }
+    .warn{ font-size: 13px; font-weight: 600; fill: #c0392b; }
+    .blueBox  { fill: #f5f8fe; stroke: #2557a7; stroke-width: 2; }
+    .greenBox { fill: #f3faf5; stroke: #2e7d4f; stroke-width: 2; }
+    .purpBox  { fill: #f8f5fd; stroke: #6b4fa0; stroke-width: 2; }
+    .orangeBox{ fill: #fdf6f0; stroke: #d2691e; stroke-width: 2; }
+    .innerB   { fill: #ffffff; stroke: #c3d3ec; stroke-width: 1.2; }
+    .innerG   { fill: #ffffff; stroke: #bfdcc9; stroke-width: 1.2; }
+    .innerP   { fill: #ffffff; stroke: #d6c9ea; stroke-width: 1.2; }
+    .footB    { fill: #f7f9fc; stroke: #35507d; stroke-width: 2; }
+    .hBlue { fill: #1a4b8c; } .hGreen { fill: #206040; }
+    .hPurp { fill: #543a86; } .hOrange { fill: #b5541a; }
+  </style>
+
+  <rect width="1680" height="1000" fill="#ffffff"/>
+
+  <text class="t" x="840" y="46" text-anchor="middle">Arquitetura do site-labmim — da fonte ao navegador</text>
+  <text class="st" x="840" y="78" text-anchor="middle">Site estático gerado em build + dados e figuras produzidos por um pipeline externo</text>
+
+  <!-- ============ RAIA AZUL: CÓDIGO DO SITE ============ -->
+  <text class="lbl" x="40" y="112">RAIA 1 · CÓDIGO DO SITE  (repositório site-labmim)</text>
+
+  <rect class="blueBox" x="34" y="124" width="252" height="196" rx="12"/>
+  <text class="h hBlue" x="160" y="152" text-anchor="middle">Fontes editáveis</text>
+  <text class="mono" x="52" y="180" fill="#1a4b8c">src/pages/</text>
+  <text class="bs" x="52" y="198">conteúdo único de cada página</text>
+  <text class="mono" x="52" y="224" fill="#1a4b8c">src/layouts/</text>
+  <text class="bs" x="52" y="242">institutional · webgis</text>
+  <text class="mono" x="52" y="268" fill="#1a4b8c">src/partials/</text>
+  <text class="bs" x="52" y="286">head · nav · footer · scripts</text>
+  <text class="warn" x="52" y="308">edite AQUI, nunca em site/*.html</text>
+
+  <rect class="blueBox" x="330" y="124" width="248" height="196" rx="12"/>
+  <text class="h hBlue" x="454" y="152" text-anchor="middle">build.js</text>
+  <text class="bs" x="454" y="171" text-anchor="middle">gerador estático · só stdlib do Node</text>
+  <rect class="innerB" x="346" y="184" width="216" height="52" rx="8"/>
+  <text class="mono" x="358" y="204" fill="#1a4b8c">PAGES[]</text>
+  <text class="bs" x="358" y="223">registra as 6 páginas e o SEO</text>
+  <rect class="innerB" x="346" y="244" width="216" height="52" rx="8"/>
+  <text class="mono" x="358" y="264" fill="#1a4b8c">NAV[]</text>
+  <text class="bs" x="358" y="283">gera navbar E rodapé</text>
+  <text class="bs" x="454" y="313" text-anchor="middle">token não resolvido = build quebrado</text>
+
+  <rect class="blueBox" x="622" y="124" width="238" height="196" rx="12"/>
+  <text class="h hBlue" x="741" y="152" text-anchor="middle">site/*.html</text>
+  <text class="bs" x="741" y="171" text-anchor="middle">gerado E commitado</text>
+  <text class="b" x="640" y="199">• 6 páginas + 404.html à mão</text>
+  <text class="b" x="640" y="223">• canonical, OG, Twitter card</text>
+  <text class="b" x="640" y="247">• assets com <tspan class="mono" fill="#1a4b8c">?v=&lt;md5-8&gt;</tspan></text>
+  <text class="b" x="640" y="271">• CSS/JS/vendor locais</text>
+  <text class="warn" x="640" y="303">build:check falha se estiver</text>
+  <text class="warn" x="640" y="319">desatualizado no CI</text>
+
+  <!-- ============ RAIA VERDE: PIPELINE ============ -->
+  <text class="lbl" x="40" y="386">RAIA 2 · DADOS E FIGURAS  (repositório irmão micrometeorology)</text>
+
+  <rect class="greenBox" x="34" y="398" width="252" height="232" rx="12"/>
+  <text class="h hGreen" x="160" y="426" text-anchor="middle">Fontes científicas</text>
+  <rect class="innerG" x="50" y="440" width="220" height="76" rx="8"/>
+  <text class="h2 hGreen" x="62" y="462">Saídas do modelo WRF</text>
+  <text class="mono" x="62" y="482" fill="#206040">wrfout_d0X_*</text>
+  <text class="bs" x="62" y="503">4 domínios: D01 · D02 · D03 · D04</text>
+  <rect class="innerG" x="50" y="526" width="220" height="86" rx="8"/>
+  <text class="h2 hGreen" x="62" y="548">Estação micrometeorológica</text>
+  <text class="bs" x="62" y="568">CSV horário do datalogger</text>
+  <text class="mono" x="62" y="590" fill="#206040">AirT1_C_Avg · RH1 · WS_ms</text>
+  <text class="bs" x="62" y="607">colunas mapeadas por imagem</text>
+
+  <rect class="greenBox" x="330" y="398" width="248" height="232" rx="12"/>
+  <text class="h hGreen" x="454" y="426" text-anchor="middle">CLIs do pipeline</text>
+  <rect class="innerG" x="346" y="440" width="216" height="76" rx="8"/>
+  <text class="mono" x="358" y="462" fill="#206040">labmim-wrf-geojson</text>
+  <text class="bs" x="358" y="482">grades, valores por passo,</text>
+  <text class="bs" x="358" y="500">manifest, series.bin, summary</text>
+  <rect class="innerG" x="346" y="526" width="216" height="86" rx="8"/>
+  <text class="mono" x="358" y="548" fill="#206040">labmim-site-graphs</text>
+  <text class="bs" x="358" y="568">9 PNGs de nome fixo</text>
+  <text class="mono" x="358" y="589" fill="#206040">GRAPH_SPECS</text>
+  <text class="bs" x="358" y="607">ordenado como os cards da página</text>
+
+  <rect class="greenBox" x="622" y="398" width="238" height="232" rx="12"/>
+  <text class="h hGreen" x="741" y="426" text-anchor="middle">Artefatos publicados</text>
+  <text class="mono" x="638" y="452" fill="#206040">JSON/manifest.json</text>
+  <text class="bs" x="638" y="469">versão · timeline · availability</text>
+  <text class="mono" x="638" y="493" fill="#206040">JSON/{D}_{VAR}_{NNN}.json</text>
+  <text class="mono" x="638" y="516" fill="#206040">GeoJSON/{D}.grid.json</text>
+  <text class="bs" x="638" y="533">~2 KB · fallback: .geojson</text>
+  <text class="mono" x="638" y="557" fill="#206040">{D}_{VAR}.series.bin</text>
+  <text class="bs" x="638" y="574">célula via HTTP Range ~300 B</text>
+  <text class="mono" x="638" y="598" fill="#206040">assets/graphs/*.png</text>
+  <text class="bs" x="638" y="615">servidos com no-cache</text>
+
+  <!-- ============ CENTRO ROXO: RUNTIME ============ -->
+  <rect class="purpBox" x="900" y="150" width="286" height="480" rx="14"/>
+  <text class="h hPurp" x="1043" y="180" text-anchor="middle">Runtime no navegador</text>
+  <text class="bs" x="1043" y="200" text-anchor="middle">apenas nas páginas WebGIS</text>
+
+  <rect class="innerP" x="916" y="214" width="254" height="70" rx="8"/>
+  <text class="mono" x="928" y="236" fill="#543a86">map-init.js</text>
+  <text class="bs" x="928" y="255">bootstrap no DOMContentLoaded</text>
+  <text class="bs" x="928" y="273">busca o manifest com corrida de 3 s</text>
+
+  <rect class="innerP" x="916" y="296" width="122" height="92" rx="8"/>
+  <text class="h2 hPurp" x="977" y="318" text-anchor="middle">MeteoMap</text>
+  <text class="h2 hPurp" x="977" y="336" text-anchor="middle">Manager</text>
+  <text class="bs" x="977" y="356" text-anchor="middle">grade, timeline,</text>
+  <text class="bs" x="977" y="372" text-anchor="middle">vento, sidebar</text>
+
+  <rect class="innerP" x="1048" y="296" width="122" height="92" rx="8"/>
+  <text class="h2 hPurp" x="1109" y="318" text-anchor="middle">Charts</text>
+  <text class="h2 hPurp" x="1109" y="336" text-anchor="middle">Manager</text>
+  <text class="bs" x="1109" y="356" text-anchor="middle">séries, resumo,</text>
+  <text class="bs" x="1109" y="372" text-anchor="middle">modal, CSV</text>
+
+  <rect class="innerP" x="916" y="400" width="254" height="74" rx="8"/>
+  <text class="mono" x="928" y="422" fill="#543a86">LabmimDataService</text>
+  <text class="bs" x="928" y="441">cache LRU · dedup em voo</text>
+  <text class="bs" x="928" y="459">cache negativo · parse em Worker</text>
+
+  <rect class="innerP" x="916" y="486" width="254" height="62" rx="8"/>
+  <text class="mono" x="928" y="508" fill="#543a86">VARIABLES_CONFIG</text>
+  <text class="bs" x="928" y="527">14 variáveis: id, unidade, paleta,</text>
+  <text class="bs" x="928" y="543">escala e specificInfo</text>
+
+  <text class="bs" x="1043" y="574" text-anchor="middle">Leaflet 1.9.4 em Canvas · Chart.js 3.9.1</text>
+  <text class="bs" x="1043" y="594" text-anchor="middle">Bootstrap 5.3.8 purgado · tudo vendorizado</text>
+  <text class="warn" x="1043" y="618" text-anchor="middle">sem framework · sem bundler · sem backend</text>
+
+  <!-- ============ DIREITA LARANJA: SAÍDAS ============ -->
+  <rect class="orangeBox" x="1230" y="150" width="418" height="106" rx="12"/>
+  <text class="h hOrange" x="1439" y="178" text-anchor="middle">WebGIS de Previsões</text>
+  <text class="mono" x="1248" y="202" fill="#b5541a">mapas_interativos.html</text>
+  <text class="b" x="1248" y="224">11 variáveis meteorológicas e radiativas</text>
+  <text class="bs" x="1248" y="244">grade WRF animada · série temporal por célula</text>
+
+  <rect class="orangeBox" x="1230" y="272" width="418" height="106" rx="12"/>
+  <text class="h hOrange" x="1439" y="300" text-anchor="middle">Potenciais Energéticos</text>
+  <text class="mono" x="1248" y="324" fill="#b5541a">potenciais_energeticos.html</text>
+  <text class="b" x="1248" y="346">fotovoltaico · eólico · densidade eólica</text>
+  <text class="bs" x="1248" y="366">parâmetros do modelo editáveis na sidebar</text>
+
+  <rect class="orangeBox" x="1230" y="394" width="418" height="120" rx="12"/>
+  <text class="h hOrange" x="1439" y="422" text-anchor="middle">Monitoramento Ambiental</text>
+  <text class="mono" x="1248" y="446" fill="#b5541a">monitoring.html</text>
+  <text class="b" x="1248" y="466">9 PNGs em cards + modal Bootstrap</text>
+  <text class="bs" x="1248" y="486" fill="#206040">◀ imagens vindas de labmim-site-graphs</text>
+  <text class="warn" x="1248" y="504">nenhum JavaScript de gráfico nesta página</text>
+
+  <rect class="orangeBox" x="1230" y="528" width="418" height="102" rx="12"/>
+  <text class="h hOrange" x="1439" y="556" text-anchor="middle">Páginas institucionais</text>
+  <text class="mono" x="1248" y="580" fill="#b5541a">index · team · climatologia</text>
+  <text class="b" x="1248" y="600">layout institutional compartilhado</text>
+  <text class="bs" x="1248" y="620">dark mode persistente em localStorage</text>
+
+  <!-- ============ SETAS ============ -->
+  <!-- raia azul: fontes -> build -> html -> runtime -->
+  <path d="M 290 222 L 326 222" stroke="#2557a7" stroke-width="2.4" fill="none" marker-end="url(#aBlue)"/>
+  <path d="M 582 222 L 618 222" stroke="#2557a7" stroke-width="2.4" fill="none" marker-end="url(#aBlue)"/>
+  <path d="M 864 240 L 894 246" stroke="#2557a7" stroke-width="2.4" fill="none" marker-end="url(#aBlue)"/>
+
+  <!-- azul tracejado: HTML puro chega nas paginas sem runtime (corredor livre em x=876, y=652) -->
+  <path d="M 864 300 L 876 300 L 876 652 L 1330 652 L 1330 636"
+        stroke="#2557a7" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#aBlue)"/>
+  <text class="bs" x="1046" y="644" text-anchor="middle" fill="#2557a7">páginas sem runtime: HTML puro + Bootstrap</text>
+
+  <!-- raia verde: fontes -> CLIs -> artefatos -> runtime -->
+  <path d="M 290 514 L 326 514" stroke="#2e7d4f" stroke-width="2.4" fill="none" marker-end="url(#aGreen)"/>
+  <path d="M 582 514 L 618 514" stroke="#2e7d4f" stroke-width="2.4" fill="none" marker-end="url(#aGreen)"/>
+  <path d="M 864 462 L 894 442" stroke="#2e7d4f" stroke-width="2.4" fill="none" marker-end="url(#aGreen)"/>
+
+  <!-- roxo: runtime -> paginas WebGIS -->
+  <path d="M 1190 208 L 1226 200" stroke="#6b4fa0" stroke-width="2.4" fill="none" marker-end="url(#aPurple)"/>
+  <path d="M 1190 318 L 1226 322" stroke="#6b4fa0" stroke-width="2.4" fill="none" marker-end="url(#aPurple)"/>
+
+  <!-- legenda das setas, no topo à direita -->
+  <g>
+    <line x1="1232" y1="107" x2="1262" y2="107" stroke="#2557a7" stroke-width="2.4"/>
+    <text class="bs" x="1270" y="111">HTML gerado</text>
+    <line x1="1372" y1="107" x2="1402" y2="107" stroke="#2e7d4f" stroke-width="2.4"/>
+    <text class="bs" x="1410" y="111">dados do pipeline</text>
+    <line x1="1540" y1="107" x2="1570" y2="107" stroke="#6b4fa0" stroke-width="2.4"/>
+    <text class="bs" x="1578" y="111">runtime</text>
+  </g>
+
+  <!-- ============ RODAPÉ ============ -->
+  <rect class="footB" x="34" y="700" width="826" height="130" rx="12"/>
+  <text class="h" x="447" y="729" text-anchor="middle" fill="#35507d">Contratos que não se quebram sem versionar um formato novo</text>
+  <text class="mono" x="56" y="760" fill="#35507d">labmim-data-manifest-v2</text>
+  <text class="mono" x="290" y="760" fill="#35507d">grid-edges-v1</text>
+  <text class="mono" x="450" y="760" fill="#35507d">domain-summary-v1</text>
+  <text class="mono" x="672" y="760" fill="#35507d">D01–D04</text>
+  <text class="mono" x="56" y="786" fill="#35507d">cell-series-int32-le-v1</text>
+  <text class="mono" x="290" y="786" fill="#35507d">GRAPH_SPECS</text>
+  <text class="mono" x="450" y="786" fill="#35507d">DEFAULT_COLUMNS</text>
+  <text class="mono" x="672" y="786" fill="#35507d">timeZone UTC</text>
+  <text class="bs" x="56" y="814">Site e dados são publicados desacoplados — por isso todo formato tem fallback no cliente.</text>
+
+  <rect class="footB" x="900" y="700" width="748" height="130" rx="12"/>
+  <text class="h" x="1274" y="729" text-anchor="middle" fill="#35507d">Rede de segurança: não há testes automatizados</text>
+  <text class="b" x="922" y="760">✓ <tspan class="mono" fill="#35507d">build:check</tspan> · <tspan class="mono" fill="#35507d">lint:icons</tspan> · <tspan class="mono" fill="#35507d">lint:purge</tspan> · <tspan class="mono" fill="#35507d">format:check</tspan></text>
+  <text class="b" x="922" y="786">✓ <tspan class="mono" fill="#35507d">lint:js</tspan> · <tspan class="mono" fill="#35507d">lint:css</tspan> · <tspan class="mono" fill="#35507d">lint:html</tspan> · <tspan class="mono" fill="#35507d">lint:links</tspan> · <tspan class="mono" fill="#35507d">audit</tspan></text>
+  <text class="warn" x="922" y="814">Deploy é manual via FTP — o CI valida, não publica. Suba o site junto com o .htaccess.</text>
+
+  <text class="bs" x="840" y="872" text-anchor="middle" fill="#7a7a8c">Fontes: build.js · map-init.js · data-service.js · charts-manager.js · variables-config.js · Architecture.md · README.md · micrometeorology/cli/</text>
+</svg>

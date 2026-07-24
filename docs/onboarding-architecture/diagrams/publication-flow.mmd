@@ -1,0 +1,9 @@
+%% Fluxo operacional para cadastrar uma publicação sem alterar o builder.
+flowchart LR
+  DIR["src/sites/novo-id<br/>identity · pages · theme"] --> COMPOSE["site.js<br/>compõe os módulos"]
+  TERR["territory existente<br/>ou novo estado + contorno"] --> COMPOSE
+  DATA["dataset existente<br/>ou novo produto WRF"] --> COMPOSE
+  COMPOSE --> DISC["sites:list<br/>descoberta automática"]
+  DISC --> BUILD["build -- --site=novo-id"]
+  BUILD --> CHECK["build:check<br/>todas as publicações"]
+  CHECK --> BUNDLE["build:all<br/>dist/novo-id"]

@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1000" width="1680" height="1000" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="mGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2e7d4f"/>
+    </marker>
+    <marker id="mBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2557a7"/>
+    </marker>
+    <marker id="mPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b4fa0"/>
+    </marker>
+    <marker id="mOrange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d2691e"/>
+    </marker>
+  </defs>
+
+  <style>
+    .t    { font-size: 33px; font-weight: 800; fill: #16233d; }
+    .st   { font-size: 18px; font-style: italic; fill: #59617a; }
+    .h    { font-size: 18px; font-weight: 700; }
+    .h2   { font-size: 15px; font-weight: 700; }
+    .b    { font-size: 14px; fill: #333a4d; }
+    .bs   { font-size: 12.5px; fill: #4a5164; }
+    .mono { font-family: "JetBrains Mono", Consolas, monospace; font-size: 13px; }
+    .monos{ font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; }
+    .lbl  { font-size: 13px; font-weight: 700; fill: #59617a; letter-spacing: .3px; }
+    .warn { font-size: 12.5px; font-weight: 600; fill: #c0392b; }
+    .star { font-size: 12.5px; font-weight: 700; fill: #b5541a; }
+    .greenBox { fill: #f3faf5; stroke: #2e7d4f; stroke-width: 2; }
+    .blueBox  { fill: #f5f8fe; stroke: #2557a7; stroke-width: 2; }
+    .purpBox  { fill: #f8f5fd; stroke: #6b4fa0; stroke-width: 2; }
+    .orangeBox{ fill: #fdf6f0; stroke: #d2691e; stroke-width: 2; }
+    .innerG   { fill: #ffffff; stroke: #bfdcc9; stroke-width: 1.2; }
+    .innerB   { fill: #ffffff; stroke: #c3d3ec; stroke-width: 1.2; }
+    .innerBhi { fill: #eef4fe; stroke: #2557a7; stroke-width: 1.8; }
+    .innerP   { fill: #ffffff; stroke: #d6c9ea; stroke-width: 1.2; }
+    .innerO   { fill: #ffffff; stroke: #eccbb0; stroke-width: 1.2; }
+    .commonB  { fill: #eaf0fb; stroke: #9db6dd; stroke-width: 1.4; }
+    .hGreen { fill: #206040; } .hBlue { fill: #1a4b8c; }
+    .hPurp { fill: #543a86; } .hOrange { fill: #b5541a; }
+  </style>
+
+  <rect width="1680" height="1000" fill="#ffffff"/>
+
+  <text class="t" x="840" y="46" text-anchor="middle">Pacote micrometeorology — do modelo ao artefato publicado</text>
+  <text class="st" x="840" y="77" text-anchor="middle">As camadas do pacote Python e as CLIs que produzem os dados e figuras do site</text>
+
+  <!-- =================== ENTRADAS (verde) =================== -->
+  <text class="lbl" x="40" y="120">ENTRADAS CIENTÍFICAS</text>
+
+  <rect class="greenBox" x="34" y="132" width="246" height="150" rx="12"/>
+  <text class="h hGreen" x="157" y="160" text-anchor="middle">Modelo WRF</text>
+  <rect class="innerG" x="50" y="174" width="214" height="42" rx="7"/>
+  <text class="mono" x="62" y="200" fill="#206040">wrfout_d0X_*</text>
+  <text class="bs" x="50" y="238">NetCDF por domínio aninhado</text>
+  <text class="mono" x="50" y="260" fill="#206040">D01 · D02 · D03 · D04</text>
+  <text class="bs" x="50" y="278">campos 2-D/3-D por passo de tempo</text>
+
+  <rect class="greenBox" x="34" y="300" width="246" height="150" rx="12"/>
+  <text class="h hGreen" x="157" y="328" text-anchor="middle">Estação micromet.</text>
+  <rect class="innerG" x="50" y="342" width="214" height="42" rx="7"/>
+  <text class="mono" x="62" y="368" fill="#206040">datalogger CSV</text>
+  <text class="bs" x="50" y="406">séries horárias de sensores</text>
+  <text class="mono" x="50" y="428" fill="#206040">AirT1 · RH1 · WS_ms · SR01</text>
+  <text class="bs" x="50" y="446">colunas mapeadas na ingestão</text>
+
+  <!-- =================== PACOTE (azul) =================== -->
+  <text class="lbl" x="316" y="120">PACOTE PYTHON  ·  src/micrometeorology/</text>
+
+  <rect class="blueBox" x="310" y="132" width="606" height="638" rx="14"/>
+
+  <!-- wrf/ (destaque) -->
+  <rect class="innerBhi" x="326" y="150" width="574" height="196" rx="10"/>
+  <text class="h hBlue" x="340" y="176">wrf/ — processamento espacial do WRF</text>
+  <text class="star" x="884" y="176" text-anchor="end">★ onde vivem as variáveis</text>
+  <rect class="innerB" x="340" y="188" width="128" height="66" rx="7"/>
+  <text class="monos" x="352" y="209" fill="#1a4b8c">reader.py</text>
+  <text class="bs" x="352" y="227">abre o NetCDF,</text>
+  <text class="bs" x="352" y="243">get_variable</text>
+  <rect class="innerB" x="476" y="188" width="128" height="66" rx="7"/>
+  <text class="monos" x="488" y="209" fill="#b5541a">variables.py</text>
+  <text class="bs" x="488" y="227">extractors +</text>
+  <text class="bs" x="488" y="243">conversões</text>
+  <rect class="innerB" x="612" y="188" width="128" height="66" rx="7"/>
+  <text class="monos" x="624" y="209" fill="#b5541a">jobs.py</text>
+  <text class="bs" x="624" y="227">work-units,</text>
+  <text class="bs" x="624" y="243">dispatch/escala</text>
+  <rect class="innerB" x="748" y="188" width="136" height="66" rx="7"/>
+  <text class="monos" x="760" y="209" fill="#1a4b8c">geojson.py</text>
+  <text class="bs" x="760" y="227">grades + valores</text>
+  <text class="bs" x="760" y="243">por passo</text>
+  <text class="bs" x="340" y="278">interpolation · series · batch · plotting · animation · safety</text>
+  <text class="bs" x="340" y="300" fill="#7a7a8c">reads eager · pool de processos · renomeio atômico · byte-diff gates</text>
+  <text class="bs" x="340" y="326">Grava <tspan class="monos" fill="#1a4b8c">{D}_{VAR}_{NNN}.json</tspan> · <tspan class="monos" fill="#1a4b8c">.series.bin</tspan> · <tspan class="monos" fill="#1a4b8c">.summary.json</tspan> · <tspan class="monos" fill="#1a4b8c">manifest</tspan></text>
+
+  <!-- sensors/ -->
+  <rect class="innerB" x="326" y="360" width="278" height="150" rx="10"/>
+  <text class="h2 hBlue" x="340" y="384">sensors/ — dados da estação</text>
+  <text class="monos" x="340" y="408" fill="#1a4b8c">ingestion.py</text>
+  <text class="bs" x="450" y="408" fill="#4a5164">CSV → tabela limpa</text>
+  <text class="monos" x="340" y="430" fill="#1a4b8c">calibration.py</text>
+  <text class="bs" x="450" y="430" fill="#4a5164">correção por sensor</text>
+  <text class="monos" x="340" y="452" fill="#1a4b8c">wind.py</text>
+  <text class="bs" x="450" y="452" fill="#4a5164">vetores, rosa dos ventos</text>
+  <text class="monos" x="340" y="474" fill="#1a4b8c">aggregation.py</text>
+  <text class="bs" x="450" y="474" fill="#4a5164">médias horárias/diárias</text>
+  <text class="monos" x="340" y="496" fill="#1a4b8c">export.py</text>
+  <text class="bs" x="450" y="496" fill="#4a5164">saída para figuras</text>
+
+  <!-- stats/ -->
+  <rect class="innerB" x="622" y="360" width="278" height="150" rx="10"/>
+  <text class="h2 hBlue" x="636" y="384">stats/ — análise</text>
+  <text class="monos" x="636" y="408" fill="#1a4b8c">metrics.py</text>
+  <text class="bs" x="746" y="408" fill="#4a5164">RMSE, viés, MAE, r</text>
+  <text class="monos" x="636" y="430" fill="#1a4b8c">comparison.py</text>
+  <text class="bs" x="746" y="430" fill="#4a5164">WRF × observado</text>
+  <text class="monos" x="636" y="452" fill="#1a4b8c">climatology.py</text>
+  <text class="bs" x="746" y="452" fill="#4a5164">normais, ciclos</text>
+  <text class="monos" x="636" y="474" fill="#1a4b8c">radiation.py</text>
+  <text class="bs" x="746" y="474" fill="#4a5164">geometria solar, Erbs</text>
+
+  <!-- common/ (faixa transversal) -->
+  <rect class="commonB" x="326" y="524" width="574" height="66" rx="10"/>
+  <text class="h2 hBlue" x="340" y="548">common/ — transversal a tudo</text>
+  <text class="monos" x="340" y="572" fill="#1a4b8c">config</text>
+  <text class="bs" x="404" y="572" fill="#4a5164">YAML de ambiente ·</text>
+  <text class="monos" x="540" y="572" fill="#1a4b8c">types</text>
+  <text class="bs" x="592" y="572" fill="#4a5164">WRFVariable, NETCDF_MAP, GridLevel ·</text>
+  <text class="monos" x="340" y="590" fill="#1a4b8c">logging · paths</text>
+
+  <!-- cli/ -->
+  <rect class="innerB" x="326" y="604" width="574" height="150" rx="10"/>
+  <text class="h2 hBlue" x="340" y="628">cli/ — pontos de entrada (Typer)</text>
+  <text class="bs" x="340" y="650">Cada CLI é registrada em <tspan class="monos" fill="#1a4b8c">pyproject.toml</tspan> como um comando <tspan class="monos" fill="#1a4b8c">labmim-*</tspan>.</text>
+  <text class="bs" x="340" y="672">Orquestram as camadas acima: resolvem arquivos, montam</text>
+  <text class="bs" x="340" y="690">work-units, rodam em paralelo e escrevem a saída.</text>
+  <text class="star" x="340" y="720">★ Para os mapas: <tspan class="monos">export_wrf_geojson.py</tspan> → <tspan class="monos">labmim-wrf-geojson</tspan></text>
+  <text class="bs" x="340" y="740" fill="#7a7a8c">É a CLI que você habilita ao adicionar uma variável nova.</text>
+
+  <!-- =================== CLIs (roxo) =================== -->
+  <text class="lbl" x="952" y="120">7 CLIs  ·  comandos labmim-*</text>
+
+  <rect class="purpBox" x="946" y="132" width="342" height="298" rx="12"/>
+  <text class="h hPurp" x="1117" y="158" text-anchor="middle">Dados para o WebGIS</text>
+  <rect class="innerP" x="962" y="170" width="310" height="70" rx="8"/>
+  <text class="monos" x="974" y="191" fill="#543a86">labmim-wrf-geojson</text>
+  <text class="bs" x="974" y="210">grades, valores/passo, series.bin,</text>
+  <text class="bs" x="974" y="228">summary, manifest v2</text>
+  <text class="h hPurp" x="1117" y="270" text-anchor="middle">Figuras</text>
+  <rect class="innerP" x="962" y="282" width="310" height="58" rx="8"/>
+  <text class="monos" x="974" y="303" fill="#543a86">labmim-site-graphs</text>
+  <text class="bs" x="974" y="322">9 PNGs de nome fixo (cards do monitoring)</text>
+  <rect class="innerP" x="962" y="348" width="310" height="30" rx="8"/>
+  <text class="monos" x="974" y="368" fill="#543a86">labmim-wrf-figures · labmim-station-graphs</text>
+  <text class="bs" x="962" y="400">mapas renderizados, animações e gráficos</text>
+  <text class="bs" x="962" y="418">científicos da estação</text>
+
+  <rect class="purpBox" x="946" y="446" width="342" height="200" rx="12"/>
+  <text class="h hPurp" x="1117" y="472" text-anchor="middle">Sensores e análise</text>
+  <rect class="innerP" x="962" y="484" width="310" height="48" rx="8"/>
+  <text class="monos" x="974" y="505" fill="#543a86">labmim-sensor-process</text>
+  <text class="bs" x="974" y="523">ingestão + calibração do datalogger</text>
+  <rect class="innerP" x="962" y="540" width="310" height="48" rx="8"/>
+  <text class="monos" x="974" y="561" fill="#543a86">labmim-metrics · labmim-comparison</text>
+  <text class="bs" x="974" y="579">estatística e comparação WRF × observado</text>
+  <text class="bs" x="962" y="612">Alimentam relatórios e a validação científica,</text>
+  <text class="bs" x="962" y="630">não o WebGIS diretamente.</text>
+
+  <!-- =================== SAÍDAS (laranja) =================== -->
+  <text class="lbl" x="1326" y="120">CONSUMIDO POR site-labmim</text>
+
+  <rect class="orangeBox" x="1320" y="132" width="328" height="160" rx="12"/>
+  <text class="h hOrange" x="1484" y="158" text-anchor="middle">Dados do WebGIS</text>
+  <text class="monos" x="1336" y="182" fill="#b5541a">site/JSON/  ·  site/GeoJSON/</text>
+  <text class="bs" x="1336" y="204">servidos como arquivos estáticos</text>
+  <text class="bs" x="1336" y="226">e lidos pelo runtime do mapa:</text>
+  <text class="mono" x="1336" y="250" fill="#b5541a">mapas_interativos.html</text>
+  <text class="mono" x="1336" y="272" fill="#b5541a">potenciais_energeticos.html</text>
+
+  <rect class="orangeBox" x="1320" y="308" width="328" height="126" rx="12"/>
+  <text class="h hOrange" x="1484" y="334" text-anchor="middle">Figuras da estação</text>
+  <text class="monos" x="1336" y="358" fill="#b5541a">site/assets/graphs/*.png</text>
+  <text class="bs" x="1336" y="380">9 PNGs em cards + modal</text>
+  <text class="mono" x="1336" y="404" fill="#b5541a">monitoring.html</text>
+  <text class="bs" x="1336" y="424" fill="#7a7a8c">nenhum JS de gráfico nesta página</text>
+
+  <rect class="orangeBox" x="1320" y="450" width="328" height="196" rx="12"/>
+  <text class="h hOrange" x="1484" y="476" text-anchor="middle">Contrato entre os repos</text>
+  <text class="bs" x="1336" y="500">O site NÃO gera dados — associa a saída</text>
+  <text class="bs" x="1336" y="518">do pipeline no deploy. Cada formato tem</text>
+  <text class="bs" x="1336" y="536">fallback no cliente:</text>
+  <text class="monos" x="1336" y="560" fill="#b5541a">labmim-data-manifest-v2</text>
+  <text class="monos" x="1336" y="580" fill="#b5541a">grid-edges-v1</text>
+  <text class="monos" x="1336" y="600" fill="#b5541a">cell-series-int32-le-v1</text>
+  <text class="bs" x="1336" y="626" fill="#7a7a8c">versione um formato novo antes de quebrar.</text>
+
+  <!-- =================== SETAS =================== -->
+  <!-- entradas -> pacote -->
+  <path d="M 282 220 L 322 220" stroke="#2e7d4f" stroke-width="2.4" fill="none" marker-end="url(#mGreen)"/>
+  <path d="M 282 372 L 322 430" stroke="#2e7d4f" stroke-width="2.4" fill="none" marker-end="url(#mGreen)"/>
+  <!-- pacote -> clis -->
+  <path d="M 918 300 L 942 250" stroke="#2557a7" stroke-width="2.4" fill="none" marker-end="url(#mBlue)"/>
+  <path d="M 918 540 L 942 540" stroke="#2557a7" stroke-width="2.4" fill="none" marker-end="url(#mBlue)"/>
+  <!-- clis -> saidas -->
+  <path d="M 1290 210 L 1316 210" stroke="#6b4fa0" stroke-width="2.4" fill="none" marker-end="url(#mPurple)"/>
+  <path d="M 1290 320 L 1316 350" stroke="#6b4fa0" stroke-width="2.4" fill="none" marker-end="url(#mPurple)"/>
+
+  <!-- =================== RODAPÉ =================== -->
+  <rect class="blueBox" x="34" y="800" width="882" height="150" rx="12" fill="#f7f9fc" stroke="#35507d"/>
+  <text class="h" x="475" y="828" text-anchor="middle" fill="#35507d">Onde mexer para EXPANDIR as variáveis dos mapas</text>
+  <text class="b" x="56" y="858">1 · <tspan class="mono" fill="#35507d">wrf/variables.py</tspan> — o extractor (se a variável for derivada)</text>
+  <text class="b" x="56" y="882">2 · <tspan class="mono" fill="#35507d">common/types.py</tspan> — enum <tspan class="monos">WRFVariable</tspan> + <tspan class="monos">VARIABLE_NETCDF_MAP</tspan></text>
+  <text class="b" x="56" y="906">3 · <tspan class="mono" fill="#35507d">wrf/jobs.py</tspan> — o branch de dispatch por variável</text>
+  <text class="b" x="56" y="930">4 · <tspan class="mono" fill="#35507d">cli/export_wrf_geojson.py</tspan> — <tspan class="monos">DEFAULT_VARS</tspan></text>
+  <text class="bs" x="620" y="882" fill="#7a7a8c">Campo escalar cru</text>
+  <text class="bs" x="620" y="902" fill="#7a7a8c">precisa só do passo 4.</text>
+  <text class="bs" x="620" y="922" fill="#7a7a8c">Veja o poster ao lado ▶</text>
+
+  <rect class="orangeBox" x="946" y="800" width="702" height="150" rx="12"/>
+  <text class="h hOrange" x="1297" y="828" text-anchor="middle">Rodar o pipeline WRF de ponta a ponta</text>
+  <rect x="962" y="842" width="670" height="40" rx="7" fill="#f4f6fb" stroke="#eccbb0"/>
+  <text class="monos" x="974" y="867" fill="#b5541a">$ python -m micrometeorology.cli.run_wrf_pipeline  (ou os comandos labmim-* isolados)</text>
+  <text class="bs" x="962" y="906">Resolve os wrfout, exporta grades/valores, gera as figuras e o manifest.</text>
+  <text class="bs" x="962" y="928" fill="#7a7a8c">O site consome a pasta de saída; nada aqui depende do repositório do site.</text>
+
+  <text class="bs" x="840" y="984" text-anchor="middle" fill="#7a7a8c">Fontes: README.md · pyproject.toml [project.scripts] · src/micrometeorology/{common,wrf,sensors,stats,cli}/</text>
+</svg>

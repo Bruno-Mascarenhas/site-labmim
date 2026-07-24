@@ -1,0 +1,11 @@
+flowchart LR
+  META["meta site-config<br/>território · dataset · domínios"] --> INIT["map-init.js<br/>bootstrap"]
+  INIT["map-init.js<br/>bootstrap"] --> MM["MeteoMapManager<br/>map-manager.js"]
+  INIT --> CM["ChartsManager<br/>charts-manager.js"]
+  CM --> MM
+  MM --> DS["LabmimDataService<br/>data-service.js"]
+  CM -.->|"app._cachedFetch"| DS
+  MM --> VC["VARIABLES_CONFIG<br/>variables-config.js"]
+  CM --> VC
+  DS --> WJ["workers/<br/>json-parser.worker.js"]
+  MM --> WC["workers/<br/>color-calc.worker.js"]

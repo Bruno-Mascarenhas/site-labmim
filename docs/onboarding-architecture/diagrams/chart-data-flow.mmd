@@ -1,0 +1,13 @@
+%% Cuidado ao editar: labels com "?" junto de "=", ou losangos {...} contendo <br/>,
+%% quebram o render do Mermaid. Prefira texto simples.
+%% Use LR: num slide 16:9 um fluxo vertical fica pequeno demais para ser lido.
+flowchart LR
+  CONF["dataset.paths<br/>manifest · values · grids"] --> MAN["manifest.json<br/>features.cell_series"]
+  MAN --> LOAD
+  CLICK["clique na célula<br/>handleMapClick"] --> LOAD["ChartsManager<br/>loadTimeSeriesData"]
+  LOAD --> BIN["_loadCellSeriesFromBinary<br/>HTTP Range ~300 B"]
+  BIN -->|"null"| FALL["_collectHourlySeries<br/>fallback hora a hora"]
+  BIN --> PREP["_prepareChartData<br/>TRANSFORMAÇÃO"]
+  FALL --> PREP
+  PREP --> CFG["_buildChartConfig<br/>CONFIGURAÇÃO visual"]
+  CFG --> CANVAS["Chart.js 3.9.1<br/>canvas chartCanvasValue"]

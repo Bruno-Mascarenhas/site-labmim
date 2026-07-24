@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-publication="ufba" data-territory="ba">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,9 +7,6 @@
       name="description"
       content="LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
     />
-    <!-- Content hashes of the Web Workers (stamped by build.js): map-manager.js
-     builds worker URLs from these so worker edits cache-bust automatically. -->
-    <meta name="labmim-asset-hashes" content="color-calc.worker.js:2936a3e1;json-parser.worker.js:f8327a15" />
     <title>LabMiM — Mapas Interativos WRF · UFBA</title>
 
     <!-- SEO: canonical + Open Graph + Twitter (gerado por build.js a partir de PROD) -->
@@ -34,6 +31,7 @@
       content="LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
     />
     <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
@@ -57,23 +55,36 @@
       crossorigin
     />
     <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
+    <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4" />
 
-    <!-- LabMiM modular CSS -->
-    <link rel="stylesheet" href="assets/css/base.css?v=79a43496" />
-    <link rel="stylesheet" href="assets/css/layout.css?v=9d955cf4" />
-    <link rel="stylesheet" href="assets/css/components.css?v=99b3bc73" />
-    <link rel="stylesheet" href="assets/css/theme.css?v=5037cd63" />
+    <!-- CSS modular compartilhado pelas publicações -->
+    <link rel="stylesheet" href="assets/css/base.css?v=7733cbd6" />
+    <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
+    <link rel="stylesheet" href="assets/css/layout.css?v=46668898" />
+    <link rel="stylesheet" href="assets/css/components.css?v=1399937a" />
+    <link rel="stylesheet" href="assets/css/maps.css?v=c68f6fc9" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=f84fb23b" />
 
     <script src="assets/js/theme-boot.js?v=6fe47826"></script>
     <script src="assets/js/theme-toggle.js?v=5d8061cc" defer></script>
     <script src="assets/js/ui-shell.js?v=482aa431" defer></script>
 
-    <!-- Leaflet 1.9.4 (vendorizado localmente — sem CDN no caminho crítico; defer libera o primeiro paint) -->
-    <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4" />
-    <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
+    <!-- Configuração da publicação e do mapa; JSON em meta preserva a CSP sem
+         exigir script executável inline. Fica neste layout (e não no partial
+         head) porque o único consumidor é assets/js/map-manager.js, carregado
+         apenas aqui; as páginas institucionais não precisam desses bytes. -->
+    <meta
+      name="site-config"
+      content='{"publicationId":"ufba","brandName":"LabMiM","territory":{"id":"ba","code":"BA","name":"Bahia"},"data":{"manifestPath":"JSON/manifest.json","valuesBase":"JSON","gridsBase":"GeoJSON","timeline":{"defaultMaxLayer":73,"initialIndex":7,"stepHours":1,"label":"Horário local (UTC−03)"}},"map":{"initialCenter":[-12.97,-38.5],"initialZoom":6,"fitBounds":null,"fitMaxZoom":7,"stateCode":"BA","stateName":"Bahia","boundaryAsset":"assets/data/br_ba.json","attribution":"LabMiM-UFBA","defaultDomain":"D01","domains":{"D01":{"label":"BA/NE","center":[-12.97,-38.5],"zoom":5.5},"D02":{"label":"BA","center":[-12.97,-38.5],"zoom":7},"D03":{"label":"RMS","center":[-12.97,-38.5],"zoom":9},"D04":{"label":"SSA","center":[-12.97,-38.5],"zoom":12}}}}'
+    />
 
-    <!-- Maps-specific CSS (extracted from inline) -->
-    <link rel="stylesheet" href="assets/css/maps.css?v=f8bf2146" />
+    <!-- Content hashes dos Web Workers (carimbados por build.js): map-manager.js
+         monta as URLs dos workers a partir daqui, então editar um worker já
+         invalida o cache. Mesmo motivo do site-config para morar neste layout. -->
+    <meta name="labmim-asset-hashes" content="color-calc.worker.js:2936a3e1;json-parser.worker.js:f8327a15" />
+
+    <!-- Leaflet 1.9.4 vendorizado; o CSS entra pelo slot pageVendorStyles antes dos estilos próprios. -->
+    <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
 
     <!-- preconnect: os tiles são pedidos ~1s após a navegação, então a
          conexão aquecida (DNS + TCP + TLS) é sempre aproveitada; dns-prefetch
@@ -88,19 +99,16 @@
       <!-- Navigation -->
       <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
         <a class="navbar-brand ms-4" href="index.html">
-          <!-- Versão redimensionada (2x da altura de exibição de 40px) — o PNG
-         original de 1280x409 continua no repositório apenas como og:image. -->
-          <picture>
-            <source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
+          <picture
+            ><source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
             <img
               loading="eager"
               src="assets/img/logonova1-nav.png"
               alt="LabMiM Logo"
               width="250"
               height="80"
-              class="brand-logo"
-            />
-          </picture>
+              class="brand-logo site-brand-logo"
+          /></picture>
         </a>
         <button
           class="navbar-toggler"
@@ -143,19 +151,17 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
-            <picture>
-              <source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
+          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation me-3"
+            ><picture
+              ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
               <img
                 loading="lazy"
                 src="assets/img/logo_cienam-nav.png"
                 alt="CIEnAm"
                 width="230"
                 height="80"
-                class="brand-logo-sm"
-              />
-            </picture>
-          </a>
+                class="brand-logo-sm" /></picture
+          ></a>
         </div>
       </nav>
     </header>
@@ -169,20 +175,16 @@
       <div class="sidebar" id="sidebar">
         <div class="sidebar-logo-header">
           <a href="index.html" title="Voltar ao início">
-            <!-- O logo do sidebar renderiza a ~353x113 CSS px (maps.css
-             .sidebar-logo-header img), maior que o do navbar — usa uma
-             exportação própria de 720x230 (2x). -->
-            <picture>
-              <source srcset="assets/img/logonova1-sidebar.webp" type="image/webp" />
+            <picture
+              ><source srcset="assets/img/logonova1-sidebar.webp" type="image/webp" />
               <img
                 loading="lazy"
                 src="assets/img/logonova1-sidebar.png"
                 alt="LabMiM Logo"
                 width="720"
                 height="230"
-                class="brand-logo"
-              />
-            </picture>
+                class="brand-logo site-brand-logo"
+            /></picture>
           </a>
         </div>
         <div class="sidebar-header">
@@ -227,7 +229,7 @@
             <span class="slider-time" id="layerLabel">Carregando...</span>
             <i
               class="fas fa-question-circle slider-helper-icon"
-              title="Horários convertidos das saídas WRF para o horário local UTC−03:00."
+              title="Horários convertidos das saídas WRF para Horário local (UTC−03)."
             ></i>
           </div>
         </div>
@@ -389,7 +391,7 @@
           </div>
 
           <div class="documentation-body">
-            <!-- OVERVIEW TAB -->
+            <!-- OVERVIEW TAB — conteúdo compartilhado e parametrizado pelo dataset. -->
             <div
               class="doc-tab-content active"
               role="tabpanel"
@@ -410,7 +412,7 @@
                 Este mapa interativo apresenta dados de <strong>previsão numérica do tempo</strong> gerados pelo modelo
                 <strong>WRF (Weather Research and Forecasting)</strong>, permitindo visualizar variáveis meteorológicas
                 e potenciais energéticos em alta resolução espacial e temporal para a região da Bahia e entorno. Os
-                dados cobrem um horizonte de previsão de <strong>72 horas</strong> com resolução horária.
+                dados cobrem um horizonte de previsão de <strong>72 horas</strong>, com saídas horárias.
               </p>
               <h4>Interface Principal</h4>
               <ul class="doc-list">
@@ -425,7 +427,7 @@
               </ul>
             </div>
 
-            <!-- FEATURES TAB -->
+            <!-- FEATURES TAB — módulo compartilhado -->
             <div
               class="doc-tab-content"
               role="tabpanel"
@@ -449,7 +451,7 @@
               <ul class="doc-list">
                 <li><strong>Zoom:</strong> Role do mouse ou use os botões + e - no mapa</li>
                 <li><strong>Deslocamento:</strong> Arraste o mapa com o mouse</li>
-                <li><strong>Domínios:</strong> Use os botões BA/NE, BA, RMS e SSA para alternar entre os domínios</li>
+                <li><strong>Domínios:</strong> Use os botões BA/NE, BA, RMS ou SSA para alternar entre os domínios</li>
               </ul>
 
               <h4>💨 Vetores de Vento</h4>
@@ -469,7 +471,6 @@
                 <li>O painel lateral mostra localização (lat/lon), valor da variável, dados e gráficos adicionais</li>
               </ul>
             </div>
-
             <!-- VARIABLES TAB -->
             <div
               class="doc-tab-content"
@@ -747,7 +748,7 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
               </details>
             </div>
 
-            <!-- WRF TAB -->
+            <!-- WRF TAB — módulo compartilhado -->
             <div
               class="doc-tab-content"
               role="tabpanel"
@@ -784,20 +785,21 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                     progressiva:
                     <ul>
                       <li>
-                        <strong>BA/NE — 27 km:</strong> Escala sinótica/regional. Cobre o Sul-Nordeste do Brasil
-                        (~2500×2500 km). Captura frentes, ciclones e massas de ar.
+                        <strong>Bahia/Nordeste — 27 km:</strong> Escala sinótica/regional. Cobre o Sul-Nordeste do
+                        Brasil (~2500×2500 km). Captura frentes, ciclones e massas de ar.
                       </li>
                       <li>
-                        <strong>BA — 9 km:</strong> Escala intermediária. Cobre o Nordeste (~800×800 km). Resolve
+                        <strong>Bahia — 9 km:</strong> Escala intermediária. Cobre o Nordeste (~800×800 km). Resolve
                         convecção organizada e brisas de escala meso-α.
                       </li>
                       <li>
-                        <strong>RMS — 3 km:</strong> Escala local. Cobre a Bahia (~270×270 km). Resolução suficiente
-                        para resolver convecção profunda explicitamente (sem parametrização de cumulus).
+                        <strong>Região Metropolitana de Salvador — 3 km:</strong> Escala local. Cobre a Bahia (~270×270
+                        km). Resolução suficiente para resolver convecção profunda explicitamente (sem parametrização de
+                        cumulus).
                       </li>
                       <li>
-                        <strong>SSA — 1 km:</strong> Alta resolução. Cobre Salvador e Região Metropolitana (~90×90 km).
-                        Captura efeitos topográficos, brisa marítima e ilha de calor urbana.
+                        <strong>Salvador — 1 km:</strong> Alta resolução. Cobre Salvador e Região Metropolitana (~90×90
+                        km). Captura efeitos topográficos, brisa marítima e ilha de calor urbana.
                       </li>
                     </ul>
                   </li>
@@ -958,6 +960,7 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
     </div>
 
     <!-- Scripts ao final do body — não bloqueiam o rendering -->
+    <!-- Scripts compartilhados por todas as publicações. -->
     <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
     <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
 
@@ -971,8 +974,8 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
          sem ?v= e cai nas regras de cache curto). -->
     <script src="assets/js/variables-config.js?v=50efd26b" defer></script>
     <script src="assets/js/data-service.js?v=9be91789" defer></script>
-    <script src="assets/js/charts-manager.js?v=b107ca4d" defer></script>
-    <script src="assets/js/map-manager.js?v=b2ea9670" defer></script>
-    <script src="assets/js/map-init.js?v=4fc5fc20" defer></script>
+    <script src="assets/js/charts-manager.js?v=93c9f83b" defer></script>
+    <script src="assets/js/map-manager.js?v=e728dccf" defer></script>
+    <script src="assets/js/map-init.js?v=5b580457" defer></script>
   </body>
 </html>

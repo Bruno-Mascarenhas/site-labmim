@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-publication="ufba" data-territory="ba">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,9 +7,6 @@
       name="description"
       content="LabMiM — Climatologia: análise climática da Região Metropolitana de Salvador e Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
     />
-    <!-- Content hashes of the Web Workers (stamped by build.js): map-manager.js
-     builds worker URLs from these so worker edits cache-bust automatically. -->
-    <meta name="labmim-asset-hashes" content="color-calc.worker.js:2936a3e1;json-parser.worker.js:f8327a15" />
     <title>LabMiM — Climatologia · UFBA</title>
 
     <!-- SEO: canonical + Open Graph + Twitter (gerado por build.js a partir de PROD) -->
@@ -34,6 +31,7 @@
       content="LabMiM — Climatologia: análise climática da Região Metropolitana de Salvador e Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
     />
     <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
@@ -58,11 +56,13 @@
     />
     <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
 
-    <!-- LabMiM modular CSS -->
-    <link rel="stylesheet" href="assets/css/base.css?v=79a43496" />
-    <link rel="stylesheet" href="assets/css/layout.css?v=9d955cf4" />
-    <link rel="stylesheet" href="assets/css/components.css?v=99b3bc73" />
-    <link rel="stylesheet" href="assets/css/theme.css?v=5037cd63" />
+    <!-- CSS modular compartilhado pelas publicações -->
+    <link rel="stylesheet" href="assets/css/base.css?v=7733cbd6" />
+    <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
+    <link rel="stylesheet" href="assets/css/layout.css?v=46668898" />
+    <link rel="stylesheet" href="assets/css/components.css?v=1399937a" />
+
+    <link rel="stylesheet" href="assets/css/theme.css?v=f84fb23b" />
 
     <script src="assets/js/theme-boot.js?v=6fe47826"></script>
     <script src="assets/js/theme-toggle.js?v=5d8061cc" defer></script>
@@ -75,19 +75,16 @@
       <!-- Navigation -->
       <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
         <a class="navbar-brand ms-4" href="index.html">
-          <!-- Versão redimensionada (2x da altura de exibição de 40px) — o PNG
-         original de 1280x409 continua no repositório apenas como og:image. -->
-          <picture>
-            <source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
+          <picture
+            ><source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
             <img
               loading="eager"
               src="assets/img/logonova1-nav.png"
               alt="LabMiM Logo"
               width="250"
               height="80"
-              class="brand-logo"
-            />
-          </picture>
+              class="brand-logo site-brand-logo"
+          /></picture>
         </a>
         <button
           class="navbar-toggler"
@@ -130,25 +127,24 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="me-3">
-            <picture>
-              <source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
+          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation me-3"
+            ><picture
+              ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
               <img
                 loading="lazy"
                 src="assets/img/logo_cienam-nav.png"
                 alt="CIEnAm"
                 width="230"
                 height="80"
-                class="brand-logo-sm"
-              />
-            </picture>
-          </a>
+                class="brand-logo-sm" /></picture
+          ></a>
         </div>
       </nav>
     </header>
 
     <main id="main">
       <h1 class="visually-hidden">Climatologia</h1>
+      <!-- Página compartilhada: pode ser habilitada por qualquer publicação. -->
       <div class="modern-section construction-section">
         <div class="hero-title mb-5">
           <h2 class="text-center mb-4">Climatologia</h2>
@@ -163,16 +159,15 @@
       <div class="container">
         <div class="footer-topline">
           <a href="index.html"
-            ><picture>
-              <source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
+            ><picture
+              ><source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
               <img
                 loading="lazy"
                 src="assets/img/logonova1-nav.png"
-                alt="LabMiM"
+                alt="LabMiM Logo"
                 width="250"
                 height="80"
-                class="brand-logo brand-logo-bright"
-              /> </picture
+                class="brand-logo brand-logo-bright site-brand-logo" /></picture
           ></a>
           <nav class="footer-nav" aria-label="Navegação do rodapé">
             <a href="mapas_interativos.html"><i class="fas fa-map me-1"></i> Previsões</a>
@@ -191,19 +186,17 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener">
-            <picture>
-              <source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
+          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation"
+            ><picture
+              ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
               <img
                 loading="lazy"
                 src="assets/img/logo_cienam-nav.png"
                 alt="CIEnAm"
                 width="230"
                 height="80"
-                class="brand-logo brand-logo-bright"
-              />
-            </picture>
-          </a>
+                class="brand-logo brand-logo-bright" /></picture
+          ></a>
         </div>
         <div class="footer-bottom-compact">
           <p class="footer-disclaimer">
@@ -216,6 +209,7 @@
     </footer>
 
     <!-- Scripts ao final do body — não bloqueiam o rendering -->
+    <!-- Scripts compartilhados por todas as publicações. -->
     <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
     <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
   </body>

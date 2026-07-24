@@ -10,26 +10,16 @@
  * Apenas stdlib do Node, como o build.js.
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const require = createRequire(import.meta.url);
+const { collectFiles, htmlFilesIn, bundleDirs } = require("./site-builder/corpus.js");
 
 const read = (rel) => readFileSync(join(root, rel), "utf8");
-
-const collectFiles = (dir, exts, out = []) => {
-  for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
-    const rel = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === "vendor" || entry.name === "node_modules") continue;
-      collectFiles(rel, exts, out);
-    } else if (exts.some((ext) => entry.name.endsWith(ext))) {
-      out.push(rel);
-    }
-  }
-  return out;
-};
 
 // ---------------------------------------------------------------------------
 // Classes usadas: atributos class="..." do HTML gerado + strings no JS próprio
@@ -48,16 +38,22 @@ const usedClasses = new Set([
 ]);
 
 const usedTags = new Set(["html", "body", "*"]);
+
+// site/ only ever holds one publication at a time. dist/<id>/ (npm run
+// build:all) holds all of them, so when the bundles exist the corpus covers
+// every publication instead of just the one currently rendered.
+const htmlFiles = [...htmlFilesIn(root, "site"), ...bundleDirs(root).flatMap((dir) => htmlFilesIn(root, dir))];
+
 const htmlCorpus = [];
-for (const file of readdirSync(join(root, "site")).filter((n) => n.endsWith(".html"))) {
-  const text = read(join("site", file));
+for (const file of htmlFiles) {
+  const text = read(file);
   htmlCorpus.push(text);
   for (const match of text.matchAll(/class="([^"]*)"/g)) {
     for (const cls of match[1].split(/\s+/)) if (cls) usedClasses.add(cls);
   }
   for (const match of text.matchAll(/<([a-z][a-z0-9]*)/g)) usedTags.add(match[1]);
 }
-for (const file of collectFiles("site/assets/js", [".js"])) {
+for (const file of collectFiles(root, "site/assets/js", [".js"])) {
   const text = read(file);
   htmlCorpus.push(text);
   for (const match of text.matchAll(/["'`]([\w\s-]+)["'`]/g)) {
@@ -90,8 +86,7 @@ const tagTokens = (selector) =>
     .filter((tag) => !["not", "hover", "focus", "active", "disabled", "checked"].includes(tag));
 
 // Nomes de atributo do seletor ([data-bs-theme=dark] etc.).
-const attrTokens = (selector) =>
-  [...selector.matchAll(/\[([a-zA-Z-]+)/g)].map((m) => m[1]);
+const attrTokens = (selector) => [...selector.matchAll(/\[([a-zA-Z-]+)/g)].map((m) => m[1]);
 
 const originalSelectors = parseSelectors(read("site/assets/vendor/bootstrap/bootstrap.min.css"));
 const purgedSelectors = parseSelectors(read("site/assets/vendor/bootstrap/bootstrap.purged.min.css"));
@@ -109,9 +104,7 @@ for (const selector of originalSelectors) {
 }
 
 if (missing.length > 0) {
-  console.error(
-    "✗ Seletores Bootstrap aplicáveis ao site mas ausentes do bootstrap.purged.min.css:"
-  );
+  console.error("✗ Seletores Bootstrap aplicáveis ao site mas ausentes do bootstrap.purged.min.css:");
   for (const selector of missing.sort()) console.error(`  - ${selector}`);
   console.error("\nRegenere o purge: ver scripts/purgecss.config.cjs");
   process.exit(1);

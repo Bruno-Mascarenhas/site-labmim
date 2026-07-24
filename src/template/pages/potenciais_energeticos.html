@@ -1,0 +1,137 @@
+<!-- OVERVIEW TAB — conteúdo compartilhado e parametrizado pelo dataset. -->
+        <div class="doc-tab-content active" role="tabpanel" id="docPanel-overview" aria-labelledby="docTab-overview" tabindex="0" data-tab="overview">
+          <h3>Plataforma WebGIS de Potenciais Energéticos — {{WEBGIS_BRAND}}</h3>
+          <div class="doc-warning">
+            <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
+            Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
+            associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os pesquisadores
+            participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados pela
+            utilização indevida e não autorizada por parte de terceiros.
+          </div>
+          <p>
+            Este mapa interativo reúne visualizações de <strong>potencial fotovoltaico</strong>,
+            <strong>potencial eólico</strong> e <strong>densidade de potência eólica</strong> geradas a partir do modelo
+            <strong>WRF (Weather Research and Forecasting)</strong>. Os produtos energéticos são exibidos em alta
+            resolução espacial e temporal para a {{REGION_PHRASE}}, com horizonte de
+            <strong>{{FORECAST_HORIZON_HOURS}} horas</strong> e saídas {{TIMELINE_OUTPUT_FREQUENCY}}.
+          </p>
+          <h4>Interface Principal</h4>
+          <ul class="doc-list">
+            <li><strong>Mapa Principal:</strong> Exibe a grade do modelo com dados codificados por cores</li>
+            <li><strong>Barra de Cores:</strong> Mostra a escala de valores da variável selecionada (esquerda)</li>
+            <li>
+              <strong>Indicador de Domínio:</strong> Exibe qual domínio amigável ({{DOMAIN_LABELS}}) está sendo
+              visualizado
+            </li>
+            <li><strong>Controles Inferiores:</strong> Manipulação de tempo, variáveis e camadas</li>
+            <li><strong>Painel de Detalhes:</strong> Informações de células ao clicar (lado direito)</li>
+          </ul>
+        </div>
+
+        {{> webgis-doc-features}}<!-- VARIABLES TAB -->
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-variables" aria-labelledby="docTab-variables" tabindex="0" data-tab="variables">
+          <h3>Potenciais Energéticos</h3>
+          <p class="doc-muted-copy">
+            Esta página mostra apenas produtos energéticos. As variáveis meteorológicas usadas como suporte entram
+            apenas nos cálculos derivados do frontend ou do backend.
+          </p>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>☀️ Potencial Fotovoltaico (SWDOWN)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade base: W/m²</span>
+                <span class="doc-var-badge">JSON id: SWDOWN</span>
+                <span class="doc-var-badge">Estimativa no frontend</span>
+              </div>
+              <p>
+                O potencial fotovoltaico é estimado a partir da radiação solar incidente na superfície
+                (<code>SWDOWN</code>) e de parâmetros do sistema fotovoltaico definidos no frontend.
+              </p>
+              <pre class="doc-formula"><code>SWDOWN = W/m²</code></pre>
+              <pre class="doc-formula"><code>Tcell = Tair + ((NOCT - 20) * SWDOWN) / 800
+
+Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
+         (1 + PTC * (Tcell - 25) / 100)</code></pre>
+              <ul class="doc-list">
+                <li><code>Tcell</code> é a temperatura estimada da célula fotovoltaica.</li>
+                <li><code>Tair</code> é a temperatura do ar.</li>
+                <li><code>NOCT</code> é a temperatura nominal de operação da célula.</li>
+                <li><code>eta_panel</code> é a eficiência do painel.</li>
+                <li><code>eta_inverter</code> é a eficiência do inversor.</li>
+                <li><code>PTC</code> é o coeficiente térmico de potência.</li>
+              </ul>
+              <p>
+                <code>SWDOWN</code> é uma variável meteorológica. A produção fotovoltaica exibida é uma estimativa
+                derivada e depende dos parâmetros assumidos para o sistema. Não substitui estudo técnico de geração
+                real.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💨 Potencial Eólico (POT_EOLICO)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade base: m/s</span>
+                <span class="doc-var-badge">JSON ids: 50m / 100m / 150m</span>
+                <span class="doc-var-badge">Estimativa no frontend</span>
+              </div>
+              <p>
+                O potencial eólico usa velocidades do vento interpoladas para alturas de interesse energético:
+                <code>POT_EOLICO_50M</code>, <code>POT_EOLICO_100M</code> e <code>POT_EOLICO_150M</code>.
+              </p>
+              <p>
+                A velocidade do vento é a variável primária exibida no mapa. A produção energética exibida no painel é
+                estimada a partir da densidade do ar, área do rotor e coeficiente de potência.
+              </p>
+              <pre class="doc-formula"><code>P_density = 0.5 * rho * v³</code></pre>
+              <pre class="doc-formula"><code>P = 0.5 * rho * A * Cp * v³</code></pre>
+              <ul class="doc-list">
+                <li><code>rho</code> é a densidade do ar.</li>
+                <li><code>v</code> é a velocidade do vento.</li>
+                <li><code>A</code> é a área varrida pelo rotor.</li>
+                <li><code>Cp</code> é o coeficiente de potência.</li>
+              </ul>
+              <p>
+                A estimativa não considera curva real de potência da turbina, velocidades de cut-in/rated/cut-out,
+                perdas elétricas, disponibilidade, rugosidade local ou micrositing. Deve ser usada como triagem espacial
+                preliminar.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💨 Densidade de Potência Eólica 10m (WIND_POWER_DENSITY_10M)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: W/m²</span>
+                <span class="doc-var-badge">JSON id: WIND_POWER_DENSITY_10M</span>
+                <span class="doc-var-badge">Altura: 10 m</span>
+              </div>
+              <p>
+                Densidade de potência disponível no vento por unidade de área a 10 metros, baseada em
+                <code>U10</code>, <code>V10</code>, <code>T2</code>, <code>PSFC</code> e <code>Q2</code>.
+              </p>
+              <pre class="doc-formula"><code>speed10 = sqrt(U10² + V10²)
+
+Tv = T2 * (1 + 0.61 * Q2)
+
+rho = PSFC / (287.05 * Tv)
+
+WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
+              <p>
+                Representa a potência física disponível no escoamento do vento por metro quadrado. Não é produção de
+                turbina; é útil para comparar regiões e horários com maior ou menor recurso eólico próximo à superfície.
+              </p>
+              <ul class="doc-list">
+                <li>Cresce com o cubo da velocidade do vento.</li>
+                <li>Pequenas diferenças de vento podem gerar grandes diferenças de potência disponível.</li>
+                <li>Por estar em 10 m, não substitui avaliação em altura de hub.</li>
+                <li>Complementa, mas não substitui, os mapas de vento em 50 m, 100 m e 150 m.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+
+        {{> webgis-doc-wrf}}

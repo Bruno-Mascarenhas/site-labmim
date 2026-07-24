@@ -3,8 +3,6 @@
  */
 
 const PLAYBACK_INTERVAL_MS = 800;
-// Timeline length when no v2 manifest provides one (historical pipeline).
-const DEFAULT_MAX_LAYER = 73;
 const PREFETCH_AHEAD_STEPS = 2;
 
 function workerScriptUrl(fileName) {
@@ -22,13 +20,39 @@ function workerScriptUrl(fileName) {
   // como immutable pela regra do .htaccess e prenderia um worker antigo.
   return version ? `assets/js/workers/${fileName}?v=${encodeURIComponent(version)}` : `assets/js/workers/${fileName}`;
 }
-const DEFAULT_MAP_CENTER = [-12.97, -38.5];
-const DOMAIN_CONFIG = {
-  D01: { label: "BA/NE", center: DEFAULT_MAP_CENTER, zoom: 5.5 },
-  D02: { label: "BA", center: DEFAULT_MAP_CENTER, zoom: 7 },
-  D03: { label: "RMS", center: DEFAULT_MAP_CENTER, zoom: 9 },
-  D04: { label: "SSA", center: DEFAULT_MAP_CENTER, zoom: 12 },
-};
+function readSiteConfig() {
+  const content = document.querySelector('meta[name="site-config"]')?.content;
+  if (!content) throw new Error("Missing generated publication configuration");
+  try {
+    const parsed = JSON.parse(content);
+    if (
+      !parsed?.map?.initialCenter ||
+      !parsed?.map?.domains ||
+      !parsed?.map?.stateCode ||
+      !parsed?.map?.defaultDomain ||
+      !parsed?.data?.manifestPath ||
+      !parsed?.data?.valuesBase ||
+      !parsed?.data?.gridsBase ||
+      !parsed?.data?.timeline
+    ) {
+      throw new Error("incomplete publication, map, or dataset configuration");
+    }
+    return parsed;
+  } catch (error) {
+    throw new Error(`Invalid generated publication configuration: ${error.message}`, { cause: error });
+  }
+}
+
+const SITE_RUNTIME_CONFIG = readSiteConfig();
+window.SITE_RUNTIME_CONFIG = SITE_RUNTIME_CONFIG;
+const MAP_SITE_CONFIG = SITE_RUNTIME_CONFIG.map;
+const DATA_SITE_CONFIG = SITE_RUNTIME_CONFIG.data;
+const DEFAULT_MAP_CENTER = MAP_SITE_CONFIG.initialCenter;
+const DEFAULT_MAP_ZOOM = MAP_SITE_CONFIG.initialZoom;
+const DOMAIN_CONFIG = MAP_SITE_CONFIG.domains;
+const DEFAULT_MAX_LAYER = DATA_SITE_CONFIG.timeline.defaultMaxLayer;
+const DEFAULT_INITIAL_INDEX = DATA_SITE_CONFIG.timeline.initialIndex;
+const TIMELINE_STEP_HOURS = DATA_SITE_CONFIG.timeline.stepHours;
 const GRID_VISIBLE_STYLE = {
   fillOpacity: 0.45,
   weight: 0.5,
@@ -93,7 +117,7 @@ class MeteoMapManager {
   constructor() {
     this.mapContext = this.resolveMapContext();
     this.contextConfig = VARIABLE_CONTEXTS[this.mapContext] || VARIABLE_CONTEXTS.forecast;
-    // Pipeline run version from JSON/manifest.json (adopted via applyManifest
+    // Pipeline run version from the configured manifest (adopted via applyManifest
     // once map-init resolves the manifest): appended as ?v= to every data URL
     // so the server can cache the fixed-name data files long-term. Null (no
     // manifest) keeps plain URLs.
@@ -114,7 +138,7 @@ class MeteoMapManager {
     });
 
     // Timeline contract from a v2 manifest (applyManifest). Until one
-    // arrives the hardcoded defaults below mirror the historical pipeline.
+    // arrives, the selected dataset supplies the static build defaults.
     this.timeline = {
       indexMin: 1,
       indexMax: null,
@@ -158,12 +182,12 @@ class MeteoMapManager {
 
     this.state = {
       type: this.contextConfig.defaultVariable,
-      domain: "D01",
-      index: 7,
+      domain: MAP_SITE_CONFIG.defaultDomain,
+      index: DEFAULT_INITIAL_INDEX,
       isPlaying: false,
       hasUserControlledPlayback: false,
       isClippedToState: false,
-      stateAbbr: "BA",
+      stateAbbr: MAP_SITE_CONFIG.stateCode,
       maxLayer: DEFAULT_MAX_LAYER,
       initialDateTime: null,
       initialIndex: null,
@@ -174,7 +198,7 @@ class MeteoMapManager {
     this.initMap();
     this.setupEventListeners();
     this.setupDomainIndicators();
-    this.loadStateGeoJson("BA");
+    this.loadStateGeoJson(MAP_SITE_CONFIG.stateCode);
     this.loadCustomParameters();
   }
 
@@ -184,7 +208,7 @@ class MeteoMapManager {
   }
 
   getDomainConfig(domain = this.state.domain) {
-    return DOMAIN_CONFIG[domain] || { label: domain, center: DEFAULT_MAP_CENTER, zoom: 6 };
+    return DOMAIN_CONFIG[domain] || { label: domain, center: DEFAULT_MAP_CENTER, zoom: DEFAULT_MAP_ZOOM };
   }
 
   getDomainLabel(domain = this.state.domain) {
@@ -220,7 +244,7 @@ class MeteoMapManager {
   }
 
   /**
-   * Appends the pipeline run version (from JSON/manifest.json) to a data
+   * Appends the pipeline run version (from the configured manifest) to a data
    * URL. A new run publishes a new version, so versioned URLs may be cached
    * aggressively by the browser without ever pinning stale forecasts; when
    * no manifest exists the plain URL keeps today's revalidation behavior.
@@ -231,7 +255,16 @@ class MeteoMapManager {
 
   /** Single source of the per-timestep value JSON path convention. */
   valuesJsonPath(domain, variableId, index) {
-    return `JSON/${domain}_${variableId}_${String(index).padStart(3, "0")}.json`;
+    return `${DATA_SITE_CONFIG.valuesBase}/${domain}_${variableId}_${String(index).padStart(3, "0")}.json`;
+  }
+
+  /** Compact and legacy grid paths supplied by the selected dataset. */
+  gridJsonPath(domain) {
+    return `${DATA_SITE_CONFIG.gridsBase}/${domain}.grid.json`;
+  }
+
+  gridGeoJsonPath(domain) {
+    return `${DATA_SITE_CONFIG.gridsBase}/${domain}.geojson`;
   }
 
   /**
@@ -743,10 +776,24 @@ class MeteoMapManager {
       fadeAnimation: true,
       maxZoom: 15,
       renderer: this._canvasRenderer,
-    }).setView(DEFAULT_MAP_CENTER, 6);
+    });
+
+    const fitBounds = MAP_SITE_CONFIG.fitBounds;
+    if (
+      Array.isArray(fitBounds) &&
+      fitBounds.length === 2 &&
+      fitBounds.every((corner) => Array.isArray(corner) && corner.length === 2)
+    ) {
+      this.map.fitBounds(fitBounds, {
+        padding: [20, 20],
+        maxZoom: MAP_SITE_CONFIG.fitMaxZoom || DEFAULT_MAP_ZOOM,
+      });
+    } else {
+      this.map.setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM);
+    }
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap | LabMiM-UFBA",
+      attribution: `&copy; OpenStreetMap | ${MAP_SITE_CONFIG.attribution}`,
       minZoom: 3,
       maxZoom: 15,
     }).addTo(this.map);
@@ -1086,7 +1133,11 @@ class MeteoMapManager {
 
   loadStateGeoJson(stateCode) {
     this.state.stateAbbr = stateCode;
-    fetch(`assets/data/br_${stateCode.toLowerCase()}.json`)
+    const boundaryAsset =
+      stateCode === MAP_SITE_CONFIG.stateCode
+        ? MAP_SITE_CONFIG.boundaryAsset
+        : `assets/data/br_${stateCode.toLowerCase()}.json`;
+    fetch(boundaryAsset)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -1132,9 +1183,9 @@ class MeteoMapManager {
 
   calculateTargetDateFromIndex(index) {
     if (!this.state.initialDateTime) return null;
-    const hoursDiff = index - this.state.initialIndex;
+    const hoursDiff = (index - this.state.initialIndex) * TIMELINE_STEP_HOURS;
     const date = new Date(this.state.initialDateTime.getTime());
-    date.setUTCHours(date.getUTCHours() + hoursDiff);
+    date.setTime(date.getTime() + hoursDiff * 60 * 60 * 1000);
     return date;
   }
 
@@ -1590,13 +1641,13 @@ class MeteoMapManager {
     // and 60s negative caching on failure (so a missing grid is not
     // re-requested on every playback tick).
     const gridPromise = this.dataService
-      .fetchJson(this.dataUrl(`GeoJSON/${domain}.grid.json`))
+      .fetchJson(this.dataUrl(this.gridJsonPath(domain)))
       .then((compact) => this._featureCollectionFromCompactGrid(compact))
       .catch((compactErr) => {
         if (compactErr?.notFound !== true) {
           console.warn(`Compact grid unavailable for ${domain}, using legacy GeoJSON:`, compactErr);
         }
-        return this.dataService.fetchJson(this.dataUrl(`GeoJSON/${domain}.geojson`));
+        return this.dataService.fetchJson(this.dataUrl(this.gridGeoJsonPath(domain)));
       })
       .then((geojson) => {
         const gridMetadata = geojson.metadata;

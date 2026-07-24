@@ -126,8 +126,10 @@ class ChartsManager {
         return closestIndex;
       }
 
-      // Last resort (no app available): legacy direct fetch.
-      const res = await fetch(`GeoJSON/${domain}.geojson`, { signal });
+      // Last resort: use the selected dataset path without assuming a
+      // publication, territory, or storage directory.
+      if (!this.app?.gridGeoJsonPath) return null;
+      const res = await fetch(this.app.gridGeoJsonPath(domain), { signal });
       if (!res.ok) return null;
       const geoJson = await res.json();
 
@@ -587,8 +589,10 @@ class ChartsManager {
   }
 
   refreshChartTheme() {
+    const publicationAccent =
+      getComputedStyle(document.documentElement).getPropertyValue("--map-accent").trim() || "#596579";
     const apply = (chart) => {
-      const chartColor = chart.data.datasets[0]?.borderColor || "#667eea";
+      const chartColor = chart.data.datasets[0]?.borderColor || publicationAccent;
       this._applyChartTheme(chart, chartColor);
       chart.update("none");
     };
@@ -629,10 +633,10 @@ class ChartsManager {
     const rootStyles = getComputedStyle(document.documentElement);
     return {
       textSecondary: rootStyles.getPropertyValue("--text-secondary").trim() || "#888",
-      legendText: document.documentElement.classList.contains("dark-theme") ? "#fff" : "#666",
+      legendText: rootStyles.getPropertyValue("--chart-legend-color").trim() || "#666",
       grid: rootStyles.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
-      tooltipBg: "rgba(18, 18, 18, 0.96)",
-      tooltipText: "#fff",
+      tooltipBg: rootStyles.getPropertyValue("--tooltip-bg").trim() || "rgba(18, 18, 18, 0.96)",
+      tooltipText: rootStyles.getPropertyValue("--tooltip-text").trim() || "#fff",
     };
   }
 
@@ -967,9 +971,8 @@ class ChartsManager {
    * propagates.
    */
   async _fetchHourJson(variableId, domain, hour, signal) {
-    const plainUrl = this.app?.valuesJsonPath
-      ? this.app.valuesJsonPath(domain, variableId, hour)
-      : `JSON/${domain}_${variableId}_${String(hour).padStart(3, "0")}.json`;
+    if (!this.app?.valuesJsonPath) throw new Error("Dataset path resolver is unavailable");
+    const plainUrl = this.app.valuesJsonPath(domain, variableId, hour);
     const url = this.app?.dataUrl ? this.app.dataUrl(plainUrl) : plainUrl;
     try {
       if (this.app?._cachedFetch) {

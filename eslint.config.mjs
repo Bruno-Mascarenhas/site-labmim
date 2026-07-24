@@ -14,7 +14,7 @@ export default defineConfig([
     "**/*.geojson",
   ]),
   {
-    files: ["**/*.js"],
+    files: ["site/assets/js/**/*.js"],
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: "latest",
@@ -37,6 +37,32 @@ export default defineConfig([
       "no-console": ["warn", { allow: ["warn", "error", "info", "debug"] }],
       "no-useless-escape": "warn",
       "no-empty": "warn",
+    },
+  },
+  {
+    files: ["build.js", "scripts/**/*.js", "scripts/**/*.cjs", "src/**/*.js"],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "commonjs",
+      globals: globals.node,
+    },
+    rules: {
+      "no-unused-vars": "warn",
+      "no-console": "off",
+    },
+  },
+  {
+    files: ["scripts/**/*.mjs"],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: globals.node,
+    },
+    rules: {
+      "no-unused-vars": "warn",
+      "no-console": "off",
     },
   },
 ]);

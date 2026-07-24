@@ -1,0 +1,264 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1000" width="1680" height="1000" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="vGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2e7d4f"/>
+    </marker>
+    <marker id="vBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2557a7"/>
+    </marker>
+    <marker id="vOrange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d2691e"/>
+    </marker>
+    <marker id="vGray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a7a8c"/>
+    </marker>
+  </defs>
+
+  <style>
+    .t    { font-size: 33px; font-weight: 800; fill: #16233d; }
+    .st   { font-size: 18px; font-style: italic; fill: #59617a; }
+    .h    { font-size: 18px; font-weight: 700; }
+    .h2   { font-size: 15px; font-weight: 700; }
+    .b    { font-size: 14px; fill: #333a4d; }
+    .bs   { font-size: 12.5px; fill: #4a5164; }
+    .mono { font-family: "JetBrains Mono", Consolas, monospace; font-size: 13px; }
+    .monos{ font-family: "JetBrains Mono", Consolas, monospace; font-size: 11.5px; }
+    .lbl  { font-size: 13px; font-weight: 700; fill: #59617a; letter-spacing: .3px; }
+    .warn { font-size: 12.5px; font-weight: 600; fill: #c0392b; }
+    .ok   { font-size: 12.5px; font-weight: 600; fill: #206040; }
+    .pill { font-size: 12px; font-weight: 700; }
+    .greenBox { fill: #f3faf5; stroke: #2e7d4f; stroke-width: 2; }
+    .blueBox  { fill: #f5f8fe; stroke: #2557a7; stroke-width: 2; }
+    .orangeBox{ fill: #fdf6f0; stroke: #d2691e; stroke-width: 2; }
+    .grayBox  { fill: #f6f7f9; stroke: #7a7a8c; stroke-width: 2; }
+    .innerG   { fill: #ffffff; stroke: #bfdcc9; stroke-width: 1.2; }
+    .innerB   { fill: #ffffff; stroke: #c3d3ec; stroke-width: 1.2; }
+    .innerO   { fill: #ffffff; stroke: #eccbb0; stroke-width: 1.2; }
+    .code     { fill: #f4f6fb; stroke: #d5deec; stroke-width: 1; }
+    .contract { fill: #fffdf3; stroke: #c79a2b; stroke-width: 2.4; }
+    .hGreen { fill: #206040; } .hBlue { fill: #1a4b8c; }
+    .hOrange { fill: #b5541a; } .hGray { fill: #565b6b; } .hGold { fill: #97731a; }
+    .kw { fill: #1a4b8c; } .kg { fill: #206040; } .ko { fill: #b5541a; } .kc { fill: #97731a; }
+  </style>
+
+  <rect width="1680" height="1000" fill="#ffffff"/>
+
+  <text class="t" x="840" y="46" text-anchor="middle">Adicionar uma variável nova aos mapas interativos</text>
+  <text class="st" x="840" y="77" text-anchor="middle">Do wrfout ao seletor do WebGIS — dois repositórios ligados por um contrato de id</text>
+
+  <!-- legenda -->
+  <g>
+    <rect x="1250" y="92" width="16" height="12" rx="3" class="greenBox"/>
+    <text class="bs" x="1272" y="102">micrometeorology (dados)</text>
+    <rect x="1440" y="92" width="16" height="12" rx="3" class="orangeBox"/>
+    <text class="bs" x="1462" y="102">site-labmim (mapa)</text>
+  </g>
+
+  <!-- ============================================================= -->
+  <!-- REPO 1 — micrometeorology                                     -->
+  <!-- ============================================================= -->
+  <text class="lbl" x="40" y="132">REPO 1 · micrometeorology  —  produz os dados a partir do wrfout</text>
+
+  <!-- Decisão -->
+  <rect class="grayBox" x="34" y="146" width="250" height="196" rx="12"/>
+  <text class="h hGray" x="159" y="174" text-anchor="middle">1 · Que tipo de variável?</text>
+  <text class="bs" x="50" y="198">A variável já existe no arquivo</text>
+  <text class="bs" x="50" y="215"><tspan class="mono" fill="#565b6b">wrfout_d0X</tspan> como um campo</text>
+  <text class="bs" x="50" y="232">2-D pronto (escalar por passo)?</text>
+  <rect class="innerG" x="48" y="248" width="222" height="34" rx="7"/>
+  <text class="ok" x="60" y="270">SIM → caminho rápido ▼</text>
+  <rect class="innerB" x="48" y="292" width="222" height="38" rx="7"/>
+  <text class="bs" x="60" y="309" fill="#1a4b8c" font-weight="700">NÃO — precisa de fórmula,</text>
+  <text class="bs" x="60" y="325" fill="#1a4b8c" font-weight="700">conversão ou vários campos ▼</text>
+
+  <!-- Caminho rápido (verde) -->
+  <rect class="greenBox" x="322" y="146" width="470" height="196" rx="12"/>
+  <text class="h hGreen" x="342" y="174">A · Campo escalar cru — só registrar o nome</text>
+  <text class="bs" x="342" y="194">Nenhum código Python novo: o ramo genérico já cobre.</text>
+
+  <rect class="innerG" x="338" y="206" width="200" height="120" rx="8"/>
+  <text class="h2 hGreen" x="348" y="227">1 edição</text>
+  <text class="bs" x="348" y="247">Adicione o nome NetCDF a</text>
+  <text class="mono" x="348" y="266" fill="#206040">DEFAULT_VARS</text>
+  <text class="bs" x="348" y="283">em <tspan class="monos">cli/export_wrf_geojson.py</tspan></text>
+  <text class="bs" x="348" y="305">Opcional: uma cor em</text>
+  <text class="monos" x="348" y="321" fill="#206040">VARIABLE_COLORMAPS</text>
+
+  <rect class="code" x="552" y="206" width="228" height="120" rx="8"/>
+  <text class="monos" x="564" y="226"><tspan class="kg"># jobs._build_value_frame_source</tspan></text>
+  <text class="monos" x="564" y="244">else:</text>
+  <text class="monos" x="564" y="262">  if not ds.has_variable(</text>
+  <text class="monos" x="564" y="280">      name.upper()): return None</text>
+  <text class="monos" x="564" y="298">  extract_scalar(ds, NAME)</text>
+  <text class="ok" x="564" y="318">HFX · LH · SWDOWN · GLW</text>
+
+  <!-- Caminho derivado (azul) -->
+  <rect class="blueBox" x="34" y="360" width="758" height="248" rx="12"/>
+  <text class="h hBlue" x="54" y="388">B · Variável derivada — quatro edições, uma por camada</text>
+  <text class="bs" x="54" y="408">Ex.: umidade relativa (Tetens), densidade de potência eólica (ρ·v³). A física fica no docstring do extractor.</text>
+
+  <rect class="innerB" x="50" y="420" width="172" height="172" rx="8"/>
+  <text class="h2 hBlue" x="60" y="441">a · Extractor</text>
+  <text class="monos" x="60" y="460" fill="#1a4b8c">wrf/variables.py</text>
+  <text class="bs" x="60" y="480">def <tspan class="monos" fill="#1a4b8c">extract_&lt;nome&gt;(ds)</tspan></text>
+  <text class="bs" x="60" y="500">lê campos, aplica a</text>
+  <text class="bs" x="60" y="518">fórmula, retorna</text>
+  <text class="monos" x="60" y="536" fill="#1a4b8c">(vals3d, vmin, vmax)</text>
+  <text class="bs" x="60" y="558">escala via</text>
+  <text class="monos" x="60" y="574" fill="#1a4b8c">percentile_scale_</text>
+  <text class="monos" x="60" y="588" fill="#1a4b8c">bounds()</text>
+
+  <rect class="innerB" x="234" y="420" width="172" height="172" rx="8"/>
+  <text class="h2 hBlue" x="244" y="441">b · Tipo + id</text>
+  <text class="monos" x="244" y="460" fill="#1a4b8c">common/types.py</text>
+  <text class="bs" x="244" y="480">membro no enum</text>
+  <text class="monos" x="244" y="498" fill="#1a4b8c">WRFVariable</text>
+  <text class="bs" x="244" y="518">entrada em</text>
+  <text class="monos" x="244" y="536" fill="#1a4b8c">VARIABLE_NETCDF_</text>
+  <text class="monos" x="244" y="551" fill="#1a4b8c">MAP</text>
+  <text class="bs" x="244" y="571">→ define o id de</text>
+  <text class="bs" x="244" y="588">saída <tspan class="monos" fill="#97731a">{VAR}</tspan></text>
+
+  <rect class="innerB" x="418" y="420" width="172" height="172" rx="8"/>
+  <text class="h2 hBlue" x="428" y="441">c · Dispatch</text>
+  <text class="monos" x="428" y="460" fill="#1a4b8c">wrf/jobs.py</text>
+  <text class="bs" x="428" y="480">branch em</text>
+  <text class="monos" x="428" y="498" fill="#1a4b8c">_build_value_</text>
+  <text class="monos" x="428" y="513" fill="#1a4b8c">frame_source()</text>
+  <text class="bs" x="428" y="533">liga o nome ao</text>
+  <text class="bs" x="428" y="551">extractor e monta</text>
+  <text class="bs" x="428" y="569">o frame 2-D por</text>
+  <text class="bs" x="428" y="587">passo de tempo</text>
+
+  <rect class="innerB" x="602" y="420" width="172" height="172" rx="8"/>
+  <text class="h2 hBlue" x="612" y="441">d · Habilitar</text>
+  <text class="monos" x="612" y="460" fill="#1a4b8c">export_wrf_</text>
+  <text class="monos" x="612" y="475" fill="#1a4b8c">geojson.py</text>
+  <text class="bs" x="612" y="495">nome em</text>
+  <text class="monos" x="612" y="513" fill="#1a4b8c">DEFAULT_VARS</text>
+  <text class="bs" x="612" y="533">(ou passar via</text>
+  <text class="monos" x="612" y="551" fill="#1a4b8c">-v &lt;nome&gt;)</text>
+  <text class="bs" x="612" y="573">para entrar na</text>
+  <text class="bs" x="612" y="591">rodada padrão</text>
+
+  <!-- Rodar o export -->
+  <rect class="greenBox" x="34" y="626" width="360" height="150" rx="12"/>
+  <text class="h hGreen" x="54" y="654">2 · Rodar o export</text>
+  <rect class="code" x="50" y="666" width="328" height="40" rx="7"/>
+  <text class="monos" x="62" y="691"><tspan class="kg">$</tspan> labmim-wrf-geojson -v &lt;nome&gt; \</text>
+  <text class="monos" x="62" y="722" fill="#4a5164">    -o site/JSON -g site/GeoJSON -D 1,4</text>
+  <text class="bs" x="54" y="748">Pool de processos: um worker abre o NetCDF, deriva a</text>
+  <text class="bs" x="54" y="765">variável, calcula a escala e grava todos os passos.</text>
+
+  <!-- Artefatos -->
+  <rect class="greenBox" x="410" y="626" width="382" height="150" rx="12"/>
+  <text class="h hGreen" x="430" y="654">3 · Artefatos publicados</text>
+  <text class="monos" x="426" y="678" fill="#206040">{D}_{VAR}_{NNN}.json</text>
+  <text class="bs" x="640" y="678" fill="#4a5164">valores/passo</text>
+  <text class="monos" x="426" y="700" fill="#206040">{D}_{VAR}.series.bin</text>
+  <text class="bs" x="640" y="700" fill="#4a5164">célula (Range)</text>
+  <text class="monos" x="426" y="722" fill="#206040">{D}_{VAR}.summary.json</text>
+  <text class="bs" x="640" y="722" fill="#4a5164">stats/passo</text>
+  <text class="monos" x="426" y="744" fill="#206040">manifest.json</text>
+  <text class="bs" x="640" y="744" fill="#4a5164">atualizado</text>
+  <text class="monos" x="426" y="766" fill="#206040">GeoJSON/{D}.grid.json</text>
+  <text class="bs" x="640" y="766" fill="#4a5164">grade (reusada)</text>
+
+  <!-- ============================================================= -->
+  <!-- CONTRATO (ponte central)                                      -->
+  <!-- ============================================================= -->
+  <rect class="contract" x="820" y="150" width="336" height="200" rx="14"/>
+  <text class="h hGold" x="988" y="180" text-anchor="middle">O contrato de id</text>
+  <text class="bs" x="988" y="202" text-anchor="middle">liga os dois repositórios</text>
+  <rect class="code" x="836" y="218" width="304" height="58" rx="8"/>
+  <text class="monos" x="988" y="240" text-anchor="middle" fill="#97731a">{VAR} = VARIABLE_NETCDF_MAP</text>
+  <text class="monos" x="988" y="257" text-anchor="middle" fill="#97731a">[nome]  ou  nome.upper()</text>
+  <text class="b" x="988" y="298" text-anchor="middle">O mesmo <tspan class="mono" fill="#97731a">{VAR}</tspan> nomeia o arquivo</text>
+  <text class="b" x="988" y="318" text-anchor="middle"><tspan class="monos">{D}_{VAR}_{NNN}.json</tspan> E vira o</text>
+  <text class="b" x="988" y="338" text-anchor="middle"><tspan class="mono" fill="#b5541a">sourceId</tspan> no config do site.</text>
+
+  <!-- ============================================================= -->
+  <!-- REPO 2 — site-labmim                                          -->
+  <!-- ============================================================= -->
+  <text class="lbl" x="826" y="386">REPO 2 · site-labmim  —  mostra a variável no WebGIS</text>
+
+  <rect class="orangeBox" x="820" y="400" width="828" height="240" rx="12"/>
+  <text class="h hOrange" x="840" y="428">4 · Registrar no runtime do mapa</text>
+  <text class="monos" x="840" y="448" fill="#b5541a">site/assets/js/variables-config.js</text>
+
+  <!-- entrada VARIABLES_CONFIG -->
+  <rect class="innerO" x="836" y="460" width="470" height="164" rx="8"/>
+  <text class="h2 hOrange" x="848" y="481">a · Entrada em VARIABLES_CONFIG</text>
+  <text class="bs" x="848" y="501"><tspan class="mono" fill="#b5541a">id</tspan> / <tspan class="mono" fill="#b5541a">sourceId</tspan>: igual a <tspan class="mono" fill="#97731a">{VAR}</tspan> (o contrato)</text>
+  <text class="bs" x="848" y="520"><tspan class="mono" fill="#b5541a">label</tspan> · <tspan class="mono" fill="#b5541a">unit</tspan> · <tspan class="mono" fill="#b5541a">icon</tspan> / <tspan class="mono" fill="#b5541a">faIcon</tspan> — texto e ícone</text>
+  <text class="bs" x="848" y="539"><tspan class="mono" fill="#b5541a">colors[]</tspan> — rampa de cor (claro → escuro)</text>
+  <text class="bs" x="848" y="558"><tspan class="mono" fill="#b5541a">scaleMin</tspan> / <tspan class="mono" fill="#b5541a">scaleMax</tspan> — fixam a escala do mapa</text>
+  <text class="bs" x="848" y="577"><tspan class="mono" fill="#b5541a">summary</tspan> — texto do painel de ajuda</text>
+  <text class="bs" x="848" y="596"><tspan class="mono" fill="#b5541a">specificInfo(value)</tspan> — cartão ao clicar a célula</text>
+  <text class="bs" x="848" y="615" fill="#7a7a8c">(sem dados → <tspan class="monos">unavailableInfo(title)</tspan> compartilhado)</text>
+
+  <!-- entrada VARIABLE_CONTEXTS -->
+  <rect class="innerO" x="1318" y="460" width="322" height="78" rx="8"/>
+  <text class="h2 hOrange" x="1330" y="481">b · Expor no seletor</text>
+  <text class="bs" x="1330" y="501">Adicione a chave a</text>
+  <text class="monos" x="1330" y="519" fill="#b5541a">VARIABLE_CONTEXTS[ctx].variables</text>
+  <text class="bs" x="1330" y="533" fill="#4a5164"><tspan class="mono">forecast</tspan> (mapas) ou <tspan class="mono">energy</tspan> (potenciais)</text>
+
+  <!-- resultado: mapa -->
+  <rect class="innerO" x="1318" y="552" width="322" height="72" rx="8"/>
+  <text class="h2 hOrange" x="1330" y="573">c · Aparece no mapa</text>
+  <text class="bs" x="1330" y="592">seletor de variável · grade animada</text>
+  <text class="bs" x="1330" y="610">série por célula · sidebar · legenda</text>
+
+  <!-- ============================================================= -->
+  <!-- SETAS                                                          -->
+  <!-- ============================================================= -->
+  <!-- decisão -> caminhos -->
+  <path d="M 286 266 L 318 266" stroke="#2e7d4f" stroke-width="2.4" fill="none" marker-end="url(#vGreen)"/>
+  <path d="M 159 344 L 159 356" stroke="#2557a7" stroke-width="2.4" fill="none" marker-end="url(#vBlue)"/>
+  <!-- caminho A e B -> export (linha verde descendo à esquerda) -->
+  <path d="M 200 610 L 200 622" stroke="#2557a7" stroke-width="2.4" fill="none" marker-end="url(#vBlue)"/>
+  <path d="M 557 344 L 557 355 L 214 355 L 214 622" stroke="#2e7d4f" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#vGreen)"/>
+  <!-- export -> artefatos -->
+  <path d="M 394 701 L 406 701" stroke="#2e7d4f" stroke-width="2.4" fill="none" marker-end="url(#vGreen)"/>
+  <!-- artefatos -> contrato -->
+  <path d="M 792 690 L 806 690 L 806 250 L 816 250" stroke="#c79a2b" stroke-width="2.4" fill="none" marker-end="url(#vOrange)"/>
+  <!-- contrato -> repo2 -->
+  <path d="M 988 352 L 988 396" stroke="#d2691e" stroke-width="2.4" fill="none" marker-end="url(#vOrange)"/>
+  <!-- VARIABLES_CONFIG -> contexts -->
+  <path d="M 1308 500 L 1316 500" stroke="#d2691e" stroke-width="2.2" fill="none" marker-end="url(#vOrange)"/>
+  <!-- contexts -> mapa -->
+  <path d="M 1479 540 L 1479 550" stroke="#d2691e" stroke-width="2.2" fill="none" marker-end="url(#vOrange)"/>
+
+  <!-- ============================================================= -->
+  <!-- RODAPÉ — armadilhas                                            -->
+  <!-- ============================================================= -->
+  <rect class="grayBox" x="34" y="800" width="1614" height="164" rx="12"/>
+  <text class="h" x="841" y="828" text-anchor="middle" fill="#565b6b">Armadilhas ao expandir as variáveis</text>
+
+  <text class="warn" x="56" y="860">▲ id que não bate</text>
+  <text class="bs" x="56" y="879">Se <tspan class="mono" fill="#b5541a">sourceId</tspan> ≠ <tspan class="mono" fill="#97731a">{VAR}</tspan> do arquivo, o cliente pede</text>
+  <text class="bs" x="56" y="897">um JSON que não existe → 404 e cache negativo,</text>
+  <text class="bs" x="56" y="915">a variável fica muda (sem erro visível).</text>
+  <text class="bs" x="56" y="940" fill="#7a7a8c">Confira o nome em <tspan class="monos">manifest.json</tspan>.</text>
+
+  <text class="warn" x="450" y="860">▲ ícone novo do Font Awesome</text>
+  <text class="bs" x="450" y="879">Um <tspan class="mono" fill="#b5541a">faIcon</tspan> fora do subset atual renderiza como</text>
+  <text class="bs" x="450" y="897">caixa vazia. Regenere o subset —</text>
+  <text class="monos" x="450" y="916" fill="#4a5164">scripts/subset-fontawesome.md</text>
+  <text class="bs" x="450" y="940" fill="#7a7a8c"><tspan class="monos">npm run build:check</tspan> acusa o ícone ausente.</text>
+
+  <text class="warn" x="860" y="860">▲ escala e paleta</text>
+  <text class="bs" x="860" y="879"><tspan class="mono" fill="#b5541a">colors[]</tspan> é uma rampa clara→escura; a cor por</text>
+  <text class="bs" x="860" y="897">célula interpola entre <tspan class="mono" fill="#b5541a">scaleMin</tspan> e <tspan class="mono" fill="#b5541a">scaleMax</tspan>.</text>
+  <text class="bs" x="860" y="915">Escala fixa aqui ≠ bounds por-passo do export</text>
+  <text class="bs" x="860" y="933">(que usam o cap de percentil 98).</text>
+
+  <text class="ok" x="1258" y="860">✓ campo cru = 2 edições</text>
+  <text class="bs" x="1258" y="879">Escalar já no wrfout: <tspan class="mono">DEFAULT_VARS</tspan> +</text>
+  <text class="bs" x="1258" y="897">entrada no <tspan class="mono">VARIABLES_CONFIG</tspan>. Nada de</text>
+  <text class="bs" x="1258" y="915">extractor, enum ou dispatch.</text>
+  <text class="bs" x="1258" y="940" fill="#7a7a8c">A física/unidade é decisão editorial + docstring.</text>
+
+  <text class="bs" x="840" y="988" text-anchor="middle" fill="#7a7a8c">Fontes: wrf/variables.py · wrf/jobs.py · common/types.py · cli/export_wrf_geojson.py · site/assets/js/variables-config.js</text>
+</svg>

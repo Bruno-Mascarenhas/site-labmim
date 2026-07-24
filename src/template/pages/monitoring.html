@@ -1,0 +1,72 @@
+<!-- Página compartilhada; extensões institucionais entram por page.append. -->
+<div class="modern-section">
+  <div class="modern-header mb-4">
+    <h2><i class="fas fa-satellite-dish me-2"></i>Monitoramento Ambiental</h2>
+    <p>Variáveis ambientais — Atualização a cada 1h</p>
+  </div>
+
+  <!-- BLOCO DE EXPLICAÇÃO -->
+  <div class="text-center mb-3">
+    <button
+      class="btn btn-sm btn-outline-secondary"
+      type="button"
+      data-ui-toggle="explanationContentMonitor"
+      data-label-open="Ocultar Explicação"
+      data-label-closed="Mostrar Explicação"
+      aria-controls="explanationContentMonitor"
+      aria-expanded="false"
+    >
+      <i class="fas fa-chevron-down"></i> <span data-toggle-label>Mostrar Explicação</span>
+    </button>
+  </div>
+
+  <div id="explanationContentMonitor" hidden>
+    <div class="explanation-box explanation-box-narrow mx-auto">
+      <div class="explanation-content text-start">
+        <p>
+          Esta seção exibe o
+          <strong>monitoramento ambiental contínuo</strong> obtido através de plataformas de estações
+          micrometeorológicas em atuação.
+        </p>
+        <p>As variáveis coletadas integram:</p>
+        <ul class="explanation-list-center">
+          <li><strong>Temperatura, Umidade e Pressão Atmosférica</strong> — parâmetros termodinâmicos essenciais;</li>
+          <li>
+            <strong>Velocidade e Direção do Vento</strong> — padrão de escoamento e transporte próximo à superfície;
+          </li>
+          <li>
+            <strong>Radiometria</strong> — Componentes do saldo de radiação (Ondas curtas e longas incidentes e
+            refletidas/emitidas);
+          </li>
+          <li><strong>Precipitação</strong> — volume pluviométrico diário.</li>
+        </ul>
+        <p class="compact-note">
+          <small
+            >As informações são recebidas em tempo quase real e processadas diretamente para visualização, formando uma
+            extensa base de dados climáticos local. Os dados são resultados de aquisições de pesquisa, não havendo
+            garantia total para utilização irrestrita.</small
+          >
+        </p>
+      </div>
+    </div>
+    <hr class="mb-4 max-w-1000" />
+  </div>
+
+  <div class="row">
+    {{OBSERVATION_CHART_CARDS}}
+  </div>
+  <!-- ./row -->
+
+  <div class="footer-notice mt-4">
+    <p>
+      <i class="fas fa-exclamation-triangle"></i>
+      ATENÇÃO: Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
+      associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os pesquisadores
+      participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados pela utilização
+      indevida e não autorizada por parte de terceiros.
+    </p>
+  </div>
+</div>
+
+<!-- Modais gerados a partir de dataset.observations.charts -->
+{{OBSERVATION_CHART_MODALS}}

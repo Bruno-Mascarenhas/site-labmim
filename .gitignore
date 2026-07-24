@@ -28,10 +28,20 @@ Thumbs.db
 !.vscode/settings.json
 
 # Generated Data & Pipeline Artifacts
+dist/
+# Publicado pelo build a partir do CSS de página em src/**/styles/; varia por
+# publicação, então fica fora do git (ao contrário de site/assets/img/, que é a
+# união estável de todas as publicações e é versionada para site/ ser deployável).
+site/assets/css/generated/
 site/JSON/*.json
 site/JSON/*.series.bin
 site/GeoJSON/*.geojson
 site/GeoJSON/*.json
+
+# Onboarding deck (docs/) — versiona a fonte e o PDF; ignora gerados/pesados.
+# node_modules/ e dist/ (assets/dist) já caem nas regras acima.
+*.pptx
+docs/onboarding-architecture/assets/theme-previews/
 
 # Environment variables
 .env
