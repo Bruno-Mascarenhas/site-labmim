@@ -46,8 +46,23 @@ docs/onboarding-architecture/
 └── assets/
     ├── labmim-onboarding.pdf
     ├── labmim-onboarding.pptx
+    ├── guia-contribuicao-site.pdf   # guia de contribuição (ver abaixo)
     └── dist/                     # build estático opcional do deck
 ```
+
+## Guia de contribuição
+
+Ao lado do deck, [`assets/guia-contribuicao-site.pdf`](./assets/guia-contribuicao-site.pdf) documenta o
+**processo** de contribuir com o repositório, enquanto o deck documenta a **arquitetura**: abrir a issue,
+criar a branch a partir da `main`, alterar o lugar certo, validar com `make build`/`make ci`/`make serve`,
+fazer commits pequenos, abrir o pull request, responder à revisão e mergear — mais o padrão de nomes de
+branch, o formato das mensagens de commit, a configuração recomendada de proteção da `main` e um checklist
+final. É o material indicado para quem chega ao laboratório antes de tocar no código.
+
+Diferente do deck, este PDF não é gerado pelo Slidev deste diretório; ele é versionado como artefato
+distribuível. Ele foi escrito enquanto a modularização em `src/sites/<id>/` ainda era um PR aberto, então
+os exemplos que citam `src/pages/` refletem a estrutura anterior — o fluxo de trabalho segue válido, e a
+árvore de arquivos atual é a de [`src/sites/README.md`](../../src/sites/README.md).
 
 ## Fonte de verdade arquitetural
 
@@ -161,5 +176,6 @@ O PPTX usa imagens de página inteira; o PDF preserva texto selecionável e é p
 
 Esta pasta é isolada do site e possui `package.json` próprio. Ela não participa do build do frontend.
 
-No estado atual do workspace, `docs/` é intencionalmente não rastreado e deve continuar fora do commit e
-do PR da refatoração principal. Os exports são artefatos locais de apoio ao onboarding.
+`docs/` é versionado: entram a fonte do deck, os diagramas e os PDFs distribuíveis. Ficam fora do commit
+os artefatos pesados ou regeneráveis — `node_modules/`, `assets/dist/`, `assets/theme-previews/` e os
+`.pptx` (ver `.gitignore`).
