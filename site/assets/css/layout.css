@@ -125,6 +125,18 @@
   opacity: 0.7;
 }
 
+.footer-repo-link {
+  display: inline-flex;
+  margin-left: 0.4rem;
+  vertical-align: -0.25em;
+}
+
+.footer-repo-link svg {
+  width: 1.25em;
+  height: 1.25em;
+  fill: currentcolor;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
