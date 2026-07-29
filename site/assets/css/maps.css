@@ -413,13 +413,14 @@ header.maps-header {
   box-shadow: 0 0 0 3px rgba(var(--map-accent-rgb), 0.1);
 }
 
-/* SEGMENTED SELECTOR — grupo de botões flutuante do mapa (hoje a altura do
-   hub no eólico). */
+/* SEGMENTED SELECTOR — altura do hub (eólico) e janela de acumulado (chuva).
+   Só uma delas fica ativa por vez, pois cada uma pertence a uma variável
+   diferente; por isso ambas ocupam o mesmo canto do mapa. */
 .segmented-selector {
   display: none;
   position: absolute;
-  bottom: 100px; /* Ao lado do botão de vetores */
-  left: 80px;
+  bottom: 100px;
+  left: 20px;
   align-items: center;
   gap: 10px;
   background: white;
@@ -428,6 +429,11 @@ header.maps-header {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: var(--z-controls);
   white-space: nowrap;
+}
+
+/* O eólico exibe também o botão de vetores de vento no canto: desloca. */
+#heightSelector {
+  left: 80px;
 }
 
 .segmented-selector.active {
@@ -901,7 +907,7 @@ header.maps-header {
   /* Segmented Selector - Reposicionado em mobile e compacto */
   .segmented-selector {
     position: fixed !important;
-    inset: auto auto 140px 56px !important; /* Ao lado do botão de vento */
+    inset: auto auto 140px 8px !important;
     padding: 6px 8px !important;
     gap: 6px !important;
     z-index: var(--z-controls) !important;
@@ -909,6 +915,10 @@ header.maps-header {
 
   .segmented-selector .segmented-selector-title {
     font-size: 0.75rem !important;
+  }
+
+  #heightSelector {
+    left: 56px !important; /* Ao lado do botão de vento */
   }
 
   .segmented-btn {
@@ -1178,7 +1188,7 @@ header.maps-header {
   /* Segmented Selector - Ajuste ultra-mobile */
   .segmented-selector {
     position: fixed !important;
-    inset: auto auto 115px 50px !important; /* Ao lado do botão de vento */
+    inset: auto auto 115px 8px !important;
     padding: 4px 6px !important;
     gap: 4px !important;
     z-index: var(--z-sidebar-elevated) !important;
@@ -1186,6 +1196,10 @@ header.maps-header {
 
   .segmented-selector .segmented-selector-title {
     font-size: 0.65rem !important;
+  }
+
+  #heightSelector {
+    left: 50px !important; /* Ao lado do botão de vento */
   }
 
   .segmented-btn {

@@ -62,7 +62,7 @@
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=1052434d" />
     <link rel="stylesheet" href="assets/css/components.css?v=1399937a" />
-    <link rel="stylesheet" href="assets/css/maps.css?v=8ad5672b" />
+    <link rel="stylesheet" href="assets/css/maps.css?v=63880bfe" />
     <link rel="stylesheet" href="assets/css/theme.css?v=da53232b" />
 
     <script src="assets/js/theme-boot.js?v=6fe47826"></script>
@@ -269,6 +269,14 @@
         </div>
       </div>
 
+      <!-- ACCUMULATION SELECTOR (Precipitação) — botões preenchidos em runtime por
+       map-manager (configureAccumulationSelector) a partir da janela declarada
+       em VARIABLES_CONFIG; some para variáveis sem acumulado. -->
+      <div class="segmented-selector" id="accumSelector" role="group" aria-label="Janela de acumulado">
+        <span class="segmented-selector-title" id="accumSelectorTitle">Acumulado:</span>
+        <div class="segmented-button-group" id="accumButtonGroup"></div>
+      </div>
+
       <!-- WIND VECTOR LAYER TOGGLE -->
       <div class="wind-layer-toggle" id="windLayerToggle">
         <label title="Vetores de Vento">
@@ -465,6 +473,18 @@
                 <li><strong>Altura Configurável:</strong> Selecione entre 50m, 100m ou 150m de altura</li>
               </ul>
 
+              <h4>🌧️ Janela de Acumulado</h4>
+              <ul class="doc-list">
+                <li>
+                  <strong>Seletor Acumulado:</strong> Com a precipitação selecionada, escolha entre o acumulado de 1h
+                  (passo do modelo) e o de 3h (soma dos três passos que terminam no horário exibido).
+                </li>
+                <li>
+                  <strong>Escala:</strong> Cada janela tem sua própria barra de cores, então o 3h não satura na faixa
+                  horária.
+                </li>
+              </ul>
+
               <h4>🏷️ Clique nas Células</h4>
               <ul class="doc-list">
                 <li>Clique em qualquer célula do mapa para ver informações detalhadas</li>
@@ -646,6 +666,10 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                   <p>
                     Isso evita mostrar o acumulado total como se fosse chuva instantânea. A qualidade depende das
                     parametrizações de convecção e microfísica do domínio.
+                  </p>
+                  <p>
+                    No mapa, o seletor <strong>Acumulado</strong> escolhe a janela exibida: <code>1h</code> mostra o
+                    passo horário do modelo e <code>3h</code> soma os três passos que terminam no horário selecionado.
                   </p>
                 </div>
               </details>
@@ -972,10 +996,10 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
          Web Workers recebem hash pela <meta name="labmim-asset-hashes">
          (lida por workerScriptUrl em map-manager.js; sem hash a URL sai
          sem ?v= e cai nas regras de cache curto). -->
-    <script src="assets/js/variables-config.js?v=50efd26b" defer></script>
+    <script src="assets/js/variables-config.js?v=54b718ff" defer></script>
     <script src="assets/js/data-service.js?v=9be91789" defer></script>
     <script src="assets/js/charts-manager.js?v=93c9f83b" defer></script>
-    <script src="assets/js/map-manager.js?v=e728dccf" defer></script>
+    <script src="assets/js/map-manager.js?v=dbfbe276" defer></script>
     <script src="assets/js/map-init.js?v=5b580457" defer></script>
   </body>
 </html>

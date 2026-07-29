@@ -12,6 +12,10 @@
  * - relatedVariables: Companion variables this variable's specificInfo reads
  *   from allValues (omit when none). The map only fetches these on a cell
  *   click, instead of every visible variable.
+ * - accumulation: Selectable accumulation window for per-timestep totals.
+ *   The pipeline only publishes one file per timestep, so windows longer than
+ *   one step are summed in the frontend over the N steps ending at the
+ *   selected time. Each option carries the scale and label that window needs.
  * - chartCompanions: Companion SERIES the time-series modal loads alongside
  *   the variable (omit when none) — e.g. temperature drives the solar/eolico
  *   energy-production chart.
@@ -45,6 +49,28 @@ function getParameter(variableType, paramName, defaultValue) {
   }
 
   return defaultValue;
+}
+
+/**
+ * Accumulation window (in hours) currently selected for `variableType`.
+ * Read from the live map manager like getParameter does, so specificInfo can
+ * describe the value it was actually handed — a 3h total must not be
+ * classified with hourly-rain thresholds.
+ * @param {string} variableType - Variable type (e.g., rain)
+ * @param {number} defaultHours - Fallback when no map manager is available
+ * @returns {number} Selected accumulation window in hours
+ */
+function getAccumulationHours(variableType, defaultHours = 1) {
+  if (typeof app === "undefined" || !app || !app.getAccumulationOption) {
+    return defaultHours;
+  }
+
+  try {
+    return app.getAccumulationOption(variableType)?.hours ?? defaultHours;
+  } catch (e) {
+    console.warn(`Error getting accumulation window: ${e.message}`);
+    return defaultHours;
+  }
 }
 
 const TEMPERATURE_COLORS = ["#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000"];
@@ -462,26 +488,49 @@ const VARIABLES_CONFIG = {
     faIcon: "cloud-rain",
     unit: "mm",
     sourceId: "RAIN",
-    summary: "Precipitação horária acumulada no timestep do modelo.",
+    summary: "Precipitação acumulada no timestep do modelo, somada na janela escolhida (1h ou 3h).",
     scaleMin: 0,
     scaleMax: 30,
+    accumulation: {
+      title: "Acumulado:",
+      defaultHours: 1,
+      options: [
+        {
+          hours: 1,
+          label: "1h",
+          scaleMax: 30,
+          variableLabel: "Precipitação (1h)",
+        },
+        {
+          hours: 3,
+          label: "3h",
+          scaleMax: 60,
+          variableLabel: "Precipitação acumulada (3h)",
+        },
+      ],
+    },
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.rain?.ausente) {
         return unavailableInfo("Previsão de Precipitação");
       }
 
+      // As faixas de intensidade são horárias; com a janela de 3h selecionada
+      // o valor exibido é um total, então a classificação usa a taxa média.
+      const hours = getAccumulationHours("rain", 1);
+      const hourlyRate = value / hours;
+
       return {
         title: "Previsão de Precipitação",
         items: [
           {
             label: "Intensidade",
-            value: value < 2.5 ? "Leve" : value < 10 ? "Moderada" : "Forte",
+            value: hourlyRate < 2.5 ? "Leve" : hourlyRate < 10 ? "Moderada" : "Forte",
             icon: "fa-cloud-rain",
           },
           {
-            label: "Volume Esperado",
-            value: (value * 0.95).toFixed(1),
+            label: `Volume Acumulado (${hours}h)`,
+            value: value.toFixed(2),
             unit: "mm",
             icon: "fa-water",
           },
