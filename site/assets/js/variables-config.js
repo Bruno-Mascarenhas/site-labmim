@@ -116,6 +116,13 @@ const VARIABLE_CONTEXTS = {
     // Ordem pedida para o seletor: temperatura, precipitação, umidade,
     // pressão, vento e, por último, o bloco radiativo (radiação incidente e
     // os fluxos turbulentos que fecham o balanço de energia).
+    //
+    // Dentro do bloco radiativo a ordem segue o próprio balanço: onda curta
+    // (incidente, refletida, líquida), onda longa (incidente, emitida,
+    // líquida), o saldo que as soma e, por fim, os fluxos turbulentos que o
+    // consomem — Rn = H + LE + G, então netRadiation fica logo antes de
+    // hfx/lh. Os dois índices adimensionais fecham a lista por serem
+    // diagnósticos de céu, não termos do balanço.
     variables: [
       "temperature",
       "skinTemperature",
@@ -125,9 +132,16 @@ const VARIABLE_CONTEXTS = {
       "pressure",
       "wind",
       "globalRadiation",
+      "shortwaveUp",
+      "netShortwave",
       "longwave",
+      "longwaveUp",
+      "netLongwave",
+      "netRadiation",
       "hfx",
       "lh",
+      "skyEmissivity",
+      "clearnessIndex",
     ],
   },
   energy: {
@@ -701,6 +715,284 @@ const VARIABLES_CONFIG = {
             label: "Condição",
             value: value > 420 ? "Atmosfera úmida/nublada" : value < 330 ? "Céu mais limpo" : "Intermediária",
             icon: "fa-cloud",
+          },
+        ],
+      };
+    },
+  },
+
+  // Termos derivados do balanço radiativo. O wrfout traz os fluxos incidentes
+  // (SWDOWN, GLW) diretamente, mas os ascendentes só quando os diagnósticos de
+  // fundo de atmosfera do RRTMG estão ligados — LWUPB não existe em nenhuma
+  // grade da rodada operacional. O pipeline os reconstrói a partir de EMISS,
+  // TSK, ALBEDO e COSZEN, de modo que publicam igual em qualquer rodada.
+
+  shortwaveUp: {
+    id: "SWUP",
+    label: "Onda Curta Refletida",
+    optionLabel: "Onda Curta Refletida",
+    icon: "🪞",
+    faIcon: "arrow-up",
+    unit: "W/m²",
+    sourceId: "SWUP",
+    summary: "Radiação solar refletida pela superfície (albedo x radiação incidente).",
+    scaleMin: 0,
+    scaleMax: 250,
+    colors: RADIATION_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.shortwaveUp?.ausente) {
+        return unavailableInfo("Onda Curta Refletida");
+      }
+
+      return {
+        title: "Onda Curta Refletida",
+        items: [
+          {
+            label: "Fluxo Refletido",
+            value: value.toFixed(0),
+            unit: "W/m²",
+            icon: "fa-arrow-up",
+          },
+          {
+            label: "Origem",
+            value: "Albedo x onda curta incidente",
+            icon: "fa-sun",
+          },
+        ],
+      };
+    },
+  },
+
+  netShortwave: {
+    id: "SWNET",
+    label: "Onda Curta Líquida",
+    optionLabel: "Onda Curta Líquida",
+    icon: "☀️",
+    faIcon: "sun",
+    unit: "W/m²",
+    sourceId: "SWNET",
+    summary: "Radiação solar efetivamente absorvida pela superfície.",
+    scaleMin: 0,
+    scaleMax: 900,
+    colors: RADIATION_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.netShortwave?.ausente) {
+        return unavailableInfo("Onda Curta Líquida");
+      }
+
+      return {
+        title: "Onda Curta Líquida",
+        items: [
+          {
+            label: "Fluxo Absorvido",
+            value: value.toFixed(0),
+            unit: "W/m²",
+            icon: "fa-sun",
+          },
+          {
+            label: "Convenção",
+            value: "Positivo para baixo",
+            icon: "fa-arrow-down",
+          },
+        ],
+      };
+    },
+  },
+
+  longwaveUp: {
+    id: "LWUP",
+    label: "Onda Longa Emitida",
+    optionLabel: "Onda Longa Emitida",
+    icon: "🌡️",
+    faIcon: "arrow-up",
+    unit: "W/m²",
+    sourceId: "LWUP",
+    summary: "Onda longa que deixa a superfície: emissão de corpo cinza mais a fração do céu refletida.",
+    scaleMin: 300,
+    scaleMax: 650,
+    colors: RADIATION_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.longwaveUp?.ausente) {
+        return unavailableInfo("Onda Longa Emitida");
+      }
+
+      return {
+        title: "Onda Longa Emitida",
+        items: [
+          {
+            label: "Fluxo Emergente",
+            value: value.toFixed(0),
+            unit: "W/m²",
+            icon: "fa-arrow-up",
+          },
+          {
+            label: "Origem",
+            value: "ε·σ·T⁴ + (1−ε)·incidente",
+            icon: "fa-flask",
+          },
+          {
+            label: "Superfície",
+            value: value > 500 ? "Muito aquecida" : value < 400 ? "Mais fria" : "Intermediária",
+            icon: "fa-temperature-high",
+          },
+        ],
+      };
+    },
+  },
+
+  netLongwave: {
+    id: "LWNET",
+    label: "Onda Longa Líquida",
+    optionLabel: "Onda Longa Líquida",
+    icon: "🌙",
+    faIcon: "moon",
+    unit: "W/m²",
+    sourceId: "LWNET",
+    summary: "Saldo de onda longa na superfície; quase sempre negativo, pois a superfície perde mais do que recebe.",
+    scaleMin: -200,
+    scaleMax: 25,
+    colors: RADIATION_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.netLongwave?.ausente) {
+        return unavailableInfo("Onda Longa Líquida");
+      }
+
+      return {
+        title: "Onda Longa Líquida",
+        items: [
+          {
+            label: "Saldo",
+            value: value.toFixed(0),
+            unit: "W/m²",
+            icon: "fa-moon",
+          },
+          {
+            label: "Balanço",
+            value: value < 0 ? "Perda radiativa" : "Ganho radiativo",
+            icon: "fa-scale-balanced",
+          },
+        ],
+      };
+    },
+  },
+
+  netRadiation: {
+    id: "RNET",
+    label: "Saldo de Radiação",
+    optionLabel: "Saldo de Radiação",
+    icon: "⚖️",
+    faIcon: "scale-balanced",
+    unit: "W/m²",
+    sourceId: "RNET",
+    summary:
+      "Saldo de radiação de todas as ondas: a energia disponível para os fluxos de calor sensível, latente e no solo.",
+    scaleMin: -150,
+    scaleMax: 800,
+    colors: RADIATION_COLORS,
+    relatedVariables: ["hfx", "lh"],
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.netRadiation?.ausente) {
+        return unavailableInfo("Saldo de Radiação");
+      }
+
+      const items = [
+        {
+          label: "Saldo",
+          value: value.toFixed(0),
+          unit: "W/m²",
+          icon: "fa-scale-balanced",
+        },
+        {
+          label: "Período",
+          value: value > 0 ? "Ganho (diurno)" : "Perda (noturno)",
+          icon: value > 0 ? "fa-sun" : "fa-moon",
+        },
+      ];
+
+      // Rn = H + LE + G: com os fluxos turbulentos ao lado, a fração que sobra
+      // para o solo e o armazenamento fica legível na própria caixa.
+      const sensible = allValues.hfx?.value;
+      const latent = allValues.lh?.value;
+      if (typeof sensible === "number" && typeof latent === "number" && Math.abs(value) > 1) {
+        items.push({
+          label: "Repartição",
+          value: `H ${sensible.toFixed(0)} · LE ${latent.toFixed(0)}`,
+          unit: "W/m²",
+          icon: "fa-fire",
+        });
+      }
+
+      return { title: "Saldo de Radiação", items };
+    },
+  },
+
+  skyEmissivity: {
+    id: "EPS_SKY",
+    label: "Emissividade do Céu",
+    optionLabel: "Emissividade do Céu",
+    icon: "☁️",
+    faIcon: "cloud",
+    unit: "",
+    sourceId: "EPS_SKY",
+    summary: "Emissividade efetiva do céu; sobe com umidade e nebulosidade, servindo de indicador de cobertura.",
+    scaleMin: 0.6,
+    scaleMax: 1,
+    colors: HUMIDITY_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.skyEmissivity?.ausente) {
+        return unavailableInfo("Emissividade do Céu");
+      }
+
+      return {
+        title: "Emissividade do Céu",
+        items: [
+          {
+            label: "Emissividade",
+            value: value.toFixed(2),
+            unit: "",
+            icon: "fa-cloud",
+          },
+          {
+            label: "Céu",
+            value: value > 0.9 ? "Encoberto/úmido" : value < 0.8 ? "Mais limpo" : "Intermediário",
+            icon: "fa-cloud-sun",
+          },
+        ],
+      };
+    },
+  },
+
+  clearnessIndex: {
+    id: "KT",
+    label: "Índice de Transparência",
+    optionLabel: "Índice de Transparência (kt)",
+    icon: "🌤️",
+    faIcon: "cloud-sun",
+    unit: "",
+    sourceId: "KT",
+    summary:
+      "Fração da radiação no topo da atmosfera que chega à superfície. Publicado apenas com o sol acima de 10° de elevação.",
+    scaleMin: 0,
+    scaleMax: 0.85,
+    colors: RADIATION_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.clearnessIndex?.ausente) {
+        return unavailableInfo("Índice de Transparência");
+      }
+
+      return {
+        title: "Índice de Transparência",
+        items: [
+          {
+            label: "kt",
+            value: value.toFixed(2),
+            unit: "",
+            icon: "fa-cloud-sun",
+          },
+          {
+            label: "Céu",
+            value: value > 0.65 ? "Limpo" : value < 0.35 ? "Encoberto" : "Parcialmente nublado",
+            icon: "fa-sun",
           },
         ],
       };

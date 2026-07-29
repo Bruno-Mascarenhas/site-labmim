@@ -1179,7 +1179,7 @@ class MeteoMapManager {
           <i class="fas fa-info-circle variable-info-icon" title="${config.summary || config.label}"></i>
         </div>
         <div class="variable-card-meta">
-          <span class="variable-card-chip">${config.unit}</span>
+          ${config.unit ? `<span class="variable-card-chip">${config.unit}</span>` : ""}
           <span class="variable-card-chip">${config.sourceId || config.id}</span>
         </div>
         <p class="variable-card-summary">${config.summary || "Variável disponível no mapa interativo."}</p>
@@ -1216,7 +1216,10 @@ class MeteoMapManager {
       this.ui.variablePreviewTitle.textContent = config.optionLabel || config.label;
     }
     if (this.ui.variablePreviewLabel) {
-      this.ui.variablePreviewLabel.textContent = `${config.sourceId || config.id} · ${config.unit}`;
+      // Adimensionais não têm unidade: sem o guarda o rótulo terminaria no
+      // separador ("EPS_SKY · ").
+      const source = config.sourceId || config.id;
+      this.ui.variablePreviewLabel.textContent = config.unit ? `${source} · ${config.unit}` : source;
     }
     if (this.ui.variablePreviewDomain) {
       this.ui.variablePreviewDomain.textContent = this.getDomainLabel(this.state.domain);
@@ -2147,22 +2150,45 @@ class MeteoMapManager {
     const gradient = `linear-gradient(to top, ${config.colors.join(", ")})`;
     this.ui.colorbarGradient.style.background = gradient;
     this.ui.colorbarUnit.textContent = config.unit;
+    // Dimensionless variables (kt, emissividade) declare no unit: the element
+    // carries a top border and padding, so leaving it empty hangs a stray rule
+    // under the scale.
+    this.ui.colorbarUnit.hidden = !config.unit;
 
     const labelsContainer = this.ui.colorbarLabels;
     labelsContainer.innerHTML = "";
 
+    const decimals = this.colorbarDecimals(scaleValues);
     for (let i = scaleValues.length - 1; i >= 0; i--) {
       const label = document.createElement("div");
       label.className = "colorbar-label";
-      label.textContent = this.formatColorbarValue(scaleValues[i]);
+      label.textContent = this.formatColorbarValue(scaleValues[i], decimals);
       labelsContainer.appendChild(label);
     }
   }
 
-  formatColorbarValue(value) {
+  /**
+   * Decimal places shared by every tick of a scale: the fewest that keep the
+   * ticks distinct AND the largest one at two significant digits. Formatting
+   * each label on its own turned a 0.6-1 scale into "1" next to "0.956",
+   * which reads as two different scales; the significant-digit rule keeps a
+   * 0-0.85 index from collapsing its top tick to "0.9".
+   */
+  colorbarDecimals(scaleValues) {
+    const largest = Math.max(...scaleValues.map((value) => Math.abs(value)));
+    if (!Number.isFinite(largest)) return 0;
+
+    for (let decimals = 0; decimals <= 3; decimals++) {
+      const labels = scaleValues.map((value) => value.toFixed(decimals));
+      const distinct = new Set(labels).size === labels.length;
+      if (distinct && Math.round(largest * 10 ** decimals) >= 10) return decimals;
+    }
+    return 3;
+  }
+
+  formatColorbarValue(value, decimals = 0) {
     if (!Number.isFinite(value)) return "";
-    if (Math.abs(value) < 1 && value !== 0) return value.toFixed(3);
-    return value.toFixed(0);
+    return value.toFixed(decimals);
   }
 
   async handleMapClick(e, options = {}) {
