@@ -16,6 +16,19 @@
   --z-modal-overlay: 9999;
 }
 
+/* LEFT RAIL CLEARANCE
+   A colorbar e os botões de domínio formam uma coluna encostada na borda
+   esquerda do mapa que cresce para baixo: em telas baixas (ex.: 1024x768) ela
+   chega à barra de controles. Os controles flutuantes do canto inferior
+   esquerdo (vetores de vento, seletor de altura, janela de acumulado) partem
+   daqui para nunca ficarem por baixo dela. O valor cobre o rótulo de domínio
+   mais largo entre as publicações — "Grande Vitória" (ufes), cuja coluna
+   termina em 178px — com folga. Abaixo de 900px esses controles entram na
+   pilha estática e o deslocamento deixa de valer. */
+:root {
+  --map-left-rail-clear: 190px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -420,7 +433,7 @@ header.maps-header {
   display: none;
   position: absolute;
   bottom: 100px;
-  left: 20px;
+  left: var(--map-left-rail-clear);
   align-items: center;
   gap: 10px;
   background: white;
@@ -431,9 +444,10 @@ header.maps-header {
   white-space: nowrap;
 }
 
-/* O eólico exibe também o botão de vetores de vento no canto: desloca. */
+/* O eólico exibe o botão de vetores de vento na mesma faixa: o seletor de
+   altura fica encostado nele. */
 #heightSelector {
-  left: 80px;
+  left: calc(var(--map-left-rail-clear) + 60px);
 }
 
 .segmented-selector.active {
@@ -481,7 +495,7 @@ header.maps-header {
   display: none;
   position: absolute;
   bottom: 100px;
-  left: 20px;
+  left: var(--map-left-rail-clear);
   z-index: var(--z-controls);
 }
 
@@ -913,12 +927,12 @@ header.maps-header {
     z-index: var(--z-controls) !important;
   }
 
-  .segmented-selector .segmented-selector-title {
-    font-size: 0.75rem !important;
-  }
-
   #heightSelector {
     left: 56px !important; /* Ao lado do botão de vento */
+  }
+
+  .segmented-selector .segmented-selector-title {
+    font-size: 0.75rem !important;
   }
 
   .segmented-btn {
@@ -1194,12 +1208,12 @@ header.maps-header {
     z-index: var(--z-sidebar-elevated) !important;
   }
 
-  .segmented-selector .segmented-selector-title {
-    font-size: 0.65rem !important;
-  }
-
   #heightSelector {
     left: 50px !important; /* Ao lado do botão de vento */
+  }
+
+  .segmented-selector .segmented-selector-title {
+    font-size: 0.65rem !important;
   }
 
   .segmented-btn {
@@ -2339,7 +2353,15 @@ header.maps-header {
     width: 100%;
     justify-content: center;
   }
+}
 
+/* Painéis flutuantes do mapa recolhidos para os cantos superiores. Este
+   breakpoint acompanha o da MOBILE MAP CONTROLS STACK abaixo de propósito:
+   assim que os controles inferiores viram pilha estática, a coluna esquerda
+   (colorbar + domínios) precisa sair do caminho — enquanto ela ficava até
+   768px, a faixa de 769-900px deixava os domínios por cima da barra de
+   controles e do botão de vetores de vento. */
+@media (width <= 900px) {
   .colorbar-container {
     top: 8px;
     left: 8px;
