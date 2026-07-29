@@ -12,6 +12,14 @@
  * - relatedVariables: Companion variables this variable's specificInfo reads
  *   from allValues (omit when none). The map only fetches these on a cell
  *   click, instead of every visible variable.
+ * - hideBelow: Values strictly below this threshold are left unpainted
+ *   (transparent) instead of colored — for fields like precipitation, whose
+ *   "no rain" cells would otherwise flood the map with the palette's first
+ *   color (omit when every value should be painted).
+ * - accumulation: Selectable accumulation window for per-timestep totals.
+ *   The pipeline only publishes one file per timestep, so windows longer than
+ *   one step are summed in the frontend over the N steps ending at the
+ *   selected time. Each option carries the scale and label that window needs.
  * - chartCompanions: Companion SERIES the time-series modal loads alongside
  *   the variable (omit when none) — e.g. temperature drives the solar/eolico
  *   energy-production chart.
@@ -47,8 +55,46 @@ function getParameter(variableType, paramName, defaultValue) {
   return defaultValue;
 }
 
+/**
+ * Accumulation window (in hours) currently selected for `variableType`.
+ * Read from the live map manager like getParameter does, so specificInfo can
+ * describe the value it was actually handed — a 3h total must not be
+ * classified with hourly-rain thresholds.
+ * @param {string} variableType - Variable type (e.g., rain)
+ * @param {number} defaultHours - Fallback when no map manager is available
+ * @returns {number} Selected accumulation window in hours
+ */
+function getAccumulationHours(variableType, defaultHours = 1) {
+  if (typeof app === "undefined" || !app || !app.getAccumulationOption) {
+    return defaultHours;
+  }
+
+  try {
+    return app.getAccumulationOption(variableType)?.hours ?? defaultHours;
+  } catch (e) {
+    console.warn(`Error getting accumulation window: ${e.message}`);
+    return defaultHours;
+  }
+}
+
 const TEMPERATURE_COLORS = ["#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000"];
 const HUMIDITY_COLORS = ["#f7fbff", "#deebf7", "#c6dbef", "#6baed6", "#2171b5", "#08306b"];
+// Matplotlib `jet` sampled at 11 evenly spaced stops and reversed (`jet_r`):
+// dark red for the driest air through to navy for the moistest, matching the
+// colormap used in the group's Python figures for specific humidity.
+const JET_R_COLORS = [
+  "#800000",
+  "#f30900",
+  "#ff6800",
+  "#ffc600",
+  "#ceff29",
+  "#7bff7b",
+  "#29ffce",
+  "#00b2ff",
+  "#004dff",
+  "#0000f3",
+  "#000080",
+];
 const RADIATION_COLORS = ["#1d1d1d", "#4a3366", "#8d4f8a", "#d67a59", "#f0b35a", "#fff2a8"];
 const PRESSURE_COLORS = [
   "#a50026",
@@ -66,15 +112,18 @@ const PRESSURE_COLORS = [
 const VARIABLE_CONTEXTS = {
   forecast: {
     optionGroupLabel: "Variáveis meteorológicas e radiativas",
-    defaultVariable: "wind",
+    defaultVariable: "temperature",
+    // Ordem pedida para o seletor: temperatura, precipitação, umidade,
+    // pressão, vento e, por último, o bloco radiativo (radiação incidente e
+    // os fluxos turbulentos que fecham o balanço de energia).
     variables: [
-      "wind",
       "temperature",
       "skinTemperature",
-      "pressure",
+      "rain",
       "humidity",
       "relativeHumidity",
-      "rain",
+      "pressure",
+      "wind",
       "globalRadiation",
       "longwave",
       "hfx",
@@ -373,23 +422,23 @@ const VARIABLES_CONFIG = {
 
   humidity: {
     id: "VAPOR",
-    label: "Vapor d'Água (2m)",
-    optionLabel: "Vapor d'Água",
+    label: "Umidade Específica (2m)",
+    optionLabel: "Umidade Específica",
     icon: "💧",
     faIcon: "droplet",
     unit: "g/kg",
     sourceId: "VAPOR",
-    summary: "Razão de mistura de vapor d'água próximo à superfície, expressa em g/kg.",
+    summary: "Conteúdo de vapor d'água do ar próximo à superfície, expresso em g/kg (derivado de Q2 do WRF).",
     scaleMin: 0,
     scaleMax: 25,
-    colors: HUMIDITY_COLORS,
+    colors: JET_R_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.humidity?.ausente) {
         return unavailableInfo("Condições de Umidade");
       }
 
       return {
-        title: "Conteúdo de Vapor d'Água",
+        title: "Umidade Específica",
         items: [
           {
             label: "Classificação",
@@ -397,7 +446,7 @@ const VARIABLES_CONFIG = {
             icon: "fa-droplet",
           },
           {
-            label: "Razão de Mistura",
+            label: "Umidade Específica",
             value: value.toFixed(2),
             unit: "g/kg",
             icon: "fa-water",
@@ -462,26 +511,54 @@ const VARIABLES_CONFIG = {
     faIcon: "cloud-rain",
     unit: "mm",
     sourceId: "RAIN",
-    summary: "Precipitação horária acumulada no timestep do modelo.",
+    summary:
+      "Precipitação acumulada no timestep do modelo, somada na janela escolhida (1h ou 3h). Células sem chuva (< 0,01 mm) não são pintadas.",
     scaleMin: 0,
     scaleMax: 30,
+    // Abaixo de 0,01 mm o WRF escreve zeros em quase toda a grade: pintá-los
+    // cobriria o mapa inteiro com a primeira cor da paleta e esconderia onde
+    // realmente chove.
+    hideBelow: 0.01,
+    accumulation: {
+      title: "Acumulado:",
+      defaultHours: 1,
+      options: [
+        {
+          hours: 1,
+          label: "1h",
+          scaleMax: 30,
+          variableLabel: "Precipitação (1h)",
+        },
+        {
+          hours: 3,
+          label: "3h",
+          scaleMax: 60,
+          variableLabel: "Precipitação acumulada (3h)",
+        },
+      ],
+    },
     colors: TEMPERATURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.rain?.ausente) {
         return unavailableInfo("Previsão de Precipitação");
       }
 
+      // As faixas de intensidade são horárias; com a janela de 3h selecionada
+      // o valor exibido é um total, então a classificação usa a taxa média.
+      const hours = getAccumulationHours("rain", 1);
+      const hourlyRate = value / hours;
+
       return {
         title: "Previsão de Precipitação",
         items: [
           {
             label: "Intensidade",
-            value: value < 2.5 ? "Leve" : value < 10 ? "Moderada" : "Forte",
+            value: hourlyRate < 0.01 ? "Sem chuva" : hourlyRate < 2.5 ? "Leve" : hourlyRate < 10 ? "Moderada" : "Forte",
             icon: "fa-cloud-rain",
           },
           {
-            label: "Volume Esperado",
-            value: (value * 0.95).toFixed(1),
+            label: `Volume Acumulado (${hours}h)`,
+            value: value.toFixed(2),
             unit: "mm",
             icon: "fa-water",
           },

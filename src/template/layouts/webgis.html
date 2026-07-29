@@ -109,13 +109,21 @@
   </div>
 
   <!-- HEIGHT SELECTOR (Eólico) -->
-  <div class="height-selector-wrapper" id="heightSelector" role="group" aria-label="Altura (m)">
-    <span class="height-selector-title">Altura (m):</span>
-    <div class="height-button-group">
-      <button type="button" class="height-btn active" aria-pressed="true" data-height="50">50</button>
-      <button type="button" class="height-btn" aria-pressed="false" data-height="100">100</button>
-      <button type="button" class="height-btn" aria-pressed="false" data-height="150">150</button>
+  <div class="segmented-selector" id="heightSelector" role="group" aria-label="Altura (m)">
+    <span class="segmented-selector-title">Altura (m):</span>
+    <div class="segmented-button-group">
+      <button type="button" class="segmented-btn height-btn active" aria-pressed="true" data-height="50">50</button>
+      <button type="button" class="segmented-btn height-btn" aria-pressed="false" data-height="100">100</button>
+      <button type="button" class="segmented-btn height-btn" aria-pressed="false" data-height="150">150</button>
     </div>
+  </div>
+
+  <!-- ACCUMULATION SELECTOR (Precipitação) — botões preenchidos em runtime por
+       map-manager (configureAccumulationSelector) a partir da janela declarada
+       em VARIABLES_CONFIG; some para variáveis sem acumulado. -->
+  <div class="segmented-selector" id="accumSelector" role="group" aria-label="Janela de acumulado">
+    <span class="segmented-selector-title" id="accumSelectorTitle">Acumulado:</span>
+    <div class="segmented-button-group" id="accumButtonGroup"></div>
   </div>
 
   <!-- WIND VECTOR LAYER TOGGLE -->

@@ -6,8 +6,13 @@
  * of computed CSS color strings.
  *
  * Message protocol:
- *   Input:  { requestId: number, values: number[], scaleValues: number[], colors: string[] }
- *   Output: { requestId: number, colors: string[] }
+ *   Input:  { requestId: number, values: number[], scaleValues: number[],
+ *             colors: string[], hideBelow?: number }
+ *   Output: { requestId: number, colors: (string|null)[] }
+ *
+ * Output entries are the CSS color of each cell, `null` for a value the
+ * variable asks not to paint (below `hideBelow`) and `undefined` where there
+ * is no value at all — the caller renders those three cases differently.
  */
 
 function hexToRgb(hex) {
@@ -50,27 +55,27 @@ function colorFromScale(value, scaleValues, palette, paletteRgb) {
 }
 
 self.onmessage = function (e) {
-  const { requestId, values, scaleValues, colors: palette } = e.data;
+  const { requestId, values, scaleValues, colors: palette, hideBelow } = e.data;
   const result = new Array(values.length);
+  const threshold = typeof hideBelow === "number" && isFinite(hideBelow) ? hideBelow : -Infinity;
 
   // Parse the palette hex strings ONCE per message instead of running the
   // regex twice per interpolated cell (~20k regex executions per frame for
   // a 9801-cell domain — measured ~5x slower). Values are quantized to 2
   // decimals, so memoizing per distinct value skips most interpolations
   // too. Both caches are per-message: palette and scale change with the
-  // selected variable.
+  // selected variable. Probed with `has`, since `null` (below the display
+  // threshold) is itself a memoizable outcome.
   const paletteRgb = palette.map(hexToRgb);
   const memo = new Map();
 
   for (let i = 0; i < values.length; i++) {
     const v = values[i];
     if (v !== undefined && v !== null) {
-      let color = memo.get(v);
-      if (color === undefined) {
-        color = colorFromScale(v, scaleValues, palette, paletteRgb);
-        memo.set(v, color);
+      if (!memo.has(v)) {
+        memo.set(v, v < threshold ? null : colorFromScale(v, scaleValues, palette, paletteRgb));
       }
-      result[i] = color;
+      result[i] = memo.get(v);
     }
     // else result[i] remains undefined
   }

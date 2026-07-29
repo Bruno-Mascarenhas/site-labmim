@@ -184,6 +184,10 @@ class MeteoMapManager {
       type: this.contextConfig.defaultVariable,
       domain: MAP_SITE_CONFIG.defaultDomain,
       index: DEFAULT_INITIAL_INDEX,
+      // Accumulation window (hours) for variables that declare one; a single
+      // step for everything else. configureAccumulationSelector re-anchors it
+      // to the selected variable's default.
+      accumHours: 1,
       isPlaying: false,
       hasUserControlledPlayback: false,
       isClippedToState: false,
@@ -418,6 +422,45 @@ class MeteoMapManager {
     return start;
   }
 
+  /** Accumulation contract of a variable, or null when it has no window selector. */
+  getAccumulationConfig(variableType = this.state.type) {
+    const accumulation = VARIABLES_CONFIG[variableType]?.accumulation;
+    return Array.isArray(accumulation?.options) && accumulation.options.length ? accumulation : null;
+  }
+
+  /**
+   * The accumulation option in effect for `variableType`: the selected window
+   * when the variable offers it, falling back to the declared default (a
+   * variable without accumulation returns null and is read as a single step).
+   */
+  getAccumulationOption(variableType = this.state.type) {
+    const accumulation = this.getAccumulationConfig(variableType);
+    if (!accumulation) return null;
+    return (
+      accumulation.options.find((option) => option.hours === this.state.accumHours) ||
+      accumulation.options.find((option) => option.hours === accumulation.defaultHours) ||
+      accumulation.options[0]
+    );
+  }
+
+  /**
+   * VARIABLES_CONFIG entry resolved against the current accumulation window:
+   * a 3h precipitation total needs its own colorbar range and label, but
+   * shares everything else (palette, unit, specificInfo) with the 1h field.
+   * Every consumer of the *displayed* variable must read this, not
+   * VARIABLES_CONFIG directly.
+   */
+  getVariableConfig(variableType = this.state.type) {
+    const config = VARIABLES_CONFIG[variableType];
+    const option = this.getAccumulationOption(variableType);
+    if (!config || !option) return config;
+    return {
+      ...config,
+      label: option.variableLabel || config.label,
+      scaleMax: Number.isFinite(option.scaleMax) ? option.scaleMax : config.scaleMax,
+    };
+  }
+
   getVariableId(variableType) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return null;
@@ -442,6 +485,18 @@ class MeteoMapManager {
         this.scheduleVariablePreviewRefresh();
       }
     }
+  }
+
+  setAccumulationHours(hours) {
+    const accumulation = this.getAccumulationConfig();
+    if (!accumulation || !accumulation.options.some((option) => option.hours === hours)) return;
+    if (hours === this.state.accumHours) return;
+
+    this.state.accumHours = hours;
+    this.updateAccumulationButtons();
+    // The window is part of the load key, so this repaints the map, the
+    // colorbar (each window has its own range) and the sidebar total.
+    this._applyMapChangesReselecting(this.state.selectedCell);
   }
 
   loadCustomParameters() {
@@ -812,6 +867,9 @@ class MeteoMapManager {
       windCheckbox: document.getElementById("windLayerCheckbox"),
       windCanvas: document.getElementById("windVectorCanvas"),
       heightSelector: document.getElementById("heightSelector"),
+      accumSelector: document.getElementById("accumSelector"),
+      accumSelectorTitle: document.getElementById("accumSelectorTitle"),
+      accumButtonGroup: document.getElementById("accumButtonGroup"),
       windLayerToggle: document.getElementById("windLayerToggle"),
       sidebar: document.getElementById("sidebar"),
       sidebarContent: document.getElementById("sidebarContent"),
@@ -862,6 +920,7 @@ class MeteoMapManager {
   setupEventListeners() {
     this.cacheUIElements();
     this.configureVariableSelect();
+    this.configureAccumulationSelector();
 
     const _debouncedSliderApply = _debounce(() => {
       this._applyMapChangesReselecting(this.state.isPlaying ? null : this.state.selectedCell);
@@ -898,6 +957,15 @@ class MeteoMapManager {
         e.target.setAttribute("aria-pressed", "true");
         this.setWindHeight(height);
       });
+    });
+
+    // Delegated: configureAccumulationSelector rebuilds the buttons whenever
+    // the selected variable changes its window options, so per-button
+    // listeners would have to be re-attached on every switch.
+    this.ui.accumButtonGroup?.addEventListener("click", (e) => {
+      const button = e.target.closest(".accum-btn");
+      if (!button) return;
+      this.setAccumulationHours(parseInt(button.dataset.accum, 10));
     });
 
     if (this.ui.windCheckbox) {
@@ -944,6 +1012,57 @@ class MeteoMapManager {
     this.ui.variableSelect.appendChild(optionGroup);
     this.ui.variableSelect.value = selectedVariable;
     this.state.type = selectedVariable;
+  }
+
+  /**
+   * Shows and populates the accumulation-window selector for variables that
+   * declare one (precipitation), and hides it for every other variable. The
+   * buttons come from VARIABLES_CONFIG so the windows offered can never drift
+   * from the windows the loader knows how to build.
+   */
+  configureAccumulationSelector(variableType = this.state.type) {
+    const selector = this.ui.accumSelector;
+    if (!selector) return;
+
+    const accumulation = this.getAccumulationConfig(variableType);
+    selector.classList.toggle("active", Boolean(accumulation));
+    if (!accumulation) return;
+
+    // A window selected for the previous variable may not exist here.
+    if (!accumulation.options.some((option) => option.hours === this.state.accumHours)) {
+      this.state.accumHours = this.getAccumulationOption(variableType).hours;
+    }
+
+    if (this.ui.accumSelectorTitle) {
+      this.ui.accumSelectorTitle.textContent = accumulation.title || "Acumulado:";
+    }
+
+    const group = this.ui.accumButtonGroup;
+    if (!group) return;
+
+    group.innerHTML = "";
+    accumulation.options.forEach((option) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "segmented-btn accum-btn";
+      button.dataset.accum = String(option.hours);
+      button.textContent = option.label;
+      button.title = `Precipitação acumulada em ${option.hours}h`;
+      group.appendChild(button);
+    });
+
+    this.updateAccumulationButtons();
+  }
+
+  updateAccumulationButtons() {
+    const buttons = this.ui.accumButtonGroup?.querySelectorAll(".accum-btn") || [];
+    const activeHours = this.getAccumulationOption()?.hours;
+
+    buttons.forEach((button) => {
+      const isActive = parseInt(button.dataset.accum, 10) === activeHours;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
   }
 
   setupDocumentationListeners() {
@@ -1090,7 +1209,7 @@ class MeteoMapManager {
   }
 
   updateVariablePreviewShell(variableType = this.state.type) {
-    const config = VARIABLES_CONFIG[variableType];
+    const config = this.getVariableConfig(variableType);
     if (!config) return;
 
     if (this.ui.variablePreviewTitle) {
@@ -1295,6 +1414,7 @@ class MeteoMapManager {
     }
 
     this.ui.heightSelector?.classList.toggle("active", variableType === "eolico");
+    this.configureAccumulationSelector(variableType);
 
     this.updateWindLayerToggleVisibility(variableType);
     this.refreshVariableOverviewPreview(variableType);
@@ -1334,14 +1454,17 @@ class MeteoMapManager {
   }
 
   /**
-   * Key identifying a (run, domain, variable, timestep) view. The variable
-   * part is the resolved data id (getVariableId), so eolico 50/100/150 m are
-   * distinct; the run version makes an in-flight response from BEFORE a
-   * detected pipeline-run switch fail the staleness guards instead of
-   * repainting old-run data over the resynchronized view.
+   * Key identifying a (run, domain, variable, window, timestep) view. The
+   * variable part is the resolved data id (getVariableId), so eolico
+   * 50/100/150 m are distinct, plus the accumulation window, so the 1h and 3h
+   * precipitation fields are too; the run version makes an in-flight response
+   * from BEFORE a detected pipeline-run switch fail the staleness guards
+   * instead of repainting old-run data over the resynchronized view.
    */
   _loadKey(index = this.state.index, type = this.state.type, domain = this.state.domain) {
-    return `${this.dataVersion || "v0"}:${domain}:${this.getVariableId(type)}:${index}`;
+    const hours = this.getAccumulationOption(type)?.hours;
+    const window = hours > 1 ? `@${hours}h` : "";
+    return `${this.dataVersion || "v0"}:${domain}:${this.getVariableId(type)}${window}:${index}`;
   }
 
   /**
@@ -1370,14 +1493,64 @@ class MeteoMapManager {
     return promise;
   }
 
+  /**
+   * Values payload for a view, honoring the variable's accumulation window.
+   * A one-step window is the per-timestep file as published; longer windows
+   * are summed here because the pipeline only writes per-timestep totals.
+   */
+  _fetchValues(domain, type, index) {
+    const variableId = this.getVariableId(type);
+    const steps = this.getAccumulationOption(type)?.hours || 1;
+    const latest = this._cachedFetch(this.dataUrl(this.valuesJsonPath(domain, variableId, index)));
+    if (steps <= 1) return latest;
+
+    const older = [];
+    for (let back = 1; back < steps; back++) {
+      const previousIndex = index - back;
+      if (previousIndex < this.timeline.indexMin) break;
+      // Best-effort: a missing earlier step shortens the window instead of
+      // blanking the map (the run's first steps have nothing behind them).
+      older.push(
+        this._cachedFetch(this.dataUrl(this.valuesJsonPath(domain, variableId, previousIndex))).catch(() => null)
+      );
+    }
+
+    return Promise.all([latest, ...older]).then((payloads) => this._sumValuePayloads(payloads));
+  }
+
+  /**
+   * Element-wise sum of per-timestep payloads, newest first. The newest one
+   * owns the result's metadata (its date/time labels the view) and is the
+   * only mandatory member — its absence already rejected upstream. Values are
+   * re-quantized to the pipeline's 2 decimals so the palette memoization
+   * keeps hitting on the summed field.
+   */
+  _sumValuePayloads([latest, ...older]) {
+    if (!Array.isArray(latest?.values) || !older.length) return latest;
+
+    const values = latest.values.slice();
+    older.forEach((payload) => {
+      const previous = payload?.values;
+      if (!Array.isArray(previous) || previous.length !== values.length) return;
+      for (let i = 0; i < values.length; i++) {
+        if (previous[i] === null || previous[i] === undefined) continue;
+        values[i] = values[i] === null || values[i] === undefined ? previous[i] : values[i] + previous[i];
+      }
+    });
+
+    for (let i = 0; i < values.length; i++) {
+      if (values[i] !== null && values[i] !== undefined) values[i] = Math.round(values[i] * 100) / 100;
+    }
+
+    return { ...latest, values };
+  }
+
   loadValueData(index, type) {
     const domain = this.state.domain;
 
-    const variableId = this.getVariableId(type);
-    const filePath = this.dataUrl(this.valuesJsonPath(domain, variableId, index));
     const loadKey = this._loadKey(index, type, domain);
 
-    return Promise.all([this._cachedFetch(filePath), this.loadGridLayer(domain)])
+    return Promise.all([this._fetchValues(domain, type, index), this.loadGridLayer(domain)])
       .then(([valueData, gridLayer]) => {
         // Staleness guard: a rapid variable/domain/timestep switch starts a
         // newer load. applyMapChanges tags the latest requested view on
@@ -1664,7 +1837,7 @@ class MeteoMapManager {
         // 4 domínios em cache.
         layer.on("mouseover", (e) => {
           const cell = e.propagatedFrom;
-          if (!cell) return;
+          if (!cell || this._isCellHidden(cell)) return;
           cell.setStyle({
             weight: 1.2,
             color: "#666",
@@ -1674,13 +1847,13 @@ class MeteoMapManager {
         layer.on("mouseout", (e) => {
           const cell = e.propagatedFrom;
           if (!cell) return;
-          // Restore the cell's resting style from its current state. A
-          // state-clipped cell must return to GRID_HIDDEN_STYLE; a fixed
-          // visible style would repaint it and defeat the clip. Visible
-          // (and no-data gray) cells keep their stored fillColor.
-          const hiddenByClip = this.state.isClippedToState && cell._inStateMask === false;
+          // Restore the cell's resting style from its current state. A cell
+          // hidden by the state clip or by the variable's display threshold
+          // must return to GRID_HIDDEN_STYLE; a fixed visible style would
+          // repaint it and defeat the hiding. Visible (and no-data gray)
+          // cells keep their stored fillColor.
           cell.setStyle(
-            hiddenByClip
+            this._isCellHidden(cell)
               ? GRID_HIDDEN_STYLE
               : {
                   ...GRID_VISIBLE_STYLE,
@@ -1718,8 +1891,11 @@ class MeteoMapManager {
   applyValuesToGrid(gridLayer, valueData) {
     const values = valueData.values;
     const layers = gridLayer.getLayers();
-    const config = VARIABLES_CONFIG[this.state.type];
+    const config = this.getVariableConfig();
     const scaleValues = this.getScaleValues(config, valueData);
+    // Below this the cell is left unpainted rather than colored (see
+    // `hideBelow` in VARIABLES_CONFIG); -Infinity paints everything.
+    const hideBelow = Number.isFinite(config.hideBelow) ? config.hideBelow : -Infinity;
 
     if (this._colorWorker) {
       const requestId = ++this._colorRequestId;
@@ -1735,6 +1911,7 @@ class MeteoMapManager {
         values,
         scaleValues,
         colors: config.colors,
+        hideBelow,
       });
     } else {
       this._applyColorsOnMainThread(layers, values, scaleValues, config);
@@ -1743,19 +1920,19 @@ class MeteoMapManager {
 
   _applyColorsOnMainThread(layers, values, scaleValues, config) {
     const colors = new Array(values.length);
+    const hideBelow = Number.isFinite(config.hideBelow) ? config.hideBelow : -Infinity;
     // Values are quantized to 2 decimals, so a few thousand cells share far
     // fewer distinct values — memoize per call (palette/scale can change
-    // between calls, so the map must not outlive this repaint).
+    // between calls, so the map must not outlive this repaint). Keyed with
+    // `has`, since `null` (below threshold) is a valid memoized outcome.
     const memo = new Map();
     for (let i = 0; i < values.length; i++) {
       const value = values[i];
       if (value !== undefined && value !== null) {
-        let color = memo.get(value);
-        if (color === undefined) {
-          color = this._colorFromScale(value, scaleValues, config);
-          memo.set(value, color);
+        if (!memo.has(value)) {
+          memo.set(value, value < hideBelow ? null : this._colorFromScale(value, scaleValues, config));
         }
-        colors[i] = color;
+        colors[i] = memo.get(value);
       }
     }
 
@@ -1787,13 +1964,19 @@ class MeteoMapManager {
         // No data at this timestep: reset the previous timestep's value and
         // color instead of leaving a stale reading on the map.
         layer.feature.properties.valor = null;
+        layer._hiddenByValue = false;
         this._setGridCellStyle(layer, hiddenByClip ? GRID_HIDDEN_STYLE : GRID_NODATA_STYLE);
         continue;
       }
 
       layer.feature.properties.valor = values[cellIndex];
 
-      if (hiddenByClip) {
+      // `null` (never `undefined`) marks a value under the variable's
+      // `hideBelow`: there IS data, it just must not be painted. The flag
+      // keeps hover from revealing the cell and mouseout from restoring it.
+      layer._hiddenByValue = color === null;
+
+      if (hiddenByClip || color === null) {
         this._setGridCellStyle(layer, GRID_HIDDEN_STYLE);
       } else {
         visibleStyle.fillColor = color;
@@ -1818,6 +2001,16 @@ class MeteoMapManager {
         return;
       }
     }
+  }
+
+  /**
+   * Whether a grid cell is currently rendered fully transparent — clipped
+   * outside the state boundary, or below the variable's display threshold.
+   * Hover must neither reveal it nor restore it as a painted cell.
+   */
+  _isCellHidden(cell) {
+    if (cell._hiddenByValue === true) return true;
+    return this.state.isClippedToState && cell._inStateMask === false;
   }
 
   getCellIndexForLayer(layer, fallbackIndex) {
@@ -1907,7 +2100,7 @@ class MeteoMapManager {
   }
 
   updateUIFromMetadata(metadata, loadedIndex = this.state.index) {
-    const config = VARIABLES_CONFIG[this.state.type];
+    const config = this.getVariableConfig();
 
     if (!this.state.initialDateTime && metadata?.date_time) {
       this.state.initialDateTime = this.parseDateTime(metadata.date_time);
@@ -2156,7 +2349,7 @@ class MeteoMapManager {
    */
   showSidebar() {
     const cell = this.state.selectedCell;
-    const config = VARIABLES_CONFIG[this.state.type];
+    const config = this.getVariableConfig();
     const sidebar = this.ui.sidebar;
     const content = this.ui.sidebarContent;
 

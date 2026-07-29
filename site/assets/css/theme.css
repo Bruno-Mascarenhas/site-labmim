@@ -149,7 +149,7 @@ input:focus-visible {
 .dark-theme .stat-card,
 .dark-theme .parameter-item,
 .dark-theme .variable-selector-wrapper,
-.dark-theme .height-selector-wrapper,
+.dark-theme .segmented-selector,
 .dark-theme .colorbar-container,
 .dark-theme .domain-indicators-container,
 .dark-theme .parameters-editor {
@@ -255,7 +255,7 @@ input:focus-visible {
 .dark-theme .info-label,
 .dark-theme .slider-wrapper label,
 .dark-theme .variable-selector-wrapper label,
-.dark-theme .height-selector-wrapper .height-selector-title,
+.dark-theme .segmented-selector .segmented-selector-title,
 .dark-theme .domain-label,
 .dark-theme .doc-tab-content h4,
 .dark-theme .chart-modal-header h2,

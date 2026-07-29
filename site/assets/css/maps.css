@@ -16,6 +16,19 @@
   --z-modal-overlay: 9999;
 }
 
+/* LEFT RAIL CLEARANCE
+   A colorbar e os botões de domínio formam uma coluna encostada na borda
+   esquerda do mapa que cresce para baixo: em telas baixas (ex.: 1024x768) ela
+   chega à barra de controles. Os controles flutuantes do canto inferior
+   esquerdo (vetores de vento, seletor de altura, janela de acumulado) partem
+   daqui para nunca ficarem por baixo dela. O valor cobre o rótulo de domínio
+   mais largo entre as publicações — "Grande Vitória" (ufes), cuja coluna
+   termina em 178px — com folga. Abaixo de 900px esses controles entram na
+   pilha estática e o deslocamento deixa de valer. */
+:root {
+  --map-left-rail-clear: 190px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -413,12 +426,14 @@ header.maps-header {
   box-shadow: 0 0 0 3px rgba(var(--map-accent-rgb), 0.1);
 }
 
-/* HEIGHT SELECTOR (Eólico) */
-.height-selector-wrapper {
+/* SEGMENTED SELECTOR — altura do hub (eólico) e janela de acumulado (chuva).
+   Só uma delas fica ativa por vez, pois cada uma pertence a uma variável
+   diferente; por isso ambas ocupam o mesmo canto do mapa. */
+.segmented-selector {
   display: none;
   position: absolute;
-  bottom: 100px; /* Ao lado do botão de vetores */
-  left: 80px;
+  bottom: 100px;
+  left: var(--map-left-rail-clear);
   align-items: center;
   gap: 10px;
   background: white;
@@ -429,23 +444,29 @@ header.maps-header {
   white-space: nowrap;
 }
 
-.height-selector-wrapper.active {
+/* O eólico exibe o botão de vetores de vento na mesma faixa: o seletor de
+   altura fica encostado nele. */
+#heightSelector {
+  left: calc(var(--map-left-rail-clear) + 60px);
+}
+
+.segmented-selector.active {
   display: flex;
 }
 
-.height-selector-wrapper .height-selector-title {
+.segmented-selector .segmented-selector-title {
   font-weight: 600;
   color: #555;
   font-size: 0.9rem;
   margin: 0;
 }
 
-.height-button-group {
+.segmented-button-group {
   display: flex;
   gap: 6px;
 }
 
-.height-btn {
+.segmented-btn {
   padding: 6px 12px;
   border: 2px solid #ddd;
   border-radius: 4px;
@@ -458,12 +479,12 @@ header.maps-header {
   min-width: 50px;
 }
 
-.height-btn:hover {
+.segmented-btn:hover {
   border-color: var(--map-accent);
   color: var(--map-accent);
 }
 
-.height-btn.active {
+.segmented-btn.active {
   background: var(--map-accent);
   color: white;
   border-color: var(--map-accent);
@@ -474,7 +495,7 @@ header.maps-header {
   display: none;
   position: absolute;
   bottom: 100px;
-  left: 20px;
+  left: var(--map-left-rail-clear);
   z-index: var(--z-controls);
 }
 
@@ -897,20 +918,24 @@ header.maps-header {
     box-shadow: 0 2px 8px rgba(var(--map-accent-rgb), 0.4) !important;
   }
 
-  /* Height Selector - Reposicionado em mobile e compacto */
-  .height-selector-wrapper {
+  /* Segmented Selector - Reposicionado em mobile e compacto */
+  .segmented-selector {
     position: fixed !important;
-    inset: auto auto 140px 56px !important; /* Ao lado do botão de vento */
+    inset: auto auto 140px 8px !important;
     padding: 6px 8px !important;
     gap: 6px !important;
     z-index: var(--z-controls) !important;
   }
 
-  .height-selector-wrapper .height-selector-title {
+  #heightSelector {
+    left: 56px !important; /* Ao lado do botão de vento */
+  }
+
+  .segmented-selector .segmented-selector-title {
     font-size: 0.75rem !important;
   }
 
-  .height-btn {
+  .segmented-btn {
     padding: 4px 8px !important;
     font-size: 0.75rem !important;
     min-width: 40px !important;
@@ -1174,20 +1199,24 @@ header.maps-header {
     font-size: 0.9rem;
   }
 
-  /* Height Selector - Ajuste ultra-mobile */
-  .height-selector-wrapper {
+  /* Segmented Selector - Ajuste ultra-mobile */
+  .segmented-selector {
     position: fixed !important;
-    inset: auto auto 115px 50px !important; /* Ao lado do botão de vento */
+    inset: auto auto 115px 8px !important;
     padding: 4px 6px !important;
     gap: 4px !important;
     z-index: var(--z-sidebar-elevated) !important;
   }
 
-  .height-selector-wrapper .height-selector-title {
+  #heightSelector {
+    left: 50px !important; /* Ao lado do botão de vento */
+  }
+
+  .segmented-selector .segmented-selector-title {
     font-size: 0.65rem !important;
   }
 
-  .height-btn {
+  .segmented-btn {
     padding: 2px 6px !important;
     font-size: 0.65rem !important;
     min-width: 32px !important;
@@ -2324,7 +2353,15 @@ header.maps-header {
     width: 100%;
     justify-content: center;
   }
+}
 
+/* Painéis flutuantes do mapa recolhidos para os cantos superiores. Este
+   breakpoint acompanha o da MOBILE MAP CONTROLS STACK abaixo de propósito:
+   assim que os controles inferiores viram pilha estática, a coluna esquerda
+   (colorbar + domínios) precisa sair do caminho — enquanto ela ficava até
+   768px, a faixa de 769-900px deixava os domínios por cima da barra de
+   controles e do botão de vetores de vento. */
+@media (width <= 900px) {
   .colorbar-container {
     top: 8px;
     left: 8px;
@@ -2414,7 +2451,7 @@ header.maps-header {
     pointer-events: auto !important;
   }
 
-  .height-selector-wrapper.active {
+  .segmented-selector.active {
     order: 31;
     position: static !important;
     inset: auto !important;

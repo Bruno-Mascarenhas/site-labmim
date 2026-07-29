@@ -62,8 +62,8 @@
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=1052434d" />
     <link rel="stylesheet" href="assets/css/components.css?v=1399937a" />
-    <link rel="stylesheet" href="assets/css/maps.css?v=c68f6fc9" />
-    <link rel="stylesheet" href="assets/css/theme.css?v=f84fb23b" />
+    <link rel="stylesheet" href="assets/css/maps.css?v=ac1b241d" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=da53232b" />
 
     <script src="assets/js/theme-boot.js?v=6fe47826"></script>
     <script src="assets/js/theme-toggle.js?v=5d8061cc" defer></script>
@@ -81,7 +81,7 @@
     <!-- Content hashes dos Web Workers (carimbados por build.js): map-manager.js
          monta as URLs dos workers a partir daqui, então editar um worker já
          invalida o cache. Mesmo motivo do site-config para morar neste layout. -->
-    <meta name="labmim-asset-hashes" content="color-calc.worker.js:2936a3e1;json-parser.worker.js:f8327a15" />
+    <meta name="labmim-asset-hashes" content="color-calc.worker.js:b4b338d2;json-parser.worker.js:f8327a15" />
 
     <!-- Leaflet 1.9.4 vendorizado; o CSS entra pelo slot pageVendorStyles antes dos estilos próprios. -->
     <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
@@ -262,13 +262,21 @@
       </div>
 
       <!-- HEIGHT SELECTOR (Eólico) -->
-      <div class="height-selector-wrapper" id="heightSelector" role="group" aria-label="Altura (m)">
-        <span class="height-selector-title">Altura (m):</span>
-        <div class="height-button-group">
-          <button type="button" class="height-btn active" aria-pressed="true" data-height="50">50</button>
-          <button type="button" class="height-btn" aria-pressed="false" data-height="100">100</button>
-          <button type="button" class="height-btn" aria-pressed="false" data-height="150">150</button>
+      <div class="segmented-selector" id="heightSelector" role="group" aria-label="Altura (m)">
+        <span class="segmented-selector-title">Altura (m):</span>
+        <div class="segmented-button-group">
+          <button type="button" class="segmented-btn height-btn active" aria-pressed="true" data-height="50">50</button>
+          <button type="button" class="segmented-btn height-btn" aria-pressed="false" data-height="100">100</button>
+          <button type="button" class="segmented-btn height-btn" aria-pressed="false" data-height="150">150</button>
         </div>
+      </div>
+
+      <!-- ACCUMULATION SELECTOR (Precipitação) — botões preenchidos em runtime por
+       map-manager (configureAccumulationSelector) a partir da janela declarada
+       em VARIABLES_CONFIG; some para variáveis sem acumulado. -->
+      <div class="segmented-selector" id="accumSelector" role="group" aria-label="Janela de acumulado">
+        <span class="segmented-selector-title" id="accumSelectorTitle">Acumulado:</span>
+        <div class="segmented-button-group" id="accumButtonGroup"></div>
       </div>
 
       <!-- WIND VECTOR LAYER TOGGLE -->
@@ -466,6 +474,18 @@
                 <li><strong>Tamanho das Setas:</strong> Proporcional à magnitude do vento</li>
                 <li><strong>Direção:</strong> Apontam para a origem do vento (convenção meteorológica)</li>
                 <li><strong>Altura Configurável:</strong> Selecione entre 50m, 100m ou 150m de altura</li>
+              </ul>
+
+              <h4>🌧️ Janela de Acumulado</h4>
+              <ul class="doc-list">
+                <li>
+                  <strong>Seletor Acumulado:</strong> Com a precipitação selecionada, escolha entre o acumulado de 1h
+                  (passo do modelo) e o de 3h (soma dos três passos que terminam no horário exibido).
+                </li>
+                <li>
+                  <strong>Escala:</strong> Cada janela tem sua própria barra de cores, então o 3h não satura na faixa
+                  horária.
+                </li>
               </ul>
 
               <h4>🏷️ Clique nas Células</h4>
@@ -812,10 +832,10 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
          Web Workers recebem hash pela <meta name="labmim-asset-hashes">
          (lida por workerScriptUrl em map-manager.js; sem hash a URL sai
          sem ?v= e cai nas regras de cache curto). -->
-    <script src="assets/js/variables-config.js?v=50efd26b" defer></script>
+    <script src="assets/js/variables-config.js?v=6c7110db" defer></script>
     <script src="assets/js/data-service.js?v=9be91789" defer></script>
     <script src="assets/js/charts-manager.js?v=93c9f83b" defer></script>
-    <script src="assets/js/map-manager.js?v=e728dccf" defer></script>
+    <script src="assets/js/map-manager.js?v=fa36707f" defer></script>
     <script src="assets/js/map-init.js?v=5b580457" defer></script>
   </body>
 </html>
