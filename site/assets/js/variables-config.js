@@ -112,15 +112,18 @@ const PRESSURE_COLORS = [
 const VARIABLE_CONTEXTS = {
   forecast: {
     optionGroupLabel: "Variáveis meteorológicas e radiativas",
-    defaultVariable: "wind",
+    defaultVariable: "temperature",
+    // Ordem pedida para o seletor: temperatura, precipitação, umidade,
+    // pressão, vento e, por último, o bloco radiativo (radiação incidente e
+    // os fluxos turbulentos que fecham o balanço de energia).
     variables: [
-      "wind",
       "temperature",
       "skinTemperature",
-      "pressure",
+      "rain",
       "humidity",
       "relativeHumidity",
-      "rain",
+      "pressure",
+      "wind",
       "globalRadiation",
       "longwave",
       "hfx",
