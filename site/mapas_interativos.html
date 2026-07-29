@@ -700,9 +700,59 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                     <li><code>LWUP</code> é a radiação de onda longa emitida pela superfície.</li>
                   </ul>
                   <p>
-                    Mesmo que o site exiba apenas <code>SWDOWN</code> e <code>GLW</code>, a Radiação Global é uma das
-                    componentes principais do balanço radiativo de superfície. Valores altos geralmente indicam céu mais
-                    limpo e maior insolação.
+                    A Radiação Global é a principal entrada do balanço radiativo de superfície: valores altos geralmente
+                    indicam céu mais limpo e maior insolação. Os demais termos da equação acima também são exibidos no
+                    mapa — <code>SWUP</code>, <code>SWNET</code>, <code>LWUP</code>, <code>LWNET</code> e o saldo
+                    <code>RNET</code>.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🪞 Onda Curta Refletida (SWUP)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: SWUP</span>
+                    <span class="doc-var-badge">Fonte: ALBEDO + SWDOWN</span>
+                    <span class="doc-var-badge">Só com sol acima do horizonte</span>
+                  </div>
+                  <p>
+                    Parcela da radiação solar incidente devolvida pela superfície. O <code>wrfout</code> traz os fluxos
+                    incidentes diretamente, mas os ascendentes só quando os diagnósticos de fundo de atmosfera do RRTMG
+                    estão ligados — <code>SWUPB</code>/<code>LWUPB</code> não existem em nenhuma grade da rodada
+                    operacional, então o backend os reconstrói a partir de campos que toda rodada carrega.
+                  </p>
+                  <pre class="doc-formula"><code>SWUP = ALBEDO * SWDOWN</code></pre>
+                  <p>
+                    O albedo depende do uso do solo: água e vegetação densa refletem pouco, solo exposto e áreas urbanas
+                    refletem mais. Nesta rodada os valores implícitos ficam entre 0,08 e 0,28, dentro da faixa que o
+                    <code>VEGPARM.TBL</code> do WRF permite (0,08 para água a 0,38 para solo exposto).
+                  </p>
+                  <p>
+                    Usar <code>ALBEDO · SWDOWN</code> é deliberado: o <code>SWUPB</code> do RRTMG fica congelado na
+                    última chamada de radiação (<code>RADT</code> = 30 min), enquanto <code>SWDOWN</code> é reescalado
+                    pelo ângulo zenital a cada passo. Reconstruir mantém <code>SWUP</code>, <code>SWNET</code> e
+                    <code>RNET</code> coerentes com o <code>SWDOWN</code> publicado ao lado. É publicada apenas na
+                    janela diurna.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>☀️ Onda Curta Líquida (SWNET)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: SWNET</span>
+                    <span class="doc-var-badge">Fonte: SWDOWN − SWUP</span>
+                    <span class="doc-var-badge">Só com sol acima do horizonte</span>
+                  </div>
+                  <p>Radiação solar efetivamente absorvida pela superfície, isto é, o que sobra depois da reflexão.</p>
+                  <pre class="doc-formula"><code>SWNET = SWDOWN * (1 - ALBEDO) = SWDOWN - SWUP</code></pre>
+                  <p>
+                    É a entrada de energia de onda curta no balanço de superfície. Segue a convenção positiva para
+                    baixo, e à noite é nula por construção — por isso não é publicada fora da janela diurna.
                   </p>
                 </div>
               </details>
@@ -724,6 +774,93 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                     Atmosferas mais úmidas ou com maior cobertura de nuvens tendem a emitir mais radiação de onda longa
                     para a superfície. <code>GLW</code> é importante para análise noturna, resfriamento radiativo e
                     balanço energético.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🌡️ Onda Longa Emitida (LWUP)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: LWUP</span>
+                    <span class="doc-var-badge">Fonte: EMISS + TSK + GLW</span>
+                  </div>
+                  <p>
+                    Onda longa que deixa a superfície. Soma a emissão de corpo cinza da própria superfície com a fração
+                    da onda longa incidente que ela reflete. Também é reconstruída pelo backend, pelo mesmo motivo do
+                    <code>SWUP</code>.
+                  </p>
+                  <pre class="doc-formula"><code>LWUP = EMISS * σ * TSK_K⁴ + (1 - EMISS) * GLW
+σ = 5,670374419e-8 W m⁻² K⁻⁴  (CODATA 2018)</code></pre>
+                  <ul class="doc-list">
+                    <li><code>EMISS</code> é a emissividade da superfície no modelo.</li>
+                    <li><code>TSK_K</code> é a temperatura da superfície em kelvin.</li>
+                    <li>A parcela <code>(1 − EMISS) · GLW</code> é a reflexão da onda longa do céu.</li>
+                  </ul>
+                  <p>
+                    Não é uma aproximação do que o WRF faz — é a própria expressão do modelo: o <code>rtrnmc</code> do
+                    RRTMG monta a radiância ascendente como <code>rad0 + reflect · radld</code>, com
+                    <code>rad0 = ε·B(Ts)</code> e <code>reflect = 1 − ε</code>, e o ramo urbano do Noah a escreve por
+                    extenso. Descartar o termo refletido abriria o fechamento do balanço de energia em cerca de 22 W/m².
+                  </p>
+                  <p>
+                    Cresce com a quarta potência da temperatura da superfície, então acompanha de perto o aquecimento
+                    diurno do solo e a ilha de calor urbana. É publicada nas 24 horas.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🌙 Onda Longa Líquida (LWNET)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: LWNET</span>
+                    <span class="doc-var-badge">Fonte: GLW − LWUP</span>
+                  </div>
+                  <p>Saldo de onda longa na superfície, na convenção positiva para baixo.</p>
+                  <pre class="doc-formula"><code>LWNET = GLW - LWUP = EMISS * (GLW - σ * TSK_K⁴)</code></pre>
+                  <p>
+                    É quase sempre negativo: a superfície emite mais do que recebe da atmosfera. Quanto mais seco e
+                    limpo o céu, mais negativo — é esse resfriamento radiativo que explica as noites frias em ar seco.
+                    Céu encoberto aproxima o saldo de zero.
+                  </p>
+                  <p>
+                    Nesta rodada o saldo é negativo em 99,5% a 99,9% das células de terra, com magnitude mediana de 53 a
+                    61 W/m², coerente com a faixa de 75 a 125 W/m² que Oke (1987) dá para o valor típico.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>⚖️ Saldo de Radiação (RNET)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Unidade: W/m²</span>
+                    <span class="doc-var-badge">JSON id: RNET</span>
+                    <span class="doc-var-badge">Fonte: SWNET + LWNET</span>
+                  </div>
+                  <p>
+                    Saldo de radiação de todas as ondas — a energia que a superfície tem disponível para repartir entre
+                    os fluxos turbulentos e o solo.
+                  </p>
+                  <pre class="doc-formula"><code>RNET = SWNET + LWNET
+RNET = H + LE + G</code></pre>
+                  <ul class="doc-list">
+                    <li><code>H</code> é o fluxo de calor sensível (<code>HFX</code>).</li>
+                    <li><code>LE</code> é o fluxo de calor latente (<code>LH</code>).</li>
+                    <li><code>G</code> é o fluxo de calor no solo, não exibido no mapa.</li>
+                  </ul>
+                  <p>
+                    Positivo de dia, quando a onda curta domina, e negativo à noite, quando resta apenas a perda de onda
+                    longa. Ao clicar numa célula, o painel mostra <code>H</code> e <code>LE</code> ao lado do saldo, de
+                    modo que a fração que sobra para o solo fica legível na própria caixa.
+                  </p>
+                  <p>
+                    O fechamento do balanço é o que valida os termos reconstruídos nas grades que não trazem
+                    <code>LWUPB</code>: mediado sobre três dias inteiros, <code>Rn + G = H + LE</code> fecha com resíduo
+                    de 0,6 a 1,4 W/m² nos quatro domínios.
                   </p>
                 </div>
               </details>
@@ -773,6 +910,132 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                     do solo, corpos d'água ou vegetação. É importante para avaliar disponibilidade de umidade,
                     evapotranspiração, acoplamento superfície-atmosfera e processos convectivos.
                   </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>☁️ Emissividade do Céu (EPS_SKY)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Adimensional</span>
+                    <span class="doc-var-badge">JSON id: EPS_SKY</span>
+                    <span class="doc-var-badge">Fonte: GLW + T2</span>
+                  </div>
+                  <p>
+                    Emissividade efetiva do céu: quanto a atmosfera emite de onda longa em relação a um corpo negro à
+                    temperatura do ar a 2 metros.
+                  </p>
+                  <pre class="doc-formula"><code>EPS_SKY = GLW / (σ * T2_K⁴)
+σ = 5,670374419e-8 W m⁻² K⁻⁴  (CODATA 2018)</code></pre>
+                  <p>
+                    É a definição de emissividade atmosférica efetiva de Yang et al. (2023), com <code>T2</code> — a
+                    temperatura do ar em abrigo — no denominador, e não a temperatura da superfície.
+                  </p>
+                  <p>
+                    Sobe com umidade e nebulosidade, o que a torna um indicador prático de cobertura do céu; o painel
+                    classifica acima de 0,90 como encoberto ou ar muito úmido e abaixo de 0,80 como céu mais limpo. Para
+                    comparação, Herrero &amp; Polo (2012) medem média de 0,68 em céu limpo e acima de 0,95 em céu
+                    encoberto, chegando a 1. Como é uma razão, não tem unidade.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>🌤️ Índice de Transparência (KT)</h4></summary>
+                <div class="doc-var-detail-body">
+                  <div class="doc-var-meta">
+                    <span class="doc-var-badge">Adimensional</span>
+                    <span class="doc-var-badge">JSON id: KT</span>
+                    <span class="doc-var-badge">Fonte: SWDOWN + COSZEN</span>
+                    <span class="doc-var-badge">Sol acima de 10°</span>
+                  </div>
+                  <p>
+                    Também chamado de <em>clearness index</em>: a fração da radiação disponível no topo da atmosfera que
+                    efetivamente chega à superfície. O símbolo é minúsculo (<code>kt</code>) porque o valor é
+                    instantâneo — em Duffie &amp; Beckman, o maiúsculo <code>K_T</code> designa o índice diário.
+                  </p>
+                  <pre class="doc-formula"><code>kt = SWDOWN / (S0 * E0 * cos(z))
+S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
+                  <ul class="doc-list">
+                    <li><code>S0</code> é a constante solar.</li>
+                    <li><code>E0</code> é a correção pela excentricidade da órbita (distância Terra-Sol no dia).</li>
+                    <li><code>cos(z)</code> é o cosseno do ângulo zenital solar (<code>COSZEN</code>).</li>
+                  </ul>
+                  <p>
+                    O painel classifica acima de 0,65 como céu limpo e abaixo de 0,35 como encoberto. Acima de 0,80 há
+                    pouquíssimas observações na literatura (Duffie &amp; Beckman), o que a rodada confirma: apenas 0,19%
+                    a 3,4% das células passam desse valor.
+                  </p>
+                  <p>
+                    Com o sol muito baixo o denominador tende a zero e o índice fica instável, então só é publicado
+                    acima de 10° de elevação solar (ângulo zenital &lt; 80°, o limiar de dia usado pelo ARM
+                    <code>DOE/SC-ARM/TR-008</code>). Fora dessa faixa as células aparecem como dado indisponível. Como é
+                    uma razão, não tem unidade.
+                  </p>
+                </div>
+              </details>
+
+              <details class="doc-var-card doc-var-details">
+                <summary><h4>📚 Referências do balanço radiativo</h4></summary>
+                <div class="doc-var-detail-body">
+                  <p>
+                    Fontes que fixam as fórmulas, as constantes e as faixas citadas nos termos derivados
+                    (<code>SWUP</code>, <code>SWNET</code>, <code>LWUP</code>, <code>LWNET</code>, <code>RNET</code>,
+                    <code>EPS_SKY</code> e <code>kt</code>).
+                  </p>
+                  <ul class="doc-list">
+                    <li>
+                      <strong>Forma de corpo cinza:</strong> código-fonte do WRF — <code>rtrnmc</code> do RRTMG em
+                      <code>phys/module_ra_rrtmg_lw.F</code> e o ramo urbano do Noah em
+                      <code>phys/module_sf_noahdrv.F</code>.
+                    </li>
+                    <li>
+                      <strong>Balanço de superfície:</strong> Oke, T. R. <em>Boundary Layer Climates</em>, 2ª ed.,
+                      Routledge, 1987 (onda longa líquida típica de 75 a 125 W/m², cap. 1); Stull, R. B.
+                      <em>An Introduction to Boundary Layer Meteorology</em>, Kluwer, 1988; Arya, S. P.
+                      <em>Introduction to Micrometeorology</em>, 2ª ed., Academic Press, 2001.
+                    </li>
+                    <li>
+                      <strong>Controle de qualidade dos fluxos:</strong> Long, C. N. &amp; Dutton, E. G.
+                      <em>BSRN Global Network recommended QC tests</em>, V2.0 — envelopes de valores fisicamente
+                      possíveis e o limite <code>σ(Ta−15)⁴ &lt; LWup &lt; σ(Ta+25)⁴</code>.
+                    </li>
+                    <li>
+                      <strong>Emissividade do céu:</strong> Yang, J. <em>et al.</em> (2023),
+                      <em>Atmos. Chem. Phys.</em> 23(8), 4419-4430,
+                      <a href="https://doi.org/10.5194/acp-23-4419-2023" rel="noopener" target="_blank"
+                        >doi:10.5194/acp-23-4419-2023</a
+                      >
+                      (define ε = DLR/σTa⁴); Herrero, J. &amp; Polo, M. J. (2012), <em>Hydrol. Earth Syst. Sci.</em> 16,
+                      3139-3147,
+                      <a href="https://doi.org/10.5194/hess-16-3139-2012" rel="noopener" target="_blank"
+                        >doi:10.5194/hess-16-3139-2012</a
+                      >; Brutsaert, W. (1975), <em>Water Resour. Res.</em> 11(5), 742-744, para a curva de céu limpo.
+                    </li>
+                    <li>
+                      <strong>Índice de transparência:</strong> Duffie, J. A. &amp; Beckman, W. A.
+                      <em>Solar Engineering of Thermal Processes</em>, 4ª ed., Wiley, 2013 — Eq. (1.10.1) para o
+                      denominador extraterrestre e Seç. 2.9 para a notação <code>kt</code> (horário) contra
+                      <code>K_T</code> (diário).
+                    </li>
+                    <li>
+                      <strong>Limiar de elevação solar:</strong> Shi, Y. &amp; Long, C. N.
+                      <em>Best Estimate Radiation Flux VAP</em>, DOE/SC-ARM/TR-008 — ângulo zenital &lt; 80° como limiar
+                      de dia.
+                    </li>
+                    <li>
+                      <strong>Constantes:</strong> CODATA 2018 para a constante de Stefan-Boltzmann (exata na
+                      redefinição do SI de 2019); Kopp, G. &amp; Lean, J. L. (2011), <em>Geophys. Res. Lett.</em> 38,
+                      L01706,
+                      <a href="https://doi.org/10.1029/2010GL045777" rel="noopener" target="_blank"
+                        >doi:10.1029/2010GL045777</a
+                      >, para a constante solar de 1361 W/m².
+                    </li>
+                    <li>
+                      <strong>Faixas de parâmetros de superfície:</strong> <code>run/VEGPARM.TBL</code> do WRF, tabela
+                      <code>MODIFIED_IGBP_MODIS_NOAH</code>, para emissividade e albedo por classe de uso do solo.
+                    </li>
+                  </ul>
                 </div>
               </details>
             </div>
