@@ -79,6 +79,22 @@ function getAccumulationHours(variableType, defaultHours = 1) {
 
 const TEMPERATURE_COLORS = ["#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000"];
 const HUMIDITY_COLORS = ["#f7fbff", "#deebf7", "#c6dbef", "#6baed6", "#2171b5", "#08306b"];
+// Matplotlib `jet` sampled at 11 evenly spaced stops and reversed (`jet_r`):
+// dark red for the driest air through to navy for the moistest, matching the
+// colormap used in the group's Python figures for specific humidity.
+const JET_R_COLORS = [
+  "#800000",
+  "#f30900",
+  "#ff6800",
+  "#ffc600",
+  "#ceff29",
+  "#7bff7b",
+  "#29ffce",
+  "#00b2ff",
+  "#004dff",
+  "#0000f3",
+  "#000080",
+];
 const RADIATION_COLORS = ["#1d1d1d", "#4a3366", "#8d4f8a", "#d67a59", "#f0b35a", "#fff2a8"];
 const PRESSURE_COLORS = [
   "#a50026",
@@ -403,23 +419,23 @@ const VARIABLES_CONFIG = {
 
   humidity: {
     id: "VAPOR",
-    label: "Vapor d'Água (2m)",
-    optionLabel: "Vapor d'Água",
+    label: "Umidade Específica (2m)",
+    optionLabel: "Umidade Específica",
     icon: "💧",
     faIcon: "droplet",
     unit: "g/kg",
     sourceId: "VAPOR",
-    summary: "Razão de mistura de vapor d'água próximo à superfície, expressa em g/kg.",
+    summary: "Conteúdo de vapor d'água do ar próximo à superfície, expresso em g/kg (derivado de Q2 do WRF).",
     scaleMin: 0,
     scaleMax: 25,
-    colors: HUMIDITY_COLORS,
+    colors: JET_R_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.humidity?.ausente) {
         return unavailableInfo("Condições de Umidade");
       }
 
       return {
-        title: "Conteúdo de Vapor d'Água",
+        title: "Umidade Específica",
         items: [
           {
             label: "Classificação",
@@ -427,7 +443,7 @@ const VARIABLES_CONFIG = {
             icon: "fa-droplet",
           },
           {
-            label: "Razão de Mistura",
+            label: "Umidade Específica",
             value: value.toFixed(2),
             unit: "g/kg",
             icon: "fa-water",

@@ -122,18 +122,21 @@
           </details>
 
           <details class="doc-var-card doc-var-details">
-            <summary><h4>💧 Vapor d'Água (VAPOR)</h4></summary>
+            <summary><h4>💧 Umidade Específica (VAPOR)</h4></summary>
             <div class="doc-var-detail-body">
               <div class="doc-var-meta">
                 <span class="doc-var-badge">Unidade: g/kg</span>
                 <span class="doc-var-badge">JSON id: VAPOR</span>
                 <span class="doc-var-badge">Fonte WRF: Q2</span>
+                <span class="doc-var-badge">Paleta: jet_r</span>
               </div>
-              <p>Razão de mistura de vapor d'água próximo à superfície, baseada em <code>Q2</code>.</p>
+              <p>Conteúdo de vapor d'água do ar próximo à superfície, baseado em <code>Q2</code>.</p>
               <pre class="doc-formula"><code>VAPOR_gkg = Q2 * 1000</code></pre>
               <p>
-                Indica a massa de vapor d'água presente no ar em relação à massa de ar seco. Ela não é umidade relativa.
-                No backend, o valor é convertido de kg/kg para g/kg para facilitar a leitura no site.
+                Indica a massa de vapor d'água presente no ar. Ela não é umidade relativa. No backend, o valor é
+                convertido de kg/kg para g/kg para facilitar a leitura no site. O <code>Q2</code> do WRF é a razão de
+                mistura a 2 m; para os valores típicos de superfície (até ~25 g/kg) ela difere da umidade específica em
+                menos de 2,5%.
               </p>
               <ul class="doc-list">
                 <li>Valores maiores indicam ar com mais vapor d'água.</li>
