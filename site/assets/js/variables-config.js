@@ -116,6 +116,13 @@ const VARIABLE_CONTEXTS = {
     // Ordem pedida para o seletor: temperatura, precipitação, umidade,
     // pressão, vento e, por último, o bloco radiativo (radiação incidente e
     // os fluxos turbulentos que fecham o balanço de energia).
+    //
+    // Dentro do bloco radiativo a ordem segue o próprio balanço: onda curta
+    // (incidente, refletida, líquida), onda longa (incidente, emitida,
+    // líquida), o saldo que as soma e, por fim, os fluxos turbulentos que o
+    // consomem — Rn = H + LE + G, então netRadiation fica logo antes de
+    // hfx/lh. Os dois índices adimensionais fecham a lista por serem
+    // diagnósticos de céu, não termos do balanço.
     variables: [
       "temperature",
       "skinTemperature",
@@ -125,9 +132,16 @@ const VARIABLE_CONTEXTS = {
       "pressure",
       "wind",
       "globalRadiation",
+      "shortwaveUp",
+      "netShortwave",
       "longwave",
+      "longwaveUp",
+      "netLongwave",
+      "netRadiation",
       "hfx",
       "lh",
+      "skyEmissivity",
+      "clearnessIndex",
     ],
   },
   energy: {
