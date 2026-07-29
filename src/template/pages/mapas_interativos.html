@@ -194,7 +194,9 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
               </p>
               <p>
                 No mapa, o seletor <strong>Acumulado</strong> escolhe a janela exibida: <code>1h</code> mostra o passo
-                horário do modelo e <code>3h</code> soma os três passos que terminam no horário selecionado.
+                horário do modelo e <code>3h</code> soma os três passos que terminam no horário selecionado. Células com
+                menos de <code>0,01 mm</code> na janela escolhida ficam transparentes, para que só apareça onde
+                efetivamente chove.
               </p>
             </div>
           </details>

@@ -81,7 +81,7 @@
     <!-- Content hashes dos Web Workers (carimbados por build.js): map-manager.js
          monta as URLs dos workers a partir daqui, então editar um worker já
          invalida o cache. Mesmo motivo do site-config para morar neste layout. -->
-    <meta name="labmim-asset-hashes" content="color-calc.worker.js:2936a3e1;json-parser.worker.js:f8327a15" />
+    <meta name="labmim-asset-hashes" content="color-calc.worker.js:b4b338d2;json-parser.worker.js:f8327a15" />
 
     <!-- Leaflet 1.9.4 vendorizado; o CSS entra pelo slot pageVendorStyles antes dos estilos próprios. -->
     <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
@@ -670,6 +670,8 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                   <p>
                     No mapa, o seletor <strong>Acumulado</strong> escolhe a janela exibida: <code>1h</code> mostra o
                     passo horário do modelo e <code>3h</code> soma os três passos que terminam no horário selecionado.
+                    Células com menos de <code>0,01 mm</code> na janela escolhida ficam transparentes, para que só
+                    apareça onde efetivamente chove.
                   </p>
                 </div>
               </details>
@@ -996,10 +998,10 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
          Web Workers recebem hash pela <meta name="labmim-asset-hashes">
          (lida por workerScriptUrl em map-manager.js; sem hash a URL sai
          sem ?v= e cai nas regras de cache curto). -->
-    <script src="assets/js/variables-config.js?v=54b718ff" defer></script>
+    <script src="assets/js/variables-config.js?v=78669005" defer></script>
     <script src="assets/js/data-service.js?v=9be91789" defer></script>
     <script src="assets/js/charts-manager.js?v=93c9f83b" defer></script>
-    <script src="assets/js/map-manager.js?v=dbfbe276" defer></script>
+    <script src="assets/js/map-manager.js?v=fa36707f" defer></script>
     <script src="assets/js/map-init.js?v=5b580457" defer></script>
   </body>
 </html>

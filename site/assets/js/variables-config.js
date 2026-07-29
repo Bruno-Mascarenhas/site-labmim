@@ -12,6 +12,10 @@
  * - relatedVariables: Companion variables this variable's specificInfo reads
  *   from allValues (omit when none). The map only fetches these on a cell
  *   click, instead of every visible variable.
+ * - hideBelow: Values strictly below this threshold are left unpainted
+ *   (transparent) instead of colored — for fields like precipitation, whose
+ *   "no rain" cells would otherwise flood the map with the palette's first
+ *   color (omit when every value should be painted).
  * - accumulation: Selectable accumulation window for per-timestep totals.
  *   The pipeline only publishes one file per timestep, so windows longer than
  *   one step are summed in the frontend over the N steps ending at the
@@ -488,9 +492,14 @@ const VARIABLES_CONFIG = {
     faIcon: "cloud-rain",
     unit: "mm",
     sourceId: "RAIN",
-    summary: "Precipitação acumulada no timestep do modelo, somada na janela escolhida (1h ou 3h).",
+    summary:
+      "Precipitação acumulada no timestep do modelo, somada na janela escolhida (1h ou 3h). Células sem chuva (< 0,01 mm) não são pintadas.",
     scaleMin: 0,
     scaleMax: 30,
+    // Abaixo de 0,01 mm o WRF escreve zeros em quase toda a grade: pintá-los
+    // cobriria o mapa inteiro com a primeira cor da paleta e esconderia onde
+    // realmente chove.
+    hideBelow: 0.01,
     accumulation: {
       title: "Acumulado:",
       defaultHours: 1,
@@ -525,7 +534,7 @@ const VARIABLES_CONFIG = {
         items: [
           {
             label: "Intensidade",
-            value: hourlyRate < 2.5 ? "Leve" : hourlyRate < 10 ? "Moderada" : "Forte",
+            value: hourlyRate < 0.01 ? "Sem chuva" : hourlyRate < 2.5 ? "Leve" : hourlyRate < 10 ? "Moderada" : "Forte",
             icon: "fa-cloud-rain",
           },
           {

@@ -1837,7 +1837,7 @@ class MeteoMapManager {
         // 4 domínios em cache.
         layer.on("mouseover", (e) => {
           const cell = e.propagatedFrom;
-          if (!cell) return;
+          if (!cell || this._isCellHidden(cell)) return;
           cell.setStyle({
             weight: 1.2,
             color: "#666",
@@ -1847,13 +1847,13 @@ class MeteoMapManager {
         layer.on("mouseout", (e) => {
           const cell = e.propagatedFrom;
           if (!cell) return;
-          // Restore the cell's resting style from its current state. A
-          // state-clipped cell must return to GRID_HIDDEN_STYLE; a fixed
-          // visible style would repaint it and defeat the clip. Visible
-          // (and no-data gray) cells keep their stored fillColor.
-          const hiddenByClip = this.state.isClippedToState && cell._inStateMask === false;
+          // Restore the cell's resting style from its current state. A cell
+          // hidden by the state clip or by the variable's display threshold
+          // must return to GRID_HIDDEN_STYLE; a fixed visible style would
+          // repaint it and defeat the hiding. Visible (and no-data gray)
+          // cells keep their stored fillColor.
           cell.setStyle(
-            hiddenByClip
+            this._isCellHidden(cell)
               ? GRID_HIDDEN_STYLE
               : {
                   ...GRID_VISIBLE_STYLE,
@@ -1893,6 +1893,9 @@ class MeteoMapManager {
     const layers = gridLayer.getLayers();
     const config = this.getVariableConfig();
     const scaleValues = this.getScaleValues(config, valueData);
+    // Below this the cell is left unpainted rather than colored (see
+    // `hideBelow` in VARIABLES_CONFIG); -Infinity paints everything.
+    const hideBelow = Number.isFinite(config.hideBelow) ? config.hideBelow : -Infinity;
 
     if (this._colorWorker) {
       const requestId = ++this._colorRequestId;
@@ -1908,6 +1911,7 @@ class MeteoMapManager {
         values,
         scaleValues,
         colors: config.colors,
+        hideBelow,
       });
     } else {
       this._applyColorsOnMainThread(layers, values, scaleValues, config);
@@ -1916,19 +1920,19 @@ class MeteoMapManager {
 
   _applyColorsOnMainThread(layers, values, scaleValues, config) {
     const colors = new Array(values.length);
+    const hideBelow = Number.isFinite(config.hideBelow) ? config.hideBelow : -Infinity;
     // Values are quantized to 2 decimals, so a few thousand cells share far
     // fewer distinct values — memoize per call (palette/scale can change
-    // between calls, so the map must not outlive this repaint).
+    // between calls, so the map must not outlive this repaint). Keyed with
+    // `has`, since `null` (below threshold) is a valid memoized outcome.
     const memo = new Map();
     for (let i = 0; i < values.length; i++) {
       const value = values[i];
       if (value !== undefined && value !== null) {
-        let color = memo.get(value);
-        if (color === undefined) {
-          color = this._colorFromScale(value, scaleValues, config);
-          memo.set(value, color);
+        if (!memo.has(value)) {
+          memo.set(value, value < hideBelow ? null : this._colorFromScale(value, scaleValues, config));
         }
-        colors[i] = color;
+        colors[i] = memo.get(value);
       }
     }
 
@@ -1960,13 +1964,19 @@ class MeteoMapManager {
         // No data at this timestep: reset the previous timestep's value and
         // color instead of leaving a stale reading on the map.
         layer.feature.properties.valor = null;
+        layer._hiddenByValue = false;
         this._setGridCellStyle(layer, hiddenByClip ? GRID_HIDDEN_STYLE : GRID_NODATA_STYLE);
         continue;
       }
 
       layer.feature.properties.valor = values[cellIndex];
 
-      if (hiddenByClip) {
+      // `null` (never `undefined`) marks a value under the variable's
+      // `hideBelow`: there IS data, it just must not be painted. The flag
+      // keeps hover from revealing the cell and mouseout from restoring it.
+      layer._hiddenByValue = color === null;
+
+      if (hiddenByClip || color === null) {
         this._setGridCellStyle(layer, GRID_HIDDEN_STYLE);
       } else {
         visibleStyle.fillColor = color;
@@ -1991,6 +2001,16 @@ class MeteoMapManager {
         return;
       }
     }
+  }
+
+  /**
+   * Whether a grid cell is currently rendered fully transparent — clipped
+   * outside the state boundary, or below the variable's display threshold.
+   * Hover must neither reveal it nor restore it as a painted cell.
+   */
+  _isCellHidden(cell) {
+    if (cell._hiddenByValue === true) return true;
+    return this.state.isClippedToState && cell._inStateMask === false;
   }
 
   getCellIndexForLayer(layer, fallbackIndex) {
