@@ -3,8 +3,11 @@ name: CI
 on:
   push:
     branches: ["main"]
+  # Sem filtro de base: um PR empilhado sobre outra branch de feature também
+  # precisa dos checks, e filtrar por "main" os deixava sem nenhum — o PR
+  # aparecia pronto para revisão sem que build:check, lint ou audit tivessem
+  # rodado uma vez sequer.
   pull_request:
-    branches: ["main"]
 
 permissions:
   contents: read
