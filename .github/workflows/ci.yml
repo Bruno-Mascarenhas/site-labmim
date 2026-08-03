@@ -50,6 +50,10 @@ jobs:
         with:
           name: publication-bundles
           path: dist/
+          # The action drops dotfiles by default, so the artifact was shipping
+          # every publication *except* the .htaccess redirects the step above
+          # exists to make reviewable. Nothing else in dist/ is hidden.
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
 
