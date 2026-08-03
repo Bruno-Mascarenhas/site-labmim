@@ -496,7 +496,7 @@ Nota: `.series.bin` fica deliberadamente **fora** das listas de compressão: o `
 
 Vendorizadas localmente (sem CDN no caminho crítico):
 
-- Bootstrap 5.3.8 — `assets/vendor/bootstrap/` (`bootstrap.purged.min.css` servido às páginas + `bootstrap.bundle.min.js` com `defer`; `bootstrap.min.css` completo mantido como fonte do purge e para o `404.html`).
+- Bootstrap 5.3.8 — `assets/vendor/bootstrap/` (`bootstrap.purged.min.css` servido às páginas + `bootstrap.bundle.min.js` com `defer`; `bootstrap.min.css` completo mantido apenas como fonte do purge).
 - Font Awesome 6.4.0 — `assets/vendor/fontawesome/` (`css/all.min.css` + subset `fa-solid-900.woff2` com preload; original em `fa-solid-900.full.woff2`; manifesto `subset-glyphs.json`).
 - Leaflet 1.9.4 — `assets/vendor/leaflet/` (`leaflet.js` com `defer`).
 - Chart.js 3.9.1 — `assets/vendor/chartjs/`.
