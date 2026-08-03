@@ -18,15 +18,26 @@ function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// --check-css follows url() into all.min.css, which declares .ttf fallbacks and
+// fa-v4compatibility.* that this repo deliberately does not distribute (see
+// scripts/subset-fontawesome.md). Only those two shapes are skipped, so a
+// missing .woff2 — the format browsers actually fetch — still fails the check.
+const FONTAWESOME_UNSHIPPED = String.raw`/assets/vendor/fontawesome/webfonts/(?:[^/]+\.ttf|fa-v4compatibility\.[^/]+)$`;
+
 function skipPattern(publication) {
   const { manifest, values, grids } = publication.dataset.paths;
   const operationalRules = [
     ...new Set([values, grids].map((directory) => `/${escapeRegex(directory)}/`)),
     `/${escapeRegex(manifest)}(?:[?#]|$)`,
   ];
-  return [String.raw`^https?://(?!localhost|127\.0\.0\.1)`, "^mailto:", "^tel:", "^data:", ...operationalRules].join(
-    "|"
-  );
+  return [
+    String.raw`^https?://(?!localhost|127\.0\.0\.1)`,
+    "^mailto:",
+    "^tel:",
+    "^data:",
+    FONTAWESOME_UNSHIPPED,
+    ...operationalRules,
+  ].join("|");
 }
 
 function run(args, label) {
@@ -45,8 +56,21 @@ function checkPublication(publication) {
   siteHolds = undefined;
   run([buildScript, `--site=${publication.id}`], `build ${publication.id}`);
   siteHolds = publication.id;
+  // --check-fragments resolves the `href="#main"` skip links against the ids the
+  // layouts actually render; --check-css follows url() references so a purged or
+  // renamed asset that only CSS points at cannot slip through.
   run(
-    [cli, "/", "--server-root", "site", "--recurse", "--skip", skipPattern(publication)],
+    [
+      cli,
+      "/",
+      "--server-root",
+      "site",
+      "--recurse",
+      "--check-fragments",
+      "--check-css",
+      "--skip",
+      skipPattern(publication),
+    ],
     `link check ${publication.id}`
   );
 }
