@@ -298,9 +298,17 @@ class MeteoMapManager {
     this.state.maxLayer = this.timeline.indexMax ?? DEFAULT_MAX_LAYER;
     if (this.ui.slider) {
       this.ui.slider.max = String(this.state.maxLayer);
+      // The floor has to follow the manifest for the same reason the ceiling
+      // does: a --skip-first run starts above 1, and leaving min at the markup
+      // default left those leading positions draggable but unloadable.
+      this.ui.slider.min = String(this.timeline.indexMin);
       if (parseInt(this.ui.slider.value, 10) > this.state.maxLayer) {
         this.ui.slider.value = String(this.state.maxLayer);
         this.state.index = this.state.maxLayer;
+      }
+      if (parseInt(this.ui.slider.value, 10) < this.timeline.indexMin) {
+        this.ui.slider.value = String(this.timeline.indexMin);
+        this.state.index = this.timeline.indexMin;
       }
     }
 
