@@ -40,6 +40,10 @@ site/GeoJSON/*.json
 # Distribuições observadas da estação: derivadas do acervo de sensores do
 # laboratório, que não é público. Como as saídas do WRF, chegam pelo deploy.
 site/Climatologia/*.json
+# Janela móvel de 7 dias do monitoramento, reescrita a cada hora pelo deploy.
+# Mesma origem e mesma restrição do diretório acima: é o registro bruto da
+# estação, não um produto publicável.
+site/Monitoramento/*.json
 
 # Onboarding deck (docs/) — versiona a fonte e o PDF; ignora gerados/pesados.
 # node_modules/ e dist/ (assets/dist) já caem nas regras acima.
