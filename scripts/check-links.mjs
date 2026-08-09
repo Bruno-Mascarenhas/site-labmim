@@ -9,6 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { defaultPublication, discoverPublications } = require("./site-builder/publications.js");
 const { finishWithFailure, installSignalRestore } = require("./site-builder/cli.js");
+const { allOperationalPaths } = require("./site-builder/operational-paths.js");
 const publications = discoverPublications(root);
 const defaultSite = defaultPublication(publications);
 const buildScript = path.join(root, "scripts", "build-site.mjs");
@@ -24,11 +25,19 @@ function escapeRegex(value) {
 // missing .woff2 — the format browsers actually fetch — still fails the check.
 const FONTAWESOME_UNSHIPPED = String.raw`/assets/vendor/fontawesome/webfonts/(?:[^/]+\.ttf|fa-v4compatibility\.[^/]+)$`;
 
-function skipPattern(publication) {
-  const { manifest, values, grids, climatology } = publication.dataset.paths;
+// O rastreador varre site/, que guarda os diretórios de dados de TODAS as publicações
+// (nada os apaga entre uma build e a seguinte), então a lista a pular é a união — não
+// o que a publicação corrente declara. Enumerar os campos à mão aqui já tinha
+// divergido: `monitoring` ficou de fora e só não quebrou o portão porque a página
+// alcança o payload por atributo de dado, que o linkinator não segue.
+const { directories: OPERATIONAL_DIRECTORIES, files: OPERATIONAL_FILES } = allOperationalPaths(publications, {
+  includeGraphs: false,
+});
+
+function skipPattern() {
   const operationalRules = [
-    ...new Set([values, grids, climatology].filter(Boolean).map((directory) => `/${escapeRegex(directory)}/`)),
-    `/${escapeRegex(manifest)}(?:[?#]|$)`,
+    ...OPERATIONAL_DIRECTORIES.map((directory) => `/${escapeRegex(directory)}/`),
+    ...[...OPERATIONAL_FILES].map((file) => `/${escapeRegex(file)}(?:[?#]|$)`),
   ];
   return [
     String.raw`^https?://(?!localhost|127\.0\.0\.1)`,
@@ -60,17 +69,7 @@ function checkPublication(publication) {
   // layouts actually render; --check-css follows url() references so a purged or
   // renamed asset that only CSS points at cannot slip through.
   run(
-    [
-      cli,
-      "/",
-      "--server-root",
-      "site",
-      "--recurse",
-      "--check-fragments",
-      "--check-css",
-      "--skip",
-      skipPattern(publication),
-    ],
+    [cli, "/", "--server-root", "site", "--recurse", "--check-fragments", "--check-css", "--skip", skipPattern()],
     `link check ${publication.id}`
   );
 }

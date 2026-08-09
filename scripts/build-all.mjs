@@ -12,18 +12,29 @@ const { defaultPublication, discoverPublications } = require("./site-builder/pub
 const { publicationAssetSources } = require("./site-builder/assets.js");
 const { htmlReferences, cssReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
 const { finishWithFailure, makeRestore, installSignalRestore } = require("./site-builder/cli.js");
+const { allOperationalPaths, isOperationalPath } = require("./site-builder/operational-paths.js");
 const publications = discoverPublications(root);
 const providedAssets = new Set(publicationAssetSources(publications).keys());
 const defaultSite = defaultPublication(publications);
 const siteDir = path.join(root, "site");
 const distDir = path.join(root, "dist");
 
-// Station plots are rewritten in place by each laboratory's own weather station
-// (same file names, served with no-cache). They are committed for the default
-// publication only, so shipping them inside another publication's bundle would
-// silently deploy the wrong laboratory's watermarked images. Treated as
-// operational data so a missing plot is a visibly broken image instead.
-const DEFAULT_GRAPHS_DIRECTORY = "assets/graphs";
+// Dado operacional é propriedade da ÁRVORE, não da publicação que está sendo
+// empacotada: site/ é reconstruído no lugar e os diretórios de dados sobrevivem de
+// uma build para a seguinte. Excluir só o que a publicação corrente declara fazia o
+// bundle do LEAL levar junto site/Climatologia/ e site/Monitoramento/ da estação de
+// Salvador, porque leal-wrf não declara esses dois caminhos. Ver operational-paths.js.
+const operationalPaths = allOperationalPaths(publications);
+
+// Insumos do build: versionados em site/ porque o repositório precisa deles para
+// regerar os derivados, mas nenhuma página os referencia. O bootstrap completo é a
+// entrada do purgecss (as páginas linkam bootstrap.purged.min.css) e a fonte integral
+// do Font Awesome é a entrada do pyftsubset (o CSS do vendor referencia só o subset).
+// São ~376 KB por bundle num host que serve sem compressão e é atualizado por FTP.
+const buildInputAssets = new Set([
+  "assets/vendor/bootstrap/bootstrap.min.css",
+  "assets/vendor/fontawesome/webfonts/fa-solid-900.full.woff2",
+]);
 
 function buildOnce(id) {
   const result = spawnSync(process.execPath, [path.join(root, "scripts", "build-site.mjs"), `--site=${id}`], {
@@ -57,32 +68,8 @@ function bundleTarget(id) {
   return target;
 }
 
-function operationalDataPaths(publication) {
-  const {
-    manifest,
-    values,
-    grids,
-    climatology,
-    monitoring,
-    graphs = DEFAULT_GRAPHS_DIRECTORY,
-  } = publication.dataset.paths;
-  return {
-    files: new Set([manifest]),
-    // `climatology` and `monitoring` are optional and, like the model output,
-    // deploy-supplied: both derive from the laboratory's own sensor archive,
-    // which is not public, so they never reach this repository and must not be
-    // expected in a bundle.
-    directories: [...new Set([values, grids, climatology, monitoring, graphs].filter(Boolean))],
-  };
-}
-
-function isOperationalData(relativePath, publication) {
-  const normalized = relativePath.split(path.sep).join("/");
-  const { files, directories } = operationalDataPaths(publication);
-  return (
-    files.has(normalized) ||
-    directories.some((directory) => normalized === directory || normalized.startsWith(`${directory}/`))
-  );
+function isOperationalData(relativePath) {
+  return isOperationalPath(relativePath.split(path.sep).join("/"), operationalPaths);
 }
 
 function declaredIdentityAssets(publication) {
@@ -166,7 +153,7 @@ function assertBundleIntegrity(publication, target) {
   const check = (reference, fromFile) => {
     if (isExternalReference(reference, originPrefix)) return;
     const key = assetKey(reference, originPrefix);
-    if (!key || isOperationalData(key, publication)) return;
+    if (!key || isOperationalData(key)) return;
     if (!fs.existsSync(path.join(target, ...key.split("/")))) missing.add(`${key} (referenced by ${fromFile})`);
   };
 
@@ -203,12 +190,13 @@ function copyBundle(publication, providedAssets) {
       const relative = path.relative(siteDir, source);
       if (!relative) return true;
       const normalized = relative.split(path.sep).join("/");
-      if (isOperationalData(relative, publication)) return false;
+      if (isOperationalData(relative)) return false;
+      if (buildInputAssets.has(normalized)) return false;
       return !foreign.has(normalized);
     },
   });
   assertBundleIntegrity(publication, target);
-  const excluded = operationalDataPaths(publication).directories.join(", ");
+  const excluded = operationalPaths.directories.join(", ");
   console.log(
     `build-all: bundled ${publication.id} -> ${path.relative(root, target)}/ ` +
       `(without ${excluded}; ${foreign.size} unreferenced publication assets dropped)`

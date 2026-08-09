@@ -11,6 +11,7 @@ const require = createRequire(import.meta.url);
 const { defaultPublication, discoverPublications } = require("./site-builder/publications.js");
 const { htmlReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
 const { finishWithFailure, makeRestore, installSignalRestore } = require("./site-builder/cli.js");
+const { publicationOperationalPaths, isOperationalPath } = require("./site-builder/operational-paths.js");
 const publications = discoverPublications(root);
 const defaultSite = defaultPublication(publications);
 const buildScript = path.join(root, "scripts", "build-site.mjs");
@@ -34,22 +35,18 @@ function run(command, args, label) {
  * instead, which is a packaging concern rather than a validation one — exempting them
  * here as well would let a typo in dataset.observations reach production unnoticed.
  */
+const OPERATIONAL_OPTIONS = Object.freeze({ includeGraphs: false });
+
+// A composição dos caminhos vem de site-builder/operational-paths.js: enumerar os
+// campos de `dataset.paths` à mão em cada script já tinha divergido — `monitoring`
+// ficou de fora de scripts/check-links.mjs sem que nada acusasse.
 function operationalDirectories(publication) {
-  const { values, grids, climatology, monitoring } = publication.dataset.paths;
-  // `climatology` and `monitoring` are optional: only a publication that actually
-  // publishes a record of its own station declares them. Both derive from the
-  // laboratory's sensor archive, which is not public, so they arrive by deploy.
-  return [...new Set([values, grids, climatology, monitoring].filter(Boolean))];
+  return publicationOperationalPaths(publication, OPERATIONAL_OPTIONS).directories;
 }
 
 function isOperationalDataPath(publication, relativePath) {
-  const normalized = relativePath.split(path.sep).join("/");
-  return (
-    normalized === publication.dataset.paths.manifest ||
-    operationalDirectories(publication).some(
-      (directory) => normalized === directory || normalized.startsWith(`${directory}/`)
-    )
-  );
+  const declared = publicationOperationalPaths(publication, OPERATIONAL_OPTIONS);
+  return isOperationalPath(relativePath.split(path.sep).join("/"), declared);
 }
 
 // Placeholders that legitimately keep an otherwise-ignored directory in git.
