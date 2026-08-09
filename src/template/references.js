@@ -20,9 +20,19 @@
  * Esta lista é a do site em si: o modelo, seus esquemas e as constantes.
  */
 
-/** Busca por título no Crossref, para registros sem DOI conferido. */
+/**
+ * Busca por título no Crossref, para registros sem DOI conferido.
+ *
+ * A rota É `/search/works`, e o `from_ui=yes` faz parte dela. O endereço curto
+ * `search.crossref.org/?q=…` responde 200 e parece certo, mas a interface atual
+ * do Crossref ignora o parâmetro ali: a página abre com o campo de busca VAZIO e
+ * nenhum resultado. Medido — pelo caminho antigo o campo volta `""`; por este ele
+ * volta preenchido com o título e a lista de resultados aparece. Como o status
+ * HTTP é 200 nos dois, nenhum verificador de links acusa a diferença; só abrir a
+ * página no navegador acusa.
+ */
 function search(title) {
-  return `https://search.crossref.org/?q=${encodeURIComponent(title)}`;
+  return `https://search.crossref.org/search/works?q=${encodeURIComponent(title)}&from_ui=yes`;
 }
 
 const SITE_REFERENCES = Object.freeze({
