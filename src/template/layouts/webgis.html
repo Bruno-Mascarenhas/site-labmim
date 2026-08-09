@@ -30,8 +30,10 @@
 {{> nav}}
     </header>
 
-    <h1 class="visually-hidden">{{h1}}</h1>
 <main class="container-main" id="main">
+  <!-- O h1 mora dentro da landmark main, como no layout institucional. -->
+  <h1 class="visually-hidden">{{h1}}</h1>
+
   <!-- MAP -->
   <div id="map"></div>
 
@@ -43,7 +45,8 @@
       </a>
     </div>
     <div class="sidebar-header">
-      <h3>Detalhes da Célula</h3>
+      <!-- h2, não h3: é o primeiro cabeçalho depois do h1 e pularia um nível. -->
+      <h2>Detalhes da Célula</h2>
       <button type="button" class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Fechar painel de detalhes">
         <i class="fas fa-times" aria-hidden="true"></i>
       </button>
@@ -135,8 +138,9 @@
     </label>
   </div>
 
-  <!-- WIND VECTORS CANVAS -->
-  <canvas id="windVectorCanvas"></canvas>
+  <!-- WIND VECTORS CANVAS — overlay decorativo: aria-hidden porque um canvas
+       mudo só polui a árvore de acessibilidade. -->
+  <canvas id="windVectorCanvas" aria-hidden="true"></canvas>
 
   <!-- DOCUMENTATION BUTTON -->
   <div class="documentation-btn-container">
