@@ -71,7 +71,18 @@ const SITE_REFERENCES = Object.freeze({
     citation:
       "Hong, S.-Y. & Lim, J.-O. J. (2006). The WRF single-moment 6-class microphysics scheme (WSM6). " +
       "Journal of the Korean Meteorological Society 42(2), 129-151.",
-    url: search("WRF single-moment 6-class microphysics scheme WSM6"),
+    // Única exceção à política acima, e a razão é que as duas outras rotas não
+    // existem para este registro. O artigo não tem DOI (confirmado na OpenAlex,
+    // que devolve `doi: null`) e a revista não está no Crossref (a consulta a
+    // /journals por "Korean Meteorological Society" volta vazia), então a busca
+    // que este arquivo usa como padrão NÃO pode achá-lo: medida no navegador,
+    // ela responde 200, roda e devolve 1,9 milhão de resultados cujos três
+    // primeiros são outros artigos que apenas citam o WSM6 — o leitor cai no
+    // trabalho errado, que é justamente o que a política quer evitar. O endereço
+    // abaixo é o registro permanente do Semantic Scholar, cuja identidade foi
+    // conferida na API em 2026-08-09: título, autores (Hong, Lim) e ano batem, e
+    // o identificador MAG 1909100498 é o mesmo que a OpenAlex atribui ao artigo.
+    url: "https://www.semanticscholar.org/paper/f6014c7853ea15270114b4f1bfec2e64559e63dd",
   },
   ysu: {
     short: "Hong, Noh e Dudhia, 2006",
@@ -94,7 +105,14 @@ const SITE_REFERENCES = Object.freeze({
       "Niu, G.-Y. et al. (2011). The community Noah land surface model with multiparameterization " +
       "options (Noah-MP): 1. Model description and evaluation with local-scale measurements. " +
       "Journal of Geophysical Research 116, D12109.",
-    url: search("community Noah land surface model with multiparameterization options Noah-MP"),
+    // DOI conferido na API do Crossref em 2026-08-09: o registro devolve este
+    // título, Niu/Yang/Mitchell e 2011, exatamente o que a citação afirma.
+    // Aqui a busca por título não servia: medida no navegador, ela devolve como
+    // primeiro resultado um artigo de outros autores sobre neve no Noah-MP, e o
+    // artigo citado (a Parte 1) nem aparece entre os três primeiros — o terceiro
+    // é a Parte 2, que é outro trabalho. Como a página de destino abre certa e o
+    // status é 200, só olhar o resultado da busca acusa a troca.
+    url: "https://doi.org/10.1029/2010JD015139",
   },
   kainfritsch: {
     short: "Kain, 2004",
