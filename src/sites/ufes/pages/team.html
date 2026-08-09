@@ -1,4 +1,15 @@
 <!-- Conteúdo editorial específico do LEAL/UFES. -->
+
+<!--
+  Mesma razão do team.html da UFBA: a utilitária .text-dark do Bootstrap declara
+  a cor com !important e anulava `.team-group a { color: var(--primary-color) }`,
+  deixando o nome em rgb(33,37,41) — a cor exata do texto ao redor — enquanto
+  `.team-group a` já zera o sublinhado; no tema claro o link para o Lattes não
+  parecia link. Cor sozinha também não bastaria (WCAG 1.4.1/G183), então o
+  sublinhado fica explícito no atributo style; o CSP libera
+  style-src 'unsafe-inline' para atributos style, e classe utilitária nova não
+  sobrevive ao purge do Bootstrap.
+-->
 <div class="modern-section">
   <div class="page-header">
     <i class="fas fa-users"></i>
@@ -12,7 +23,7 @@
         <h3 class="team-group-title"><i class="fas fa-user-tie me-2"></i>Pesquisador Responsável</h3>
         <div class="d-flex align-items-center mb-2">
           <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i>
-          <a href="https://lattes.cnpq.br/8212836406462666" target="_blank" rel="noopener" class="me-2 text-dark"
+          <a href="https://lattes.cnpq.br/8212836406462666" target="_blank" rel="noopener" class="me-2" style="text-decoration: underline"
             >Maxsuel Marcos Rocha Pereira</a
           >
           <span class="badge text-bg-info">DTI-UFES</span>
@@ -27,42 +38,42 @@
         <div class="stack-sm">
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/1912113095988528" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/1912113095988528" target="_blank" rel="noopener" style="text-decoration: underline"
               >Jussara Farias Fardin</a
             >
             <span class="badge text-bg-secondary float-end">DE-UFES</span>
           </div>
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/2379169013108798" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/2379169013108798" target="_blank" rel="noopener" style="text-decoration: underline"
               >Marcelo Vieira Segatto</a
             >
             <span class="badge text-bg-secondary float-end">DE-UFES</span>
           </div>
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/3112476528507003" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/3112476528507003" target="_blank" rel="noopener" style="text-decoration: underline"
               >Edson Pereira Marques Filho</a
             >
             <span class="badge text-bg-secondary float-end">IF-UFBA</span>
           </div>
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/1364246301366731" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/1364246301366731" target="_blank" rel="noopener" style="text-decoration: underline"
               >Amauri Pereira de Oliveira</a
             >
             <span class="badge text-bg-secondary float-end">IAG-USP</span>
           </div>
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/6934266516168836" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/6934266516168836" target="_blank" rel="noopener" style="text-decoration: underline"
               >Daniel Campos Pompermayer</a
             >
             <span class="badge text-bg-secondary float-end">IFSP</span>
           </div>
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/9470331518728833" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/9470331518728833" target="_blank" rel="noopener" style="text-decoration: underline"
               >Danilo de Paula e Silva</a
             >
             <span class="badge text-bg-secondary float-end">IFES-ES</span>
@@ -78,14 +89,14 @@
         <div class="stack-sm">
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/0589592633774448" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/0589592633774448" target="_blank" rel="noopener" style="text-decoration: underline"
               >Giovanna de Medeiros Salotto</a
             >
             <span class="badge text-bg-light border float-end">PPGES-UFES</span>
           </div>
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/3668225659164357" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/3668225659164357" target="_blank" rel="noopener" style="text-decoration: underline"
               >Giuliano Silva Battisti</a
             >
             <span class="badge text-bg-light border float-end">PPGES-UFES</span>
@@ -101,14 +112,14 @@
         <div class="stack-sm">
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/0750690461240602" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/0750690461240602" target="_blank" rel="noopener" style="text-decoration: underline"
               >Breno Odnan Ferreira de Souza</a
             >
             <span class="badge text-bg-light border float-end">DE-UFES</span>
           </div>
           <div>
             <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-            ><a href="https://lattes.cnpq.br/1381927851014903" target="_blank" rel="noopener" class="text-dark"
+            ><a href="https://lattes.cnpq.br/1381927851014903" target="_blank" rel="noopener" style="text-decoration: underline"
               >Murilo Barroso dos Passos</a
             >
             <span class="badge text-bg-light border float-end">DE-UFES</span>
