@@ -35,8 +35,10 @@ function run(command, args, label) {
  * here as well would let a typo in dataset.observations reach production unnoticed.
  */
 function operationalDirectories(publication) {
-  const { values, grids } = publication.dataset.paths;
-  return [...new Set([values, grids])];
+  const { values, grids, climatology } = publication.dataset.paths;
+  // `climatology` is optional: only a publication that actually publishes an
+  // observed-distribution record declares it.
+  return [...new Set([values, grids, climatology].filter(Boolean))];
 }
 
 function isOperationalDataPath(publication, relativePath) {
@@ -61,8 +63,7 @@ const OPERATIONAL_PLACEHOLDERS = new Set([".keep", ".gitkeep"]);
 function assertOperationalDataIgnored() {
   const leaked = [];
   for (const publication of publications) {
-    const { values, grids } = publication.dataset.paths;
-    for (const directory of new Set([values, grids])) {
+    for (const directory of operationalDirectories(publication)) {
       const result = spawnSync("git", ["ls-files", "-z", "--", `site/${directory}`], { cwd: root, encoding: "utf8" });
       if (result.error) throw result.error;
       if (result.status !== 0) throw new Error(`could not inspect tracked files under site/${directory}`);

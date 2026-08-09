@@ -27,13 +27,10 @@ module.exports = [
         "LEAL — Equipe do Laboratório de Energias Alternativas da UFES: pesquisadores, colaboradores e estudantes.",
     },
   }),
-  page("climatology", {
-    seo: {
-      title: "LEAL — Climatologia · UFES",
-      description:
-        "LEAL — Climatologia e análise ambiental do Espírito Santo. Laboratório de Energias Alternativas, UFES.",
-    },
-  }),
+  // Sem página de climatologia: os únicos dados de distribuição publicados hoje
+  // são os da estação do LabMiM em Salvador, e o SEO desta publicação promete
+  // Espírito Santo. Reative `page("climatology", …)` quando o LEAL tiver o
+  // próprio registro observado publicado no diretório do dataset.
   page("forecast", {
     seo: {
       title: "LEAL — Mapas Interativos WRF · UFES",

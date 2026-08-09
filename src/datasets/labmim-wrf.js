@@ -16,6 +16,11 @@ module.exports = {
     manifest: "JSON/manifest.json",
     values: "JSON",
     grids: "GeoJSON",
+    // Distribuições observadas pré-calculadas que a página de climatologia lê.
+    // Derivadas do acervo de sensores do laboratório, que NÃO é público: como as
+    // saídas do WRF, chegam pelo deploy e ficam fora do git (.gitignore).
+    // Produzidas por `labmim-climatology` no repositório micrometeorology.
+    climatology: "Climatologia",
   },
   timeline: {
     defaultMaxLayer: 73,

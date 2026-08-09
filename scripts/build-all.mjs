@@ -58,10 +58,14 @@ function bundleTarget(id) {
 }
 
 function operationalDataPaths(publication) {
-  const { manifest, values, grids, graphs = DEFAULT_GRAPHS_DIRECTORY } = publication.dataset.paths;
+  const { manifest, values, grids, climatology, graphs = DEFAULT_GRAPHS_DIRECTORY } = publication.dataset.paths;
   return {
     files: new Set([manifest]),
-    directories: [...new Set([values, grids, graphs])],
+    // `climatology` is optional and, like the model output, is deploy-supplied:
+    // it is derived from the laboratory's own sensor archive, which is not
+    // public, so it never reaches this repository and must not be expected in a
+    // bundle.
+    directories: [...new Set([values, grids, climatology, graphs].filter(Boolean))],
   };
 }
 

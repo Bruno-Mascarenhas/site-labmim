@@ -25,9 +25,9 @@ function escapeRegex(value) {
 const FONTAWESOME_UNSHIPPED = String.raw`/assets/vendor/fontawesome/webfonts/(?:[^/]+\.ttf|fa-v4compatibility\.[^/]+)$`;
 
 function skipPattern(publication) {
-  const { manifest, values, grids } = publication.dataset.paths;
+  const { manifest, values, grids, climatology } = publication.dataset.paths;
   const operationalRules = [
-    ...new Set([values, grids].map((directory) => `/${escapeRegex(directory)}/`)),
+    ...new Set([values, grids, climatology].filter(Boolean).map((directory) => `/${escapeRegex(directory)}/`)),
     `/${escapeRegex(manifest)}(?:[?#]|$)`,
   ];
   return [
