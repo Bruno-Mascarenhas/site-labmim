@@ -90,6 +90,7 @@
     // se repete a cada troca de camada, janela ou tema.
     layerLabels: new Map(),
     notices: new Map(),
+    downloads: new Map(),
     // Ids que o observador já mandou desenhar. É a intenção registrada, e não a
     // geometria do momento, que diz o que `redrawAll` precisa refazer: um gráfico
     // pode sair de `charts` (nenhuma camada selecionada existe para ele) e o
@@ -264,6 +265,25 @@
   }
 
   /**
+   * Existe pelo menos UM valor finito desta série, nesta camada, dentro do
+   * recorte? Mesma regra de `layerPoints`, mas sem materializar os pontos e
+   * saindo no primeiro que serve — é o que permite consultar a disponibilidade a
+   * cada redesenho sem construir milhares de objetos que ninguém vai desenhar.
+   */
+  function layerHasData(layer, seriesId, from) {
+    const values = layer && layer.series ? layer.series[seriesId] : null;
+    if (!values) return false;
+    const start = parseStationTime(layer.axis.start);
+    const step = layer.axis.step_minutes * MINUTE_MS;
+    for (let index = 0; index < values.length; index += 1) {
+      if (start + index * step < from) continue;
+      const value = values[index];
+      if (typeof value === "number" && Number.isFinite(value)) return true;
+    }
+    return false;
+  }
+
+  /**
    * As séries que cada camada de fato desenha. A bruta entra uma vez só: é a base
    * sobre a qual as outras são lidas, e uma entrada por parcela repetiria a mesma
    * informação. Existe para `buildDatasets` e `availableLayers` não divergirem —
@@ -294,6 +314,31 @@
     return chart.series.length === 1 ? theme.series.model : seriesColor(chart, series, theme);
   }
 
+  /**
+   * Raios ponto a ponto que revelam a LEITURA ISOLADA numa camada desenhada como
+   * linha.
+   *
+   * Um valor sozinho entre buracos não desenha nada: com `spanGaps` desligado não
+   * há vizinho com quem formar segmento, e o raio do ponto é zero porque numa
+   * série cheia duas mil bolinhas viram borrão. O resultado era o cartão anunciar
+   * "Média horária" sobre um canvas em branco — a mesma promessa quebrada que o
+   * rótulo de camada ausente causava, e não é caso hipotético: sensor que volta
+   * por uma hora e cai de novo produz exatamente esse ponto solto.
+   *
+   * Devolve o escalar 0 quando nenhum ponto está solto, para o caminho comum —
+   * série contínua — seguir sem array nenhum.
+   */
+  function isolatedRadii(points, radius) {
+    const finite = (point) => Boolean(point) && typeof point.y === "number" && Number.isFinite(point.y);
+    let solto = false;
+    const radii = points.map((point, index) => {
+      if (!finite(point) || finite(points[index - 1]) || finite(points[index + 1])) return 0;
+      solto = true;
+      return radius;
+    });
+    return solto ? radii : 0;
+  }
+
   function baseDataset(extra) {
     return {
       borderJoinStyle: "round",
@@ -301,6 +346,29 @@
       normalized: true,
       ...extra,
     };
+  }
+
+  /**
+   * Engrossa as MARCAS (não o dado) para o gráfico ampliado.
+   *
+   * A especificação de traço do projeto é 2px, e ela está calibrada para o cartão
+   * da grade. No diálogo o canvas tem cerca de três vezes a área, e a mesma linha
+   * de 2px passa a ler como fio de cabelo — proporcionalmente ela encolheu. Escalar
+   * apenas espessura, raio de ponto e o padrão do tracejado preserva a codificação
+   * inteira (matiz = família, traço = direção, pontilhado = modelo) e devolve só a
+   * presença visual. Engrossar na GRADE seria o erro oposto: ali a linha horária já
+   * cobre a nuvem bruta que ela existe para ser comparada contra.
+   */
+  function scaleMarks(datasets, factor) {
+    if (factor === 1) return datasets;
+    const grow = (value) => (typeof value === "number" && value > 0 ? Math.round(value * factor * 100) / 100 : value);
+    return datasets.map((dataset) => ({
+      ...dataset,
+      borderWidth: grow(dataset.borderWidth),
+      pointRadius: Array.isArray(dataset.pointRadius) ? dataset.pointRadius.map(grow) : grow(dataset.pointRadius),
+      pointHoverRadius: grow(dataset.pointHoverRadius),
+      borderDash: Array.isArray(dataset.borderDash) ? dataset.borderDash.map(grow) : dataset.borderDash,
+    }));
   }
 
   function rawDataset(chart, color, points) {
@@ -314,7 +382,7 @@
         borderColor: color,
         backgroundColor: color,
         borderWidth: 1,
-        pointRadius: 0,
+        pointRadius: isolatedRadii(points, 1.5),
         pointHoverRadius: 0,
         order: 6,
       });
@@ -369,7 +437,7 @@
       borderColor: color,
       backgroundColor: color,
       borderWidth: 2,
-      pointRadius: 0,
+      pointRadius: isolatedRadii(points, 2.6),
       pointHoverRadius: 4,
       // Tracejado nas parcelas ascendentes do balanço: no gráfico de balanço o
       // matiz já diz a família, então a direção do fluxo precisa de outro canal.
@@ -392,7 +460,7 @@
       // sobra depois de matiz (família) e tracejado (direção).
       borderDash: [2, 3],
       showLine: !dotted,
-      pointRadius: dotted ? 2.6 : 0,
+      pointRadius: dotted ? 2.6 : isolatedRadii(points, 2.6),
       pointHoverRadius: dotted ? 5 : 4,
       pointStyle: "rect",
       pointBorderWidth: 0,
@@ -562,9 +630,9 @@
     return ticks;
   }
 
-  function chartConfig(chart, theme) {
+  function chartConfig(chart, theme, { escala = 1 } = {}) {
     const digits = unitDigits(chart.unit);
-    const datasets = buildDatasets(chart, theme);
+    const datasets = scaleMarks(buildDatasets(chart, theme), escala);
     return {
       data: { datasets },
       options: {
@@ -696,7 +764,14 @@
         // pt-BR abre sem passar pelo assistente de importação.
         return value === undefined || value === null ? "" : String(value).replace(".", ",");
       });
-      rows.push([iso, ...cells].join(";"));
+      // Instante em que NENHUMA coluna tem leitura não vira linha. A união de
+      // carimbos vem da grade de tempo publicada, que o exportador mantém cheia
+      // mesmo com o sensor fora do ar: quando a estação registrou duas horas numa
+      // janela de sete dias, 166 das 192 linhas saíam como `carimbo;;` — planilha
+      // que se abre parecendo dado corrompido, e que esconde entre milhares de
+      // linhas vazias as poucas que têm número. O buraco continua legível pela
+      // descontinuidade dos carimbos, que é como um CSV representa ausência.
+      if (cells.some((cell) => cell !== "")) rows.push([iso, ...cells].join(";"));
     }
 
     // BOM à frente: sem ele o Excel lê o arquivo como latin-1 e os acentos dos
@@ -734,8 +809,21 @@
     return LAYERS.filter((layer) => {
       const data = chart.layers[layer.id];
       if (!data) return false;
-      return layerSeriesIds(chart, layer.id).some((seriesId) => layerPoints(data, seriesId, from));
+      return layerSeriesIds(chart, layer.id).some((seriesId) => layerHasData(data, seriesId, from));
     });
+  }
+
+  /**
+   * Há alguma coluna para o CSV nesta janela?
+   *
+   * Não é `availableLayers`: o CSV exporta TODAS as séries de todas as camadas,
+   * inclusive a bruta das parcelas que o desenho omite, então a pergunta é mais
+   * ampla que a do rótulo do cartão. Percorre na mesma ordem de `exportCsv` e
+   * para na primeira coluna que existiria.
+   */
+  function hasExportableData(chart) {
+    const from = windowStart();
+    return chart.series.some((series) => LAYERS.some((layer) => layerHasData(chart.layers[layer.id], series.id, from)));
   }
 
   /** Interseção do que o gráfico tem com o que está ligado: o que o canvas mostra. */
@@ -771,6 +859,25 @@
       );
     }
 
+    // O botão de CSV é a alternativa textual do gráfico, e é o caminho de quem
+    // quer os números — mas quando não há uma única leitura na janela ele não tem
+    // o que gerar: `exportCsv` saía sem colunas, sem arquivo e SEM AVISO NENHUM.
+    // Clicar respondia com o nada absoluto, indistinguível de um download
+    // bloqueado pelo navegador. Desabilitado, o cartão diz antes do clique que
+    // não há o que baixar, e o motivo já está no parágrafo abaixo do canvas.
+    // Depende da janela, então é reavaliado a cada redesenho, junto do resto.
+    const download = state.downloads.get(chart.id);
+    if (download) {
+      const exportavel = hasExportableData(chart);
+      download.disabled = !exportavel;
+      download.setAttribute(
+        "aria-label",
+        exportavel
+          ? `Baixar os dados de ${chart.title} em CSV`
+          : `Sem dados de ${chart.title} nesta janela para baixar em CSV`
+      );
+    }
+
     const notice = state.notices.get(chart.id);
     if (notice) {
       notice.hidden = drawnCount > 0;
@@ -791,6 +898,73 @@
     }
   }
 
+  /**
+   * Ampliação de um gráfico num `<dialog>` nativo.
+   *
+   * `showModal()` traz prisão de foco, fechamento por Escape, fundo inerte e
+   * `::backdrop` sem uma linha de código nossa — foi justamente a gestão de foco
+   * escrita à mão que produziu os defeitos de acessibilidade dos modais desta
+   * página. `closedby="any"` dá o clique-fora de forma declarativa; o ouvinte
+   * abaixo cobre o navegador que ainda não o implementa.
+   *
+   * O gráfico é criado ao abrir e destruído ao fechar: manter mais nove
+   * instâncias vivas custaria memória por uma tela que quase sempre está fechada.
+   * Os dados saem do mesmo `buildDatasets`, então o recorte e as camadas ligadas
+   * acompanham o que o cartão mostra.
+   */
+  function openZoom(chart) {
+    const dialog = document.createElement("dialog");
+    dialog.className = "monitor-zoom";
+    dialog.setAttribute("closedby", "any");
+    dialog.setAttribute("aria-label", `${chart.title} ampliado`);
+
+    const head = node("div", "monitor-zoom-head");
+    const title = node("h2", "monitor-zoom-title", chart.title);
+    if (chart.unit) title.appendChild(node("span", "monitor-unit", ` (${chart.unit})`));
+    head.appendChild(title);
+
+    // `method="dialog"` fecha sem handler e devolve o foco ao botão que abriu.
+    const form = document.createElement("form");
+    form.method = "dialog";
+    const close = node("button", "btn btn-sm btn-outline-lab", "Fechar");
+    form.appendChild(close);
+    head.appendChild(form);
+    dialog.appendChild(head);
+
+    const wrap = node("div", "chart-container monitor-zoom-chart");
+    const canvas = document.createElement("canvas");
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute(
+      "aria-label",
+      `${chart.title} ampliado — camadas ${
+        drawnLayers(chart)
+          .map((layer) => layerLabel(chart, layer))
+          .join(", ") || "nenhuma"
+      }. Use o botão CSV do cartão para a versão textual.`
+    );
+    wrap.appendChild(canvas);
+    dialog.appendChild(wrap);
+    document.body.appendChild(dialog);
+
+    const config = chartConfig(chart, themeColors(), { escala: 1.6 });
+    let instance = null;
+    dialog.addEventListener("close", () => {
+      if (instance) instance.destroy();
+      dialog.remove();
+    });
+    // Clique no próprio <dialog> é clique no backdrop: o conteúdo está nos filhos.
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+
+    dialog.showModal();
+    if (config.data.datasets.length) {
+      instance = new Chart(canvas.getContext("2d"), { type: "line", ...config, plugins: [crosshair] });
+    } else {
+      wrap.appendChild(node("p", "monitor-pending", "Sem camadas para desenhar nesta janela."));
+    }
+  }
+
   function buildCard(chart) {
     const card = node("div", "theme-surface monitor-card");
     card.id = `monitor-card-${chart.id}`;
@@ -804,10 +978,21 @@
     const layers = node("span", "monitor-layers");
     state.layerLabels.set(chart.id, layers);
     actions.appendChild(layers);
+    // A página estática abria cada PNG num modal do Bootstrap — era assim que se
+    // lia o detalhe, e a versão interativa herdou os gráficos sem herdar a
+    // ampliação. Num cartão de 448x240 com ~2000 amostras brutas são 4,5 pontos
+    // por pixel e o traço vira mancha; o diálogo devolve a área que o PNG tinha.
+    const zoom = node("button", "btn btn-sm btn-outline-lab", "Ampliar");
+    zoom.type = "button";
+    zoom.setAttribute("aria-label", `Ampliar o gráfico de ${chart.title}`);
+    zoom.addEventListener("click", () => openZoom(chart));
+    actions.appendChild(zoom);
+
     const download = node("button", "btn btn-sm btn-outline-lab", "CSV");
     download.type = "button";
     download.setAttribute("aria-label", `Baixar os dados de ${chart.title} em CSV`);
     download.addEventListener("click", () => exportCsv(chart));
+    state.downloads.set(chart.id, download);
     actions.appendChild(download);
     head.appendChild(actions);
     card.appendChild(head);

@@ -789,8 +789,19 @@
     align-items: stretch;
   }
 
+  /* `min-width: 0` sozinho não segura um <select>: a largura intrínseca do
+     elemento é a da opção mais longa ("Temperatura do ar", "Precipitação
+     acumulada"...), e nada a limitava ao contêiner. Em 320px o campo media
+     332px e vazava 6px para cada lado, com a página rolando na horizontal.
+     A largura explícita prende o campo à coluna. */
+  .clima-control {
+    max-width: 100%;
+    min-width: 0;
+  }
+
   .clima-select {
     min-width: 0;
+    max-width: 100%;
   }
 
   .clima-chart {
@@ -850,9 +861,15 @@
   color: var(--text-secondary);
 }
 
+/* 560px e não 430px: com o mínimo antigo um monitor de 1440 caía em TRÊS colunas
+   e cada gráfico ficava com 448x240 de área de plotagem, contra os ~700x330 do PNG
+   que esta página substituiu. Como a janela é de sete dias e a camada bruta traz
+   ~2000 amostras, aquilo dava 4,5 pontos por pixel e a série virava mancha. Em duas
+   colunas a área volta ao tamanho do PNG; acima de ~1740px o auto-fit ainda abre a
+   terceira, onde ela cabe sem apertar. */
 .monitor-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(560px, 1fr));
   gap: 1.25rem;
 }
 
@@ -913,7 +930,50 @@
 }
 
 .monitor-chart {
-  height: 300px;
+  height: 380px;
+  margin-bottom: 0;
+}
+
+/* Ampliação do gráfico (`<dialog>` nativo). Substitui o modal do Bootstrap que a
+   página estática usava para abrir os PNG em tamanho grande — a affordance existia
+   e se perdeu na versão interativa. O tamanho é o maior que cabe sem encostar nas
+   bordas; a altura mínima impede que uma janela baixa espreme o gráfico a ponto de
+   anular o ganho. */
+.monitor-zoom {
+  width: min(96vw, 1400px);
+  max-width: 96vw;
+  height: min(88vh, 820px);
+  padding: 1rem 1.25rem 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.monitor-zoom::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+
+.monitor-zoom-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.monitor-zoom-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Ocupa o que sobra da altura do diálogo: o canvas é `maintainAspectRatio: false`,
+   então quem manda no tamanho é o contêiner. */
+.monitor-zoom-chart {
+  height: calc(100% - 3.25rem);
+  min-height: 240px;
   margin-bottom: 0;
 }
 
@@ -944,6 +1004,22 @@
 
   .monitor-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Um <canvas> sem gráfico desenhado mantém o tamanho intrínseco do elemento
+     (300x150). Como item de grade e de flex nasce com min-width: auto, esses
+     300px viravam o piso do cartão: em 320px o cartão media 342px e a página do
+     monitoramento rolava 38px na horizontal — justamente quando não há dado e o
+     gráfico não chega a ser criado, que é o estado de hoje. Deixar a corrente
+     encolher e limitar o canvas à coluna resolve nos dois estados. */
+  .monitor-card,
+  .monitor-card-head,
+  .monitor-chart {
+    min-width: 0;
+  }
+
+  .monitor-chart canvas {
+    max-width: 100%;
   }
 
   .monitor-chart {
