@@ -298,6 +298,19 @@ header.maps-header {
   appearance: none;
 }
 
+/* O trilho tem 6px, e num aparelho de toque o elemento inteiro é o alvo: 6px de
+   altura para o controle principal do mapa significa errar o arrasto. A área
+   cresce para 32px sem engordar o trilho — o fundo continua pintado só nele,
+   pela borda transparente, e o polegar ganha onde pegar. */
+@media (pointer: coarse) {
+  #layerSlider {
+    height: 32px;
+    border-top: 13px solid transparent;
+    border-bottom: 13px solid transparent;
+    background-clip: padding-box;
+  }
+}
+
 #layerSlider::-webkit-slider-thumb {
   appearance: none;
   width: 18px;

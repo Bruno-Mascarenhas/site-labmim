@@ -102,6 +102,15 @@
   text-decoration: none;
 }
 
+/* Alvo de toque de 24px, o piso do WCAG 2.2 (SC 2.5.8). Medidos em 22px de
+   altura, estes links são navegação e não texto corrido, então a isenção para
+   alvo em linha não se aplica: num celular a diferença é errar o link vizinho. */
+.footer-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
 .footer-nav a:hover,
 .modern-footer a:hover {
   color: var(--accent-color) !important;
@@ -127,8 +136,16 @@
 
 .footer-repo-link {
   display: inline-flex;
-  margin-left: 0.4rem;
-  vertical-align: -0.25em;
+  align-items: center;
+  justify-content: center;
+
+  /* O ícone tem 16px; o alvo, 24px. A margem negativa devolve o espaço extra ao
+     texto ao redor, para que aumentar a área de toque não empurre a linha. */
+  min-width: 24px;
+  min-height: 24px;
+  margin-block: -4px;
+  margin-left: 0.15rem;
+  vertical-align: -0.45em;
 }
 
 .footer-repo-link svg {
