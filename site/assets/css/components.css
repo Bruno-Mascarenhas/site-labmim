@@ -749,3 +749,156 @@
     height: 300px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   MONITORAMENTO — grade de cartões da janela móvel de 7 dias.
+
+   Reaproveita os controles segmentados e a caixa vazia da climatologia acima
+   (.clima-segmented-btn, .clima-empty, .clima-caveats): as duas páginas têm a
+   mesma gramática de controle, e duplicar os seletores só criaria dois lugares
+   para divergir. O que é próprio daqui é a grade e o cartão.
+
+   Como lá, nenhuma cor de série mora neste arquivo — assets/js/monitoramento.js
+   lê a paleta validada em runtime, e o resto sai dos tokens de tema.
+   --------------------------------------------------------------------------- */
+
+.monitor-controls {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0.85rem 0;
+  margin-bottom: 1.5rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.monitor-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.monitor-control-meta {
+  justify-content: flex-end;
+}
+
+.monitor-layer-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.monitor-updated {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+  gap: 1.25rem;
+}
+
+.monitor-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 1.25rem 1.25rem;
+  border-radius: 12px;
+
+  /* Entrada suave: o cartão nasce deslocado e o IntersectionObserver de
+     monitoramento.js acrescenta .is-visible quando ele chega à tela — o mesmo
+     evento que cria o gráfico, então a animação acompanha o desenho em vez de
+     disparar antes dele. */
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+}
+
+.monitor-card.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.monitor-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.monitor-card-title {
+  margin: 0;
+  font-size: 1.08rem;
+  color: var(--text-primary);
+}
+
+.monitor-unit {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.monitor-card-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.monitor-layers {
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.monitor-chart {
+  height: 300px;
+  margin-bottom: 0;
+}
+
+.monitor-pending {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.monitor-card .clima-caveats {
+  max-width: none;
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monitor-card {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+@media (width <= 768px) {
+  .monitor-controls {
+    align-items: stretch;
+  }
+
+  .monitor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .monitor-chart {
+    height: 260px;
+  }
+}

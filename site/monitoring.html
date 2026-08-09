@@ -60,7 +60,7 @@
     <link rel="stylesheet" href="assets/css/base.css?v=7733cbd6" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=1052434d" />
-    <link rel="stylesheet" href="assets/css/components.css?v=860bebdc" />
+    <link rel="stylesheet" href="assets/css/components.css?v=e74eab46" />
 
     <link rel="stylesheet" href="assets/css/theme.css?v=607af7d7" />
 
@@ -144,11 +144,18 @@
 
     <main id="main">
       <h1 class="visually-hidden">Monitoramento Ambiental</h1>
-      <!-- Página compartilhada; extensões institucionais entram por page.append. -->
-      <div class="modern-section">
+      <!-- Monitoramento interativo. Variante da rota `monitoring.html` para publicações
+ que declaram `dataset.paths.monitoring`; a variante estática, que desenha os PNGs
+ de `dataset.observations`, continua em pages/monitoring.html e é o que o LEAL usa.
+ Escolha uma das duas por `source:` na declaração da página.
+
+ Tudo abaixo é preenchido em runtime por assets/js/monitoramento.js a partir do
+ payload `labmim-monitoring-v1` daquele diretório — nada aqui é específico de uma
+ publicação. -->
+      <div class="modern-section" id="monitoramento" data-monitoring-base="Monitoramento">
         <div class="modern-header mb-4">
           <h2><i class="fas fa-satellite-dish me-2"></i>Monitoramento Ambiental</h2>
-          <p>Variáveis ambientais — Atualização a cada 1h</p>
+          <p id="monitorPeriodo">Janela móvel de 7 dias — atualização a cada 1h</p>
         </div>
 
         <!-- BLOCO DE EXPLICAÇÃO -->
@@ -170,30 +177,27 @@
           <div class="explanation-box explanation-box-narrow mx-auto">
             <div class="explanation-content text-start">
               <p>
-                Esta seção exibe o
-                <strong>monitoramento ambiental contínuo</strong> obtido através de plataformas de estações
-                micrometeorológicas em atuação.
+                Esta seção exibe o <strong>monitoramento ambiental contínuo</strong> da estação micrometeorológica, em
+                <strong>três camadas sobrepostas</strong> para cada variável:
               </p>
-              <p>As variáveis coletadas integram:</p>
               <ul class="explanation-list-center">
+                <li><strong>Bruto</strong> — cada amostra do datalogger, no intervalo original de 5 minutos;</li>
+                <li><strong>Média horária</strong> — a agregação desenhada por cima do dado que a originou;</li>
                 <li>
-                  <strong>Temperatura, Umidade e Pressão Atmosférica</strong> — parâmetros termodinâmicos essenciais;
+                  <strong>WRF</strong> — a série do modelo para o mesmo período, quando existe para aquela variável.
                 </li>
-                <li>
-                  <strong>Velocidade e Direção do Vento</strong> — padrão de escoamento e transporte próximo à
-                  superfície;
-                </li>
-                <li>
-                  <strong>Radiometria</strong> — Componentes do saldo de radiação (Ondas curtas e longas incidentes e
-                  refletidas/emitidas);
-                </li>
-                <li><strong>Precipitação</strong> — volume pluviométrico diário.</li>
               </ul>
+              <p>
+                Ver as três juntas é o ponto: a média horária sozinha esconde a variabilidade dentro da hora e não deixa
+                julgar a qualidade do dado que a produziu, e a curva do modelo ao lado da medida mostra onde os dois
+                concordam sem que um seja correção do outro.
+              </p>
               <p class="compact-note">
                 <small
-                  >As informações são recebidas em tempo quase real e processadas diretamente para visualização,
-                  formando uma extensa base de dados climáticos local. Os dados são resultados de aquisições de
-                  pesquisa, não havendo garantia total para utilização irrestrita.</small
+                  >As informações são recebidas em tempo quase real e processadas diretamente para visualização. Os
+                  dados são resultados de aquisições de pesquisa, não havendo garantia total para utilização irrestrita.
+                  Clique em um item da legenda para ocultar aquela camada; passe o cursor sobre o gráfico para ler os
+                  valores instantâneos das camadas visíveis.</small
                 >
               </p>
             </div>
@@ -201,189 +205,35 @@
           <hr class="mb-4 max-w-1000" />
         </div>
 
-        <div class="row">
-          <div class="col-sm-4 mb-3">
-            <div class="container-overlay">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/temperatura.png"
-                width="800"
-                height="400"
-                alt="Temperatura do ar"
-              />
-              <button
-                type="button"
-                class="btn btn-primary overlay"
-                data-bs-toggle="modal"
-                data-bs-target="#modalTemperatura"
-              >
-                <span class="text">Temperatura do ar</span>
-              </button>
-            </div>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <div class="container-overlay">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/umidade.png"
-                width="800"
-                height="400"
-                alt="Umidade do Ar"
-              />
-              <button
-                type="button"
-                class="btn btn-primary overlay"
-                data-bs-toggle="modal"
-                data-bs-target="#modalUmidade"
-              >
-                <span class="text">Umidade do Ar</span>
-              </button>
-            </div>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <div class="container-overlay">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/pressao.png"
-                width="800"
-                height="400"
-                alt="Pressão atmosférica"
-              />
-              <button
-                type="button"
-                class="btn btn-primary overlay"
-                data-bs-toggle="modal"
-                data-bs-target="#modalPressao"
-              >
-                <span class="text">Pressão atmosférica</span>
-              </button>
-            </div>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <div class="container-overlay">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/precipitacao.png"
-                width="800"
-                height="400"
-                alt="Precipitação"
-              />
-              <button
-                type="button"
-                class="btn btn-primary overlay"
-                data-bs-toggle="modal"
-                data-bs-target="#modalPrecipitacao"
-              >
-                <span class="text">Precipitação</span>
-              </button>
-            </div>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <div class="container-overlay">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/velocidade.png"
-                width="800"
-                height="400"
-                alt="Velocidade do Vento"
-              />
-              <button
-                type="button"
-                class="btn btn-primary overlay"
-                data-bs-toggle="modal"
-                data-bs-target="#modalVelocidade"
-              >
-                <span class="text">Velocidade do Vento</span>
-              </button>
-            </div>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <div class="container-overlay">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/direcao.png"
-                width="800"
-                height="400"
-                alt="Direção do Vento"
-              />
-              <button
-                type="button"
-                class="btn btn-primary overlay"
-                data-bs-toggle="modal"
-                data-bs-target="#modalDirecao"
-              >
-                <span class="text">Direção do Vento</span>
-              </button>
-            </div>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <div class="container-overlay">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/balanco.png"
-                width="800"
-                height="400"
-                alt="Balanço de Radiação"
-              />
-              <button
-                type="button"
-                class="btn btn-primary overlay"
-                data-bs-toggle="modal"
-                data-bs-target="#modalBalanco"
-              >
-                <span class="text">Balanço de Radiação</span>
-              </button>
-            </div>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <div class="container-overlay">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/radiacao_difusa.png"
-                width="800"
-                height="400"
-                alt="Radiação Difusa"
-              />
-              <button
-                type="button"
-                class="btn btn-primary overlay"
-                data-bs-toggle="modal"
-                data-bs-target="#modalRadiacaoDifusa"
-              >
-                <span class="text">Radiação Difusa</span>
-              </button>
-            </div>
-          </div>
-          <div class="col-sm-4 mb-3">
-            <div class="container-overlay">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/radiacao_par.png"
-                width="800"
-                height="400"
-                alt="Radiação PAR"
-              />
-              <button
-                type="button"
-                class="btn btn-primary overlay"
-                data-bs-toggle="modal"
-                data-bs-target="#modalRadiacaoPar"
-              >
-                <span class="text">Radiação PAR</span>
-              </button>
-            </div>
-          </div>
+        <!-- ESTADOS DE CARGA / AUSÊNCIA DE DADOS -->
+        <div class="clima-empty" id="monitorEmpty" hidden>
+          <p id="monitorEmptyMessage">Carregando observações…</p>
         </div>
-        <!-- ./row -->
+
+        <div id="monitorApp" hidden>
+          <!-- CONTROLES -->
+          <div class="monitor-controls" role="group" aria-label="Camadas e período">
+            <div class="monitor-control">
+              <span class="clima-control-label" id="monitorCamadasLabel">Camadas</span>
+              <div
+                class="monitor-layer-toggles"
+                id="monitorCamadas"
+                role="group"
+                aria-labelledby="monitorCamadasLabel"
+              ></div>
+            </div>
+            <div class="monitor-control">
+              <span class="clima-control-label" id="monitorJanelaLabel">Período</span>
+              <div class="clima-segmented" id="monitorJanela" role="group" aria-labelledby="monitorJanelaLabel"></div>
+            </div>
+            <div class="monitor-control monitor-control-meta">
+              <span class="monitor-updated" id="monitorAtualizado"></span>
+            </div>
+          </div>
+
+          <!-- GRADE DE GRÁFICOS -->
+          <div class="monitor-grid" id="monitorGrid"></div>
+        </div>
 
         <div class="footer-notice mt-4">
           <p>
@@ -393,196 +243,6 @@
             pesquisadores participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados
             pela utilização indevida e não autorizada por parte de terceiros.
           </p>
-        </div>
-      </div>
-
-      <!-- Modais gerados a partir de dataset.observations.charts -->
-      <div class="modal fade" id="modalTemperatura" tabindex="-1" aria-labelledby="modalTemperaturaLabel">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalTemperaturaLabel">Temperatura do ar</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/temperatura.png"
-                width="800"
-                height="400"
-                alt="Temperatura do ar"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="modalUmidade" tabindex="-1" aria-labelledby="modalUmidadeLabel">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalUmidadeLabel">Umidade do Ar</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/umidade.png"
-                width="800"
-                height="400"
-                alt="Umidade do Ar"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="modalPressao" tabindex="-1" aria-labelledby="modalPressaoLabel">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalPressaoLabel">Pressão atmosférica</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/pressao.png"
-                width="800"
-                height="400"
-                alt="Pressão atmosférica"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="modalPrecipitacao" tabindex="-1" aria-labelledby="modalPrecipitacaoLabel">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalPrecipitacaoLabel">Precipitação</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/precipitacao.png"
-                width="800"
-                height="400"
-                alt="Precipitação"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="modalVelocidade" tabindex="-1" aria-labelledby="modalVelocidadeLabel">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalVelocidadeLabel">Velocidade do Vento</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/velocidade.png"
-                width="800"
-                height="400"
-                alt="Velocidade do Vento"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="modalDirecao" tabindex="-1" aria-labelledby="modalDirecaoLabel">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalDirecaoLabel">Direção do Vento</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/direcao.png"
-                width="800"
-                height="400"
-                alt="Direção do Vento"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="modalBalanco" tabindex="-1" aria-labelledby="modalBalancoLabel">
-        <div class="modal-dialog modal-xl">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalBalancoLabel">Balanço de Radiação</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/balanco.png"
-                width="800"
-                height="400"
-                alt="Balanço de Radiação"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="modalRadiacaoDifusa" tabindex="-1" aria-labelledby="modalRadiacaoDifusaLabel">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalRadiacaoDifusaLabel">Radiação Difusa</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/radiacao_difusa.png"
-                width="800"
-                height="400"
-                alt="Radiação Difusa"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal fade" id="modalRadiacaoPar" tabindex="-1" aria-labelledby="modalRadiacaoParLabel">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalRadiacaoParLabel">Radiação PAR</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-              <img
-                loading="lazy"
-                class="d-block w-100"
-                src="assets/graphs/radiacao_par.png"
-                width="800"
-                height="400"
-                alt="Radiação PAR"
-              />
-            </div>
-          </div>
         </div>
       </div>
 
@@ -697,5 +357,8 @@
     <!-- Scripts compartilhados por todas as publicações. -->
     <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
     <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
+
+    <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
+    <script defer src="assets/js/monitoramento.js?v=2dd4c589"></script>
   </body>
 </html>

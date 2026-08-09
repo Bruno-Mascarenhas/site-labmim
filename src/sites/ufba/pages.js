@@ -1,6 +1,6 @@
 "use strict";
 
-const { page, siteSource } = require("../../template/page-types");
+const { page, siteSource, templateSource } = require("../../template/page-types");
 
 module.exports = [
   page("home", {
@@ -13,6 +13,14 @@ module.exports = [
     },
   }),
   page("monitoring", {
+    // Variante interativa da rota: lê o payload horário de
+    // `dataset.paths.monitoring` em vez dos PNGs de `dataset.observations`. A
+    // variante estática (pages/monitoring.html) segue disponível e é a que o
+    // LEAL usa, que ainda publica imagens prontas.
+    source: templateSource("pages/monitoring-live.html"),
+    // Chart.js só nas páginas que desenham, como na climatologia.
+    vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+    scripts: ["assets/js/monitoramento.js"],
     append: [siteSource("fragments/funding.html")],
     seo: {
       title: "LabMiM — Monitoramento Ambiental · UFBA",

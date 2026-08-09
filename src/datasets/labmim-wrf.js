@@ -1,7 +1,5 @@
 "use strict";
 
-const { LABMIM_STATION_CHARTS } = require("./labmim-station-charts");
-
 module.exports = {
   id: "labmim-wrf",
   attribution: "LabMiM-UFBA",
@@ -9,13 +7,15 @@ module.exports = {
   generator: "labmim-wrf-geojson",
   // O namelist WRF vem de DEFAULT_MODEL (renderer); só declare `model` aqui para
   // sobrescrever campos quando esta simulação divergir da configuração padrão.
-  observations: {
-    charts: LABMIM_STATION_CHARTS,
-  },
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",
     grids: "GeoJSON",
+    // Janela móvel de 7 dias que a página de monitoramento desenha, reescrita a
+    // cada hora pelo deploy. Mesma procedência e mesma restrição da climatologia
+    // abaixo: sai de `labmim-monitoring` sobre o acervo de sensores do
+    // laboratório, que não é público.
+    monitoring: "Monitoramento",
     // Distribuições observadas pré-calculadas que a página de climatologia lê.
     // Derivadas do acervo de sensores do laboratório, que NÃO é público: como as
     // saídas do WRF, chegam pelo deploy e ficam fora do git (.gitignore).

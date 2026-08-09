@@ -7,3 +7,4 @@ Sitemap: https://labmim.if.ufba.br/sitemap.xml
 Disallow: /JSON/
 Disallow: /GeoJSON/
 Disallow: /Climatologia/
+Disallow: /Monitoramento/
