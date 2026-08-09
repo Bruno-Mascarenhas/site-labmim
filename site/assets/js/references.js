@@ -35,23 +35,49 @@
     }
   }
 
+  /**
+   * Só http(s) vira link.
+   *
+   * A bibliografia de uma PÁGINA vem do manifesto publicado pelo exportador —
+   * um arquivo de dados que chega ao servidor pelo deploy, fora do repositório e
+   * de todos os portões de lint e build. `short` e `citation` são texto e só
+   * podem ser lidos; `url` é a única parte que o navegador interpreta, então é a
+   * única que precisa de esquema conferido. URL ausente ou de esquema estranho
+   * não invalida a entrada: a citação continua legível, apenas não fica
+   * clicável.
+   */
+  function linkable(url) {
+    if (typeof url !== "string") return false;
+    try {
+      const parsed = new URL(url, document.baseURI);
+      return parsed.protocol === "https:" || parsed.protocol === "http:";
+    } catch {
+      return false;
+    }
+  }
+
   /** Um nó de citação: link para a fonte, registro completo no tooltip. */
   function node(key) {
     const entry = registry.get(key);
     // Marcador sem registro fica literal de propósito: é visível na revisão e no
     // teste, em vez de sumir e deixar a frase citando o nada.
     if (!entry) return document.createTextNode(`[[${key}]]`);
-    const link = document.createElement("a");
-    link.className = "site-ref";
-    link.href = entry.url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
+    // Sem URL utilizável a citação sai como texto: um <a href="undefined"> só
+    // levaria o leitor a um 404. O estilo de `.site-ref` é o mesmo nos dois.
+    const linked = linkable(entry.url);
+    const element = document.createElement(linked ? "a" : "span");
+    element.className = "site-ref";
+    if (linked) {
+      element.href = entry.url;
+      element.target = "_blank";
+      element.rel = "noopener noreferrer";
+    }
     // `title` é o tooltip nativo: não precisa de posicionamento, funciona em
     // qualquer navegador e vai junto do link para o leitor de tela.
-    link.title = entry.citation;
-    link.textContent = entry.short;
-    link.setAttribute("aria-label", `${entry.short}. ${entry.citation}`);
-    return link;
+    element.title = entry.citation;
+    element.textContent = entry.short;
+    element.setAttribute("aria-label", `${entry.short}. ${entry.citation}`);
+    return element;
   }
 
   /** Texto com marcadores -> fragmento com os links no lugar deles. */
@@ -72,9 +98,12 @@
 
   /** Mesma expansão em texto puro, para onde não cabe marcação. */
   function plain(text) {
-    return String(text).replace(MARKER, (_marker, key) => {
+    return String(text).replace(MARKER, (marker, key) => {
       const entry = registry.get(key);
-      return entry ? entry.short : key;
+      // Marcador sem registro sai inteiro, como em `node()`: devolver só o slug
+      // o disfarçaria de palavra comum na legenda do gráfico, e ninguém veria
+      // que a citação não achou fonte.
+      return entry ? entry.short : marker;
     });
   }
 
@@ -121,7 +150,7 @@
     decorate(document.body);
   }
 
-  window.labmimReferences = { register, expand, plain, keysIn, get, decorate };
+  window.labmimReferences = { register, expand, plain, keysIn, get, decorate, linkable };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);

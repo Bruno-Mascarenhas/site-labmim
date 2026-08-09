@@ -56,21 +56,26 @@ function getParameter(variableType, paramName, defaultValue) {
 }
 
 /**
- * Accumulation window (in hours) currently selected for `variableType`.
- * Read from the live map manager like getParameter does, so specificInfo can
- * describe the value it was actually handed — a 3h total must not be
- * classified with hourly-rain thresholds.
+ * Accumulation window (in hours) of the field currently painted for
+ * `variableType`. Read from the live map manager like getParameter does, so
+ * specificInfo can describe the value it was actually handed — a 3h total must
+ * not be classified with hourly-rain thresholds.
+ *
+ * É a janela EFETIVA, não a selecionada: nos primeiros passos da rodada não há
+ * passos anteriores para fechar a janela e a soma encurta, então dividir o
+ * total por 3 h superestimaria a intensidade e o rótulo prometeria um
+ * acumulado de três horas que ninguém somou.
  * @param {string} variableType - Variable type (e.g., rain)
  * @param {number} defaultHours - Fallback when no map manager is available
- * @returns {number} Selected accumulation window in hours
+ * @returns {number} Accumulation window in hours behind the painted value
  */
 function getAccumulationHours(variableType, defaultHours = 1) {
-  if (typeof app === "undefined" || !app || !app.getAccumulationOption) {
+  if (typeof app === "undefined" || !app || !app.getAccumulatedSteps) {
     return defaultHours;
   }
 
   try {
-    return app.getAccumulationOption(variableType)?.hours ?? defaultHours;
+    return app.getAccumulatedSteps(variableType) ?? defaultHours;
   } catch (e) {
     console.warn(`Error getting accumulation window: ${e.message}`);
     return defaultHours;
@@ -299,7 +304,9 @@ const VARIABLES_CONFIG = {
 
   temperature: {
     id: "TEMP",
-    relatedVariables: ["relativeHumidity", "humidity", "wind"],
+    // `humidity` saiu daqui: a sensação térmica só sabe usar umidade RELATIVA, e
+    // cada variável relacionada custa um JSON baixado a cada clique em célula.
+    relatedVariables: ["relativeHumidity", "wind"],
     label: "Temperatura (2m)",
     optionLabel: "Temperatura",
     icon: "🌡️",
@@ -315,13 +322,23 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Informações Térmicas");
       }
 
-      const humidityValue =
-        allValues.relativeHumidity?.value ?? (allValues.humidity?.unit === "%" ? allValues.humidity.value : null);
+      // Havia aqui um plano B que lia `allValues.humidity` quando a unidade
+      // fosse "%": a unidade é sempre copiada da própria VARIABLES_CONFIG, e a
+      // da umidade específica é "g/kg", então o ramo nunca podia valer. Sem
+      // RH2 não há sensação térmica a calcular — a temperatura sai sozinha.
+      const humidityValue = Number.isFinite(allValues.relativeHumidity?.value)
+        ? allValues.relativeHumidity.value
+        : null;
       const windValue = Number.isFinite(allValues.wind?.value) ? allValues.wind.value : 2;
 
       const feelsLike = humidityValue === null ? value : getTemperatureFeelsLike(value, humidityValue, windValue);
-      const heatIndex = humidityValue === null ? null : getHeatIndex(value, humidityValue);
 
+      // Um número só para a sensação. Havia aqui um segundo item, "Índice de
+      // Calor", que aplicava a temperatura aparente de Steadman a partir de
+      // 26 °C enquanto este usa o índice de calor do NWS a partir de outro
+      // limiar: duas grandezas distintas, com fronteiras distintas, exibidas
+      // lado a lado como se uma conferisse a outra. A 26,5 °C com 90% de
+      // umidade uma dizia 26,5 °C e a outra 32,8 °C.
       return {
         title: "Informações Térmicas",
         items: [
@@ -335,12 +352,6 @@ const VARIABLES_CONFIG = {
             label: "Classificação",
             value: value > 25 ? "Quente" : value < 15 ? "Frio" : "Moderado",
             icon: "fa-info-circle",
-          },
-          {
-            label: "Índice de Calor",
-            value: heatIndex === null ? "N/D" : heatIndex.toFixed(1),
-            unit: heatIndex === null ? "" : "°C",
-            icon: "fa-fire",
           },
         ],
       };
@@ -402,32 +413,42 @@ const VARIABLES_CONFIG = {
     unit: "hPa",
     sourceId: "PRES",
     summary: "Pressão atmosférica na superfície, exibida em hectopascal para leitura operacional.",
-    scaleMin: 950,
-    scaleMax: 1030,
+    // Sem scaleMin/scaleMax de propósito: o campo publicado é PSFC (pressão na
+    // superfície, sobre o relevo), não pressão reduzida ao nível do mar, e no
+    // planalto baiano desce até ~860 hPa. Qualquer piso fixo achataria um quarto
+    // do domínio numa cor só, então a escala vem do `metadata.scale_values` que o
+    // pipeline publica por domínio — constante ao longo dos passos, logo a barra
+    // não oscila durante o playback.
     colors: PRESSURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.pressure?.ausente) {
         return unavailableInfo("Condições Atmosféricas");
       }
 
+      // Nada aqui compara com 1013,25 hPa: essa é a atmosfera padrão AO NÍVEL DO
+      // MAR, e o campo publicado é PSFC, a pressão na altitude do terreno. Num
+      // ponto de 1300 m o "desvio" seria de -130 hPa de altimetria, sem nenhuma
+      // anomalia sinótica, e a classificação alta/baixa viraria um detector de
+      // relevo. Também não há item de tendência enquanto não houver comparação
+      // com os passos vizinhos — um rótulo constante que se apresenta como
+      // diagnóstico é pior do que não existir.
       return {
         title: "Condições Atmosféricas",
         items: [
           {
-            label: "Classificação",
-            value: value > 1013 ? "Alta Pressão" : "Baixa Pressão",
+            label: "Pressão na Superfície",
+            value: value.toFixed(1),
+            unit: "hPa",
             icon: "fa-cloud",
           },
           {
-            label: "Tendência",
-            value: "Estável",
-            icon: "fa-chart-line",
-          },
-          {
-            label: "Desvio Normal",
-            value: (value - 1013).toFixed(1),
-            unit: "hPa",
-            icon: "fa-arrow-up",
+            label: "Referência",
+            value: "Nível do terreno (PSFC)",
+            // Régua vertical, e não montanha: o que o painel diz é a ALTURA de
+            // referência da leitura, não que o terreno seja acidentado. Também
+            // evita crescer o subset da fonte por um glifo só — ver
+            // scripts/subset-fontawesome.md.
+            icon: "fa-ruler-vertical",
           },
         ],
       };
@@ -577,7 +598,11 @@ const VARIABLES_CONFIG = {
             icon: "fa-water",
           },
           {
-            label: "Impacto Agrícola",
+            // O limiar de 5 mm é de VOLUME, não de taxa: ao contrário da
+            // intensidade acima, este item lê o acumulado cru. Sem a janela no
+            // rótulo o mesmo tempo mudava de "Insuficiente" para "Benéfico" só
+            // por o leitor trocar 1h por 3h, sem nada indicando o que mudou.
+            label: `Impacto Agrícola (${hours}h)`,
             value: value > 5 ? "Benéfico" : "Insuficiente",
             icon: "fa-leaf",
           },
@@ -1139,22 +1164,31 @@ function getWindCategory(speed) {
 }
 
 function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
-  if (temperatureC >= 26.7 && humidity >= 40) {
+  if (humidity >= 40) {
     const T = (temperatureC * 9) / 5 + 32;
     const RH = humidity;
 
-    const HI_F =
-      -42.379 +
-      2.04901523 * T +
-      10.14333127 * RH -
-      0.22475541 * T * RH -
-      0.00683783 * T * T -
-      0.05481717 * RH * RH +
-      0.00122874 * T * T * RH +
-      0.00085282 * T * RH * RH -
-      0.00000199 * T * T * RH * RH;
+    // Quem decide se a regressão de Rothfusz entra é o pré-teste do NWS, não um
+    // limiar fixo em °C: a regressão só é válida acima de ~80 °F. Com o corte
+    // anterior em 26,7 °C a sensação pulava até 4,1 °C entre duas células que
+    // diferem em 0,01 °C; pelo pré-teste a troca acontece onde a regressão passa
+    // a valer, e o salto no pior canto (100% de umidade) cai para 2,5 °C.
+    const simpleHI_F = 0.5 * (T + 61 + (T - 68) * 1.2 + RH * 0.094);
 
-    return ((HI_F - 32) * 5) / 9;
+    if ((simpleHI_F + T) / 2 >= 80) {
+      const HI_F =
+        -42.379 +
+        2.04901523 * T +
+        10.14333127 * RH -
+        0.22475541 * T * RH -
+        0.00683783 * T * T -
+        0.05481717 * RH * RH +
+        0.00122874 * T * T * RH +
+        0.00085282 * T * RH * RH -
+        0.00000199 * T * T * RH * RH;
+
+      return ((HI_F - 32) * 5) / 9;
+    }
   }
 
   if (temperatureC <= 10 && windSpeedMs >= 1.34) {
@@ -1164,18 +1198,6 @@ function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
   }
 
   return temperatureC;
-}
-
-function getHeatIndex(temperatureC, humidity) {
-  if (temperatureC < 26 || humidity < 40) {
-    return temperatureC;
-  }
-
-  const e = (humidity / 100) * 6.105 * Math.exp((17.27 * temperatureC) / (237.7 + temperatureC));
-
-  const heatIndex = temperatureC + 0.33 * e - 4.0;
-
-  return heatIndex;
 }
 
 window.VARIABLES_CONFIG = VARIABLES_CONFIG;
