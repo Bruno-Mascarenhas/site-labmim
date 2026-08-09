@@ -60,7 +60,7 @@
     <link rel="stylesheet" href="assets/css/base.css?v=7733cbd6" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=1052434d" />
-    <link rel="stylesheet" href="assets/css/components.css?v=e74eab46" />
+    <link rel="stylesheet" href="assets/css/components.css?v=d249a5f4" />
 
     <link rel="stylesheet" href="assets/css/theme.css?v=607af7d7" />
 
@@ -357,6 +357,67 @@
     <!-- Scripts compartilhados por todas as publicações. -->
     <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
     <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
+    <!-- Bibliografia do site, embutida pelo build a partir de src/template/references.js.
+ Vai como JSON e não como JavaScript para que a CSP não precise de exceção e para
+ que nenhum conteúdo de referência possa ser executado. -->
+    <script type="application/json" id="siteReferences">
+      {
+        "wrf": {
+          "short": "Skamarock et al., 2019",
+          "citation": "Skamarock, W. C. et al. (2019). A Description of the Advanced Research WRF Model Version 4. NCAR Technical Note NCAR/TN-556+STR. Documentação oficial do modelo usado nestas previsões.",
+          "url": "https://www2.mmm.ucar.edu/wrf/users/docs/user_guide_v4/v4.0/contents.html"
+        },
+        "gfs": {
+          "short": "GFS/NCEP",
+          "citation": "Global Forecast System (GFS), National Centers for Environmental Prediction, NOAA. Modelo global que fornece as condições iniciais e de contorno destas simulações.",
+          "url": "https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast"
+        },
+        "rrtmg": {
+          "short": "Iacono et al., 2008",
+          "citation": "Iacono, M. J., Delamere, J. S., Mlawer, E. J., Shephard, M. W., Clough, S. A. & Collins, W. D. (2008). Radiative forcing by long-lived greenhouse gases: calculations with the AER radiative transfer models. Journal of Geophysical Research 113, D13103. O esquema RRTMG.",
+          "url": "https://search.crossref.org/?q=Radiative%20forcing%20by%20long-lived%20greenhouse%20gases%20AER%20radiative%20transfer%20models"
+        },
+        "thompson": {
+          "short": "Thompson et al., 2008",
+          "citation": "Thompson, G., Field, P. R., Rasmussen, R. M. & Hall, W. D. (2008). Explicit forecasts of winter precipitation using an improved bulk microphysics scheme. Part II: implementation of a new snow parameterization. Monthly Weather Review 136(12), 5095-5115.",
+          "url": "https://search.crossref.org/?q=Explicit%20forecasts%20of%20winter%20precipitation%20improved%20bulk%20microphysics%20scheme%20Part%20II"
+        },
+        "wsm6": {
+          "short": "Hong e Lim, 2006",
+          "citation": "Hong, S.-Y. & Lim, J.-O. J. (2006). The WRF single-moment 6-class microphysics scheme (WSM6). Journal of the Korean Meteorological Society 42(2), 129-151.",
+          "url": "https://search.crossref.org/?q=WRF%20single-moment%206-class%20microphysics%20scheme%20WSM6"
+        },
+        "ysu": {
+          "short": "Hong, Noh e Dudhia, 2006",
+          "citation": "Hong, S.-Y., Noh, Y. & Dudhia, J. (2006). A new vertical diffusion package with an explicit treatment of entrainment processes. Monthly Weather Review 134(9), 2318-2341. O esquema YSU.",
+          "url": "https://search.crossref.org/?q=A%20new%20vertical%20diffusion%20package%20with%20an%20explicit%20treatment%20of%20entrainment%20processes"
+        },
+        "myj": {
+          "short": "Janjic, 1994",
+          "citation": "Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), 927-945. O esquema MYJ de camada limite.",
+          "url": "https://search.crossref.org/?q=step-mountain%20eta%20coordinate%20model%20further%20developments%20convection%20viscous%20sublayer"
+        },
+        "noahmp": {
+          "short": "Niu et al., 2011",
+          "citation": "Niu, G.-Y. et al. (2011). The community Noah land surface model with multiparameterization options (Noah-MP): 1. Model description and evaluation with local-scale measurements. Journal of Geophysical Research 116, D12109.",
+          "url": "https://search.crossref.org/?q=community%20Noah%20land%20surface%20model%20with%20multiparameterization%20options%20Noah-MP"
+        },
+        "kainfritsch": {
+          "short": "Kain, 2004",
+          "citation": "Kain, J. S. (2004). The Kain-Fritsch convective parameterization: an update. Journal of Applied Meteorology 43(1), 170-181.",
+          "url": "https://search.crossref.org/?q=The%20Kain-Fritsch%20convective%20parameterization%20an%20update"
+        },
+        "codata2018": {
+          "short": "CODATA 2018",
+          "citation": "CODATA Internationally Recommended Values of the Fundamental Physical Constants (ajuste de 2018), NIST. Fonte da constante de Stefan-Boltzmann usada nas derivações desta página.",
+          "url": "https://physics.nist.gov/cuu/Constants/"
+        }
+      }
+    </script>
+    <!-- Troca os marcadores [[chave]] das páginas por links com o registro completo
+ no tooltip. Vem antes dos scripts próprios de cada página porque a climatologia
+ usa a API que ele publica em window.labmimReferences. -->
+    <script defer src="assets/js/references.js?v=53bf23e6"></script>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
     <script defer src="assets/js/monitoramento.js?v=ca95d876"></script>

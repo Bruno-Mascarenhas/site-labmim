@@ -1,3 +1,11 @@
 <!-- Scripts compartilhados por todas as publicações. -->
 <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
 <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
+<!-- Bibliografia do site, embutida pelo build a partir de src/template/references.js.
+ Vai como JSON e não como JavaScript para que a CSP não precise de exceção e para
+ que nenhum conteúdo de referência possa ser executado. -->
+<script type="application/json" id="siteReferences">{{SITE_REFERENCES}}</script>
+<!-- Troca os marcadores [[chave]] das páginas por links com o registro completo
+ no tooltip. Vem antes dos scripts próprios de cada página porque a climatologia
+ usa a API que ele publica em window.labmimReferences. -->
+<script defer src="assets/js/references.js"></script>

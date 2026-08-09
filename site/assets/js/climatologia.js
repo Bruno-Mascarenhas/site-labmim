@@ -214,7 +214,7 @@
     if (subset.curve) {
       datasets.push({
         type: "line",
-        label: variable.family_label,
+        label: plainReferences(variable.family_label),
         data: subset.curve,
         borderColor: theme.model,
         backgroundColor: theme.model,
@@ -502,13 +502,74 @@
     beta: "β",
     lambda: "λ",
     kt_max: "Kt máximo",
+    gain: "Ganho estimado",
   };
+
+  /**
+   * Linhas do painel de ajuste, escolhidas pela FAMÍLIA e não pela forma dos
+   * parâmetros.
+   *
+   * A versão anterior decidia pela presença de `params.weights`, o que era
+   * verdade só enquanto a rosa dos ventos era a única mistura da página. As
+   * densidades induzidas das radiações também trazem `weights` — sessenta
+   * escalas, e quase seis mil médias no saldo — e caíam no ramo da rosa
+   * procurando um `mu_degrees` que não existe. Despejar esses vetores também não
+   * serve: o que o leitor precisa ver são os parâmetros HERDADOS e o único
+   * escalar estimado, não a quadratura por trás deles.
+   */
+  function parameterRows(fit) {
+    const params = fit.params || {};
+    const rows = [];
+
+    if (Array.isArray(params.mu_degrees)) {
+      (params.weights || []).forEach((weight, index) => {
+        rows.push([
+          `Componente ${index + 1}`,
+          `${percent(weight, 1)} · rumo ${decimal(params.mu_degrees[index], 1)}° · κ ${decimal(params.kappa[index], 2)}`,
+        ]);
+      });
+      return rows;
+    }
+
+    if (fit.family === "power_normal_mixture") {
+      (params.weights || []).forEach((weight, index) => {
+        rows.push([
+          `Regime ${index + 1}`,
+          `${percent(weight, 1)} · T ${decimal(params.mu[index], 2)} K · σ ${decimal(params.sigma[index], 2)} K`,
+        ]);
+      });
+      return rows;
+    }
+
+    if (Array.isArray(params.scales) || Array.isArray(params.mu)) {
+      rows.push(["λ herdado do Kt", decimal(params.lambda, 4)]);
+      rows.push(["Kt máximo herdado", decimal(params.kt_max, 4)]);
+      if (params.gain !== undefined && params.gain !== 1) {
+        rows.push(["Ganho estimado", decimal(params.gain, 4)]);
+      }
+      if (params.slope !== undefined) {
+        rows.push(["Inclinação (a)", decimal(params.slope, 4)]);
+        rows.push(["Intercepto (b)", `${decimal(params.intercept, 2)} W/m²`]);
+        rows.push(["Dispersão do resíduo", `${decimal(params.sigma, 2)} W/m²`]);
+      }
+      const components = params.components || (params.scales || []).length;
+      rows.push(["Componentes da mistura", integer(components)]);
+      return rows;
+    }
+
+    for (const [key, value] of Object.entries(params)) {
+      rows.push([PARAMETER_LABELS[key] || key, decimal(value, 4)]);
+    }
+    return rows;
+  }
 
   function renderFit(subset) {
     const panel = el("climaFitPanel");
     const grid = el("climaFit");
     grid.replaceChildren();
-    el("climaFitTitulo").textContent = `Ajuste teórico — ${state.variable.family_label}`;
+    const fitTitle = el("climaFitTitulo");
+    fitTitle.replaceChildren(document.createTextNode("Ajuste teórico — "));
+    fitTitle.appendChild(withReferences(state.variable.family_label));
 
     if (!subset.fit) {
       panel.hidden = true;
@@ -517,23 +578,8 @@
     }
     panel.hidden = false;
 
-    const params = subset.fit.params;
-    if (Array.isArray(params.weights)) {
-      params.weights.forEach((weight, index) => {
-        grid.appendChild(
-          fitRow(
-            `Componente ${index + 1}`,
-            `${percent(weight, 1)} · rumo ${decimal(params.mu_degrees[index], 1)}° · κ ${decimal(
-              params.kappa[index],
-              2
-            )}`
-          )
-        );
-      });
-    } else {
-      for (const [key, value] of Object.entries(params)) {
-        grid.appendChild(fitRow(PARAMETER_LABELS[key] || key, decimal(value, 4)));
-      }
+    for (const [label, value] of parameterRows(subset.fit)) {
+      grid.appendChild(fitRow(label, value));
     }
 
     const quality = subset.quality || {};
@@ -565,12 +611,62 @@
       : "";
   }
 
+  // ─── Referências ──────────────────────────────────────────────────────────
+  // A expansão dos marcadores `[[chave]]` é de assets/js/references.js, que roda
+  // em todas as páginas. O que é próprio daqui é a FONTE: as famílias de
+  // distribuição são escolha de quem produz os dados, não do site, então a
+  // bibliografia delas chega no manifesto e é registrada em runtime por cima da
+  // bibliografia estática. Uma segunda implementação da mesma expansão só criaria
+  // dois lugares para o estilo da citação divergir.
+
+  const refs = () =>
+    window.labmimReferences || {
+      expand: (text) => document.createTextNode(String(text)),
+      plain: (text) => String(text),
+      keysIn: () => [],
+      get: () => null,
+      register: () => {},
+    };
+
+  const withReferences = (text) => refs().expand(text);
+  const plainReferences = (text) => refs().plain(text);
+
+  /** Quais referências a variável em tela cita, na ordem em que aparecem. */
+  function citedKeys() {
+    const keys = [];
+    for (const text of [state.variable.family_label, ...(state.variable.caveats || [])]) {
+      for (const key of refs().keysIn(text)) {
+        if (!keys.includes(key)) keys.push(key);
+      }
+    }
+    return keys;
+  }
+
+  function renderReferences() {
+    const panel = el("climaRefsPanel");
+    const list = el("climaRefs");
+    list.replaceChildren();
+    for (const key of citedKeys()) {
+      const entry = refs().get(key);
+      if (!entry) continue;
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      link.href = entry.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = entry.citation;
+      item.appendChild(link);
+      list.appendChild(item);
+    }
+    panel.hidden = list.children.length === 0;
+  }
+
   function renderCaveats() {
     const list = el("climaCaveats");
     list.replaceChildren();
     for (const text of state.variable.caveats || []) {
       const item = document.createElement("li");
-      item.textContent = text;
+      item.appendChild(withReferences(text));
       list.appendChild(item);
     }
     list.hidden = list.children.length === 0;
@@ -731,13 +827,19 @@
     renderStats(subset);
     renderFit(subset);
     renderCaveats();
+    renderReferences();
     renderTable(subset);
     renderCoverage();
 
     const marks = isRose ? "Pétalas" : "Barras";
-    el("climaLegenda").textContent = subset.curve
-      ? `${marks}: frequência medida. Linha: ${state.variable.family_label}.`
-      : `${marks}: frequência medida. Esta variável não tem densidade teórica canônica.`;
+    const legend = el("climaLegenda");
+    if (subset.curve) {
+      legend.replaceChildren(document.createTextNode(`${marks}: frequência medida. Linha: `));
+      legend.appendChild(withReferences(state.variable.family_label));
+      legend.appendChild(document.createTextNode("."));
+    } else {
+      legend.textContent = `${marks}: frequência medida. Esta variável não tem densidade teórica canônica.`;
+    }
     el("climaStatus").textContent =
       `${state.variable.label}, ${subsetLabel(state.subsetId)}: ${integer(subset.n)} observações.`;
   }
@@ -774,6 +876,10 @@
       );
       return;
     }
+
+    // Bibliografia do produtor por cima da do site: as duas coexistem porque
+    // cobrem coisas diferentes — esquemas do modelo versus famílias de densidade.
+    refs().register(state.manifest.references);
 
     if (!state.manifest.variables || !state.manifest.variables.length) {
       showEmpty("O conjunto publicado não declara nenhuma variável.");

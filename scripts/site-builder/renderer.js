@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { createAssetPipeline, writePublicationTheme } = require("./assets");
+const { SITE_REFERENCES } = require("../../src/template/references");
 
 const read = (filePath) => fs.readFileSync(filePath, "utf8");
 const replaceAll = (text, token, value) => text.split(token).join(value);
@@ -33,15 +34,23 @@ const DEFAULT_FAVICON_EMOJI = "🌦️";
  * so a dataset may override any of them through an optional `model` block; the
  * defaults reproduce the configuration the shared documentation used to state
  * as a hardcoded fact.
+ *
+ * The `[[key]]` markers are citations, expanded in the browser by
+ * assets/js/references.js into a link carrying the full paper. They live HERE,
+ * beside the scheme name, rather than in the template, because the scheme is
+ * what a publication overrides: a laboratory that runs MYNN instead of YSU
+ * changes one string and its citation travels with it, instead of the page
+ * quietly crediting the wrong paper.
  */
 const DEFAULT_MODEL = Object.freeze({
-  initialConditions: "GFS (Global Forecast System) da NOAA, resolução 0.25°, atualizações a cada 6h.",
+  initialConditions:
+    "GFS (Global Forecast System) da NOAA [[gfs]], resolução 0.25°, atualizações a cada 6h.",
   verticalLevels: "~40 níveis sigma, com maior concentração na camada limite planetária (CLP).",
-  radiation: "RRTMG",
-  microphysics: "Thompson/WSM6",
-  planetaryBoundaryLayer: "YSU/MYJ",
-  landSurface: "Noah-MP",
-  cumulus: "Kain-Fritsch",
+  radiation: "RRTMG [[rrtmg]]",
+  microphysics: "Thompson [[thompson]] / WSM6 [[wsm6]]",
+  planetaryBoundaryLayer: "YSU [[ysu]] / MYJ [[myj]]",
+  landSurface: "Noah-MP [[noahmp]]",
+  cumulus: "Kain-Fritsch [[kainfritsch]]",
 });
 
 /** Name of the CLI that turns the raw WRF NetCDF output into the served JSON/GeoJSON. */
@@ -303,6 +312,10 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     // checkout e em CI), então uma referência que os checadores de link e de
     // bundle enxergassem falharia o build em toda máquina que não tem os dados.
     CLIMATOLOGY_BASE: escapeAttribute(dataset.paths.climatology ?? ""),
+    // Bibliografia do site, embutida em <script type="application/json">. `<` é
+    // escapado porque a única sequência capaz de fechar aquele bloco antes da
+    // hora é `</script`, e ela pode aparecer dentro do título de um artigo.
+    SITE_REFERENCES: JSON.stringify(SITE_REFERENCES).replace(/</g, "\\u003c"),
     // Mesma natureza do token acima: diretório operacional entregue pelo deploy,
     // publicado como `data-` justamente para ficar invisível aos checadores de
     // link e de bundle, que rodam onde os dados não existem.

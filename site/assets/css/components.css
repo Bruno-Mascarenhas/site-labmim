@@ -632,6 +632,52 @@
   margin-bottom: 0.35rem;
 }
 
+/* Citação dentro do texto. Sublinhado pontilhado em vez de sólido: sinaliza
+   "passe o cursor, há mais aqui" — o registro completo vem no `title` — sem
+   ficar com cara de link de navegação no meio de uma frase corrida. */
+.site-ref {
+  /* Padding vertical sem quebrar o fluxo do parágrafo: a citação é alvo em
+     linha (isento do piso de 24px do WCAG 2.2), mas no celular alguns pixels a
+     mais são a diferença entre abrir a fonte e abrir o link de cima. */
+  padding: 2px 0;
+  color: var(--text-primary);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
+.site-ref:hover,
+.site-ref:focus-visible {
+  color: var(--brand-secondary);
+  text-decoration: underline solid;
+}
+
+.clima-refs-panel {
+  margin-top: -0.5rem;
+}
+
+.clima-refs {
+  padding-left: 1.2rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.clima-refs li {
+  margin-bottom: 0.5rem;
+}
+
+.clima-refs a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.clima-refs a:hover {
+  color: var(--brand-secondary);
+  text-decoration: underline;
+}
+
 .clima-table-scroll {
   margin-bottom: 1.5rem;
   overflow-x: auto;
