@@ -78,8 +78,34 @@ document.addEventListener("DOMContentLoaded", () => {
   // would be fetched twice (plain, then versioned).
   manifestPromise.then((manifest) => {
     if (manifest) app.applyManifest(manifest);
-    app.applyMapChanges().then(() => {
-      app.startInitialPlayback();
+    app.applyMapChanges().then((values) => {
+      // Com valores em tela, ou com uma âncora de tempo vinda do manifesto, a
+      // linha do tempo tem o que dizer: segue o roteiro normal.
+      //
+      // A condição não pergunta se o manifesto veio: num upload parcial por
+      // FTP ele pode ser o único arquivo no ar, e um manifesto v1 (ou uma
+      // reversão do pipeline) não traz `start_local`, logo não deixa âncora
+      // nenhuma. Quem tem âncora — todo manifesto v2 — nunca cai aqui.
+      if (values || app.state.initialDateTime) {
+        app.startInitialPlayback();
+        return;
+      }
+
+      // A grade desempata "não há nada publicado" e "faltou este quadro": ela
+      // não depende de variável nem de passo. Se ela carrega, o diretório está
+      // no ar e só aquele passo faltou (a variável de onda curta na madrugada,
+      // por exemplo) — aí o timelapse deve andar até um passo publicado. Vem
+      // do cache/da requisição já em curso, não é uma segunda leitura.
+      app.loadGridLayer(app.state.domain).then((grid) => {
+        if (grid) {
+          app.startInitialPlayback();
+          return;
+        }
+        // Nem a grade existe: o diretório de saída do modelo não está neste
+        // servidor. Ligar o timelapse repetiria a cada 800 ms as requisições
+        // que acabaram de falhar, sob um "Carregando..." que nunca mudaria.
+        app.showNoPublishedDataNotice();
+      });
     });
     if (!manifest) {
       // The manifest lost the 3s race but is not discarded: adopt it in
