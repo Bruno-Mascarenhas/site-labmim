@@ -23,12 +23,21 @@ module.exports = {
     climatology: "Climatologia",
   },
   timeline: {
-    defaultMaxLayer: 73,
+    // Teto de reserva para quando o manifesto não chega: espelha o `index_max`
+    // que a rodada publicada declara (arquivos `_000`..`_075`). Abaixo disso o
+    // slider estático perde os últimos passos e a documentação renderizada
+    // anuncia menos timesteps do que o pipeline entrega.
+    defaultMaxLayer: 75,
     initialIndex: 7,
     stepHours: 1,
     label: "Horário local (UTC−03)",
   },
   defaultDomain: "D01",
+  // A extensão citada em cada `description` é a da grade publicada
+  // (`shape × metadata.resolucao_m` dos `GeoJSON/*.grid.json`): 1863, 891, 297
+  // e 84 km. Não dá para derivá-la no build — os `grid.json` são dados de
+  // deploy e não estão no repositório —, então ela é revista à mão sempre que
+  // o namelist mudar a grade.
   domains: [
     {
       id: "D01",
@@ -38,7 +47,7 @@ module.exports = {
       zoom: 5.5,
       resolution: "27 km",
       description:
-        "Escala sinótica/regional. Cobre o Sul-Nordeste do Brasil (~2500×2500 km). Captura frentes, ciclones e massas de ar.",
+        "Escala sinótica/regional. Cobre o Sul-Nordeste do Brasil (~1860×1860 km). Captura frentes, ciclones e massas de ar.",
       cumulusParameterized: true,
     },
     {
@@ -49,7 +58,7 @@ module.exports = {
       zoom: 7,
       resolution: "9 km",
       description:
-        "Escala intermediária. Cobre o Nordeste (~800×800 km). Resolve convecção organizada e brisas de escala meso-α.",
+        "Escala intermediária. Cobre a Bahia (~890×890 km). Resolve convecção organizada e brisas de escala meso-α.",
       cumulusParameterized: true,
     },
     {
@@ -60,7 +69,7 @@ module.exports = {
       zoom: 9,
       resolution: "3 km",
       description:
-        "Escala local. Cobre a Bahia (~270×270 km). Resolução suficiente para resolver convecção profunda explicitamente (sem parametrização de cumulus).",
+        "Escala local. Cobre a Região Metropolitana de Salvador e o Recôncavo (~300×300 km). Resolução suficiente para resolver convecção profunda explicitamente (sem parametrização de cumulus).",
       cumulusParameterized: false,
     },
     {
@@ -71,7 +80,7 @@ module.exports = {
       zoom: 12,
       resolution: "1 km",
       description:
-        "Alta resolução. Cobre Salvador e Região Metropolitana (~90×90 km). Captura efeitos topográficos, brisa marítima e ilha de calor urbana.",
+        "Alta resolução. Cobre Salvador e Região Metropolitana (~85×85 km). Captura efeitos topográficos, brisa marítima e ilha de calor urbana.",
       cumulusParameterized: false,
     },
   ],

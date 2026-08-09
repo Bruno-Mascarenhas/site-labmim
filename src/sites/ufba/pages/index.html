@@ -13,7 +13,7 @@
         <h3 class="mt-3">Sobre o LabMiM</h3>
         <p>
           O LabMiM faz parte do
-          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener">CIEnAm</a>
+          <a href="https://cienam.ufba.br" target="_blank" rel="noopener">CIEnAm</a>
           da
           <a href="https://www.ufba.br" target="_blank" rel="noopener">UFBA</a>. Investigamos os processos de interação
           superfície-oceano-atmosfera na Região Metropolitana de Salvador (RMS), por meio de previsão numérica e
@@ -65,7 +65,14 @@
       <a href="https://lasa.ufrj.br/" class="partner-logo" title="LASA" target="_blank" rel="noopener">
         <img loading="lazy" src="assets/img/logo_LASA.svg" alt="LASA" class="partner-logo-sm" />
       </a>
-      <a href="https://www.leal.ufes.br/" class="partner-logo" title="LEAL" target="_blank" rel="noopener">
+      <!--
+        Mesmo endereço que a publicação ufes declara como origin. Não voltar para
+        www.leal.ufes.br: o SAN do certificado cobre só leal.ufes.br, e com esse SNI
+        o servidor responde com alerta TLS unrecognized_name — o handshake morre
+        antes de qualquer redirecionamento. Verificado em 2026-08-09.
+        scripts/check-links.mjs pula URLs externas, então o CI não pega.
+      -->
+      <a href="https://www.lealufes.org/" class="partner-logo" title="LEAL" target="_blank" rel="noopener">
         <img loading="lazy" src="assets/img/logo_leal.png" alt="LEAL" class="partner-logo-sm" />
       </a>
       <a
