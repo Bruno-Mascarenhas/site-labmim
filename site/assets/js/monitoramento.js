@@ -349,25 +349,33 @@
   }
 
   /**
-   * Engrossa as MARCAS (não o dado) para o gráfico ampliado.
+   * Engrossa as MARCAS, nunca o dado.
    *
-   * A especificação de traço do projeto é 2px, e ela está calibrada para o cartão
-   * da grade. No diálogo o canvas tem cerca de três vezes a área, e a mesma linha
-   * de 2px passa a ler como fio de cabelo — proporcionalmente ela encolheu. Escalar
-   * apenas espessura, raio de ponto e o padrão do tracejado preserva a codificação
-   * inteira (matiz = família, traço = direção, pontilhado = modelo) e devolve só a
-   * presença visual. Engrossar na GRADE seria o erro oposto: ali a linha horária já
-   * cobre a nuvem bruta que ela existe para ser comparada contra.
+   * São dois fatores, e separá-los é o ponto. `traco` mexe na espessura da linha e
+   * no tracejado; `pontos` mexe no raio das amostras. Na grade só o traço cresce: a
+   * camada bruta é uma nuvem de ~2000 amostras que a linha horária atravessa para
+   * ser comparada contra ela, e engrossar os pontos junto fecharia a nuvem numa
+   * mancha — o traço mais presente ajuda, o ponto mais gordo atrapalha. No diálogo
+   * os dois crescem, porque ali o canvas tem cerca de seis vezes a área e a marca
+   * inteira encolheu em proporção.
+   *
+   * A especificação de traço do projeto é 2px; o passo da grade é deliberadamente
+   * curto (2,5px) para dar presença sem cobrir o que está por baixo.
    */
-  function scaleMarks(datasets, factor) {
-    if (factor === 1) return datasets;
-    const grow = (value) => (typeof value === "number" && value > 0 ? Math.round(value * factor * 100) / 100 : value);
+  function scaleMarks(datasets, { traco = 1, pontos = 1 } = {}) {
+    if (traco === 1 && pontos === 1) return datasets;
+    const by = (factor) => (value) =>
+      typeof value === "number" && value > 0 ? Math.round(value * factor * 100) / 100 : value;
+    const growTraco = by(traco);
+    const growPonto = by(pontos);
     return datasets.map((dataset) => ({
       ...dataset,
-      borderWidth: grow(dataset.borderWidth),
-      pointRadius: Array.isArray(dataset.pointRadius) ? dataset.pointRadius.map(grow) : grow(dataset.pointRadius),
-      pointHoverRadius: grow(dataset.pointHoverRadius),
-      borderDash: Array.isArray(dataset.borderDash) ? dataset.borderDash.map(grow) : dataset.borderDash,
+      borderWidth: growTraco(dataset.borderWidth),
+      pointRadius: Array.isArray(dataset.pointRadius)
+        ? dataset.pointRadius.map(growPonto)
+        : growPonto(dataset.pointRadius),
+      pointHoverRadius: growPonto(dataset.pointHoverRadius),
+      borderDash: Array.isArray(dataset.borderDash) ? dataset.borderDash.map(growTraco) : dataset.borderDash,
     }));
   }
 
@@ -630,9 +638,14 @@
     return ticks;
   }
 
-  function chartConfig(chart, theme, { escala = 1 } = {}) {
+  // Grade: só o traço cresce, e pouco. Diálogo: marca inteira, porque a área é
+  // muito maior. Ver `scaleMarks`.
+  const MARCAS_GRADE = Object.freeze({ traco: 1.25, pontos: 1 });
+  const MARCAS_AMPLIADO = Object.freeze({ traco: 1.6, pontos: 1.6 });
+
+  function chartConfig(chart, theme, { marcas = MARCAS_GRADE } = {}) {
     const digits = unitDigits(chart.unit);
-    const datasets = scaleMarks(buildDatasets(chart, theme), escala);
+    const datasets = scaleMarks(buildDatasets(chart, theme), marcas);
     return {
       data: { datasets },
       options: {
@@ -946,7 +959,7 @@
     dialog.appendChild(wrap);
     document.body.appendChild(dialog);
 
-    const config = chartConfig(chart, themeColors(), { escala: 1.6 });
+    const config = chartConfig(chart, themeColors(), { marcas: MARCAS_AMPLIADO });
     let instance = null;
     dialog.addEventListener("close", () => {
       if (instance) instance.destroy();
