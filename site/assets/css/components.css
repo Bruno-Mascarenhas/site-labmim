@@ -424,3 +424,328 @@
     padding: 1.5rem;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Climatologia — controles, painéis, rosa dos ventos e cobertura do registro.
+
+   Tudo é construído sobre os tokens de superfície compartilhados
+   (--bg-primary, --bg-secondary, --text-primary, --text-secondary e
+   --border-color), que theme.css redefine em html.dark-theme: o modo escuro
+   sai de graça, sem uma segunda
+   lista de seletores. As duas cores das séries NÃO estão aqui — são lidas em
+   runtime por assets/js/climatologia.js, como charts-manager.js já faz.
+   --------------------------------------------------------------------------- */
+
+.clima-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.clima-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.clima-control-actions {
+  justify-content: flex-end;
+}
+
+.clima-control-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.clima-select {
+  min-width: 16rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.clima-segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.clima-segmented-btn {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.clima-segmented-btn:hover {
+  color: var(--text-primary);
+  background: rgba(var(--brand-secondary-rgb), 0.12);
+}
+
+.clima-segmented-btn.is-active {
+  color: #fff;
+  background: var(--brand-secondary);
+}
+
+.clima-segmented-btn:focus-visible {
+  outline: 3px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+.clima-panel {
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+}
+
+.clima-panel-head {
+  margin-bottom: 0.75rem;
+}
+
+.clima-panel-title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+.clima-panel-note,
+.clima-legend {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.clima-chart {
+  height: 380px;
+  margin-bottom: 0;
+}
+
+.clima-status {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.clima-rose-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.clima-rose {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+}
+
+.clima-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.clima-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.clima-stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.clima-stat-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.clima-fit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.4rem 1.5rem;
+  margin: 0.75rem 0 0;
+}
+
+.clima-fit-row {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.clima-fit-row dt {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.clima-fit-row dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.clima-atoms {
+  margin: 0.9rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.clima-caveats {
+  max-width: 1000px;
+  padding: 0 0 0 1.1rem;
+  margin: 0 auto 1.5rem;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.clima-caveats li {
+  margin-bottom: 0.35rem;
+}
+
+.clima-table-scroll {
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.clima-table {
+  width: 100%;
+  font-size: 0.85rem;
+  border-collapse: collapse;
+}
+
+.clima-table caption {
+  padding-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  caption-side: top;
+  text-align: left;
+}
+
+.clima-table th,
+.clima-table td {
+  padding: 0.35rem 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.clima-table th {
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.clima-table th:first-child,
+.clima-table td:first-child {
+  text-align: left;
+}
+
+.clima-table td {
+  color: var(--text-primary);
+}
+
+.clima-coverage {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-end;
+  margin-top: 0.75rem;
+  overflow-x: auto;
+}
+
+.clima-coverage-year {
+  display: flex;
+  flex: 1 1 2.5rem;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: center;
+  min-width: 2.5rem;
+}
+
+.clima-coverage-track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 72px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.clima-coverage-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--brand-secondary);
+  border-radius: 3px 3px 0 0;
+}
+
+.clima-coverage-year.is-empty .clima-coverage-bar {
+  background: transparent;
+}
+
+.clima-coverage-year.is-empty .clima-coverage-track {
+  border-style: dashed;
+}
+
+.clima-coverage-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.clima-empty {
+  max-width: 640px;
+  padding: 2rem 1.5rem;
+  margin: 0 auto 2rem;
+  color: var(--text-secondary);
+  text-align: center;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+}
+
+.clima-empty p {
+  margin: 0;
+}
+
+@media (width <= 768px) {
+  .clima-controls {
+    align-items: stretch;
+  }
+
+  .clima-select {
+    min-width: 0;
+  }
+
+  .clima-chart {
+    height: 300px;
+  }
+}

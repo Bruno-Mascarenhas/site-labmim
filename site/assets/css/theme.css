@@ -87,6 +87,21 @@ input:focus-visible {
   color: var(--white) !important;
 }
 
+/* Fora da navbar o botão fica sobre a superfície escura da página, onde
+   --primary-color (o azul da marca) desaparece. A regra da navbar logo abaixo é
+   mais específica e continua mandando lá. */
+.dark-theme .btn-outline-lab {
+  border-color: var(--dark-accent) !important;
+  color: var(--dark-accent) !important;
+}
+
+.dark-theme .btn-outline-lab:hover,
+.dark-theme .btn-outline-lab:focus {
+  background-color: var(--dark-accent) !important;
+  border-color: var(--dark-accent) !important;
+  color: var(--bg-primary) !important;
+}
+
 .dark-theme .navbar .btn-outline-lab {
   background-color: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.48) !important;

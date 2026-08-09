@@ -29,10 +29,14 @@ module.exports = [
     },
   }),
   page("climatology", {
+    // Chart.js só aqui: carregá-lo no layout institucional custaria 200 KB nas
+    // páginas de início, equipe e monitoramento, que não desenham nada.
+    vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+    scripts: ["assets/js/climatologia.js"],
     seo: {
       title: "LabMiM — Climatologia · UFBA",
       description:
-        "LabMiM — Climatologia: análise climática da Região Metropolitana de Salvador e Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA.",
+        "LabMiM — Climatologia: distribuições estatísticas do registro observado da estação micrometeorológica do LabMiM em Salvador, com as densidades teóricas da literatura. Laboratório de Micrometeorologia e Modelagem, UFBA.",
     },
   }),
   page("forecast", {
