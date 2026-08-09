@@ -3,7 +3,8 @@
 const fs = require("fs");
 const path = require("path");
 const { inspectPublicationThemeCss } = require("./theme-contract");
-const { observationModalId } = require("./renderer");
+const { observationModalId, DEFAULT_MODEL } = require("./renderer");
+const { closestKey, LAYOUT_CONTRACTS } = require("../../src/template/page-types");
 
 // Default directory for station plots; a dataset may override dataset.paths.graphs.
 // Kept in sync with scripts/build-all.mjs, which excludes this directory from bundles.
@@ -37,6 +38,13 @@ function unsafeBodyAttrNames(value) {
 // A legitimate viewport centre may sit slightly outside the boundary polygon, but a
 // swapped [longitude, latitude] pair lands far away. Degrees.
 const VIEWPORT_CENTER_TOLERANCE = 2;
+
+// Mesma guarda para o centro de cada domínio, que o mapa usa como destino do flyTo ao
+// trocar de domínio, com tolerância muito maior: os domínios externos são sinóticos e
+// um deles pode legitimamente ser centrado longe do estado. A folga não policia o
+// enquadramento — só pega o par invertido, que nas duas publicações atuais cai de 0°
+// para 19° (ES) e 24° (BA) fora do contorno. Graus.
+const DOMAIN_CENTER_TOLERANCE = 15;
 
 // Declared logo width/height only have to reproduce the intrinsic aspect ratio: the
 // browser uses them to reserve the box, and publications legitimately declare a scaled
@@ -458,22 +466,23 @@ function validateBrand(errors, publication, publicationDirectory) {
 }
 
 /**
- * Guard against a viewport centre that opens the map somewhere other than the
- * territory — most often a [longitude, latitude] pair written in map order.
+ * Guard against a centre that opens the map somewhere other than the territory —
+ * most often a [longitude, latitude] pair written in map order. Shared by the
+ * territory viewport and by each domain centre, which use different tolerances.
  */
-function validateViewportCenter(errors, center, bounds, field) {
+function validateViewportCenter(errors, center, bounds, field, tolerance = VIEWPORT_CENTER_TOLERANCE) {
   if (!Array.isArray(bounds)) return;
   const [[south, west], [north, east]] = bounds;
   const [latitude, longitude] = center;
   const outside =
-    latitude < south - VIEWPORT_CENTER_TOLERANCE ||
-    latitude > north + VIEWPORT_CENTER_TOLERANCE ||
-    longitude < west - VIEWPORT_CENTER_TOLERANCE ||
-    longitude > east + VIEWPORT_CENTER_TOLERANCE;
+    latitude < south - tolerance ||
+    latitude > north + tolerance ||
+    longitude < west - tolerance ||
+    longitude > east + tolerance;
   if (!outside) return;
   const format = (value) => Number(value.toFixed(4));
   errors.push(
-    `${field}: [${latitude}, ${longitude}] is more than ${VIEWPORT_CENTER_TOLERANCE}° outside the boundary bounds ` +
+    `${field}: [${latitude}, ${longitude}] is more than ${tolerance}° outside the boundary bounds ` +
       `[[${format(south)}, ${format(west)}], [${format(north)}, ${format(east)}]]; expected [latitude, longitude]`
   );
 }
@@ -582,6 +591,15 @@ function validateDatasetPath(
 }
 
 /**
+ * Um ARQUIVO dentro do diretório, não o diretório nem um caminho com segmento vazio.
+ * O valor vai direto para o `src` do <img> do card e do modal, e `fs.existsSync` de um
+ * diretório é verdadeiro — nenhum portão a jusante notaria a imagem morta.
+ */
+function isFileUnder(value, directoryPrefix) {
+  return value.startsWith(directoryPrefix) && value.slice(directoryPrefix.length).split("/").every(Boolean);
+}
+
+/**
  * Optional: the station plots the monitoring page renders. Absent means the
  * publication has no station of its own; an empty or malformed list would render
  * an empty section with no other symptom, which is why the shape is checked here.
@@ -632,8 +650,8 @@ function validateObservations(errors, observations, graphsDirectory) {
     if (isNonEmptyString(chart.src)) {
       if (!isSafeRelativeFilePath(chart.src)) {
         errors.push(`${field}.src: expected a safe relative output path`);
-      } else if (chart.src !== graphsDirectory && !chart.src.startsWith(graphsPrefix)) {
-        errors.push(`${field}.src: must live under dataset.paths.graphs (${graphsDirectory}/), not ${chart.src}`);
+      } else if (!isFileUnder(chart.src, graphsPrefix)) {
+        errors.push(`${field}.src: must be a file under dataset.paths.graphs (${graphsDirectory}/), not ${chart.src}`);
       }
     }
     for (const dimension of ["width", "height"]) {
@@ -648,8 +666,19 @@ function validateObservations(errors, observations, graphsDirectory) {
 /** O template interativo do monitoramento, escolhido via `source:` na publicação. */
 const LIVE_MONITORING_TEMPLATE = "pages/monitoring-live.html";
 
-function isLiveMonitoring(page) {
-  return page.source?.scope === "template" && page.source.path === LIVE_MONITORING_TEMPLATE;
+/**
+ * Compara o ARQUIVO resolvido, não a string de configuração: `pages//monitoring-live.html`
+ * é aceito por `isSafeRelativeFilePath` e abre o mesmo arquivo (`path.resolve` colapsa a
+ * barra dupla), mas uma igualdade textual o jogaria no ramo estático — a página
+ * interativa iria ao ar sem diretório de dados, ou a publicação receberia uma mensagem
+ * mandando declarar PNGs de estação numa página que só desenha JSON.
+ */
+function isLiveMonitoring(page, templateDirectory, publicationDirectory) {
+  const source = page?.source;
+  if (!isObject(source) || !isNonEmptyString(source.path) || !isNonEmptyString(templateDirectory)) return false;
+  const base = source.scope === "template" ? templateDirectory : publicationDirectory;
+  if (!isNonEmptyString(base)) return false;
+  return path.resolve(base, source.path) === path.resolve(templateDirectory, LIVE_MONITORING_TEMPLATE);
 }
 
 /**
@@ -666,14 +695,14 @@ function isLiveMonitoring(page) {
  * único sintoma é um 404 no console. Por isso a checagem olha qual template a
  * página resolveu, não o id da rota — que é `monitoring` nas duas.
  */
-function validateMonitoringHasData(errors, publication) {
+function validateMonitoringHasData(errors, publication, templateDirectory, publicationDirectory) {
   if (!Array.isArray(publication.pages)) return;
   const monitoring = publication.pages.find(
     (page) => page && (page.id === "monitoring" || page.file === "monitoring.html")
   );
   if (!monitoring) return;
 
-  if (isLiveMonitoring(monitoring)) {
+  if (isLiveMonitoring(monitoring, templateDirectory, publicationDirectory)) {
     if (!isNonEmptyString(publication.dataset?.paths?.monitoring)) {
       errors.push(
         "dataset.paths.monitoring: the interactive monitoring page requires a data directory; declare it or use the static pages/monitoring.html source"
@@ -710,10 +739,46 @@ function validateClimatologyHasData(errors, publication) {
   }
 }
 
-function validateDataset(errors, warnings, dataset, siteDirectory) {
+/**
+ * Opcional: o bloco do namelist WRF. Cada campo carrega a citação do esquema que
+ * nomeia, e o renderer sobrepõe o bloco a DEFAULT_MODEL — então uma chave desconhecida
+ * é inerte em vez de ruidosa: a página continua publicando o esquema padrão e
+ * creditando o artigo dele, que é exatamente a falha que o bloco existe para evitar.
+ * Por isso a lista de chaves é fechada, com a mesma sugestão de typo que `page()` dá
+ * para suas options.
+ *
+ * O valor de um campo conhecido é exigido pela mesma razão: uma string vazia publica
+ * um parêntese vazio no lugar do esquema, e um `undefined` explícito apaga o default
+ * (o spread do renderer o copia) e publicaria a palavra "undefined".
+ */
+function validateModel(errors, model) {
+  if (model === undefined || model === null) return;
+  if (!addRequiredObject(errors, model, "dataset.model")) return;
+  const fields = Object.keys(DEFAULT_MODEL);
+  for (const key of Object.keys(model)) {
+    if (fields.includes(key)) {
+      addRequiredString(errors, model[key], `dataset.model.${key}`);
+      continue;
+    }
+    const suggestion = closestKey(key, fields);
+    errors.push(
+      `dataset.model.${key}: unknown field${suggestion ? `; did you mean "${suggestion}"?` : "."} ` +
+        `Valid fields: ${fields.join(", ")}`
+    );
+  }
+}
+
+function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBounds) {
   if (!addRequiredObject(errors, dataset, "dataset")) return;
   addRequiredString(errors, dataset.id, "dataset.id");
   addRequiredString(errors, dataset.attribution, "dataset.attribution");
+  // Opcional: o nome da CLI que gera os dados. O renderer cai no default com `??`,
+  // que não trata string vazia — declarada assim, a documentação publicaria um
+  // <code> vazio no lugar do nome do pipeline.
+  if (dataset.generator !== undefined && dataset.generator !== null) {
+    addRequiredString(errors, dataset.generator, "dataset.generator");
+  }
+  validateModel(errors, dataset.model);
 
   if (addRequiredObject(errors, dataset.paths, "dataset.paths")) {
     validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.manifest, "dataset.paths.manifest");
@@ -804,7 +869,11 @@ function validateDataset(errors, warnings, dataset, siteDirectory) {
         domainIds.set(domain.id, index);
       }
     }
-    validateCoordinate(errors, domain.center, `${field}.center`);
+    // O centro do domínio não é decorativo: map-manager.js voa até ele quando o
+    // usuário troca de domínio, então um par invertido leva o mapa para outro lugar.
+    if (validateCoordinate(errors, domain.center, `${field}.center`)) {
+      validateViewportCenter(errors, domain.center, boundaryBounds, `${field}.center`, DOMAIN_CENTER_TOLERANCE);
+    }
     validateZoom(errors, domain.zoom, `${field}.zoom`);
     if (typeof domain.cumulusParameterized !== "boolean") {
       errors.push(`${field}.cumulusParameterized: expected a boolean`);
@@ -900,6 +969,24 @@ function validateLayout(errors, layout, templateDirectory, field) {
     errors.push(`${field}: layout file does not exist: ${candidate}`);
   } else if (!realPathIsInside(templateDirectory, candidate)) {
     errors.push(`${field}: layout file escapes templateRoot`);
+  }
+}
+
+/**
+ * Reexige o contrato do layout sobre a página JÁ RESOLVIDA. `page()` aplica o mesmo
+ * contrato na autoria, mas só ali: um pages.js que produza ou pós-processe objetos
+ * crus (`BASE.map((p) => ({ ...p, seo }))`) entrega ao build uma página webgis sem
+ * `data-map-context`, e o mapa volta ao contexto "forecast" calado — com o conjunto
+ * de variáveis errado na página de potenciais. Este é o portão por onde o manifesto
+ * final passa, então a checagem também vive aqui.
+ */
+function validateLayoutContract(errors, page, field) {
+  if (!isNonEmptyString(page.layout)) return;
+  if (!Object.prototype.hasOwnProperty.call(LAYOUT_CONTRACTS, page.layout)) return;
+  for (const [slot, rule] of Object.entries(LAYOUT_CONTRACTS[page.layout].required ?? {})) {
+    if (!rule.test(page[slot])) {
+      errors.push(`${field}.${slot}: required by the "${page.layout}" layout: expected ${rule.expectation}`);
+    }
   }
 }
 
@@ -1032,6 +1119,7 @@ function validatePages(errors, pages, templateDirectory, publicationDirectory, s
 
     validateRawPageSlots(errors, page, field);
     validateLayout(errors, page.layout, templateDirectory, `${field}.layout`);
+    validateLayoutContract(errors, page, field);
     validateSourceReference(errors, page.source, `${field}.source`, templateDirectory, publicationDirectory, {
       nonEmpty: true,
     });
@@ -1240,8 +1328,8 @@ function validatePublication({ root, templateRoot, siteDir, publication } = {}) 
 
   validateTheme(errors, publicationDirectory, publication.theme);
   const computedBoundaryBounds = validateTerritory(errors, publication.territory, siteDirectory);
-  validateDataset(errors, warnings, publication.dataset, siteDirectory);
-  validateMonitoringHasData(errors, publication);
+  validateDataset(errors, warnings, publication.dataset, siteDirectory, computedBoundaryBounds);
+  validateMonitoringHasData(errors, publication, templateDirectory, publicationDirectory);
   validateClimatologyHasData(errors, publication);
   const pageOutputs = validatePages(errors, publication.pages, templateDirectory, publicationDirectory, siteDirectory);
   validateRedirects(errors, publication.redirects, pageOutputs);

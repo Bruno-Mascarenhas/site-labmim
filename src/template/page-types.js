@@ -153,8 +153,9 @@ function layoutContract(layout) {
  * - source/append/styles/vendorStyles/scripts/vendorScripts/seo/nav: composição
  *   da página.
  * - bodyAttrs/kicker/docModalTitle: slots dos layouts (hoje só o webgis usa).
- * - indexable: `false` remove a página do sitemap.xml (renderer.js); ausente
- *   ou `true` mantém a página listada.
+ * - indexable: `false` remove a página do sitemap.xml E emite
+ *   `<meta name="robots" content="noindex, follow">` (renderer.js); ausente ou
+ *   `true` mantém a página listada e indexável.
  */
 const PAGE_OPTION_KEYS = Object.freeze([
   "append",
@@ -234,8 +235,19 @@ function isSourceReference(value) {
 }
 
 function sameStylesheet(left, right) {
-  if (typeof left === "string" || typeof right === "string") return left === right;
+  if (typeof left === "string" || typeof right === "string") {
+    if (typeof left !== "string" || typeof right !== "string") return false;
+    // Compara pelo caminho sem o sufixo ?v=/#, do mesmo modo que validate.js
+    // separa assetPath de suffix: o mesmo arquivo declarado com outra versão é
+    // uma SUBSTITUIÇÃO do default do layout, não um segundo <link>.
+    return assetPathOf(left) === assetPathOf(right);
+  }
   return isSourceReference(left) && isSourceReference(right) && left.scope === right.scope && left.path === right.path;
+}
+
+/** Caminho de um asset sem o sufixo de versão/fragmento (`?v=1.9.4`, `#foo`). */
+function assetPathOf(asset) {
+  return asset.split(/(?=[?#])/, 2)[0];
 }
 
 /** Defaults do layout que ainda não foram declarados pelo tipo ou pelas options. */
@@ -323,7 +335,9 @@ function finalizePage(definition, options, typeName) {
     }
   }
   if (Object.prototype.hasOwnProperty.call(options, "indexable") && typeof options.indexable !== "boolean") {
-    throw new TypeError(`${typeName}.indexable must be a boolean (false removes the page from sitemap.xml)`);
+    throw new TypeError(
+      `${typeName}.indexable must be a boolean (false removes the page from sitemap.xml and emits noindex)`
+    );
   }
 
   for (const [field, rule] of Object.entries(contract.required)) {
@@ -393,6 +407,10 @@ module.exports = {
   PAGE_OPTION_KEYS,
   CUSTOM_PAGE_OPTION_KEYS,
   LAYOUT_CONTRACTS,
+  // Exportado para que outros conjuntos de chaves fechadas (o bloco `model` do
+  // dataset, em scripts/site-builder/validate.js) recusem um typo com a mesma
+  // sugestão que `page()` dá para suas options, em vez de reimplementá-la.
+  closestKey,
   templateSource,
   siteSource,
   page,

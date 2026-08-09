@@ -48,16 +48,21 @@ function isExternalReference(reference, originPrefix) {
 }
 
 /**
- * Normalize any first-party HTML/CSS reference to the `assets/...`-rooted key used
- * for lookups: strips an absolute-URL origin, the query/hash, and a leading slash so
+ * Normalize any first-party HTML/CSS reference to the site-root-relative key used for
+ * lookups: strips an absolute-URL origin, the query/hash and the leading slash, so
  * `/assets/x.png`, `assets/x.png` and `https://origin/assets/x.png?v=1` all collapse
  * to `assets/x.png`.
+ *
+ * A referência é normalizada INTEIRA, e não a partir do primeiro `assets/` que
+ * aparecer nela: recortar ali reescreveria `/vendor/assets/x.png` para
+ * `assets/x.png`, e os dois portões que usam esta chave passariam a confirmar a
+ * existência — e a alcançabilidade no bundle — de um arquivo diferente do que a
+ * página realmente busca.
  */
 function assetKey(reference, originPrefix) {
   let clean = reference.split(/[?#]/, 1)[0].trim();
   if (originPrefix && clean.startsWith(originPrefix)) clean = clean.slice(originPrefix.length);
-  const marker = clean.indexOf("assets/");
-  return marker >= 0 ? clean.slice(marker) : clean.replace(/^\//, "");
+  return clean.replace(/^\//, "");
 }
 
 module.exports = { htmlReferences, cssReferences, isExternalReference, assetKey };

@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { createAssetPipeline, writePublicationTheme } = require("./assets");
+const { publicationOperationalPaths } = require("./operational-paths");
 const { SITE_REFERENCES } = require("../../src/template/references");
 
 const read = (filePath) => fs.readFileSync(filePath, "utf8");
@@ -51,6 +52,16 @@ const DEFAULT_MODEL = Object.freeze({
   landSurface: "Noah-MP [[noahmp]]",
   cumulus: "Kain-Fritsch [[kainfritsch]]",
 });
+
+/**
+ * Campos realmente declarados de um bloco opcional. Ao contrário de `??`, o spread
+ * COPIA um valor explicitamente `undefined` e apaga o default por baixo — e o token
+ * sairia como a palavra "undefined" no corpo da documentação, creditando um esquema
+ * inexistente. Um campo ausente e um campo escrito como `undefined` significam a
+ * mesma coisa aqui: use o padrão.
+ */
+const declaredFields = (block) =>
+  Object.fromEntries(Object.entries(block || {}).filter(([, value]) => value !== undefined));
 
 /** Name of the CLI that turns the raw WRF NetCDF output into the served JSON/GeoJSON. */
 const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";
@@ -119,7 +130,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   const assetPipeline = createAssetPipeline(outputDir);
 
   const domains = dataset.domains;
-  const model = { ...DEFAULT_MODEL, ...(dataset.model || {}) };
+  const model = { ...DEFAULT_MODEL, ...declaredFields(dataset.model) };
   const observationCharts = dataset.observations?.charts ?? [];
   const defaultDomain = domains.find((domain) => domain.id === dataset.defaultDomain);
   const forecastHorizonHours = (dataset.timeline.defaultMaxLayer - 1) * dataset.timeline.stepHours;
@@ -337,6 +348,11 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     const { title, description } = page.seo;
     const url = absoluteUrl(page.file);
     return [
+      // `indexable: false` tira a página do sitemap, e o sitemap só sugere: um único
+      // link de fora bastaria para indexá-la. O noindex é o que de fato a mantém
+      // fora do índice — é assim que o 404 estático já faz. "follow" preserva o
+      // valor dos links internos que a página distribui.
+      ...(page.indexable === false ? ['    <meta name="robots" content="noindex, follow" />', ""] : []),
       `    <link rel="canonical" href="${escapeAttribute(url)}" />`,
       "",
       "    <!-- Open Graph -->",
@@ -464,6 +480,23 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     return html.replace(slot, tags ? `\n${tags}` : "");
   }
 
+  /**
+   * Mesma disciplina de `applyPageScripts` para os slots crus. `replaceAll` é
+   * split/join: num layout sem o token a substituição é um no-op e o valor
+   * declarado evapora sem erro — a página vai ao ar com `<body>` seco (o mapa
+   * volta ao contexto "forecast" calado) ou com o modal de documentação sem
+   * título, e o único sintoma é a página pronta.
+   */
+  function applyRawSlot(page, html, token, value) {
+    if (value !== "" && !html.includes(token)) {
+      throw new Error(
+        `${page.file}: the "${page.layout}" layout has no ${token} slot, but the page declares one. ` +
+          `Add the slot to src/template/layouts/${page.layout}.html or drop the declaration.`
+      );
+    }
+    return replaceAll(html, token, value);
+  }
+
   function assertResolved(file, html) {
     const leftover = (html.match(/\{\{[^}]+\}\}/g) || []).filter((token) => !(token in LITERAL_BRACES));
     if (leftover.length === 0) return;
@@ -495,9 +528,9 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     html = replaceAll(html, "{{title}}", escapeAttribute(page.seo.title));
     html = replaceAll(html, "{{description}}", escapeAttribute(page.seo.description));
     // bodyAttrs is attribute markup by design; kicker and docModalTitle are text.
-    html = replaceAll(html, "{{bodyAttrs}}", page.bodyAttrs || "");
-    html = replaceAll(html, "{{kicker}}", escapeAttribute(page.kicker || ""));
-    html = replaceAll(html, "{{docModalTitle}}", escapeAttribute(page.docModalTitle || ""));
+    html = applyRawSlot(page, html, "{{bodyAttrs}}", page.bodyAttrs || "");
+    html = applyRawSlot(page, html, "{{kicker}}", escapeAttribute(page.kicker || ""));
+    html = applyRawSlot(page, html, "{{docModalTitle}}", escapeAttribute(page.docModalTitle || ""));
     html = replaceAll(html, "{{pageVendorStyles}}", stylesheetLinks(page.vendorStyles));
     html = replaceAll(html, "{{pageStyles}}", stylesheetLinks(page.styles));
     html = applyPageScripts(page, html);
@@ -549,14 +582,15 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     );
     writeOutput(
       path.join(outputDir, "robots.txt"),
-      `User-agent: *\nAllow: /\n\nSitemap: ${productionOrigin}/sitemap.xml\n\n# Dados gerados pelo pipeline externo — sem valor de SEO e potencialmente grandes.\n${[
-        dataset.paths.values,
-        dataset.paths.grids,
-        dataset.paths.climatology,
-        dataset.paths.monitoring,
-      ]
-        .filter(Boolean)
-        .map((directory) => `Disallow: /${directory}/`)
+      // O robots.txt descreve o HOST desta publicação, então a lista é a que ELA
+      // declara — não a união da árvore. `assets/graphs` fica de fora de propósito:
+      // os PNG da estação são páginas de rosto de figura, com valor de SEO, e nunca
+      // estiveram proibidos aqui. Ver site-builder/operational-paths.js.
+      `User-agent: *\nAllow: /\n\nSitemap: ${productionOrigin}/sitemap.xml\n\n# Dados gerados pelo pipeline externo — sem valor de SEO e potencialmente grandes.\n${publicationOperationalPaths(
+        publication,
+        { includeGraphs: false }
+      )
+        .directories.map((directory) => `Disallow: /${directory}/`)
         .join("\n")}\n`
     );
     return ["404.html", ".htaccess", "sitemap.xml", "robots.txt"];
@@ -575,5 +609,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
 }
 
 // observationModalId is exported so validate.js can dedupe chart ids on the exact
-// DOM id the renderer will emit, instead of a divergent approximation.
-module.exports = { renderPublication, observationModalId };
+// DOM id the renderer will emit, instead of a divergent approximation. DEFAULT_MODEL
+// travels for the same reason: the validator refuses an unknown `dataset.model` key
+// against the exact field list the tokens below read.
+module.exports = { renderPublication, observationModalId, DEFAULT_MODEL };
