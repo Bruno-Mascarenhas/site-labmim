@@ -12,13 +12,17 @@ module.exports = [
         "LEAL - Laboratório de Energias Alternativas da UFES. Pesquisa, monitoramento ambiental e previsão de disponibilidade de energias eólica e solar em Vitória e Espírito Santo.",
     },
   }),
-  page("monitoring", {
-    seo: {
-      title: "LEAL — Monitoramento Ambiental · UFES",
-      description:
-        "LEAL — Monitoramento Ambiental: variáveis meteorológicas e dados de radiação medidos em tempo quase real no Espírito Santo.",
-    },
-  }),
+  // Sem página de monitoramento, pelo mesmo motivo da climatologia abaixo: a
+  // única lista de gráficos de estação que existe é a do LabMiM, e ela sai de
+  // `assets/graphs/` — caminho operacional que as DUAS publicações resolvem
+  // (nenhuma declara `dataset.paths.graphs`), então o build exclui o diretório
+  // de todo bundle e os nove PNG respondem 404 em `dist/ufes/`. Mesmo se
+  // chegassem, trazem a marca d'água "LabMiM ... UFBA" gravada na imagem e
+  // medem a estação de Salvador, enquanto o SEO desta rota prometia dados
+  // "medidos em tempo quase real no Espírito Santo". Reative `page("monitoring",
+  // …)` quando o LEAL tiver a própria estação publicada, declarando
+  // `dataset.paths.graphs` e `dataset.observations.charts` próprios em
+  // `src/datasets/leal-wrf.js`.
   page("team", {
     source: siteSource("pages/team.html"),
     seo: {

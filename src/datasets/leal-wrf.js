@@ -1,7 +1,5 @@
 "use strict";
 
-const { LABMIM_STATION_CHARTS } = require("./labmim-station-charts");
-
 module.exports = {
   id: "leal-wrf",
   attribution: "LEAL-UFES",
@@ -9,12 +7,12 @@ module.exports = {
   // derivado do id do dataset porque "leal-wrf-geojson" não existe.
   generator: "labmim-wrf-geojson",
   // Namelist WRF: herda DEFAULT_MODEL (renderer); declare `model` só para divergir.
-  // PROVISÓRIO: reaproveita os gráficos da estação do LabMiM (marca d'água
-  // "LabMiM ... UFBA" gravada nos PNG) apenas para preservar a saída atual.
-  // O LEAL precisa declarar a própria lista de gráficos.
-  observations: {
-    charts: LABMIM_STATION_CHARTS,
-  },
+  // Sem `observations`: o LEAL não tem estação publicada. Reaproveitar a lista
+  // do LabMiM apontava para `assets/graphs/`, caminho operacional comum às duas
+  // publicações, que o build exclui de todo bundle — os PNG davam 404 — e as
+  // imagens ainda trazem a marca d'água "LabMiM ... UFBA" e medem Salvador.
+  // Ao publicar a estação do LEAL, declare aqui `paths.graphs` próprio (para o
+  // build separar os diretórios) junto de `observations.charts`.
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",
