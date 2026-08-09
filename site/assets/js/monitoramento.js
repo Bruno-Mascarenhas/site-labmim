@@ -99,9 +99,14 @@
     }).format(value);
   }
 
-  /** Casas suficientes para a unidade: chuva precisa de três, irradiância de zero. */
+  /**
+   * Casas suficientes para a unidade. Chuva precisa de TRÊS: a báscula do
+   * pluviômetro conta de 0,254 mm em 0,254 mm, e arredondar para duas mostraria
+   * "0,25" — o mesmo motivo por que o exportador guarda três em `_DECIMALS`.
+   * Irradiância precisa de zero, porque um décimo de W/m² é ruído.
+   */
   function unitDigits(unit) {
-    if (unit === "mm") return 2;
+    if (unit === "mm") return 3;
     if (unit === "W/m²") return 0;
     if (unit === "°" || unit === "%") return 1;
     return 1;
@@ -414,6 +419,40 @@
     });
   }
 
+  /**
+   * Valores das outras séries visíveis no MESMO instante do ponto sob o cursor.
+   *
+   * A busca é por índice e não por varredura: as camadas são grades regulares,
+   * então a posição do carimbo é `(x - start) / passo`. É O(1) por série, que é o
+   * que permite fazer isto a cada movimento do mouse sobre 2 mil pontos.
+   */
+  function otherSeriesAt(items, digits, unit) {
+    if (!items.length) return [];
+    const hovered = items[0];
+    const stamp = hovered.parsed.x;
+    const lines = [];
+    hovered.chart.data.datasets.forEach((dataset, index) => {
+      if (index === hovered.datasetIndex) return;
+      if (!hovered.chart.isDatasetVisible(index)) return;
+      const points = dataset.data;
+      if (!points.length) return;
+      const step = points.length > 1 ? points[1].x - points[0].x : 0;
+      if (!step) return;
+      const position = Math.round((stamp - points[0].x) / step);
+      const point = points[position];
+      // Casa quando o instante apontado cai DENTRO do intervalo daquela amostra,
+      // não quando o carimbo é idêntico. As camadas têm cadências diferentes — a
+      // bruta tem doze pontos por hora e a horária um — e exigir igualdade
+      // deixaria a lista vazia em onze de cada doze posições. Meio passo para
+      // cada lado é o intervalo que a amostra de fato representa: a média da hora
+      // que contém aquele instante é resposta honesta, o vizinho de outra hora
+      // não seria.
+      if (!point || Math.abs(point.x - stamp) > step / 2 || point.y === null) return;
+      lines.push(`${dataset.label}: ${decimal(point.y, digits)} ${unit}`.trim());
+    });
+    return lines;
+  }
+
   function tickCallback(value) {
     const date = new Date(value);
     return date.getUTCHours() === 0 ? formatDay(value) : formatHour(value);
@@ -468,6 +507,12 @@
             callbacks: {
               title: (items) => formatStamp(items[0].parsed.x),
               label: (item) => `${item.dataset.label}: ${decimal(item.parsed.y, digits)} ${chart.unit}`.trim(),
+              // O acerto do Chart.js devolve só o ponto mais próximo, o que num
+              // gráfico de sete séries responde a pergunta errada: no balanço o
+              // que se quer é o instante inteiro, as cinco parcelas e o modelo
+              // lado a lado. Aqui as demais são buscadas pelo carimbo do ponto
+              // sob o cursor e listadas embaixo.
+              afterBody: (items) => otherSeriesAt(items, digits, chart.unit),
             },
           },
         },
