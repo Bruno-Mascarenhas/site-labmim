@@ -41,7 +41,7 @@
      Versão PURGADA: só os seletores usados pelo site (~27KB em vez de 232KB);
      o bootstrap.min.css completo permanece ao lado e `npm run lint:purge`
      acusa quando uma classe nova exigir regenerar (scripts/purgecss.config.cjs). -->
-    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.purged.min.css?v=b6ca8446" />
+    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.purged.min.css?v=9d6bce91" />
 
     <!-- Font Awesome 6.4.0 (vendorizado localmente). O preload quebra a cadeia
      HTML -> CSS -> fonte: todas as páginas usam ícones solid e a fonte tem
@@ -60,13 +60,13 @@
     <!-- CSS modular compartilhado pelas publicações -->
     <link rel="stylesheet" href="assets/css/base.css?v=7733cbd6" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
-    <link rel="stylesheet" href="assets/css/layout.css?v=6a75119b" />
-    <link rel="stylesheet" href="assets/css/components.css?v=d249a5f4" />
-    <link rel="stylesheet" href="assets/css/maps.css?v=1820c38a" />
-    <link rel="stylesheet" href="assets/css/theme.css?v=607af7d7" />
+    <link rel="stylesheet" href="assets/css/layout.css?v=16a80c2d" />
+    <link rel="stylesheet" href="assets/css/components.css?v=70ecdd3a" />
+    <link rel="stylesheet" href="assets/css/maps.css?v=a92c772f" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=f7bf4768" />
 
-    <script src="assets/js/theme-boot.js?v=6fe47826"></script>
-    <script src="assets/js/theme-toggle.js?v=5d8061cc" defer></script>
+    <script src="assets/js/theme-boot.js?v=7c6c0260"></script>
+    <script src="assets/js/theme-toggle.js?v=1d6af372" defer></script>
     <script src="assets/js/ui-shell.js?v=482aa431" defer></script>
 
     <!-- Configuração da publicação e do mapa; JSON em meta preserva a CSP sem
@@ -75,7 +75,7 @@
          apenas aqui; as páginas institucionais não precisam desses bytes. -->
     <meta
       name="site-config"
-      content='{"publicationId":"ufba","brandName":"LabMiM","territory":{"id":"ba","code":"BA","name":"Bahia"},"data":{"manifestPath":"JSON/manifest.json","valuesBase":"JSON","gridsBase":"GeoJSON","timeline":{"defaultMaxLayer":73,"initialIndex":7,"stepHours":1,"label":"Horário local (UTC−03)"}},"map":{"initialCenter":[-12.97,-38.5],"initialZoom":6,"fitBounds":null,"fitMaxZoom":7,"stateCode":"BA","stateName":"Bahia","boundaryAsset":"assets/data/br_ba.json","attribution":"LabMiM-UFBA","defaultDomain":"D01","domains":{"D01":{"label":"BA/NE","center":[-12.97,-38.5],"zoom":5.5},"D02":{"label":"BA","center":[-12.97,-38.5],"zoom":7},"D03":{"label":"RMS","center":[-12.97,-38.5],"zoom":9},"D04":{"label":"SSA","center":[-12.97,-38.5],"zoom":12}}}}'
+      content='{"publicationId":"ufba","brandName":"LabMiM","territory":{"id":"ba","code":"BA","name":"Bahia"},"data":{"manifestPath":"JSON/manifest.json","valuesBase":"JSON","gridsBase":"GeoJSON","timeline":{"defaultMaxLayer":75,"initialIndex":7,"stepHours":1,"label":"Horário local (UTC−03)"}},"map":{"initialCenter":[-12.97,-38.5],"initialZoom":6,"fitBounds":null,"fitMaxZoom":7,"stateCode":"BA","stateName":"Bahia","boundaryAsset":"assets/data/br_ba.json","attribution":"LabMiM-UFBA","defaultDomain":"D01","domains":{"D01":{"label":"BA/NE","center":[-12.97,-38.5],"zoom":5.5},"D02":{"label":"BA","center":[-12.97,-38.5],"zoom":7},"D03":{"label":"RMS","center":[-12.97,-38.5],"zoom":9},"D04":{"label":"SSA","center":[-12.97,-38.5],"zoom":12}}}}'
     />
 
     <!-- Content hashes dos Web Workers (carimbados por build.js): map-manager.js
@@ -151,7 +151,7 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation me-3"
+          <a href="https://cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation me-3"
             ><picture
               ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
               <img
@@ -166,8 +166,10 @@
       </nav>
     </header>
 
-    <h1 class="visually-hidden">Mapas Interativos WRF</h1>
     <main class="container-main" id="main">
+      <!-- O h1 mora dentro da landmark main, como no layout institucional. -->
+      <h1 class="visually-hidden">Mapas Interativos WRF</h1>
+
       <!-- MAP -->
       <div id="map"></div>
 
@@ -188,7 +190,8 @@
           </a>
         </div>
         <div class="sidebar-header">
-          <h3>Detalhes da Célula</h3>
+          <!-- h2, não h3: é o primeiro cabeçalho depois do h1 e pularia um nível. -->
+          <h2>Detalhes da Célula</h2>
           <button type="button" class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Fechar painel de detalhes">
             <i class="fas fa-times" aria-hidden="true"></i>
           </button>
@@ -224,7 +227,7 @@
       <div class="controls-container">
         <div class="slider-wrapper">
           <label for="layerSlider">Hora:</label>
-          <input type="range" id="layerSlider" min="1" max="73" step="1" value="7" />
+          <input type="range" id="layerSlider" min="1" max="75" step="1" value="7" />
           <div class="slider-time-container">
             <span class="slider-time" id="layerLabel">Carregando...</span>
             <i
@@ -286,8 +289,9 @@
         </label>
       </div>
 
-      <!-- WIND VECTORS CANVAS -->
-      <canvas id="windVectorCanvas"></canvas>
+      <!-- WIND VECTORS CANVAS — overlay decorativo: aria-hidden porque um canvas
+       mudo só polui a árvore de acessibilidade. -->
+      <canvas id="windVectorCanvas" aria-hidden="true"></canvas>
 
       <!-- DOCUMENTATION BUTTON -->
       <div class="documentation-btn-container">
@@ -420,7 +424,7 @@
                 Este mapa interativo apresenta dados de <strong>previsão numérica do tempo</strong> gerados pelo modelo
                 <strong>WRF (Weather Research and Forecasting)</strong>, permitindo visualizar variáveis meteorológicas
                 e potenciais energéticos em alta resolução espacial e temporal para a região da Bahia e entorno. Os
-                dados cobrem um horizonte de previsão de <strong>72 horas</strong>, com saídas horárias.
+                dados cobrem um horizonte de previsão de <strong>74 horas</strong>, com saídas horárias.
               </p>
               <h4>Interface Principal</h4>
               <ul class="doc-list">
@@ -1078,19 +1082,19 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     <ul>
                       <li>
                         <strong>Bahia/Nordeste — 27 km:</strong> Escala sinótica/regional. Cobre o Sul-Nordeste do
-                        Brasil (~2500×2500 km). Captura frentes, ciclones e massas de ar.
+                        Brasil (~1860×1860 km). Captura frentes, ciclones e massas de ar.
                       </li>
                       <li>
-                        <strong>Bahia — 9 km:</strong> Escala intermediária. Cobre o Nordeste (~800×800 km). Resolve
+                        <strong>Bahia — 9 km:</strong> Escala intermediária. Cobre a Bahia (~890×890 km). Resolve
                         convecção organizada e brisas de escala meso-α.
                       </li>
                       <li>
-                        <strong>Região Metropolitana de Salvador — 3 km:</strong> Escala local. Cobre a Bahia (~270×270
-                        km). Resolução suficiente para resolver convecção profunda explicitamente (sem parametrização de
-                        cumulus).
+                        <strong>Região Metropolitana de Salvador — 3 km:</strong> Escala local. Cobre a Região
+                        Metropolitana de Salvador e o Recôncavo (~300×300 km). Resolução suficiente para resolver
+                        convecção profunda explicitamente (sem parametrização de cumulus).
                       </li>
                       <li>
-                        <strong>Salvador — 1 km:</strong> Alta resolução. Cobre Salvador e Região Metropolitana (~90×90
+                        <strong>Salvador — 1 km:</strong> Alta resolução. Cobre Salvador e Região Metropolitana (~85×85
                         km). Captura efeitos topográficos, brisa marítima e ilha de calor urbana.
                       </li>
                     </ul>
@@ -1099,7 +1103,7 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     <strong>Dados de Entrada (Condições Iniciais e de Contorno):</strong> GFS (Global Forecast System)
                     da NOAA [[gfs]], resolução 0.25°, atualizações a cada 6h.
                   </li>
-                  <li><strong>Resolução Temporal:</strong> Saídas horárias (73 timesteps para 72h de previsão).</li>
+                  <li><strong>Resolução Temporal:</strong> Saídas horárias (75 timesteps para 74h de previsão).</li>
                   <li>
                     <strong>Coordenadas Verticais:</strong> ~40 níveis sigma, com maior concentração na camada limite
                     planetária (CLP).
@@ -1316,7 +1320,7 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
     <!-- Troca os marcadores [[chave]] das páginas por links com o registro completo
  no tooltip. Vem antes dos scripts próprios de cada página porque a climatologia
  usa a API que ele publica em window.labmimReferences. -->
-    <script defer src="assets/js/references.js?v=53bf23e6"></script>
+    <script defer src="assets/js/references.js?v=853cf71e"></script>
 
     <!-- Chart.js 3.9.1 (vendorizado localmente) -->
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
@@ -1326,10 +1330,10 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
          Web Workers recebem hash pela <meta name="labmim-asset-hashes">
          (lida por workerScriptUrl em map-manager.js; sem hash a URL sai
          sem ?v= e cai nas regras de cache curto). -->
-    <script src="assets/js/variables-config.js?v=424d643b" defer></script>
-    <script src="assets/js/data-service.js?v=9be91789" defer></script>
-    <script src="assets/js/charts-manager.js?v=93c9f83b" defer></script>
-    <script src="assets/js/map-manager.js?v=8aa28de8" defer></script>
-    <script src="assets/js/map-init.js?v=5b580457" defer></script>
+    <script src="assets/js/variables-config.js?v=35196e36" defer></script>
+    <script src="assets/js/data-service.js?v=7e7cd2c2" defer></script>
+    <script src="assets/js/charts-manager.js?v=94f5abf4" defer></script>
+    <script src="assets/js/map-manager.js?v=2cac2fc7" defer></script>
+    <script src="assets/js/map-init.js?v=ce43238e" defer></script>
   </body>
 </html>
