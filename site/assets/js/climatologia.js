@@ -47,6 +47,9 @@
     subsetId: "",
     chart: null,
     cache: new Map(),
+    // Geração da última escolha do leitor: respostas de pedidos anteriores que
+    // cheguem depois dela são descartadas em refresh().
+    seq: 0,
   };
 
   const el = (id) => document.getElementById(id);
@@ -482,6 +485,25 @@
     tiles.appendChild(statTile("Assimetria", decimal(stats.skewness, 2)));
   }
 
+  /**
+   * Amostras finitas que caíram fora das bordas do histograma.
+   *
+   * O exportador as conta em `below`/`above` em vez de descartá-las, justamente
+   * para que o leitor saiba que o eixo está recortado. Elas ficam fora das
+   * barras e fora do `n` publicado — que é o denominador da densidade —, então
+   * sem esta nota o total anunciado esconde as amostras extremas. Nos recortes
+   * de rosa os dois campos não existem, e a nota simplesmente não sai.
+   */
+  function overflowNote(subset) {
+    const below = subset.below || 0;
+    const above = subset.above || 0;
+    if (!below && !above) return "";
+    const parts = [];
+    if (below) parts.push(`${integer(below)} abaixo`);
+    if (above) parts.push(`${integer(above)} acima`);
+    return ` Fora das bordas do histograma, sem entrar nas barras nem neste total: ${parts.join(" e ")}.`;
+  }
+
   function fitRow(label, value) {
     const row = document.createElement("div");
     row.className = "clima-fit-row";
@@ -626,6 +648,7 @@
       keysIn: () => [],
       get: () => null,
       register: () => {},
+      linkable: () => false,
     };
 
   const withReferences = (text) => refs().expand(text);
@@ -650,12 +673,19 @@
       const entry = refs().get(key);
       if (!entry) continue;
       const item = document.createElement("li");
-      const link = document.createElement("a");
-      link.href = entry.url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = entry.citation;
-      item.appendChild(link);
+      // Mesmo critério de assets/js/references.js: a bibliografia vem do
+      // manifesto publicado pelo exportador, então só um esquema http(s) vira
+      // link. Sem URL utilizável a citação fica em texto, e não num href morto.
+      if (refs().linkable(entry.url)) {
+        const link = document.createElement("a");
+        link.href = entry.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = entry.citation;
+        item.appendChild(link);
+      } else {
+        item.textContent = entry.citation;
+      }
       list.appendChild(item);
     }
     panel.hidden = list.children.length === 0;
@@ -664,7 +694,12 @@
   function renderCaveats() {
     const list = el("climaCaveats");
     list.replaceChildren();
-    for (const text of state.variable.caveats || []) {
+    // As ressalvas do manifesto valem para a página inteira — o registro não é
+    // uma normal climatológica de trinta anos, e o fuso é o local de Salvador —
+    // e vêm antes das da variável. O produtor as publica junto dos dados
+    // justamente para que a apresentação não possa descartá-las.
+    const shared = (state.manifest && state.manifest.caveats) || [];
+    for (const text of [...shared, ...(state.variable.caveats || [])]) {
       const item = document.createElement("li");
       item.appendChild(withReferences(text));
       list.appendChild(item);
@@ -680,10 +715,22 @@
       const header = ["Setor (°)", "Frequência", "Mistura de von Mises"];
       const curve = subset.curve || [];
       const step = curve.length > 1 ? (curve.length - 1) / variable.sectors.length : 0;
+      // A curva vem numa grade de 201 pontos (1,8°) e o centro dos oito setores
+      // ímpares cai exatamente entre duas amostras: arredondar o índice leria
+      // sempre 0,9° adiante do rumo que a primeira coluna da mesma linha anuncia.
+      // A rosa desenhada não tem o problema porque drawRose usa a curva inteira
+      // como polilinha; a tabela e o CSV são a versão textual, e precisam do
+      // valor no centro.
+      const atCenter = (index) => {
+        const exact = index * step;
+        const low = Math.floor(exact);
+        const high = Math.min(low + 1, curve.length - 1);
+        return curve[low] + (curve[high] - curve[low]) * (exact - low);
+      };
       const rows = variable.sectors.map((center, index) => [
         decimal(center, 1),
         percent(subset.frequencies[index], 2),
-        curve.length ? percent(curve[Math.round(index * step)], 2) : "—",
+        curve.length ? percent(atCenter(index), 2) : "—",
       ]);
       return { header, rows };
     }
@@ -735,7 +782,9 @@
 
   function exportCsv() {
     const subset = currentSubset();
-    if (!subset) return;
+    // O `n` também é exigido aqui, e não só no estado do botão: o botão
+    // desabilitado é camada de UI, o listener continua alcançável.
+    if (!subset || !subset.n) return;
     const { header, rows } = tableRows(subset);
     const lines = [header.join(";"), ...rows.map((row) => row.join(";"))];
     // BOM explícito: sem ele o Excel em pt-BR abre o CSV como Latin-1 e os
@@ -757,19 +806,31 @@
     const container = el("climaCoverage");
     container.replaceChildren();
     const years = (state.manifest.coverage && state.manifest.coverage.years) || [];
-    let peak = 1;
-    for (const entry of years) {
-      for (const hours of Object.values(entry.hours || {})) peak = Math.max(peak, hours);
-    }
+    // Escala do ano mais coberto DESTA variável, não o pico do manifesto inteiro.
+    // Com o denominador global — 8.781 h da temperatura — as variáveis de
+    // contagem estruturalmente menor (chuva, PAR, saldo noturno) viram uma
+    // fileira de tocos indistinguíveis num trilho de 72 px, e o painel deixa de
+    // mostrar a variação entre anos que é a razão de ele existir.
+    let peak = 0;
+    for (const entry of years) peak = Math.max(peak, (entry.hours || {})[state.variableId] || 0);
 
     for (const entry of years) {
       const hours = (entry.hours || {})[state.variableId] || 0;
       const column = document.createElement("div");
       column.className = "clima-coverage-year";
+      // O número vivia só no `title` da barra, que não abre por teclado nem por
+      // toque: sem rótulo acessível a árvore fica com a fileira de anos sem valor
+      // nenhum, e "ano sem observação" e "ano com pouquíssimas horas" passam a se
+      // distinguir apenas pela moldura tracejada.
+      column.setAttribute("role", "img");
+      column.setAttribute(
+        "aria-label",
+        hours ? `${entry.year}: ${integer(hours)} horas válidas` : `${entry.year}: sem observação`
+      );
 
       const bar = document.createElement("div");
       bar.className = "clima-coverage-bar";
-      bar.style.height = `${Math.round((hours / peak) * 100)}%`;
+      bar.style.height = `${Math.round((hours / (peak || 1)) * 100)}%`;
       bar.title = `${entry.year}: ${integer(hours)} horas válidas`;
 
       const track = document.createElement("div");
@@ -785,10 +846,18 @@
       container.appendChild(column);
     }
 
+    // Horas da variável em tela, e não a contagem de anos do registro inteiro:
+    // `seasons[].years` é global, sai igual nas dezesseis variáveis e contradiz
+    // as barras logo acima, que são por variável.
     const seasons = (state.manifest.coverage && state.manifest.coverage.seasons) || [];
-    el("climaSeasons").textContent = seasons.length
-      ? seasons.map((season) => `${season.season}: ${(season.years || []).length} ano(s) no registro`).join(" · ")
-      : "";
+    const seasonNote = seasons
+      .map((season) => `${season.season}: ${integer((season.hours || {})[state.variableId] || 0)} horas válidas`)
+      .join(" · ");
+    // Com a escala por variável o topo do trilho vale coisas diferentes em cada
+    // uma, então o pico precisa estar escrito: sem o número, a chuva com 979 h no
+    // melhor ano pareceria tão coberta quanto a temperatura com 8.781 h.
+    const scaleNote = peak ? `Barras na escala do ano mais coberto desta variável: ${integer(peak)} horas.` : "";
+    el("climaSeasons").textContent = [scaleNote, seasonNote].filter(Boolean).join(" ");
   }
 
   // ─── Orquestração ─────────────────────────────────────────────────────────
@@ -807,29 +876,58 @@
     el("climaRoseWrap").hidden = !isRose;
     el("climaTitulo").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)}`;
 
+    // Estes três painéis descrevem a VARIÁVEL, nunca o recorte: precisam ser
+    // redesenhados mesmo com o recorte vazio, senão as ressalvas, a bibliografia
+    // e as horas de cobertura da variável anterior ficam sob o título da nova.
+    renderCaveats();
+    renderReferences();
+    renderCoverage();
+
     if (!subset || !subset.n) {
       el("climaStatus").textContent = "Sem observações válidas neste recorte.";
       el("climaStats").replaceChildren();
       el("climaFitPanel").hidden = true;
+      el("climaAtoms").textContent = "";
+      el("climaLegenda").textContent = "";
+      // Tabela esvaziada à mão em vez de renderTable(): num recorte ausente o
+      // subset é nulo, e numa rosa sem observações `frequencies` pode faltar.
+      el("climaTabelaBody").replaceChildren();
+      el("climaTabelaCaption").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)} (0 observações)`;
+      el("climaExport").disabled = true;
+      el("climaCanvas").setAttribute(
+        "aria-label",
+        `Histograma de ${state.variable.label} — ${subsetLabel(state.subsetId)}: sem observações neste recorte.`
+      );
       if (state.chart) {
         state.chart.destroy();
         state.chart = null;
       }
-      if (isRose) el("climaRose").replaceChildren();
+      if (isRose) {
+        el("climaRose").replaceChildren();
+        el("climaRose").setAttribute(
+          "aria-label",
+          `Rosa dos ventos — ${subsetLabel(state.subsetId)}: sem observações neste recorte.`
+        );
+      }
       return;
     }
 
+    el("climaExport").disabled = false;
     if (isRose) {
+      // Sem isto a instância do histograma anterior fica registrada no canvas
+      // escondido — com os listeners e o ResizeObserver do Chart.js e os dados
+      // daquela variável — até o leitor voltar a uma variável de histograma.
+      if (state.chart) {
+        state.chart.destroy();
+        state.chart = null;
+      }
       drawRose(subset);
     } else {
       drawHistogram(subset);
     }
     renderStats(subset);
     renderFit(subset);
-    renderCaveats();
-    renderReferences();
     renderTable(subset);
-    renderCoverage();
 
     const marks = isRose ? "Pétalas" : "Barras";
     const legend = el("climaLegenda");
@@ -841,15 +939,68 @@
       legend.textContent = `${marks}: frequência medida. Esta variável não tem densidade teórica canônica.`;
     }
     el("climaStatus").textContent =
-      `${state.variable.label}, ${subsetLabel(state.subsetId)}: ${integer(subset.n)} observações.`;
+      `${state.variable.label}, ${subsetLabel(state.subsetId)}: ${integer(subset.n)} observações.` +
+      overflowNote(subset);
+  }
+
+  /**
+   * Falha de UMA variável não pode apagar a página inteira.
+   *
+   * `showEmpty()` esconde `#climaApp`, e dentro dele está o próprio seletor de
+   * variável; como só `start()` volta a exibi-lo, um arquivo truncado no
+   * servidor deixaria o leitor sem nenhum controle para escolher outra variável
+   * até recarregar. Aqui o app continua em pé e só os painéis da variável que
+   * falhou são limpos. O detalhe técnico vai para o console: a mensagem do motor
+   * de JS é em inglês e não diz nada a quem lê a página.
+   */
+  function variableFailed(error) {
+    console.error(error);
+    // Obrigatório: sem isto o gráfico e a tabela da variável anterior ficariam
+    // sob o rótulo da que falhou.
+    state.variable = null;
+    const entry = (state.manifest.variables || []).find((item) => item.id === state.variableId);
+    const label = entry ? entry.label : state.variableId;
+
+    el("climaTitulo").textContent = "—";
+    el("climaLegenda").textContent = "";
+    el("climaStatus").textContent =
+      `Os dados de ${label} não puderam ser lidos; o arquivo pode estar incompleto no servidor. Escolha outra variável.`;
+    el("climaStats").replaceChildren();
+    el("climaFitPanel").hidden = true;
+    el("climaAtoms").textContent = "";
+    el("climaTabelaBody").replaceChildren();
+    el("climaTabelaCaption").textContent = "Sem dados para exibir.";
+    el("climaExport").disabled = true;
+    el("climaCaveats").replaceChildren();
+    el("climaCaveats").hidden = true;
+    el("climaRefs").replaceChildren();
+    el("climaRefsPanel").hidden = true;
+    el("climaRose").replaceChildren();
+    // Os dois rótulos acessíveis também: esvaziar o desenho sem reescrevê-los
+    // deixaria o leitor de tela anunciando a distribuição da variável anterior.
+    el("climaCanvas").setAttribute("aria-label", `Sem dados para exibir: os dados de ${label} não puderam ser lidos.`);
+    el("climaRose").setAttribute("aria-label", `Sem dados para exibir: os dados de ${label} não puderam ser lidos.`);
+    if (state.chart) {
+      state.chart.destroy();
+      state.chart = null;
+    }
+    // Só depende do manifesto e do id escolhido, então continua correta.
+    renderCoverage();
   }
 
   async function refresh() {
+    // Toda troca de variável ou de recorte invalida as respostas ainda em voo:
+    // sem esta marca a mais lenta chega por último e desenha a escolha antiga,
+    // enquanto o seletor e a cobertura já mostram a nova.
+    const pedido = (state.seq += 1);
     try {
-      state.variable = await loadVariable(state.variableId);
+      const variable = await loadVariable(state.variableId);
+      if (pedido !== state.seq) return;
+      state.variable = variable;
       render();
     } catch (error) {
-      showEmpty(`Não foi possível carregar ${state.variableId}: ${error.message}`);
+      if (pedido !== state.seq) return;
+      variableFailed(error);
     }
   }
 
