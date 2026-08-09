@@ -713,7 +713,12 @@ class MeteoMapManager {
   }
 
   sanitizeNumericInput(value) {
-    let sanitized = value.replace(/[^\d.-]/g, "");
+    // A vírgula é o separador decimal de quem escreve em português — e é a
+    // tecla que `inputmode="decimal"` oferece no teclado do celular. Descartá-la
+    // como caractere inválido não rejeitava nada: "1,225" virava "1225", o
+    // campo aceitava, gravava no localStorage e o potencial saía mil vezes
+    // maior sem uma palavra de aviso. Converter para ponto preserva a intenção.
+    let sanitized = value.replace(/,/g, ".").replace(/[^\d.-]/g, "");
 
     const decimalParts = sanitized.split(".");
     if (decimalParts.length > 2) {
@@ -729,7 +734,10 @@ class MeteoMapManager {
   }
 
   saveParameterInput(variableType, input) {
-    const value = input.value.trim();
+    // Repetida aqui de propósito: o listener de `input` não é o único caminho
+    // até a gravação (colar com o campo já preenchido, preencher via
+    // autopreenchimento). Quem grava é quem normaliza.
+    const value = this.sanitizeNumericInput(input.value).trim();
     const paramName = input.dataset.param;
 
     if (value === "") {
@@ -1932,6 +1940,11 @@ class MeteoMapManager {
         this.updateDomainIndicator();
         this.refreshVariableOverviewPreview();
 
+        // Um clique invalida o enquadramento pedido pelo anterior. Os dois
+        // ramos abaixo terminam com um flyTo assíncrono; sem um token comum,
+        // o voo do domínio abandonado ainda pode resolver por último.
+        const switchGen = (this._domainSwitchGen = (this._domainSwitchGen || 0) + 1);
+
         if (this.state.selectedCell) {
           const selectedLat = this.state.selectedCell.lat;
           const selectedLng = this.state.selectedCell.lng;
@@ -1947,11 +1960,10 @@ class MeteoMapManager {
           // call map.off("moveend") with no function — that also removes
           // Leaflet's own tile-layer and canvas-renderer moveend handlers,
           // breaking tile loading and grid repaint on pan.
-          const moveendGen = (this._domainMoveendGen = (this._domainMoveendGen || 0) + 1);
           this.map.once("moveend", () => {
-            if (moveendGen !== this._domainMoveendGen) return;
+            if (switchGen !== this._domainSwitchGen) return;
             this.applyMapChanges().then(() => {
-              if (moveendGen !== this._domainMoveendGen) return;
+              if (switchGen !== this._domainSwitchGen) return;
               const alvo = L.latLng(selectedLat, selectedLng);
               const grade = this.currentGeoJsonLayer?.getBounds?.();
               // Os domínios são aninhados e cobrem áreas muito diferentes: uma
@@ -1978,6 +1990,11 @@ class MeteoMapManager {
           });
         } else {
           this.applyMapChanges().then(() => {
+            // Os domínios compartilham o centro e diferem no zoom: sem esta
+            // trava, clicar em BA e logo em BA/NE deixava a carga mais lenta
+            // resolver depois e enquadrar o mapa no recorte de BA, enquanto o
+            // botão aceso, a grade pintada e a legenda já eram os de BA/NE.
+            if (switchGen !== this._domainSwitchGen) return;
             this.map.flyTo(config.center, targetZoom, {
               duration: 1.5,
               easeLinearity: 0.25,

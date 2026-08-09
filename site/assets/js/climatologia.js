@@ -352,6 +352,16 @@
     const scale = (value) => (value / peak) * MAX_RADIUS;
 
     // Anéis e rótulos de frequência.
+    //
+    // Os rótulos são guardados para irem por ÚLTIMO no SVG. A escala é linear no
+    // raio e só é legível porque os anéis dizem o valor; desenhá-los junto dos
+    // círculos os deixava sob as pétalas, que são preenchimento opaco, e a
+    // pétala do norte esconde o rótulo do anel interno sempre que sua frequência
+    // passa de um quarto do pico — o caso do recorte do WRF, em que o "5%" some.
+    // O contorno na cor da superfície completa a defesa: sobre uma pétala o
+    // texto continua destacado sem precisar de caixa opaca.
+    const surface = isDark() ? "#2d2d2d" : "#fff";
+    const ringLabels = [];
     for (let ring = 1; ring <= ROSE_RINGS; ring += 1) {
       const radius = (MAX_RADIUS * ring) / ROSE_RINGS;
       svg.appendChild(
@@ -369,9 +379,13 @@
         y: CENTER - radius - 3,
         "font-size": 11,
         fill: theme.textSecondary,
+        stroke: surface,
+        "stroke-width": 3,
+        "stroke-linejoin": "round",
+        "paint-order": "stroke fill",
       });
       label.textContent = percent((peak * ring) / ROSE_RINGS, 0);
-      svg.appendChild(label);
+      ringLabels.push(label);
     }
 
     // Raios e rosa dos rumos.
@@ -410,7 +424,7 @@
         d: sectorPath(center, halfWidth * 0.92, scale(value)),
         fill: theme.empirical,
         // Anel de 2px na cor da superfície separa pétalas vizinhas.
-        stroke: isDark() ? "#2d2d2d" : "#fff",
+        stroke: surface,
         "stroke-width": 2,
       });
       const title = svgNode("title", {});
@@ -436,6 +450,9 @@
         })
       );
     }
+
+    // Por cima de tudo: ver a escala é o que dá sentido ao raio das pétalas.
+    for (const label of ringLabels) svg.appendChild(label);
 
     const circular = subset.circular || {};
     svg.setAttribute(

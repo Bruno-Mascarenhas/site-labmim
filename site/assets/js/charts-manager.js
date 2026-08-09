@@ -88,12 +88,68 @@ class ChartsManager {
       if (signal.aborted) return {};
 
       this.timeSeriesData = timeSeriesData;
+      // Sem NENHUMA série o chamador não redesenha (ele só chama
+      // renderChartsForVariable quando veio dado), então os gráficos da célula
+      // ANTERIOR continuariam na tela sob o título antigo — uma curva de 75
+      // pontos apresentada como sendo da célula recém-clicada, que não tem
+      // dado nenhum. Derruba o que está desenhado e assume o estado vazio.
+      if (!timeSeriesData[variableType]?.data?.length) {
+        this._showModalEmptyState("Sem dados para esta célula nesta variável.");
+      }
       return timeSeriesData;
     } catch (error) {
       if (error.name !== "AbortError") {
         console.error("[Charts] Error loading time series:", error);
+        // Mesmo motivo do caso vazio: o catch não pode deixar no ar a série da
+        // célula anterior. `timeSeriesData` também precisa ser zerado aqui,
+        // senão o botão CSV exportaria os valores da célula antiga com as
+        // coordenadas da nova.
+        this.timeSeriesData = {};
+        this._showModalEmptyState("Não foi possível carregar a série temporal desta célula.");
       }
       return {};
+    }
+  }
+
+  /**
+   * Estado vazio do modal: destrói os gráficos, desabilita o CSV (sem dado o
+   * botão não fazia nada ao ser clicado) e escreve a mensagem no corpo do
+   * modal. Os estilos vão inline porque o markup é gerado pelo build e não
+   * há classe própria para este estado.
+   */
+  _showModalEmptyState(message) {
+    this.charts.forEach((chart) => chart.destroy());
+    this.charts.clear();
+    if (this.ui.chartEnergyContainer) this.ui.chartEnergyContainer.style.display = "none";
+    if (this.ui.exportBtn) {
+      this.ui.exportBtn.disabled = true;
+      this.ui.exportBtn.setAttribute("aria-disabled", "true");
+    }
+
+    const body = this.ui.modal?.querySelector(".chart-modal-body");
+    if (!body) return;
+    let box = body.querySelector(".chart-empty-state");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "chart-empty-state";
+      // role=status para que o leitor de tela anuncie a troca de estado sem
+      // roubar o foco (o foco está no botão de fechar).
+      box.setAttribute("role", "status");
+      box.style.cssText =
+        "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;" +
+        "text-align:center;padding:1.5rem;color:var(--text-secondary,#666);background:var(--bg-card,#fff);";
+      body.appendChild(box);
+    }
+    box.textContent = message;
+    box.style.display = "flex";
+  }
+
+  _clearModalEmptyState() {
+    const box = this.ui.modal?.querySelector(".chart-empty-state");
+    if (box) box.style.display = "none";
+    if (this.ui.exportBtn) {
+      this.ui.exportBtn.disabled = false;
+      this.ui.exportBtn.removeAttribute("aria-disabled");
     }
   }
 
@@ -207,7 +263,20 @@ class ChartsManager {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
 
+    // O título vem antes da saída por falta de dado: o cabeçalho precisa
+    // nomear a variável PEDIDA mesmo quando a resposta é "sem dados", senão a
+    // mensagem apareceria sob o título da variável anterior.
     this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}"></i> Série Temporal: ${this._stepLabel(config)}`;
+
+    // A série da variável pedida pode faltar mesmo com dado de alguma
+    // companheira (o chamador só olha se o objeto tem alguma chave): sem esta
+    // saída o gráfico da célula anterior ganharia o título da nova.
+    if (!this.timeSeriesData?.[variableType]?.data?.length) {
+      this._showModalEmptyState("Sem dados para esta célula nesta variável.");
+      return;
+    }
+
+    this._clearModalEmptyState();
 
     const isSolarOrWind = variableType === "solar" || variableType === "eolico";
 
@@ -568,7 +637,7 @@ class ChartsManager {
     if (!this.timeSeriesData?.[variableType]) return;
 
     const config = VARIABLES_CONFIG[variableType];
-    const timeData = this.timeSeriesData[variableType].data;
+    const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
     const {
       data: chartData,
       label: chartLabel,
@@ -621,6 +690,33 @@ class ChartsManager {
       chartInstance = new Chart(ctx, this._buildChartConfig(chartData, labels, chartLabel, chartColor, chartUnit));
       this.charts.set(canvasId, chartInstance);
     }
+  }
+
+  /**
+   * Recompõe a série hora a hora, com `value: null` nas horas ausentes.
+   *
+   * As variáveis com janela (SWDOWN, KT: o pipeline só exporta as horas de
+   * sol) chegam aqui com os passos 9-21, 33-45, 57-69. Num eixo de categorias
+   * os 39 pontos ficam EQUIDISTANTES: "03/05 18:00" encosta em "04/05 06:00"
+   * e o Chart.js liga os dois com um segmento suavizado — três dias de
+   * radiação viram uma curva contínua sem noite nenhuma, num eixo de tempo
+   * não linear que o `maxTicksLimit` ainda esconde. Com o buraco preenchido
+   * por null a linha se parte e a largura passa a ser proporcional ao tempo.
+   * O CSV continua lendo a série original, sem linhas fabricadas.
+   */
+  _seriesWithHourGaps(data) {
+    if (!Array.isArray(data) || data.length < 2) return data;
+    const first = data[0].hour;
+    const last = data[data.length - 1].hour;
+    if (!Number.isInteger(first) || !Number.isInteger(last)) return data;
+    if (last - first + 1 === data.length) return data;
+
+    const byHour = new Map(data.map((entry) => [entry.hour, entry]));
+    const filled = [];
+    for (let hour = first; hour <= last; hour++) {
+      filled.push(byHour.get(hour) || { hour, value: null, timestamp: this._timestampForHour(hour, null) });
+    }
+    return filled;
   }
 
   _getChartCanvas(canvasId) {
@@ -796,6 +892,10 @@ class ChartsManager {
     const temperatureSeries = this.timeSeriesData?.temperature?.data || [];
     const temperatureByHour = new Map(temperatureSeries.map((entry) => [entry.hour, entry.value]));
     const data = timeData.map((d) => {
+      // Hora sem radiação/vento exportado: `specificInfo` devolveria o payload
+      // de indisponível e o `catch` abaixo transformaria isso num 0 — produção
+      // inventada no lugar de um buraco na linha.
+      if (d.value === null || d.value === undefined) return null;
       try {
         const info = config.specificInfo(d.value, {
           [variableType]: { value: d.value },
