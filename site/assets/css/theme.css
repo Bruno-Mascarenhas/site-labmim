@@ -430,3 +430,79 @@ input:focus-visible {
     border-bottom-width: 3px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   IMPRESSÃO / PDF
+
+   A climatologia existe para ser citada, e citar passa por imprimir ou salvar
+   em PDF. Nenhum navegador imprime cor de fundo por padrão (economia de tinta),
+   e o site não tinha folha de impressão: quem lê com o sistema em modo escuro
+   levava --text-primary: #fff para o papel branco — a página inteira saía em
+   branco sobre branco. O rodapé some do mesmo jeito nos dois temas, porque sua
+   tinta clara depende do azul --lab-footer-bg, que também não é impresso.
+
+   O papel é sempre claro. Os tokens são reescritos aqui repetindo o seletor
+   html.dark-theme: media query não acrescenta especificidade, e sem repetir o
+   seletor o bloco escuro continuaria vencendo. Como theme.css é a última folha
+   da página, a ordem de origem resolve o empate.
+   --------------------------------------------------------------------------- */
+@media print {
+  :root,
+  html.dark-theme {
+    --bg-primary: #fff;
+    --bg-secondary: #fff;
+    --bg-elevated: #fff;
+    --text-primary: #000;
+    --text-secondary: #333;
+    --border-color: #999;
+    --chart-grid-color: rgba(0, 0, 0, 0.2);
+    --chart-legend-color: #000;
+  }
+
+  body,
+  html.dark-theme body,
+  html.dark-theme .container-main {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* O azul do rodapé não chega ao papel; a tinta clara precisa virar escura,
+     senão o bloco institucional (quem publicou, sob qual licença) desaparece. */
+  .modern-footer,
+  html.dark-theme .modern-footer {
+    background: #fff !important;
+    color: #000 !important;
+    border-top: 1px solid #999;
+  }
+
+  .modern-footer a,
+  .footer-nav a,
+  .footer-disclaimer,
+  .copyright,
+  html.dark-theme .modern-footer a,
+  html.dark-theme .footer-nav a {
+    color: #000 !important;
+  }
+
+  .footer-bottom-compact {
+    border-top-color: #999;
+  }
+
+  /* Controles não têm função no papel, e a barra grudada repetiria a cada folha. */
+  [data-theme-toggle],
+  .navbar-toggler {
+    display: none !important;
+  }
+
+  .monitor-controls {
+    position: static !important;
+  }
+
+  /* Um gráfico partido entre duas folhas não é citável. */
+  .clima-chart,
+  .chart-container,
+  .monitor-card,
+  .clima-card {
+    break-inside: avoid;
+  }
+}

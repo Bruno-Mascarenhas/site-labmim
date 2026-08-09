@@ -809,8 +809,25 @@ header.maps-header {
     pointer-events: auto;
   }
 
+  /* O `overflow: hidden` + reticências de .slider-time abaixo só funcionam se a
+     caixa que o embrulha puder encolher, e todo item de flex nasce com
+     min-width: auto — recusa ficar menor que o próprio conteúdo. Quando o
+     relógio dá lugar ao aviso de modelo ainda não publicado (o estado do LEAL
+     hoje), esse texto longo esticava a linha do slider até 623px numa tela de
+     320px: a página do WebGIS rolava na horizontal e os botões de animação
+     saíam pela direita. Só no mobile: no desktop a linha tem folga e cortar
+     seria pior que deixar o aviso quebrar em duas linhas. */
+  .slider-time-container {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* 12px é o piso de legibilidade que o resto do site respeita, e este relógio é
+     o dado que o leitor procura na animação — não é rótulo decorativo. Com a
+     caixa agora encolhível, o texto maior trunca com reticências em vez de
+     empurrar a linha. */
   .slider-time {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     min-width: 100px;
     white-space: nowrap;
     overflow: hidden;
@@ -1149,7 +1166,7 @@ header.maps-header {
 
   .slider-time {
     min-width: 80px;
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     white-space: nowrap;
     pointer-events: auto;
   }
