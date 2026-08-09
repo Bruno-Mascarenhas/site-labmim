@@ -298,6 +298,11 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     MODEL_CUMULUS: escapeAttribute(model.cumulus),
     OBSERVATION_CHART_CARDS: observationChartCards(),
     OBSERVATION_CHART_MODALS: observationChartModals(),
+    // Base dos artefatos de climatologia, publicada como atributo `data-` e não
+    // como href/src: o diretório é operacional (chega pelo deploy, ausente no
+    // checkout e em CI), então uma referência que os checadores de link e de
+    // bundle enxergassem falharia o build em toda máquina que não tem os dados.
+    CLIMATOLOGY_BASE: escapeAttribute(dataset.paths.climatology ?? ""),
   };
 
   function applySiteTokens(html) {
@@ -403,6 +408,46 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
       .join("\n");
   }
 
+  /**
+   * Tags do slot `{{pageScripts}}`, sempre `defer` e sempre com os vendorizados
+   * antes dos próprios: scripts `defer` executam na ordem do documento, então é
+   * essa ordem que garante `Chart` definido quando o módulo da página roda.
+   *
+   * O slot fica DEPOIS de `{{> scripts}}` no layout pelo mesmo motivo — o
+   * bundle do Bootstrap precisa existir antes do JS da página.
+   */
+  function scriptTags(page) {
+    return [...page.vendorScripts, ...page.scripts]
+      .map((source) => `    <script defer src="${escapeAttribute(source)}"></script>`)
+      .join("\n");
+  }
+
+  /**
+   * Substitui `{{pageScripts}}` consumindo a quebra de linha que o antecede, de
+   * modo que uma página sem scripts renderize exatamente o HTML que renderizava
+   * antes deste slot existir — sem linha em branco antes de `</body>`, sem
+   * churn no diff do site/ versionado.
+   *
+   * Recusa a página quando ela declara scripts e o layout não tem o slot: sem
+   * isso o JS sumiria em silêncio e a página iria ao ar com os controles mortos,
+   * que é exatamente o modo de falha que validate.js já protege para o CSS.
+   */
+  function applyPageScripts(page, html) {
+    const tags = scriptTags(page);
+    const slot = /\n[ \t]*\{\{pageScripts\}\}/;
+    if (!slot.test(html)) {
+      if (tags) {
+        throw new Error(
+          `${page.file}: the "${page.layout}" layout has no {{pageScripts}} slot, but the page declares ` +
+            `${page.vendorScripts.length + page.scripts.length} script(s). Add the slot to ` +
+            `src/template/layouts/${page.layout}.html (after {{> scripts}}) or drop the declaration.`
+        );
+      }
+      return html;
+    }
+    return html.replace(slot, tags ? `\n${tags}` : "");
+  }
+
   function assertResolved(file, html) {
     const leftover = (html.match(/\{\{[^}]+\}\}/g) || []).filter((token) => !(token in LITERAL_BRACES));
     if (leftover.length === 0) return;
@@ -439,6 +484,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     html = replaceAll(html, "{{docModalTitle}}", escapeAttribute(page.docModalTitle || ""));
     html = replaceAll(html, "{{pageVendorStyles}}", stylesheetLinks(page.vendorStyles));
     html = replaceAll(html, "{{pageStyles}}", stylesheetLinks(page.styles));
+    html = applyPageScripts(page, html);
     html = replaceAll(html, "{{content}}", pageContent(page));
     html = replaceAll(html, "{{h1}}", escapeAttribute(page.seo.h1));
     html = applySiteTokens(html);
@@ -490,7 +536,9 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
       `User-agent: *\nAllow: /\n\nSitemap: ${productionOrigin}/sitemap.xml\n\n# Dados gerados pelo pipeline externo — sem valor de SEO e potencialmente grandes.\n${[
         dataset.paths.values,
         dataset.paths.grids,
+        dataset.paths.climatology,
       ]
+        .filter(Boolean)
         .map((directory) => `Disallow: /${directory}/`)
         .join("\n")}\n`
     );

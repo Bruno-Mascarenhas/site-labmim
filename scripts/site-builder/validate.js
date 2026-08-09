@@ -665,6 +665,26 @@ function validateMonitoringHasObservations(errors, publication) {
   }
 }
 
+/**
+ * The climatology page fetches its histograms from `dataset.paths.climatology`.
+ * A publication that offers the page without declaring the directory ships a
+ * permanently empty page whose only symptom is a console 404, so require the two
+ * to travel together — the same contract `validateMonitoringHasObservations`
+ * enforces between the monitoring page and its station plots.
+ */
+function validateClimatologyHasData(errors, publication) {
+  if (!Array.isArray(publication.pages)) return;
+  const hasClimatology = publication.pages.some(
+    (page) => page && (page.id === "climatology" || page.file === "climatologia.html")
+  );
+  if (!hasClimatology) return;
+  if (!isNonEmptyString(publication.dataset?.paths?.climatology)) {
+    errors.push(
+      "dataset.paths.climatology: the climatology page requires a data directory; declare it or drop the page"
+    );
+  }
+}
+
 function validateDataset(errors, warnings, dataset, siteDirectory) {
   if (!addRequiredObject(errors, dataset, "dataset")) return;
   addRequiredString(errors, dataset.id, "dataset.id");
@@ -687,9 +707,18 @@ function validateDataset(errors, warnings, dataset, siteDirectory) {
         allowAssets: true,
       });
     }
+    // Optional: the precomputed observed-distribution artifacts the climatology
+    // page reads. Derived from the laboratory's own sensor archive, which is not
+    // public — so, like the model output, it is deploy-supplied and gitignored
+    // rather than committed alongside the pages.
+    if (dataset.paths.climatology !== undefined && dataset.paths.climatology !== null) {
+      validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.climatology, "dataset.paths.climatology", {
+        directory: true,
+      });
+    }
 
     const seen = new Map();
-    for (const key of ["manifest", "values", "grids", "graphs"]) {
+    for (const key of ["manifest", "values", "grids", "graphs", "climatology"]) {
       const value = dataset.paths[key];
       if (!isNonEmptyString(value)) continue;
       const normalized = path.posix.normalize(value);
@@ -895,6 +924,44 @@ function validatePageStyles(
   });
 }
 
+/**
+ * Page scripts are always already-published paths under site/assets/, never
+ * `src/**` sources: site/assets/js/ is versioned source rather than build output,
+ * so unlike page CSS there is nothing to copy into a generated/ tree. First-party
+ * entries are content-hashed by the build (assets.js stampAssetVersions), which
+ * is why they must NOT carry a hand-written `?v=` — vendor entries may, because
+ * the stamper deliberately leaves assets/vendor/ alone.
+ */
+function validatePageScripts(errors, scripts, field, siteDirectory, { vendor = false } = {}) {
+  if (!Array.isArray(scripts)) {
+    errors.push(`${field}: expected an array`);
+    return;
+  }
+
+  const seen = new Set();
+  scripts.forEach((script, index) => {
+    const scriptField = `${field}[${index}]`;
+    if (!addRequiredString(errors, script, scriptField)) return;
+
+    const [assetPath, suffix = ""] = script.split(/(?=[?#])/, 2);
+    const expectedRoot = vendor ? "assets/vendor/" : "assets/js/";
+    if (!assetPath.startsWith(expectedRoot) || !assetPath.endsWith(".js")) {
+      errors.push(`${scriptField}: expected a JavaScript asset below ${expectedRoot}`);
+      return;
+    }
+    if (vendor ? suffix && !/^\?v=[A-Za-z0-9._-]+$/.test(suffix) : suffix) {
+      errors.push(
+        `${scriptField}: ${vendor ? "expected only an optional ?v=<version> suffix" : "first-party JavaScript is versioned by the build"}`
+      );
+      return;
+    }
+
+    validateConfinedFile(errors, siteDirectory, assetPath, scriptField, { nonEmpty: true });
+    if (seen.has(script)) errors.push(`${scriptField}: duplicate script ${script}`);
+    seen.add(script);
+  });
+}
+
 function validatePages(errors, pages, templateDirectory, publicationDirectory, siteDirectory) {
   if (!Array.isArray(pages) || pages.length === 0) {
     errors.push("pages: expected a non-empty array");
@@ -960,6 +1027,8 @@ function validatePages(errors, pages, templateDirectory, publicationDirectory, s
       { vendor: true }
     );
     validatePageStyles(errors, page.styles, `${field}.styles`, siteDirectory, templateDirectory, publicationDirectory);
+    validatePageScripts(errors, page.vendorScripts, `${field}.vendorScripts`, siteDirectory, { vendor: true });
+    validatePageScripts(errors, page.scripts, `${field}.scripts`, siteDirectory);
 
     if (addRequiredObject(errors, page.seo, `${field}.seo`)) {
       for (const property of ["h1", "title", "description"]) {
@@ -1140,6 +1209,7 @@ function validatePublication({ root, templateRoot, siteDir, publication } = {}) 
   const computedBoundaryBounds = validateTerritory(errors, publication.territory, siteDirectory);
   validateDataset(errors, warnings, publication.dataset, siteDirectory);
   validateMonitoringHasObservations(errors, publication);
+  validateClimatologyHasData(errors, publication);
   const pageOutputs = validatePages(errors, publication.pages, templateDirectory, publicationDirectory, siteDirectory);
   validateRedirects(errors, publication.redirects, pageOutputs);
 

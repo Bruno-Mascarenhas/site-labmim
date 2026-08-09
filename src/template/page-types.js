@@ -112,6 +112,10 @@ const LAYOUT_CONTRACTS = Object.freeze({
   webgis: Object.freeze({
     vendorStyles: Object.freeze(["assets/vendor/leaflet/leaflet.css?v=1.9.4"]),
     styles: Object.freeze(["assets/css/maps.css"]),
+    // O layout webgis declara Leaflet, Chart.js e os cinco scripts do mapa no
+    // próprio arquivo; o slot fica vazio para não duplicar as tags.
+    vendorScripts: Object.freeze([]),
+    scripts: Object.freeze([]),
     required: Object.freeze({
       // O <body data-map-context="..."> escolhe o conjunto de variáveis em
       // map-manager.js; sem o atributo o mapa volta para "forecast" calado.
@@ -130,6 +134,8 @@ const LAYOUT_CONTRACTS = Object.freeze({
 const EMPTY_LAYOUT_CONTRACT = Object.freeze({
   vendorStyles: Object.freeze([]),
   styles: Object.freeze([]),
+  vendorScripts: Object.freeze([]),
+  scripts: Object.freeze([]),
   required: Object.freeze({}),
 });
 
@@ -144,7 +150,8 @@ function layoutContract(layout) {
  * Chaves aceitas em `page(type, options)`. Qualquer outra é erro: sem esta
  * lista um `styles` escrito como `style` sumia sem deixar rastro no HTML.
  *
- * - source/append/styles/vendorStyles/seo/nav: composição da página.
+ * - source/append/styles/vendorStyles/scripts/vendorScripts/seo/nav: composição
+ *   da página.
  * - bodyAttrs/kicker/docModalTitle: slots dos layouts (hoje só o webgis usa).
  * - indexable: `false` remove a página do sitemap.xml (renderer.js); ausente
  *   ou `true` mantém a página listada.
@@ -156,9 +163,11 @@ const PAGE_OPTION_KEYS = Object.freeze([
   "indexable",
   "kicker",
   "nav",
+  "scripts",
   "seo",
   "source",
   "styles",
+  "vendorScripts",
   "vendorStyles",
 ]);
 
@@ -281,6 +290,25 @@ function finalizePage(definition, options, typeName) {
     throw new TypeError(`${typeName}.vendorStyles must be an array of versioned vendor asset paths`);
   }
 
+  // Scripts são sempre caminhos já publicados sob site/assets/, nunca fontes em
+  // src/**: ao contrário do CSS de página, site/assets/js/ é fonte versionada e
+  // não saída do build, então não há o que copiar para assets/js/generated/.
+  const declaredVendorScripts = mergeArrayOption(definition, options, "vendorScripts", typeName);
+  const vendorScripts = [
+    ...missingLayoutAssets(contract.vendorScripts, declaredVendorScripts),
+    ...declaredVendorScripts,
+  ];
+  const declaredScripts = mergeArrayOption(definition, options, "scripts", typeName);
+  const scripts = [...missingLayoutAssets(contract.scripts, declaredScripts), ...declaredScripts];
+  for (const [field, list] of [
+    ["vendorScripts", vendorScripts],
+    ["scripts", scripts],
+  ]) {
+    if (list.some((item) => typeof item !== "string" || item.trim() === "")) {
+      throw new TypeError(`${typeName}.${field} must be an array of asset paths`);
+    }
+  }
+
   const seo = { ...(definition.seo || {}), ...(options.seo || {}) };
   for (const field of ["h1", "title", "description"]) {
     if (typeof seo[field] !== "string" || seo[field].trim() === "") {
@@ -316,6 +344,8 @@ function finalizePage(definition, options, typeName) {
     append: [...append],
     vendorStyles: [...vendorStyles],
     styles: [...styles],
+    vendorScripts: [...vendorScripts],
+    scripts: [...scripts],
     seo,
   };
   delete result.requiresSiteSource;
