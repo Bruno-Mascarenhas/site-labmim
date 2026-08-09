@@ -25,11 +25,9 @@ function escapeRegex(value) {
 // missing .woff2 — the format browsers actually fetch — still fails the check.
 const FONTAWESOME_UNSHIPPED = String.raw`/assets/vendor/fontawesome/webfonts/(?:[^/]+\.ttf|fa-v4compatibility\.[^/]+)$`;
 
-// O rastreador varre site/, que guarda os diretórios de dados de TODAS as publicações
-// (nada os apaga entre uma build e a seguinte), então a lista a pular é a união — não
-// o que a publicação corrente declara. Enumerar os campos à mão aqui já tinha
-// divergido: `monitoring` ficou de fora e só não quebrou o portão porque a página
-// alcança o payload por atributo de dado, que o linkinator não segue.
+// The crawler walks site/, which holds the data directories of EVERY publication
+// (nothing clears them between one build and the next), so the skip list has to be
+// the union rather than what the currently rendered publication declares.
 const { directories: OPERATIONAL_DIRECTORIES, files: OPERATIONAL_FILES } = allOperationalPaths(publications, {
   includeGraphs: false,
 });
@@ -75,9 +73,8 @@ function checkPublication(publication) {
 }
 
 /**
- * Put site/ back on the default publication. See scripts/build-all.mjs: a
- * Ctrl-C reaches the whole process group, so the first attempt is often killed
- * along with the build it replaces; retry once.
+ * See scripts/build-all.mjs: a Ctrl-C reaches the whole process group, so the first
+ * attempt is often killed along with the build it replaces; retry once.
  */
 function restoreDefault() {
   for (let attempt = 0; attempt < 2; attempt += 1) {

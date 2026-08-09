@@ -1,35 +1,36 @@
 "use strict";
 
 /**
- * Caminhos de dados operacionais: o que o deploy entrega e o git nunca vê.
+ * Operational data paths: what the deploy delivers and git never sees.
  *
- * Há DUAS perguntas diferentes aqui, e trocá-las uma pela outra foi um bug real.
+ * Two different questions live here.
  *
- * `publicationOperationalPaths` responde "o que ESTA publicação declara". Serve
- * para validar a publicação e para descrevê-la — o robots.txt dela não deve
- * anunciar um diretório que o deploy dela nunca recebe.
+ * `publicationOperationalPaths` answers "what does THIS publication declare". It
+ * serves validation and description — a publication's robots.txt must not announce
+ * a directory its own deploy never receives.
  *
- * `allOperationalPaths` responde "o que é dado operacional NESTA árvore". É essa
- * que vale para empacotar e para varrer `site/`, porque `site/` é reconstruído no
- * mesmo lugar para cada publicação e os diretórios de dados NÃO são apagados entre
- * uma build e a seguinte: o `site/Climatologia/` da publicação anterior continua em
- * disco enquanto a próxima é empacotada. Derivar a exclusão só do dataset da
- * publicação corrente fazia `dist/ufes/` levar junto a climatologia e o
- * monitoramento da estação de Salvador — dados do acervo de sensores do
- * laboratório, que não são públicos, dentro do bundle de outra instituição.
+ * `allOperationalPaths` answers "what is operational data anywhere in THIS tree".
+ * That is the one that governs bundling and sweeping `site/`, because `site/` is
+ * rebuilt in place for every publication and the data directories are NOT deleted
+ * between one build and the next: the previous publication's `site/Climatologia/` is
+ * still on disk while the next one is bundled. Deriving the exclusion from the
+ * current publication's dataset alone lets a bundle carry another laboratory's
+ * climatology and monitoring — sensor-archive data that is not public — inside a
+ * different institution's release.
  */
 
-// Gráficos da estação: PNG reescritos no lugar pela própria estação meteorológica,
-// com marca d'água gravada na imagem. São versionados para a publicação padrão, então
-// embarcá-los no bundle de outra publicação publicaria a marca do laboratório errado.
+// Station plots: PNGs rewritten in place by the weather station itself, with the
+// laboratory's watermark burnt into the image. They are versioned for the default
+// publication, so shipping them inside another publication's bundle would publish the
+// wrong laboratory's mark.
 const DEFAULT_GRAPHS_DIRECTORY = "assets/graphs";
 
 /**
- * `includeGraphs` separa dois usos que não coincidem. Empacotar exclui os gráficos da
- * estação, senão o bundle de um laboratório sai com a marca d'água do outro. Já a
- * verificação de links precisa vê-los: os PNG são versionados, então um `src` com
- * typo em `dataset.observations` tem de quebrar o portão em vez de ser dispensado
- * como "dado que o deploy entrega".
+ * `includeGraphs` separates two uses that do not coincide. Bundling excludes the
+ * station plots, otherwise one laboratory's bundle ships the other's watermark. The
+ * link check needs to see them: the PNGs are versioned, so a typo in a
+ * `dataset.observations` src must break the gate instead of being waved through as
+ * "data the deploy delivers".
  */
 function publicationOperationalPaths(publication, { includeGraphs = true } = {}) {
   const {
@@ -41,8 +42,8 @@ function publicationOperationalPaths(publication, { includeGraphs = true } = {})
     graphs = DEFAULT_GRAPHS_DIRECTORY,
   } = publication.dataset.paths;
   return {
-    // `climatology` e `monitoring` são opcionais: só uma publicação que divulga o
-    // registro da própria estação os declara.
+    // `climatology` and `monitoring` are optional: only a publication that publishes
+    // its own station's record declares them.
     directories: [...new Set([values, grids, climatology, monitoring, includeGraphs ? graphs : null].filter(Boolean))],
     files: new Set([manifest].filter(Boolean)),
   };

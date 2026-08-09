@@ -19,18 +19,17 @@ const defaultSite = defaultPublication(publications);
 const siteDir = path.join(root, "site");
 const distDir = path.join(root, "dist");
 
-// Dado operacional é propriedade da ÁRVORE, não da publicação que está sendo
-// empacotada: site/ é reconstruído no lugar e os diretórios de dados sobrevivem de
-// uma build para a seguinte. Excluir só o que a publicação corrente declara fazia o
-// bundle do LEAL levar junto site/Climatologia/ e site/Monitoramento/ da estação de
-// Salvador, porque leal-wrf não declara esses dois caminhos. Ver operational-paths.js.
+// Operational data belongs to the TREE, not to the publication being bundled: site/
+// is rebuilt in place and the data directories survive from one build to the next, so
+// the exclusion list must be the union across publications rather than what the
+// current one declares. See operational-paths.js.
 const operationalPaths = allOperationalPaths(publications);
 
-// Insumos do build: versionados em site/ porque o repositório precisa deles para
-// regerar os derivados, mas nenhuma página os referencia. O bootstrap completo é a
-// entrada do purgecss (as páginas linkam bootstrap.purged.min.css) e a fonte integral
-// do Font Awesome é a entrada do pyftsubset (o CSS do vendor referencia só o subset).
-// São ~376 KB por bundle num host que serve sem compressão e é atualizado por FTP.
+// Build inputs: committed under site/ because the repository needs them to regenerate
+// the derived files, yet no page references them. The full Bootstrap is the purgecss
+// input (pages link bootstrap.purged.min.css) and the complete Font Awesome face is
+// the pyftsubset input (the vendor CSS references only the subset). Together they are
+// ~376 KB per bundle on a host that serves uncompressed and is updated over FTP.
 const buildInputAssets = new Set([
   "assets/vendor/bootstrap/bootstrap.min.css",
   "assets/vendor/fontawesome/webfonts/fa-solid-900.full.woff2",
@@ -92,10 +91,9 @@ function collectFiles(directory, predicate) {
 }
 
 /**
- * Files that a bundle may legitimately be narrowed down to. Publication modules
- * provide their own assets, and territory outlines are shared source files that
- * still belong to exactly one publication's map — the Bahia outline is 170 KB of
- * dead weight in the Espírito Santo bundle.
+ * Publication modules provide their own assets, and territory outlines are shared
+ * source files that still belong to exactly one publication's map — the Bahia
+ * outline is 170 KB of dead weight in the Espírito Santo bundle.
  */
 function narrowableAssets(allPublications, provided) {
   return new Set([
@@ -114,18 +112,18 @@ function narrowableAssets(allPublications, provided) {
  * publication's identity and stays out of its bundle. Called while site/ still
  * holds this publication's freshly built output.
  */
-function reachablePublicationAssets(publication, providedAssets) {
+function reachablePublicationAssets(publication, candidateAssets) {
   const originPrefix = `${publication.origin}/`;
   const reachable = new Set();
   const consider = (reference) => {
     const key = assetKey(reference, originPrefix);
-    if (providedAssets.has(key)) reachable.add(key);
+    if (candidateAssets.has(key)) reachable.add(key);
   };
 
   // brand.ogImage only ever appears as an absolute same-origin URL, in og:image,
   // twitter:image and the JSON-LD logo — none of which the scans below look at.
   for (const asset of declaredIdentityAssets(publication)) {
-    if (providedAssets.has(asset)) reachable.add(asset);
+    if (candidateAssets.has(asset)) reachable.add(asset);
   }
 
   for (const pageFile of [...publication.pages.map((page) => page.file), "404.html"]) {
@@ -177,10 +175,10 @@ function assertBundleIntegrity(publication, target) {
   }
 }
 
-function copyBundle(publication, providedAssets) {
+function copyBundle(publication, candidateAssets) {
   const target = bundleTarget(publication.id);
-  const reachable = reachablePublicationAssets(publication, providedAssets);
-  const foreign = new Set([...providedAssets].filter((asset) => !reachable.has(asset)));
+  const reachable = reachablePublicationAssets(publication, candidateAssets);
+  const foreign = new Set([...candidateAssets].filter((asset) => !reachable.has(asset)));
 
   fs.rmSync(target, { recursive: true, force: true });
   fs.mkdirSync(target, { recursive: true });

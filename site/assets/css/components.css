@@ -128,8 +128,9 @@
   border-radius: var(--radius-lg);
 }
 
-/* #888 sobre o --bg-light da .theme-surface dava 3,36:1 em 13,6px. No escuro a
-   tinta não chega a valer: o rótulo é um h3 e `.dark-theme h1..h6` o repinta. */
+/* Light-theme ink only: the label is an h3, and `.dark-theme h1..h6` repaints
+   it. Dark enough to clear 4.5:1 at 13.6px over the --bg-light of
+   .theme-surface. */
 .sponsor-title {
   color: #6b6b6b;
   font-size: 0.85rem;
@@ -428,14 +429,14 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Climatologia — controles, painéis, rosa dos ventos e cobertura do registro.
+   Climatology — controls, panels, wind rose and record coverage.
 
-   Tudo é construído sobre os tokens de superfície compartilhados
-   (--bg-primary, --bg-secondary, --text-primary, --text-secondary e
-   --border-color), que theme.css redefine em html.dark-theme: o modo escuro
-   sai de graça, sem uma segunda
-   lista de seletores. As duas cores das séries NÃO estão aqui — são lidas em
-   runtime por assets/js/climatologia.js, como charts-manager.js já faz.
+   Everything is built on the shared surface tokens (--bg-primary,
+   --bg-secondary, --text-primary, --text-secondary and --border-color), which
+   theme.css redefines under html.dark-theme: the dark mode comes for free,
+   without a second list of selectors. The two series colors are NOT here — they
+   are read at runtime by assets/js/climatologia.js, the way charts-manager.js
+   already does.
    --------------------------------------------------------------------------- */
 
 .clima-controls {
@@ -634,13 +635,13 @@
   margin-bottom: 0.35rem;
 }
 
-/* Citação dentro do texto. Sublinhado pontilhado em vez de sólido: sinaliza
-   "passe o cursor, há mais aqui" — o registro completo vem no `title` — sem
-   ficar com cara de link de navegação no meio de uma frase corrida. */
+/* In-text citation. Dotted rather than solid underline: it signals "hover, there
+   is more here" — the full record rides in the `title` — without looking like a
+   navigation link in the middle of a running sentence. */
 .site-ref {
-  /* Padding vertical sem quebrar o fluxo do parágrafo: a citação é alvo em
-     linha (isento do piso de 24px do WCAG 2.2), mas no celular alguns pixels a
-     mais são a diferença entre abrir a fonte e abrir o link de cima. */
+  /* Vertical padding without breaking the paragraph flow: the citation is an
+     inline target (exempt from the WCAG 2.2 24px floor), but on a phone a few
+     extra pixels decide between opening the source and hitting the line above. */
   padding: 2px 0;
   color: var(--text-primary);
   text-decoration: underline dotted;
@@ -789,11 +790,11 @@
     align-items: stretch;
   }
 
-  /* `min-width: 0` sozinho não segura um <select>: a largura intrínseca do
-     elemento é a da opção mais longa ("Temperatura do ar", "Precipitação
-     acumulada"...), e nada a limitava ao contêiner. Em 320px o campo media
-     332px e vazava 6px para cada lado, com a página rolando na horizontal.
-     A largura explícita prende o campo à coluna. */
+  /* `min-width: 0` alone does not hold a <select>: the element's intrinsic
+     width is that of its longest option ("Temperatura do ar", "Precipitação
+     acumulada"...), and nothing else bounds it to the container, so on a narrow
+     screen it overflows and the page scrolls sideways. The explicit width pins
+     the field to the column. */
   .clima-control {
     max-width: 100%;
     min-width: 0;
@@ -810,15 +811,16 @@
 }
 
 /* ---------------------------------------------------------------------------
-   MONITORAMENTO — grade de cartões da janela móvel de 7 dias.
+   MONITORING — card grid for the rolling 7-day window.
 
-   Reaproveita os controles segmentados e a caixa vazia da climatologia acima
-   (.clima-segmented-btn, .clima-empty, .clima-caveats): as duas páginas têm a
-   mesma gramática de controle, e duplicar os seletores só criaria dois lugares
-   para divergir. O que é próprio daqui é a grade e o cartão.
+   Reuses the segmented controls and the empty state of the climatology above
+   (.clima-segmented-btn, .clima-empty, .clima-caveats): both pages share the
+   same control grammar, and duplicating the selectors would only create two
+   places to diverge. The grid and the card are what belongs to this section.
 
-   Como lá, nenhuma cor de série mora neste arquivo — assets/js/monitoramento.js
-   lê a paleta validada em runtime, e o resto sai dos tokens de tema.
+   As over there, no series color lives in this file —
+   assets/js/monitoramento.js reads the validated palette at runtime, and the
+   rest comes from the theme tokens.
    --------------------------------------------------------------------------- */
 
 .monitor-controls {
@@ -861,12 +863,8 @@
   color: var(--text-secondary);
 }
 
-/* 560px e não 430px: com o mínimo antigo um monitor de 1440 caía em TRÊS colunas
-   e cada gráfico ficava com 448x240 de área de plotagem, contra os ~700x330 do PNG
-   que esta página substituiu. Como a janela é de sete dias e a camada bruta traz
-   ~2000 amostras, aquilo dava 4,5 pontos por pixel e a série virava mancha. Em duas
-   colunas a área volta ao tamanho do PNG; acima de ~1740px o auto-fit ainda abre a
-   terceira, onde ela cabe sem apertar. */
+/* Two columns keep a seven-day window (~2000 raw samples) legible; narrower
+   plots smear the series into a smudge. */
 .monitor-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(560px, 1fr));
@@ -879,10 +877,10 @@
   padding: 1.1rem 1.25rem 1.25rem;
   border-radius: 12px;
 
-  /* Entrada suave: o cartão nasce deslocado e o IntersectionObserver de
-     monitoramento.js acrescenta .is-visible quando ele chega à tela — o mesmo
-     evento que cria o gráfico, então a animação acompanha o desenho em vez de
-     disparar antes dele. */
+  /* Soft entrance: the card starts offset and the IntersectionObserver in
+     monitoramento.js adds .is-visible when it reaches the viewport — the same
+     event that creates the chart, so the animation follows the drawing instead
+     of firing ahead of it. */
   opacity: 0;
   transform: translateY(12px);
   transition:
@@ -934,11 +932,9 @@
   margin-bottom: 0;
 }
 
-/* Ampliação do gráfico (`<dialog>` nativo). Substitui o modal do Bootstrap que a
-   página estática usava para abrir os PNG em tamanho grande — a affordance existia
-   e se perdeu na versão interativa. O tamanho é o maior que cabe sem encostar nas
-   bordas; a altura mínima impede que uma janela baixa espreme o gráfico a ponto de
-   anular o ganho. */
+/* Chart zoom (native `<dialog>`). Sized as large as fits without touching the
+   viewport edges; the minimum height stops a short window from squeezing the
+   chart until the zoom is pointless. */
 .monitor-zoom {
   width: min(96vw, 1400px);
   max-width: 96vw;
@@ -969,8 +965,8 @@
   font-weight: 600;
 }
 
-/* Ocupa o que sobra da altura do diálogo: o canvas é `maintainAspectRatio: false`,
-   então quem manda no tamanho é o contêiner. */
+/* Takes whatever height the dialog has left: the canvas runs with
+   `maintainAspectRatio: false`, so the container decides the size. */
 .monitor-zoom-chart {
   height: calc(100% - 3.25rem);
   min-height: 240px;
@@ -1006,12 +1002,11 @@
     grid-template-columns: 1fr;
   }
 
-  /* Um <canvas> sem gráfico desenhado mantém o tamanho intrínseco do elemento
-     (300x150). Como item de grade e de flex nasce com min-width: auto, esses
-     300px viravam o piso do cartão: em 320px o cartão media 342px e a página do
-     monitoramento rolava 38px na horizontal — justamente quando não há dado e o
-     gráfico não chega a ser criado, que é o estado de hoje. Deixar a corrente
-     encolher e limitar o canvas à coluna resolve nos dois estados. */
+  /* A <canvas> with no chart drawn keeps the element's intrinsic 300x150 size,
+     and grid and flex items start at min-width: auto, so those 300px become the
+     card's floor and a narrow screen scrolls sideways. Letting the chain shrink
+     and bounding the canvas to the column holds whether or not a chart was
+     created. */
   .monitor-card,
   .monitor-card-head,
   .monitor-chart {

@@ -73,18 +73,17 @@ function yearFromGeneratedOutput() {
 }
 
 /**
- * Copyright year stamped into the generated pages.
+ * Copyright year stamped into the generated pages, resolved from repository content
+ * and never from the clock: an explicit BUILD_YEAR wins, then the year already
+ * present in the committed site/index.html, and only when no generated output exists,
+ * the HEAD commit date.
  *
- * Resolvido a partir do conteúdo do repositório, nunca do relógio: um BUILD_YEAR
- * explícito ganha, depois o ano já presente no site/index.html versionado e, só
- * quando não há saída gerada, a data do commit em HEAD.
- *
- * A ordem importa. A data de commit do HEAD é relógio de parede disfarçado: um
- * commit vazio na virada do ano basta para o rebuild divergir do site/ versionado,
- * e num evento `pull_request` o HEAD é o merge ref que o GitHub recria a cada
- * atualização do PR. Como a saída gerada é versionada, lê-la torna o ano um ponto
- * fixo — ele só muda quando alguém constrói com BUILD_YEAR de propósito, que é
- * exatamente o invariante que o portão de drift cobra.
+ * The order matters. A HEAD commit date is wall-clock time in disguise: an empty
+ * commit at the turn of the year is enough to make a rebuild diverge from the
+ * committed site/, and on a `pull_request` event HEAD is the merge ref GitHub
+ * recreates on every push. Reading the committed output instead pins the year to a
+ * fixed point that moves only when someone builds with BUILD_YEAR on purpose, which
+ * is exactly the invariant the drift gate gets to enforce.
  */
 function buildYear() {
   const override = (process.env.BUILD_YEAR ?? "").trim();

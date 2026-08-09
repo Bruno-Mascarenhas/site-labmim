@@ -4,11 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const { inspectPublicationThemeCss } = require("./theme-contract");
 const { observationModalId, DEFAULT_MODEL } = require("./renderer");
+const { DEFAULT_GRAPHS_DIRECTORY } = require("./operational-paths");
 const { closestKey, LAYOUT_CONTRACTS } = require("../../src/template/page-types");
-
-// Default directory for station plots; a dataset may override dataset.paths.graphs.
-// Kept in sync with scripts/build-all.mjs, which excludes this directory from bundles.
-const DEFAULT_GRAPHS_DIRECTORY = "assets/graphs";
 
 const REDIRECT_STATUSES = new Set([301, 302, 307, 308]);
 const GEOJSON_CODE_PROPERTIES = ["SIGLA", "sigla", "UF", "uf", "stateCode", "code", "PK_sigla"];
@@ -39,11 +36,11 @@ function unsafeBodyAttrNames(value) {
 // swapped [longitude, latitude] pair lands far away. Degrees.
 const VIEWPORT_CENTER_TOLERANCE = 2;
 
-// Mesma guarda para o centro de cada domínio, que o mapa usa como destino do flyTo ao
-// trocar de domínio, com tolerância muito maior: os domínios externos são sinóticos e
-// um deles pode legitimamente ser centrado longe do estado. A folga não policia o
-// enquadramento — só pega o par invertido, que nas duas publicações atuais cai de 0°
-// para 19° (ES) e 24° (BA) fora do contorno. Graus.
+// Same guard for each domain centre, which the map uses as the flyTo target when the
+// user switches domains, with far more slack: the outer domains are synoptic, so one of
+// them may legitimately be centred far from the state. The slack does not police the
+// framing — it only catches a swapped pair, which lands whole tens of degrees away.
+// Degrees.
 const DOMAIN_CENTER_TOLERANCE = 15;
 
 // Declared logo width/height only have to reproduce the intrinsic aspect ratio: the
@@ -186,20 +183,15 @@ function validateCoordinate(errors, value, field) {
     return false;
   }
   const [latitude, longitude] = value;
-  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+  const latitudeValid = Number.isFinite(latitude) && latitude >= -90 && latitude <= 90;
+  const longitudeValid = Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+  if (!latitudeValid) {
     errors.push(`${field}[0]: latitude must be a finite number between -90 and 90`);
   }
-  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+  if (!longitudeValid) {
     errors.push(`${field}[1]: longitude must be a finite number between -180 and 180`);
   }
-  return (
-    Number.isFinite(latitude) &&
-    latitude >= -90 &&
-    latitude <= 90 &&
-    Number.isFinite(longitude) &&
-    longitude >= -180 &&
-    longitude <= 180
-  );
+  return latitudeValid && longitudeValid;
 }
 
 function validateZoom(errors, value, field) {
@@ -516,9 +508,8 @@ function validateTerritory(errors, territory, siteDirectory) {
     } catch (error) {
       errors.push(`territory.boundaryAsset: invalid JSON: ${error.message}`);
     }
-    // Gate on parse success, not truthiness: a boundary that parses to null/false/0
-    // is not a FeatureCollection and must be rejected, exactly as the direct
-    // boundaryBounds() path already does — a truthiness check would let it slip.
+    // Gate on parse success, not truthiness: a boundary that parses to null/false/0 is
+    // not a FeatureCollection and must be reported, which a truthiness check would skip.
     if (parsed) {
       bounds = inspectBoundaryGeoJson(geojson, territory.code, errors, "territory.boundaryAsset");
     }
@@ -591,9 +582,10 @@ function validateDatasetPath(
 }
 
 /**
- * Um ARQUIVO dentro do diretório, não o diretório nem um caminho com segmento vazio.
- * O valor vai direto para o `src` do <img> do card e do modal, e `fs.existsSync` de um
- * diretório é verdadeiro — nenhum portão a jusante notaria a imagem morta.
+ * A FILE inside the directory: not the directory itself, and not a path with an empty
+ * segment. The value goes straight into the `src` of the card and modal `<img>`, and
+ * `fs.existsSync` of a directory is true — no downstream gate would notice the dead
+ * image.
  */
 function isFileUnder(value, directoryPrefix) {
   return value.startsWith(directoryPrefix) && value.slice(directoryPrefix.length).split("/").every(Boolean);
@@ -663,15 +655,14 @@ function validateObservations(errors, observations, graphsDirectory) {
   });
 }
 
-/** O template interativo do monitoramento, escolhido via `source:` na publicação. */
 const LIVE_MONITORING_TEMPLATE = "pages/monitoring-live.html";
 
 /**
- * Compara o ARQUIVO resolvido, não a string de configuração: `pages//monitoring-live.html`
- * é aceito por `isSafeRelativeFilePath` e abre o mesmo arquivo (`path.resolve` colapsa a
- * barra dupla), mas uma igualdade textual o jogaria no ramo estático — a página
- * interativa iria ao ar sem diretório de dados, ou a publicação receberia uma mensagem
- * mandando declarar PNGs de estação numa página que só desenha JSON.
+ * Compares the resolved FILE, not the configured string: `pages//monitoring-live.html`
+ * passes `isSafeRelativeFilePath` and opens the same file (`path.resolve` collapses the
+ * double slash), but a textual equality would push it down the static branch — the
+ * interactive page would ship without a data directory, or the publication would be
+ * told to declare station PNGs on a page that only draws JSON.
  */
 function isLiveMonitoring(page, templateDirectory, publicationDirectory) {
   const source = page?.source;
@@ -682,18 +673,18 @@ function isLiveMonitoring(page, templateDirectory, publicationDirectory) {
 }
 
 /**
- * A rota `monitoring.html` tem duas implementações, e cada uma depende de uma
- * fonte de dados diferente:
+ * The `monitoring.html` route has two implementations, each depending on a different
+ * data source:
  *
- * - `pages/monitoring.html` (estática) desenha os PNGs de `dataset.observations`;
- * - `pages/monitoring-live.html` (interativa) busca o payload horário em
+ * - `pages/monitoring.html` (static) draws the PNGs listed in `dataset.observations`;
+ * - `pages/monitoring-live.html` (interactive) fetches the hourly payload from
  *   `dataset.paths.monitoring`.
  *
- * Exigir a fonte errada é pior do que não exigir nada: a publicação estática
- * seria recusada por não declarar um diretório que não usa, e a interativa
- * passaria sem o diretório de que depende, indo ao ar como uma página vazia cujo
- * único sintoma é um 404 no console. Por isso a checagem olha qual template a
- * página resolveu, não o id da rota — que é `monitoring` nas duas.
+ * Requiring the wrong source is worse than requiring nothing: the static publication
+ * would be refused for not declaring a directory it does not use, and the interactive
+ * one would pass without the directory it depends on, shipping an empty page whose only
+ * symptom is a console 404. That is why the check looks at which template the page
+ * resolved to, not at the route id — which is `monitoring` in both cases.
  */
 function validateMonitoringHasData(errors, publication, templateDirectory, publicationDirectory) {
   if (!Array.isArray(publication.pages)) return;
@@ -740,16 +731,15 @@ function validateClimatologyHasData(errors, publication) {
 }
 
 /**
- * Opcional: o bloco do namelist WRF. Cada campo carrega a citação do esquema que
- * nomeia, e o renderer sobrepõe o bloco a DEFAULT_MODEL — então uma chave desconhecida
- * é inerte em vez de ruidosa: a página continua publicando o esquema padrão e
- * creditando o artigo dele, que é exatamente a falha que o bloco existe para evitar.
- * Por isso a lista de chaves é fechada, com a mesma sugestão de typo que `page()` dá
- * para suas options.
+ * Optional: the WRF namelist block. Every field carries the citation of the scheme it
+ * names, and the renderer layers the block over DEFAULT_MODEL — so an unknown key is
+ * inert rather than noisy: the page keeps publishing the default scheme and crediting
+ * its paper, which is exactly the failure the block exists to prevent. Hence the closed
+ * key list, with the same typo suggestion `page()` gives for its options.
  *
- * O valor de um campo conhecido é exigido pela mesma razão: uma string vazia publica
- * um parêntese vazio no lugar do esquema, e um `undefined` explícito apaga o default
- * (o spread do renderer o copia) e publicaria a palavra "undefined".
+ * The value of a known field is required for the same reason: an empty string publishes
+ * an empty parenthesis where the scheme belongs, and an explicit `undefined` wipes the
+ * default (the renderer's spread copies it) and would publish the word "undefined".
  */
 function validateModel(errors, model) {
   if (model === undefined || model === null) return;
@@ -772,9 +762,9 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
   if (!addRequiredObject(errors, dataset, "dataset")) return;
   addRequiredString(errors, dataset.id, "dataset.id");
   addRequiredString(errors, dataset.attribution, "dataset.attribution");
-  // Opcional: o nome da CLI que gera os dados. O renderer cai no default com `??`,
-  // que não trata string vazia — declarada assim, a documentação publicaria um
-  // <code> vazio no lugar do nome do pipeline.
+  // Optional: the name of the CLI that generates the data. The renderer falls back with
+  // `??`, which does not catch an empty string — declared that way, the documentation
+  // would publish an empty <code> where the pipeline name belongs.
   if (dataset.generator !== undefined && dataset.generator !== null) {
     addRequiredString(errors, dataset.generator, "dataset.generator");
   }
@@ -789,8 +779,8 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
       directory: true,
     });
     // Optional: station plots are rewritten in place by each laboratory's weather
-    // station and default to assets/graphs (see scripts/build-all.mjs), the one
-    // dataset directory that legitimately lives inside the build's assets/ namespace.
+    // station and default to assets/graphs (see site-builder/operational-paths.js), the
+    // one dataset directory that legitimately lives inside the build's assets/ namespace.
     if (dataset.paths.graphs !== undefined && dataset.paths.graphs !== null) {
       validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.graphs, "dataset.paths.graphs", {
         directory: true,
@@ -869,8 +859,8 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
         domainIds.set(domain.id, index);
       }
     }
-    // O centro do domínio não é decorativo: map-manager.js voa até ele quando o
-    // usuário troca de domínio, então um par invertido leva o mapa para outro lugar.
+    // The domain centre is not decorative: map-manager.js flies to it when the user
+    // switches domains, so a swapped pair takes the map somewhere else entirely.
     if (validateCoordinate(errors, domain.center, `${field}.center`)) {
       validateViewportCenter(errors, domain.center, boundaryBounds, `${field}.center`, DOMAIN_CENTER_TOLERANCE);
     }
@@ -973,12 +963,12 @@ function validateLayout(errors, layout, templateDirectory, field) {
 }
 
 /**
- * Reexige o contrato do layout sobre a página JÁ RESOLVIDA. `page()` aplica o mesmo
- * contrato na autoria, mas só ali: um pages.js que produza ou pós-processe objetos
- * crus (`BASE.map((p) => ({ ...p, seo }))`) entrega ao build uma página webgis sem
- * `data-map-context`, e o mapa volta ao contexto "forecast" calado — com o conjunto
- * de variáveis errado na página de potenciais. Este é o portão por onde o manifesto
- * final passa, então a checagem também vive aqui.
+ * Re-asserts the layout contract on the ALREADY RESOLVED page. `page()` applies the
+ * same contract at authoring time, but only there: a pages.js that builds or
+ * post-processes raw objects (`BASE.map((p) => ({ ...p, seo }))`) hands the build a
+ * webgis page with no `data-map-context`, and the map silently falls back to the
+ * "forecast" context — with the wrong variable set on the potentials page. This is the
+ * gate the final manifest passes through, so the check lives here too.
  */
 function validateLayoutContract(errors, page, field) {
   if (!isNonEmptyString(page.layout)) return;
@@ -1262,9 +1252,10 @@ function validateRedirects(errors, redirects, pageOutputs) {
     }
 
     if (redirect.hash !== undefined && redirect.hash !== null) {
-      if (!addRequiredString(errors, redirect.hash, `${field}.hash`)) {
-        // addRequiredString supplies the actionable message.
-      } else if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(redirect.hash)) {
+      if (
+        addRequiredString(errors, redirect.hash, `${field}.hash`) &&
+        !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(redirect.hash)
+      ) {
         errors.push(`${field}.hash: expected a safe fragment slug without #`);
       }
     }

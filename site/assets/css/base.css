@@ -1,6 +1,6 @@
 :root {
-  /* Contrato estrutural compartilhado. A identidade visual é fornecida pelo
-     arquivo gerado assets/css/site-theme.css da publicação selecionada. */
+  /* Shared structural contract. The visual identity comes from the generated
+     assets/css/site-theme.css of the selected publication. */
   --primary-color: var(--brand-primary);
   --secondary-color: var(--brand-secondary);
   --danger-color: #e74c3c;
@@ -22,11 +22,11 @@
   --text-primary: #333;
   --text-secondary: #666;
 
-  /* Tokens opcionais do contrato de tema, lidos em runtime por
-     assets/js/charts-manager.js (_getThemeColors). Os valores abaixo são os
-     defaults compartilhados; uma publicação pode sobrescrevê-los no seu
-     site-theme.css, que vem depois deste arquivo na cascata. Os fallbacks
-     equivalentes no JS existem só para o caso de o CSS não ter carregado. */
+  /* Optional theme-contract tokens, read at runtime by
+     assets/js/charts-manager.js (_getThemeColors). These are the shared
+     defaults; a publication may override them in its own site-theme.css, which
+     comes after this file in the cascade. The matching fallbacks in the JS only
+     cover the case where the CSS never loaded. */
   --chart-grid-color: #f0f0f0;
   --chart-legend-color: #666;
   --tooltip-bg: rgba(18, 18, 18, 0.96);
@@ -41,7 +41,6 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Skip-to-content link — visível apenas quando recebe foco (teclado) */
 .skip-link {
   position: absolute;
   left: 8px;
@@ -60,7 +59,6 @@ html {
   outline: 3px solid var(--accent-color);
 }
 
-/* Respeita a preferência do sistema por menos movimento (WCAG 2.3.3) */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

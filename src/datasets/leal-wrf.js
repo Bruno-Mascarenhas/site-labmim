@@ -3,16 +3,18 @@
 module.exports = {
   id: "leal-wrf",
   attribution: "LEAL-UFES",
-  // Nome real da CLI Python que gera os dados das duas publicações; não é
-  // derivado do id do dataset porque "leal-wrf-geojson" não existe.
+  // Actual name of the Python CLI that generates the data for both
+  // publications; it is not derived from the dataset id, since no
+  // "leal-wrf-geojson" exists.
   generator: "labmim-wrf-geojson",
-  // Namelist WRF: herda DEFAULT_MODEL (renderer); declare `model` só para divergir.
-  // Sem `observations`: o LEAL não tem estação publicada. Reaproveitar a lista
-  // do LabMiM apontava para `assets/graphs/`, caminho operacional comum às duas
-  // publicações, que o build exclui de todo bundle — os PNG davam 404 — e as
-  // imagens ainda trazem a marca d'água "LabMiM ... UFBA" e medem Salvador.
-  // Ao publicar a estação do LEAL, declare aqui `paths.graphs` próprio (para o
-  // build separar os diretórios) junto de `observations.charts`.
+  // The WRF namelist comes from DEFAULT_MODEL (renderer); declare `model` here
+  // only for the fields where this simulation diverges from that default.
+
+  // No `observations`: LEAL publishes no station of its own, and the LabMiM
+  // chart list is not reusable — those PNGs measure Salvador and carry a
+  // "LabMiM ... UFBA" watermark burned into the image. When LEAL does publish a
+  // station, declare its own `paths.graphs` here — so the build keeps the two
+  // graph directories in separate bundles — together with `observations.charts`.
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",

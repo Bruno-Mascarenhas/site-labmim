@@ -56,15 +56,14 @@ function getParameter(variableType, paramName, defaultValue) {
 }
 
 /**
- * Accumulation window (in hours) of the field currently painted for
- * `variableType`. Read from the live map manager like getParameter does, so
- * specificInfo can describe the value it was actually handed — a 3h total must
- * not be classified with hourly-rain thresholds.
+ * Accumulation window (in hours) behind the field currently painted for
+ * `variableType`, so specificInfo can describe the value it was actually
+ * handed — a 3h total must not be classified with hourly-rain thresholds.
  *
- * É a janela EFETIVA, não a selecionada: nos primeiros passos da rodada não há
- * passos anteriores para fechar a janela e a soma encurta, então dividir o
- * total por 3 h superestimaria a intensidade e o rótulo prometeria um
- * acumulado de três horas que ninguém somou.
+ * This is the EFFECTIVE window, not the selected one: the first steps of a run
+ * have no earlier steps to close the window with and the sum falls short, so
+ * dividing that total by 3h would overstate the intensity and the label would
+ * promise a three-hour accumulation nobody summed.
  * @param {string} variableType - Variable type (e.g., rain)
  * @param {number} defaultHours - Fallback when no map manager is available
  * @returns {number} Accumulation window in hours behind the painted value
@@ -118,16 +117,12 @@ const VARIABLE_CONTEXTS = {
   forecast: {
     optionGroupLabel: "Variáveis meteorológicas e radiativas",
     defaultVariable: "temperature",
-    // Ordem pedida para o seletor: temperatura, precipitação, umidade,
-    // pressão, vento e, por último, o bloco radiativo (radiação incidente e
-    // os fluxos turbulentos que fecham o balanço de energia).
-    //
-    // Dentro do bloco radiativo a ordem segue o próprio balanço: onda curta
-    // (incidente, refletida, líquida), onda longa (incidente, emitida,
-    // líquida), o saldo que as soma e, por fim, os fluxos turbulentos que o
-    // consomem — Rn = H + LE + G, então netRadiation fica logo antes de
-    // hfx/lh. Os dois índices adimensionais fecham a lista por serem
-    // diagnósticos de céu, não termos do balanço.
+    // The radiative block follows the energy balance itself: shortwave
+    // (incoming, reflected, net), longwave (incoming, emitted, net), the net
+    // radiation that sums them and finally the turbulent fluxes that consume
+    // it — Rn = H + LE + G, so netRadiation sits right before hfx/lh. The two
+    // dimensionless indices close the list because they are sky diagnostics,
+    // not terms of the balance.
     variables: [
       "temperature",
       "skinTemperature",
@@ -156,10 +151,6 @@ const VARIABLE_CONTEXTS = {
   },
 };
 
-/**
- * Shared "no data at this cell/timestep" payload for specificInfo — the
- * panel title is the only per-variable part of the former 14 copies.
- */
 function unavailableInfo(title) {
   return {
     title,
@@ -206,19 +197,16 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Geração Fotovoltaica");
       }
 
-      const air_temp = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 25;
+      const airTemp = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 25;
       const panelEfficiency = getParameter("solar", "panelEfficiency", 18) / 100;
       const inversorEfficiency = getParameter("solar", "inversorEfficiency", 95) / 100;
       const ptc = getParameter("solar", "ptc", -0.38);
       const noct = getParameter("solar", "noct", 45);
 
-      const nominal_params_temp = 25;
-      const foto_cell_temp = air_temp + ((noct - 20) * value) / 800;
-      const energy_gen =
-        (value / 1000) *
-        panelEfficiency *
-        inversorEfficiency *
-        (1 + (ptc * (foto_cell_temp - nominal_params_temp)) / 100);
+      const nominalCellTemp = 25;
+      const cellTemp = airTemp + ((noct - 20) * value) / 800;
+      const energyGen =
+        (value / 1000) * panelEfficiency * inversorEfficiency * (1 + (ptc * (cellTemp - nominalCellTemp)) / 100);
 
       return {
         title: "Geração Fotovoltaica",
@@ -231,12 +219,11 @@ const VARIABLES_CONFIG = {
           },
           {
             label: "Produção Energética Acumulada (1h)",
-            value: (energy_gen * 1000).toFixed(2),
+            value: (energyGen * 1000).toFixed(2),
             unit: "Wh/m²",
             icon: "fa-solar-panel",
-            // Structured numeric value for charts/CSV (unformatted); the
-            // displayed `value`/`unit` above are unchanged.
-            energyValue: energy_gen * 1000,
+            // Unformatted number for charts/CSV; `value` above is display-only.
+            energyValue: energyGen * 1000,
           },
         ],
       };
@@ -271,7 +258,7 @@ const VARIABLES_CONFIG = {
       const rotorDiameter = getParameter("eolico", "rotorDiameter", 40);
       const Cp = getParameter("eolico", "Cp", getParameter("eolico", "powerCoefficient", 0.4));
 
-      const densityOfAir = airDensity * (288 / (273 + tempValue));
+      const airDensityAtTemp = airDensity * (288 / (273 + tempValue));
       const rotorArea = Math.PI * Math.pow(rotorDiameter / 2, 2);
 
       return {
@@ -284,18 +271,17 @@ const VARIABLES_CONFIG = {
           },
           {
             label: "Densidade de Potência",
-            value: (0.5 * densityOfAir * Math.pow(value, 3)).toFixed(0),
+            value: (0.5 * airDensityAtTemp * Math.pow(value, 3)).toFixed(0),
             unit: "W/m²",
             icon: "fa-fan",
           },
           {
             label: `Produção Energética Acumulada (1h)`,
-            value: ((0.5 * densityOfAir * Math.pow(value, 3) * rotorArea * Cp) / 1000).toFixed(1),
+            value: ((0.5 * airDensityAtTemp * Math.pow(value, 3) * rotorArea * Cp) / 1000).toFixed(1),
             unit: "kWh",
             icon: "fa-wind",
-            // Structured numeric value for charts/CSV (unformatted); the
-            // displayed `value`/`unit` above are unchanged.
-            energyValue: (0.5 * densityOfAir * Math.pow(value, 3) * rotorArea * Cp) / 1000,
+            // Unformatted number for charts/CSV; `value` above is display-only.
+            energyValue: (0.5 * airDensityAtTemp * Math.pow(value, 3) * rotorArea * Cp) / 1000,
           },
         ],
       };
@@ -304,8 +290,8 @@ const VARIABLES_CONFIG = {
 
   temperature: {
     id: "TEMP",
-    // `humidity` saiu daqui: a sensação térmica só sabe usar umidade RELATIVA, e
-    // cada variável relacionada custa um JSON baixado a cada clique em célula.
+    // Feels-like only knows how to use RELATIVE humidity, and every related
+    // variable costs one more JSON fetched on each cell click.
     relatedVariables: ["relativeHumidity", "wind"],
     label: "Temperatura (2m)",
     optionLabel: "Temperatura",
@@ -322,23 +308,14 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Informações Térmicas");
       }
 
-      // Havia aqui um plano B que lia `allValues.humidity` quando a unidade
-      // fosse "%": a unidade é sempre copiada da própria VARIABLES_CONFIG, e a
-      // da umidade específica é "g/kg", então o ramo nunca podia valer. Sem
-      // RH2 não há sensação térmica a calcular — a temperatura sai sozinha.
       const humidityValue = Number.isFinite(allValues.relativeHumidity?.value)
         ? allValues.relativeHumidity.value
         : null;
       const windValue = Number.isFinite(allValues.wind?.value) ? allValues.wind.value : 2;
 
+      // Without RH2 there is no feels-like to compute: the air temperature stands alone.
       const feelsLike = humidityValue === null ? value : getTemperatureFeelsLike(value, humidityValue, windValue);
 
-      // Um número só para a sensação. Havia aqui um segundo item, "Índice de
-      // Calor", que aplicava a temperatura aparente de Steadman a partir de
-      // 26 °C enquanto este usa o índice de calor do NWS a partir de outro
-      // limiar: duas grandezas distintas, com fronteiras distintas, exibidas
-      // lado a lado como se uma conferisse a outra. A 26,5 °C com 90% de
-      // umidade uma dizia 26,5 °C e a outra 32,8 °C.
       return {
         title: "Informações Térmicas",
         items: [
@@ -413,25 +390,23 @@ const VARIABLES_CONFIG = {
     unit: "hPa",
     sourceId: "PRES",
     summary: "Pressão atmosférica na superfície, exibida em hectopascal para leitura operacional.",
-    // Sem scaleMin/scaleMax de propósito: o campo publicado é PSFC (pressão na
-    // superfície, sobre o relevo), não pressão reduzida ao nível do mar, e no
-    // planalto baiano desce até ~860 hPa. Qualquer piso fixo achataria um quarto
-    // do domínio numa cor só, então a escala vem do `metadata.scale_values` que o
-    // pipeline publica por domínio — constante ao longo dos passos, logo a barra
-    // não oscila durante o playback.
+    // No scaleMin/scaleMax on purpose: the published field is PSFC (surface
+    // pressure, over the terrain), not pressure reduced to sea level, and over
+    // the Bahia plateau it drops to ~860 hPa. Any fixed floor would flatten a
+    // quarter of the domain into a single color, so the scale comes from the
+    // per-domain `metadata.scale_values` the pipeline publishes — constant
+    // across steps, so the color bar does not wobble during playback.
     colors: PRESSURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.pressure?.ausente) {
         return unavailableInfo("Condições Atmosféricas");
       }
 
-      // Nada aqui compara com 1013,25 hPa: essa é a atmosfera padrão AO NÍVEL DO
-      // MAR, e o campo publicado é PSFC, a pressão na altitude do terreno. Num
-      // ponto de 1300 m o "desvio" seria de -130 hPa de altimetria, sem nenhuma
-      // anomalia sinótica, e a classificação alta/baixa viraria um detector de
-      // relevo. Também não há item de tendência enquanto não houver comparação
-      // com os passos vizinhos — um rótulo constante que se apresenta como
-      // diagnóstico é pior do que não existir.
+      // Nothing here compares against 1013.25 hPa: that is the standard
+      // atmosphere AT SEA LEVEL, while the published field is PSFC, the
+      // pressure at terrain height. At a 1300 m point the "departure" would be
+      // -130 hPa of altimetry with no synoptic anomaly at all, and a high/low
+      // classification would just be a terrain detector.
       return {
         title: "Condições Atmosféricas",
         items: [
@@ -444,9 +419,9 @@ const VARIABLES_CONFIG = {
           {
             label: "Referência",
             value: "Nível do terreno (PSFC)",
-            // Régua vertical, e não montanha: o que o painel diz é a ALTURA de
-            // referência da leitura, não que o terreno seja acidentado. Também
-            // evita crescer o subset da fonte por um glifo só — ver
+            // A ruler, not a mountain: the panel states the reference HEIGHT of
+            // the reading, not that the terrain is rugged. It also avoids
+            // growing the font subset for a single glyph — see
             // scripts/subset-fontawesome.md.
             icon: "fa-ruler-vertical",
           },
@@ -550,9 +525,9 @@ const VARIABLES_CONFIG = {
       "Precipitação acumulada no timestep do modelo, somada na janela escolhida (1h ou 3h). Células sem chuva (< 0,01 mm) não são pintadas.",
     scaleMin: 0,
     scaleMax: 30,
-    // Abaixo de 0,01 mm o WRF escreve zeros em quase toda a grade: pintá-los
-    // cobriria o mapa inteiro com a primeira cor da paleta e esconderia onde
-    // realmente chove.
+    // Below 0.01 mm WRF writes zeros over almost the whole grid: painting them
+    // would cover the map in the palette's first color and hide where it
+    // actually rains.
     hideBelow: 0.01,
     accumulation: {
       title: "Acumulado:",
@@ -578,8 +553,8 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Previsão de Precipitação");
       }
 
-      // As faixas de intensidade são horárias; com a janela de 3h selecionada
-      // o valor exibido é um total, então a classificação usa a taxa média.
+      // The intensity bands are hourly; with the 3h window selected the shown
+      // value is a total, so the classification uses the mean rate.
       const hours = getAccumulationHours("rain", 1);
       const hourlyRate = value / hours;
 
@@ -598,10 +573,9 @@ const VARIABLES_CONFIG = {
             icon: "fa-water",
           },
           {
-            // O limiar de 5 mm é de VOLUME, não de taxa: ao contrário da
-            // intensidade acima, este item lê o acumulado cru. Sem a janela no
-            // rótulo o mesmo tempo mudava de "Insuficiente" para "Benéfico" só
-            // por o leitor trocar 1h por 3h, sem nada indicando o que mudou.
+            // The 5 mm threshold is on VOLUME, not on rate: unlike the
+            // intensity above, this item reads the raw accumulation, which is
+            // why the window belongs in the label.
             label: `Impacto Agrícola (${hours}h)`,
             value: value > 5 ? "Benéfico" : "Insuficiente",
             icon: "fa-leaf",
@@ -746,11 +720,11 @@ const VARIABLES_CONFIG = {
     },
   },
 
-  // Termos derivados do balanço radiativo. O wrfout traz os fluxos incidentes
-  // (SWDOWN, GLW) diretamente, mas os ascendentes só quando os diagnósticos de
-  // fundo de atmosfera do RRTMG estão ligados — LWUPB não existe em nenhuma
-  // grade da rodada operacional. O pipeline os reconstrói a partir de EMISS,
-  // TSK, ALBEDO e COSZEN, de modo que publicam igual em qualquer rodada.
+  // Derived terms of the radiative balance. The wrfout carries the incoming
+  // fluxes (SWDOWN, GLW) directly, but the upwelling ones only when RRTMG's
+  // bottom-of-atmosphere diagnostics are on — LWUPB exists in no grid of the
+  // operational run. The pipeline rebuilds them from EMISS, TSK, ALBEDO and
+  // COSZEN, so they publish the same way in any run.
 
   shortwaveUp: {
     id: "SWUP",
@@ -934,8 +908,8 @@ const VARIABLES_CONFIG = {
         },
       ];
 
-      // Rn = H + LE + G: com os fluxos turbulentos ao lado, a fração que sobra
-      // para o solo e o armazenamento fica legível na própria caixa.
+      // Rn = H + LE + G: with the turbulent fluxes alongside, the share left
+      // for the soil and for storage is readable in the box itself.
       const sensible = allValues.hfx?.value;
       const latent = allValues.lh?.value;
       if (typeof sensible === "number" && typeof latent === "number" && Math.abs(value) > 1) {
@@ -1168,11 +1142,9 @@ function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
     const T = (temperatureC * 9) / 5 + 32;
     const RH = humidity;
 
-    // Quem decide se a regressão de Rothfusz entra é o pré-teste do NWS, não um
-    // limiar fixo em °C: a regressão só é válida acima de ~80 °F. Com o corte
-    // anterior em 26,7 °C a sensação pulava até 4,1 °C entre duas células que
-    // diferem em 0,01 °C; pelo pré-teste a troca acontece onde a regressão passa
-    // a valer, e o salto no pior canto (100% de umidade) cai para 2,5 °C.
+    // The NWS pretest, not a fixed °C threshold, decides whether the Rothfusz
+    // regression applies: the regression is only valid above ~80 °F, and the
+    // pretest puts the switchover exactly where it starts to hold.
     const simpleHI_F = 0.5 * (T + 61 + (T - 68) * 1.2 + RH * 0.094);
 
     if ((simpleHI_F + T) / 2 >= 80) {
@@ -1192,9 +1164,12 @@ function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
   }
 
   if (temperatureC <= 10 && windSpeedMs >= 1.34) {
-    const v = windSpeedMs * 3.6;
+    // The wind-chill regression is stated in km/h.
+    const windKmh = windSpeedMs * 3.6;
 
-    return 13.12 + 0.6215 * temperatureC - 11.37 * Math.pow(v, 0.16) + 0.3965 * temperatureC * Math.pow(v, 0.16);
+    return (
+      13.12 + 0.6215 * temperatureC - 11.37 * Math.pow(windKmh, 0.16) + 0.3965 * temperatureC * Math.pow(windKmh, 0.16)
+    );
   }
 
   return temperatureC;

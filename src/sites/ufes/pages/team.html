@@ -1,14 +1,9 @@
-<!-- Conteúdo editorial específico do LEAL/UFES. -->
-
 <!--
-  Mesma razão do team.html da UFBA: a utilitária .text-dark do Bootstrap declara
-  a cor com !important e anulava `.team-group a { color: var(--primary-color) }`,
-  deixando o nome em rgb(33,37,41) — a cor exata do texto ao redor — enquanto
-  `.team-group a` já zera o sublinhado; no tema claro o link para o Lattes não
-  parecia link. Cor sozinha também não bastaria (WCAG 1.4.1/G183), então o
-  sublinhado fica explícito no atributo style; o CSP libera
-  style-src 'unsafe-inline' para atributos style, e classe utilitária nova não
-  sobrevive ao purge do Bootstrap.
+  Same reason as the UFBA team.html: `.team-group a` zeroes the underline and
+  colour alone cannot tell a Lattes link apart from the prose around it
+  (WCAG 1.4.1/G183), so the underline is explicit in a style attribute. The CSP
+  allows style-src 'unsafe-inline' for style attributes, and a new utility class
+  would not survive the Bootstrap purge.
 -->
 <div class="modern-section">
   <div class="page-header">
@@ -17,7 +12,6 @@
   </div>
 
   <div class="row">
-    <!-- Pesquisador Responsável -->
     <div class="col-md-6 mb-4 d-flex">
       <div class="team-group w-100 p-4 border rounded shadow-sm">
         <h3 class="team-group-title"><i class="fas fa-user-tie me-2"></i>Pesquisador Responsável</h3>
@@ -31,7 +25,6 @@
       </div>
     </div>
 
-    <!-- Pesquisadores Colaboradores -->
     <div class="col-md-6 mb-4 d-flex">
       <div class="team-group w-100 p-4 border rounded shadow-sm">
         <h3 class="team-group-title"><i class="fas fa-user-friends me-2"></i>Pesquisadores Colaboradores</h3>
@@ -82,7 +75,6 @@
       </div>
     </div>
 
-    <!-- Alunos de Mestrado -->
     <div class="col-md-6 mb-4 d-flex">
       <div class="team-group w-100 p-4 border rounded shadow-sm">
         <h3 class="team-group-title"><i class="fas fa-user-graduate me-2"></i>Alunos de Mestrado</h3>
@@ -105,7 +97,6 @@
       </div>
     </div>
 
-    <!-- Alunos de Iniciação Científica -->
     <div class="col-md-6 mb-4 d-flex">
       <div class="team-group w-100 p-4 border rounded shadow-sm">
         <h3 class="team-group-title"><i class="fas fa-flask me-2"></i>Alunos de Iniciação Científica</h3>

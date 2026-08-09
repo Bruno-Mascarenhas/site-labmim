@@ -1,23 +1,22 @@
 "use strict";
 
 /**
- * Contrato de tema das publicações.
+ * Theme contract for publications.
  *
- * REQUIRED: toda publicação DEVE declarar. São os tokens sem os quais o CSS
- * compartilhado não consegue se pintar (não há fallback literal para eles).
+ * REQUIRED: every publication MUST declare these. They are the tokens without which
+ * the shared CSS cannot paint itself — no literal fallback exists for them.
  *
- * OPTIONAL: qualquer publicação PODE declarar; nenhuma é obrigada. Quando o
- * token não é declarado, o CSS compartilhado (ou o JS) usa o valor de fallback
- * documentado em `fallback` — que é exatamente o literal em vigor hoje. Por
- * isso adicionar um token opcional nunca muda a aparência de quem não o declara
- * e nunca acopla uma publicação à outra.
+ * OPTIONAL: any publication MAY declare them; none has to. When a token is left out,
+ * the shared CSS (or JS) uses the value documented in `fallback`, which is exactly the
+ * literal in force today. That is why adding an optional token never changes the look
+ * of a publication that ignores it, and never couples one publication to another.
  *
- * `consumedBy` diz onde o token é lido, e portanto onde o checador procura por
- * consumo:
- *   "css" -> precisa aparecer como var(--token) / var(--token, fallback) no CSS
- *            compartilhado de site/assets/css/**;
- *   "js"  -> é lido em runtime via getComputedStyle em site/assets/js/**, onde
- *            `var()` não existe e o fallback mora no próprio JS.
+ * `consumedBy` says where the token is read, and therefore where the checker looks for
+ * consumption:
+ *   "css" -> must appear as var(--token) / var(--token, fallback) in the shared CSS
+ *            under site/assets/css/**;
+ *   "js"  -> read at runtime through getComputedStyle in site/assets/js/**, where
+ *            `var()` does not exist and the fallback lives in the JS itself.
  */
 
 const REQUIRED_THEME_PROPERTIES = Object.freeze([
@@ -44,7 +43,7 @@ const REQUIRED_THEME_PROPERTIES = Object.freeze([
 
 const OPTIONAL_THEME_PROPERTIES = Object.freeze(
   [
-    // Rampa de tinta (texto) sobre superfícies claras dos painéis de mapa/doc.
+    // Ink ramp (text) over the light surfaces of the map and documentation panels.
     {
       property: "ink-strong",
       consumedBy: "css",
@@ -75,7 +74,7 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#506176",
       describes: "kickers, legendas e rótulos secundários dos painéis",
     },
-    // Tintas claras usadas SOBRE superfícies de marca (rodapé, navbar escura).
+    // Light inks used ON TOP of brand surfaces (footer, dark navbar).
     {
       property: "ink-on-brand",
       consumedBy: "css",
@@ -94,7 +93,7 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#d8dee9",
       describes: "parágrafos secundários de cards/explicações no tema escuro",
     },
-    // Rampa de superfícies claras tingidas.
+    // Ramp of tinted light surfaces.
     {
       property: "surface-raised",
       consumedBy: "css",
@@ -125,7 +124,7 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#ebebf5",
       describes: "fundo do hover das abas de documentação (vizinho da aba ativa)",
     },
-    // Traços/hairlines dos painéis.
+    // Panel hairlines.
     {
       property: "hairline-rgb",
       consumedBy: "css",
@@ -138,7 +137,7 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#d8e2ef",
       describes: "borda sólida dos blocos de fórmula da documentação",
     },
-    // Contraparte escura dos tokens de gráfico (espelha --lab-header-dark-bg).
+    // Dark counterpart of the chart tokens (mirrors --lab-header-dark-bg).
     {
       property: "chart-legend-dark-color",
       consumedBy: "css",
@@ -151,7 +150,7 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "rgba(255, 255, 255, 0.12)",
       describes: "cor da grade dos gráficos no tema escuro",
     },
-    // Lidos em runtime por site/assets/js/charts-manager.js (_getThemeColors).
+    // Read at runtime by site/assets/js/charts-manager.js (_getThemeColors).
     {
       property: "chart-legend-color",
       consumedBy: "js",
@@ -181,9 +180,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
 
 const OPTIONAL_THEME_PROPERTY_NAMES = Object.freeze(OPTIONAL_THEME_PROPERTIES.map((entry) => entry.property));
 
-/** Retrocompatibilidade: o nome antigo sempre significou "obrigatórios". */
-const PUBLICATION_THEME_PROPERTIES = REQUIRED_THEME_PROPERTIES;
-
 const COLOR_RGB_PAIRS = Object.freeze([
   ["brand-primary", "brand-primary-rgb"],
   ["brand-secondary", "brand-secondary-rgb"],
@@ -211,9 +207,9 @@ function parseRgbChannels(value) {
 function inspectPublicationThemeCss(content) {
   const errors = [];
   const withoutComments = content.replace(/\/\*[\s\S]*?\*\//g, "").trim();
-  // `[^{}]` impede que o bloco engula a regra seguinte quando a última
-  // declaração vem sem ';'; `@` barra at-rules que não usam chaves (@import,
-  // @charset) e que também escapariam do contrato.
+  // `[^{}]` stops the block from swallowing the next rule when the last declaration
+  // comes without a ';'; `@` rejects brace-less at-rules (@import, @charset), which
+  // would otherwise slip past the contract.
   const root = withoutComments.match(/^:root\s*\{([^{}@]*)\}\s*$/);
 
   if (!root) {
@@ -280,7 +276,6 @@ function inspectPublicationThemeCss(content) {
 }
 
 module.exports = {
-  PUBLICATION_THEME_PROPERTIES,
   REQUIRED_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTY_NAMES,

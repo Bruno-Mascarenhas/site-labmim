@@ -37,9 +37,9 @@ function run(command, args, label) {
  */
 const OPERATIONAL_OPTIONS = Object.freeze({ includeGraphs: false });
 
-// A composição dos caminhos vem de site-builder/operational-paths.js: enumerar os
-// campos de `dataset.paths` à mão em cada script já tinha divergido — `monitoring`
-// ficou de fora de scripts/check-links.mjs sem que nada acusasse.
+// Path composition lives in site-builder/operational-paths.js so that every script
+// derives the same set from `dataset.paths` instead of enumerating those fields by
+// hand, where one script silently drifts from another.
 function operationalDirectories(publication) {
   return publicationOperationalPaths(publication, OPERATIONAL_OPTIONS).directories;
 }
@@ -168,9 +168,9 @@ function buildAndValidate(publication) {
   run(process.execPath, [htmlValidate, ...htmlFiles], `HTML validation ${publication.id}`);
   run(process.execPath, [purgeCheck], `Bootstrap/PurgeCSS validation ${publication.id}`);
   // Both vendor subsets are shared by every publication while site/ holds one at a
-  // time, so a page that introduces a new icon only fails while its own publication
-  // is rendered. Running the check here means `npm run build:check` — the command the
-  // guide points a new maintainer at — catches it instead of the CI three steps later.
+  // time, so a page that introduces a new icon only fails while its own publication is
+  // rendered. Running the check here puts it inside `npm run build:check` — the command
+  // the guide points a new maintainer at — instead of three CI steps later.
   run(process.execPath, [iconCheck], `Font Awesome subset validation ${publication.id}`);
 
   const index = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");

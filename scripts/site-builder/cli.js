@@ -16,7 +16,6 @@ function isExpectedFailure(error) {
   return error instanceof Error && error.constructor === Error && error.code === undefined;
 }
 
-/** Print an expected failure cleanly and exit 1; re-throw an unexpected one with its stack. */
 function finishWithFailure(failure, label) {
   if (!isExpectedFailure(failure)) throw failure;
   console.error(`✗ ${label}: ${failure.message}`);

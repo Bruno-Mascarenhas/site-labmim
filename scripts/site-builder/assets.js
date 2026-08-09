@@ -70,7 +70,6 @@ function publicationAssetSources(publications) {
   return sources;
 }
 
-/** Top-level dirs under site/assets/ that publications publish into (never reserved roots). */
 function publicationAssetRoots(sources) {
   const roots = new Set();
   for (const output of sources.keys()) roots.add(output.split("/")[1]);

@@ -22,7 +22,6 @@ self.onmessage = async function (e) {
       return;
     }
 
-    // Parse JSON in the worker thread — frees main thread
     const data = await response.json();
     self.postMessage({ id, data });
   } catch (err) {

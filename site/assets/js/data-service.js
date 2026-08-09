@@ -17,7 +17,7 @@
 
 // 400 entries x ~47KB average parsed payload keeps one full playback loop
 // (73 steps + wind overlays) AND an open time-series modal in memory at
-// once (~19MB, fine for a data-viz page); 200 caused mid-loop evictions.
+// once (~19MB, fine for a data-viz page).
 // When the manifest advertises a longer timeline the map manager raises the
 // limit via ensureCacheLimit() so longer runs never thrash mid-loop.
 const DATA_SERVICE_CACHE_LIMIT = 400;
@@ -59,11 +59,10 @@ class LabmimDataService {
       if (!callback) return;
       this._workerCallbacks.delete(id);
       if (error) {
-        // O protocolo do worker devolve só { id, error, status }: a URL vem do
-        // callback guardado em _workerFetch. Sem ela a mensagem sairia como
-        // "(HTTP 404): worker" e um upload de FTP incompleto — falha conhecida
-        // deste host — produziria N erros indistinguíveis no console, enquanto
-        // o mesmo caso na main thread (_mainThreadFetch) nomeia o arquivo.
+        // The worker protocol carries only { id, error, status }: the URL
+        // comes from the callback stored in _workerFetch, so a failing file
+        // is named here just as _mainThreadFetch names it — an incomplete FTP
+        // upload otherwise yields N indistinguishable console errors.
         callback.reject(Number.isFinite(status) ? this._httpError(status, callback.url) : new Error(error));
       } else {
         callback.resolve(data);

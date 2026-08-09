@@ -5,9 +5,8 @@
  * generated HTML and CSS. Two guards depend on agreeing about what counts as a
  * reference — scripts/build-all.mjs narrows each bundle to the assets a page can
  * reach, and scripts/check-publications.mjs fails when a page references a file that
- * does not exist. When the two disagree (they used to drift on `??` vs `||`), an
- * asset can be dropped from a bundle yet pass the local-reference check, so the
- * grammar lives here and both import it.
+ * does not exist. When the two disagree, an asset can be dropped from a bundle yet
+ * pass the local-reference check, so the grammar lives here and both import it.
  */
 
 /**
@@ -53,11 +52,11 @@ function isExternalReference(reference, originPrefix) {
  * `/assets/x.png`, `assets/x.png` and `https://origin/assets/x.png?v=1` all collapse
  * to `assets/x.png`.
  *
- * A referência é normalizada INTEIRA, e não a partir do primeiro `assets/` que
- * aparecer nela: recortar ali reescreveria `/vendor/assets/x.png` para
- * `assets/x.png`, e os dois portões que usam esta chave passariam a confirmar a
- * existência — e a alcançabilidade no bundle — de um arquivo diferente do que a
- * página realmente busca.
+ * The WHOLE reference is normalized, never the tail starting at the first `assets/`
+ * it happens to contain: cutting there would rewrite `/vendor/assets/x.png` into
+ * `assets/x.png`, and the two gates built on this key would then vouch for the
+ * existence — and the bundle reachability — of a different file from the one the page
+ * actually fetches.
  */
 function assetKey(reference, originPrefix) {
   let clean = reference.split(/[?#]/, 1)[0].trim();

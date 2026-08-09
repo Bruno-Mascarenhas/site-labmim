@@ -32,9 +32,7 @@ const DEFAULT_FAVICON_EMOJI = "🌦️";
 
 /**
  * WRF namelist defaults. They describe the simulation that produced the data,
- * so a dataset may override any of them through an optional `model` block; the
- * defaults reproduce the configuration the shared documentation used to state
- * as a hardcoded fact.
+ * so a dataset may override any of them through an optional `model` block.
  *
  * The `[[key]]` markers are citations, expanded in the browser by
  * assets/js/references.js into a link carrying the full paper. They live HERE,
@@ -54,11 +52,11 @@ const DEFAULT_MODEL = Object.freeze({
 });
 
 /**
- * Campos realmente declarados de um bloco opcional. Ao contrário de `??`, o spread
- * COPIA um valor explicitamente `undefined` e apaga o default por baixo — e o token
- * sairia como a palavra "undefined" no corpo da documentação, creditando um esquema
- * inexistente. Um campo ausente e um campo escrito como `undefined` significam a
- * mesma coisa aqui: use o padrão.
+ * The fields an optional block really declares. Unlike `??`, a spread COPIES an
+ * explicitly `undefined` value and wipes the default underneath it — the token would
+ * then render as the word "undefined" in the documentation body, crediting a scheme
+ * that does not exist. A missing field and a field written as `undefined` mean the
+ * same thing here: use the default.
  */
 const declaredFields = (block) =>
   Object.fromEntries(Object.entries(block || {}).filter(([, value]) => value !== undefined));
@@ -317,18 +315,18 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     MODEL_CUMULUS: escapeAttribute(model.cumulus),
     OBSERVATION_CHART_CARDS: observationChartCards(),
     OBSERVATION_CHART_MODALS: observationChartModals(),
-    // Base dos artefatos de climatologia, publicada como atributo `data-` e não
-    // como href/src: o diretório é operacional (chega pelo deploy, ausente no
-    // checkout e em CI), então uma referência que os checadores de link e de
-    // bundle enxergassem falharia o build em toda máquina que não tem os dados.
+    // Base of the climatology artifacts, published as a `data-` attribute instead of
+    // an href/src: the directory is operational (it arrives with the deploy and is
+    // absent from a checkout and from CI), so a reference the link and bundle checkers
+    // could see would fail the build on every machine without the data.
     CLIMATOLOGY_BASE: escapeAttribute(dataset.paths.climatology ?? ""),
-    // Bibliografia do site, embutida em <script type="application/json">. `<` é
-    // escapado porque a única sequência capaz de fechar aquele bloco antes da
-    // hora é `</script`, e ela pode aparecer dentro do título de um artigo.
+    // Site bibliography, embedded in a <script type="application/json">. `<` is escaped
+    // because the only sequence able to close that block early is `</script`, and it
+    // can appear inside a paper title.
     SITE_REFERENCES: JSON.stringify(SITE_REFERENCES).replace(/</g, "\\u003c"),
-    // Mesma natureza do token acima: diretório operacional entregue pelo deploy,
-    // publicado como `data-` justamente para ficar invisível aos checadores de
-    // link e de bundle, que rodam onde os dados não existem.
+    // Same nature as CLIMATOLOGY_BASE: an operational directory delivered by the
+    // deploy, published as `data-` precisely so it stays invisible to the link and
+    // bundle checkers, which run where the data does not exist.
     MONITORING_BASE: escapeAttribute(dataset.paths.monitoring ?? ""),
   };
 
@@ -348,10 +346,10 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     const { title, description } = page.seo;
     const url = absoluteUrl(page.file);
     return [
-      // `indexable: false` tira a página do sitemap, e o sitemap só sugere: um único
-      // link de fora bastaria para indexá-la. O noindex é o que de fato a mantém
-      // fora do índice — é assim que o 404 estático já faz. "follow" preserva o
-      // valor dos links internos que a página distribui.
+      // `indexable: false` drops the page from the sitemap, and a sitemap only
+      // suggests: a single inbound link elsewhere would be enough to index it. The
+      // noindex is what actually keeps it out of the index, the way the static 404
+      // already does. "follow" preserves the value of the internal links it hands out.
       ...(page.indexable === false ? ['    <meta name="robots" content="noindex, follow" />', ""] : []),
       `    <link rel="canonical" href="${escapeAttribute(url)}" />`,
       "",
@@ -441,12 +439,12 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   }
 
   /**
-   * Tags do slot `{{pageScripts}}`, sempre `defer` e sempre com os vendorizados
-   * antes dos próprios: scripts `defer` executam na ordem do documento, então é
-   * essa ordem que garante `Chart` definido quando o módulo da página roda.
+   * Tags for the `{{pageScripts}}` slot, always `defer` and always with the vendored
+   * ones ahead of the first-party ones: `defer` scripts run in document order, so that
+   * order is what guarantees `Chart` is defined when the page module runs.
    *
-   * O slot fica DEPOIS de `{{> scripts}}` no layout pelo mesmo motivo — o
-   * bundle do Bootstrap precisa existir antes do JS da página.
+   * The slot sits AFTER `{{> scripts}}` in the layout for the same reason — the
+   * Bootstrap bundle must exist before the page JS.
    */
   function scriptTags(page) {
     return [...page.vendorScripts, ...page.scripts]
@@ -455,14 +453,13 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   }
 
   /**
-   * Substitui `{{pageScripts}}` consumindo a quebra de linha que o antecede, de
-   * modo que uma página sem scripts renderize exatamente o HTML que renderizava
-   * antes deste slot existir — sem linha em branco antes de `</body>`, sem
-   * churn no diff do site/ versionado.
+   * The slot regex swallows the newline before `{{pageScripts}}` so a page without
+   * scripts leaves no blank line before `</body>` — site/ is committed, and the empty
+   * line would be diff churn on every publication that declares no page script.
    *
-   * Recusa a página quando ela declara scripts e o layout não tem o slot: sem
-   * isso o JS sumiria em silêncio e a página iria ao ar com os controles mortos,
-   * que é exatamente o modo de falha que validate.js já protege para o CSS.
+   * A page that declares scripts against a layout without the slot is refused:
+   * otherwise the JS would vanish silently and the page would ship with dead controls,
+   * exactly the failure mode validate.js already guards against for CSS.
    */
   function applyPageScripts(page, html) {
     const tags = scriptTags(page);
@@ -481,11 +478,11 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   }
 
   /**
-   * Mesma disciplina de `applyPageScripts` para os slots crus. `replaceAll` é
-   * split/join: num layout sem o token a substituição é um no-op e o valor
-   * declarado evapora sem erro — a página vai ao ar com `<body>` seco (o mapa
-   * volta ao contexto "forecast" calado) ou com o modal de documentação sem
-   * título, e o único sintoma é a página pronta.
+   * Same discipline as `applyPageScripts`, for the raw slots. `replaceAll` is
+   * split/join: in a layout without the token the substitution is a no-op and the
+   * declared value evaporates without an error — the page ships with a bare `<body>`
+   * (the map silently falls back to the "forecast" context) or with an untitled
+   * documentation modal, and the only symptom is a page that looks finished.
    */
   function applyRawSlot(page, html, token, value) {
     if (value !== "" && !html.includes(token)) {
@@ -582,10 +579,10 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     );
     writeOutput(
       path.join(outputDir, "robots.txt"),
-      // O robots.txt descreve o HOST desta publicação, então a lista é a que ELA
-      // declara — não a união da árvore. `assets/graphs` fica de fora de propósito:
-      // os PNG da estação são páginas de rosto de figura, com valor de SEO, e nunca
-      // estiveram proibidos aqui. Ver site-builder/operational-paths.js.
+      // robots.txt describes the HOST of THIS publication, so the list is the one it
+      // declares, not the union across the tree. `assets/graphs` is left out on
+      // purpose: the station PNGs are figure landing pages with SEO value. See
+      // site-builder/operational-paths.js.
       `User-agent: *\nAllow: /\n\nSitemap: ${productionOrigin}/sitemap.xml\n\n# Dados gerados pelo pipeline externo — sem valor de SEO e potencialmente grandes.\n${publicationOperationalPaths(
         publication,
         { includeGraphs: false }
@@ -611,5 +608,5 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
 // observationModalId is exported so validate.js can dedupe chart ids on the exact
 // DOM id the renderer will emit, instead of a divergent approximation. DEFAULT_MODEL
 // travels for the same reason: the validator refuses an unknown `dataset.model` key
-// against the exact field list the tokens below read.
+// against the exact field list the tokens in this file read.
 module.exports = { renderPublication, observationModalId, DEFAULT_MODEL };

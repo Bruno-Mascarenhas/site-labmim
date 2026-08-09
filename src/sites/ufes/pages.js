@@ -12,17 +12,14 @@ module.exports = [
         "LEAL - Laboratório de Energias Alternativas da UFES. Pesquisa, monitoramento ambiental e previsão de disponibilidade de energias eólica e solar em Vitória e Espírito Santo.",
     },
   }),
-  // Sem página de monitoramento, pelo mesmo motivo da climatologia abaixo: a
-  // única lista de gráficos de estação que existe é a do LabMiM, e ela sai de
-  // `assets/graphs/` — caminho operacional que as DUAS publicações resolvem
-  // (nenhuma declara `dataset.paths.graphs`), então o build exclui o diretório
-  // de todo bundle e os nove PNG respondem 404 em `dist/ufes/`. Mesmo se
-  // chegassem, trazem a marca d'água "LabMiM ... UFBA" gravada na imagem e
-  // medem a estação de Salvador, enquanto o SEO desta rota prometia dados
-  // "medidos em tempo quase real no Espírito Santo". Reative `page("monitoring",
-  // …)` quando o LEAL tiver a própria estação publicada, declarando
-  // `dataset.paths.graphs` e `dataset.observations.charts` próprios em
-  // `src/datasets/leal-wrf.js`.
+  // No monitoring page, for the same reason as the climatology one below: the
+  // only station chart list that exists is LabMiM's, and it measures Salvador
+  // under a "LabMiM ... UFBA" watermark, while this route's SEO promises data
+  // from Espírito Santo. Both publications also resolve the same default
+  // `assets/graphs/` operational path, which the build excludes from every
+  // bundle. Add `page("monitoring", …)` back once LEAL publishes a station of
+  // its own, declaring its `dataset.paths.graphs` and
+  // `dataset.observations.charts` in `src/datasets/leal-wrf.js`.
   page("team", {
     source: siteSource("pages/team.html"),
     seo: {
@@ -31,10 +28,10 @@ module.exports = [
         "LEAL — Equipe do Laboratório de Energias Alternativas da UFES: pesquisadores, colaboradores e estudantes.",
     },
   }),
-  // Sem página de climatologia: os únicos dados de distribuição publicados hoje
-  // são os da estação do LabMiM em Salvador, e o SEO desta publicação promete
-  // Espírito Santo. Reative `page("climatology", …)` quando o LEAL tiver o
-  // próprio registro observado publicado no diretório do dataset.
+  // No climatology page: the only published distributions are those of the
+  // LabMiM station in Salvador, and this publication's SEO promises Espírito
+  // Santo. Add `page("climatology", …)` back once LEAL publishes its own
+  // observed record in the dataset directory.
   page("forecast", {
     seo: {
       title: "LEAL — Mapas Interativos WRF · UFES",

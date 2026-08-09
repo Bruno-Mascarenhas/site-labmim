@@ -1,31 +1,31 @@
 /**
- * Configuração do PurgeCSS para gerar
- * assets/vendor/bootstrap/bootstrap.purged.min.css a partir do
- * bootstrap.min.css completo (que permanece vendorizado ao lado).
+ * PurgeCSS configuration that generates
+ * assets/vendor/bootstrap/bootstrap.purged.min.css from the full bootstrap.min.css
+ * (which stays vendored alongside it).
  *
- * Regenerar (após mudar classes Bootstrap no HTML/JS):
+ * To regenerate (after changing Bootstrap classes in the HTML/JS):
  *   npm run purge:bootstrap
  *
- * Use o script, não o CLI direto: o PurgeCSS nomeia a saída com o basename da
- * entrada, então `--output site/assets/vendor/bootstrap/` sobrescreve o próprio
- * bootstrap.min.css completo que serve de fonte.
+ * Use the script, not the CLI directly: PurgeCSS names its output after the basename
+ * of the input, so `--output site/assets/vendor/bootstrap/` overwrites the very full
+ * bootstrap.min.css that serves as its source.
  *
- * O arquivo purgado é UM só, compartilhado por todas as publicações, mas
- * `site/` só contém uma publicação por vez. Por isso o conteúdo analisado
- * inclui `dist/<id>/*.html` (saída de `npm run build:all`): regenerar a partir
- * de `site/` apenas removeria classes usadas somente pelas outras publicações.
+ * The purged file is a SINGLE file shared by every publication, but `site/` holds one
+ * publication at a time. That is why the analysed content includes `dist/<id>/*.html`
+ * (the output of `npm run build:all`): regenerating from `site/` alone would strip
+ * classes used only by the other publications.
  *
- * O check `npm run lint:purge` (scripts/check-bootstrap-purge.mjs) falha se
- * uma classe Bootstrap nova aparecer no site sem regra no arquivo purgado.
+ * The `npm run lint:purge` check (scripts/check-bootstrap-purge.mjs) fails when a new
+ * Bootstrap class reaches the site without a rule in the purged file.
  *
- * A safelist cobre as classes que os plugins JS do Bootstrap alternam em
- * runtime (só collapse e modal são usados no site) e estados genéricos.
+ * The safelist covers the classes Bootstrap's JS plugins toggle at runtime (only
+ * collapse and modal are used on the site) plus generic states.
  */
 module.exports = {
   content: ["site/*.html", "dist/*/*.html", "site/assets/js/**/*.js"],
   css: ["site/assets/vendor/bootstrap/bootstrap.min.css"],
-  // Não remover variáveis --bs-* nem @keyframes (spinner-border é usado nos
-  // overlays de carregamento dos mapas).
+  // Keep the --bs-* variables and the @keyframes (spinner-border drives the loading
+  // overlays of the maps).
   variables: false,
   keyframes: false,
   fontFace: false,
@@ -39,11 +39,11 @@ module.exports = {
       "showing",
       "hiding",
       "fade",
-      // Bootstrap Modal (página de monitoramento)
+      // Bootstrap Modal (monitoring page)
       "modal-open",
       "modal-backdrop",
       "modal-static",
-      // Estados genéricos alternados em runtime
+      // Generic states toggled at runtime
       "active",
       "disabled",
     ],

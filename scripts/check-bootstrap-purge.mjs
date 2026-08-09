@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
- * Verifica que o bootstrap.purged.min.css cobre todo seletor do
- * bootstrap.min.css completo que PODE se aplicar ao site: um seletor cujas
- * classes estão todas presentes no HTML gerado / JS próprio (ou na lista de
- * classes que os plugins do Bootstrap alternam em runtime) precisa continuar
- * existindo no arquivo purgado. Falha => regenerar o purge
- * (scripts/purgecss.config.cjs).
+ * Verifies that bootstrap.purged.min.css still covers every selector of the full
+ * bootstrap.min.css that CAN apply to the site: a selector whose classes are all
+ * present in the generated HTML / first-party JS (or in the list of classes the
+ * Bootstrap plugins toggle at runtime) has to survive in the purged file. A failure
+ * means the purge needs regenerating (scripts/purgecss.config.cjs).
  *
- * Apenas stdlib do Node, como o build.js.
+ * Node stdlib only, like build.js.
  */
 
 import { readFileSync } from "node:fs";
@@ -21,10 +20,9 @@ const { collectFiles, htmlFilesIn, bundleDirs } = require("./site-builder/corpus
 
 const read = (rel) => readFileSync(join(root, rel), "utf8");
 
-// ---------------------------------------------------------------------------
-// Classes usadas: atributos class="..." do HTML gerado + strings no JS próprio
-// + classes que os plugins do Bootstrap em uso (collapse, modal) alternam.
-// ---------------------------------------------------------------------------
+// Seeded with the classes Bootstrap toggles at runtime (collapse, modal, and generic
+// states): they never show up in a class="..." attribute of the generated HTML. The
+// scan below adds the classes the HTML and the first-party JS do carry.
 const usedClasses = new Set([
   "collapsing",
   "collapse-horizontal",
@@ -44,10 +42,10 @@ const usedTags = new Set(["html", "body", "*"]);
 // every publication instead of just the one currently rendered.
 const htmlFiles = [...htmlFilesIn(root, "site"), ...bundleDirs(root).flatMap((dir) => htmlFilesIn(root, dir))];
 
-const htmlCorpus = [];
+const corpusParts = [];
 for (const file of htmlFiles) {
   const text = read(file);
-  htmlCorpus.push(text);
+  corpusParts.push(text);
   for (const match of text.matchAll(/class="([^"]*)"/g)) {
     for (const cls of match[1].split(/\s+/)) if (cls) usedClasses.add(cls);
   }
@@ -55,17 +53,15 @@ for (const file of htmlFiles) {
 }
 for (const file of collectFiles(root, "site/assets/js", [".js"])) {
   const text = read(file);
-  htmlCorpus.push(text);
+  corpusParts.push(text);
   for (const match of text.matchAll(/["'`]([\w\s-]+)["'`]/g)) {
     for (const cls of match[1].split(/\s+/)) if (cls) usedClasses.add(cls);
   }
 }
-const corpusText = htmlCorpus.join("\n");
+const corpusText = corpusParts.join("\n");
 
-// ---------------------------------------------------------------------------
-// Seletores de um CSS minificado: texto antes de cada '{' que não seja
-// at-rule; cada seletor individual (separado por vírgula) é normalizado.
-// ---------------------------------------------------------------------------
+// Selectors of a minified stylesheet: whatever precedes each '{' without being an
+// at-rule, split on the commas of a selector list.
 const parseSelectors = (cssText) => {
   const selectors = new Set();
   for (const match of cssText.matchAll(/(?:^|[{};])\s*([^{};@]+)\{/g)) {
@@ -79,13 +75,13 @@ const parseSelectors = (cssText) => {
 
 const classTokens = (selector) => [...selector.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map((m) => m[1]);
 
-// Tags "puras" do seletor (fora de [attr], sem prefixo . # : -).
+// Bare tags of the selector (outside [attr], with no . # : - prefix).
 const tagTokens = (selector) =>
   [...selector.replace(/\[[^\]]*\]/g, "").matchAll(/(?:^|[\s>+~(])([a-z][a-z0-9]*)\b/g)]
     .map((m) => m[1])
     .filter((tag) => !["not", "hover", "focus", "active", "disabled", "checked"].includes(tag));
 
-// Nomes de atributo do seletor ([data-bs-theme=dark] etc.).
+// Attribute names of the selector ([data-bs-theme=dark] and the like).
 const attrTokens = (selector) => [...selector.matchAll(/\[([a-zA-Z-]+)/g)].map((m) => m[1]);
 
 const originalSelectors = parseSelectors(read("site/assets/vendor/bootstrap/bootstrap.min.css"));
@@ -94,10 +90,10 @@ const purgedSelectors = parseSelectors(read("site/assets/vendor/bootstrap/bootst
 const missing = [];
 for (const selector of originalSelectors) {
   const classes = classTokens(selector);
-  if (classes.length === 0) continue; // element/attr-only: PurgeCSS mantém
-  if (!classes.every((cls) => usedClasses.has(cls))) continue; // nunca se aplica
-  // Constrangido a uma tag ou atributo que o site nunca produz => nunca se
-  // aplica (ex.: fieldset:disabled .btn, .navbar[data-bs-theme=dark]).
+  if (classes.length === 0) continue; // element/attr-only: PurgeCSS keeps it
+  if (!classes.every((cls) => usedClasses.has(cls))) continue; // can never apply
+  // Constrained to a tag or attribute the site never produces => can never apply
+  // (e.g. fieldset:disabled .btn, .navbar[data-bs-theme=dark]).
   if (!tagTokens(selector).every((tag) => usedTags.has(tag))) continue;
   if (!attrTokens(selector).every((attr) => corpusText.includes(attr))) continue;
   if (!purgedSelectors.has(selector)) missing.push(selector);

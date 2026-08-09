@@ -102,9 +102,8 @@
   text-decoration: none;
 }
 
-/* Alvo de toque de 24px, o piso do WCAG 2.2 (SC 2.5.8). Medidos em 22px de
-   altura, estes links são navegação e não texto corrido, então a isenção para
-   alvo em linha não se aplica: num celular a diferença é errar o link vizinho. */
+/* 24px touch target, the WCAG 2.2 floor (SC 2.5.8). These links are navigation
+   rather than running text, so the inline-target exemption does not apply. */
 .footer-nav a {
   display: inline-flex;
   align-items: center;
@@ -122,21 +121,20 @@
   text-align: center;
 }
 
-/* Amarelo de aviso clareado no ponto de uso: --warning-color (#f1c40f) é a tinta
-   de alerta pensada para superfície clara e sobre o azul do rodapé fica em
-   4,05:1 — justamente na linha que pede para não usar a previsão em decisão
-   operacional. O token continua com o valor canônico: quem precisa da correção é
-   esta superfície, não o alerta em geral. */
+/* Warning yellow lightened at the point of use: --warning-color (#f1c40f) is
+   the alert ink meant for light surfaces and only reaches 4.05:1 over the
+   footer blue — on the very line asking readers not to use the forecast for
+   operational decisions. The token keeps its canonical value, since it is this
+   surface that needs the correction, not the alert ink in general. */
 .footer-disclaimer {
   color: #f7dc6f;
   font-size: 0.85rem;
   margin-bottom: 5px;
 }
 
-/* Um esmaecimento só. O alpha da tinta e o `opacity` se multiplicavam (0,49 de
-   branco efetivo), e a linha caía a 2,9:1 sobre o rodapé — o `opacity` ainda
-   apagava a tinta que o tema escuro repõe. O alpha sozinho mantém a hierarquia
-   de rodapé secundário e passa os 4,5:1. */
+/* Fade through the ink alpha only, never `opacity`: opacity would also dim the
+   ink the dark theme swaps in, and the line would drop below 4.5:1 over the
+   footer. The alpha alone keeps the secondary-footer hierarchy. */
 .copyright {
   color: rgba(255, 255, 255, 0.86) !important;
   font-size: 0.8rem !important;
@@ -147,8 +145,9 @@
   align-items: center;
   justify-content: center;
 
-  /* O ícone tem 16px; o alvo, 24px. A margem negativa devolve o espaço extra ao
-     texto ao redor, para que aumentar a área de toque não empurre a linha. */
+  /* The icon is 16px and the target 24px; the negative margin gives the extra
+     space back to the surrounding text, so widening the touch area does not
+     push the line apart. */
   min-width: 24px;
   min-height: 24px;
   margin-block: -4px;

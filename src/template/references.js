@@ -1,37 +1,32 @@
 "use strict";
 
 /**
- * Bibliografia do site.
+ * Site bibliography.
  *
- * Uma citação que diz só "(Fulano, 2019)" não serve a quem ainda não conhece a
- * área: não dá o título, não dá onde procurar e não dá o que ler. Aqui cada
- * referência carrega o registro completo e um endereço, e as páginas citam por
- * marcador `[[chave]]` em vez de escrever o nome à mão — assim uma citação nunca
- * aparece em duas grafias diferentes e nenhuma fica sem destino.
+ * A bare "(Author, 2019)" gives a newcomer no title, no place to look and
+ * nothing to read, so every entry here carries the full record and an address.
+ * Pages cite by `[[key]]` marker instead of spelling the name out, which keeps
+ * one spelling per citation and leaves none without a destination.
  *
- * POLÍTICA DE LINK, que é o que impede este arquivo de envelhecer mal: um
- * `doi.org` só entra quando o identificador foi conferido; nos demais casos o
- * destino é uma BUSCA pelo título no Crossref. Uma busca sempre leva o leitor ao
- * lugar certo, enquanto um DOI decorado de memória pode levar ao artigo errado —
- * que é pior do que não ter link nenhum numa página científica.
+ * LINK POLICY, and it is what keeps this file from ageing badly: a `doi.org`
+ * address only when the identifier has been checked; otherwise the target is a
+ * Crossref SEARCH by title. A search always lands the reader in the right
+ * place, while a DOI recalled from memory can lead to the wrong paper — worse
+ * than no link at all on a scientific page.
  *
- * A página de climatologia acrescenta em runtime a bibliografia que vem no
- * manifesto publicado pelo `labmim-climatology` (as famílias de distribuição).
- * Esta lista é a do site em si: o modelo, seus esquemas e as constantes.
+ * The climatology page appends, at runtime, the bibliography shipped in the
+ * manifest published by `labmim-climatology` (the distribution families). This
+ * list is the site's own: the model, its schemes and the constants.
  */
 
 /**
- * Busca por título no Crossref, para registros sem DOI conferido.
- *
- * A rota É `/search/works`, e o `from_ui=yes` faz parte dela. O endereço curto
- * `search.crossref.org/?q=…` responde 200 e parece certo, mas a interface atual
- * do Crossref ignora o parâmetro ali: a página abre com o campo de busca VAZIO e
- * nenhum resultado. Medido — pelo caminho antigo o campo volta `""`; por este ele
- * volta preenchido com o título e a lista de resultados aparece. Como o status
- * HTTP é 200 nos dois, nenhum verificador de links acusa a diferença; só abrir a
- * página no navegador acusa.
+ * The route IS `/search/works`, and `from_ui=yes` is part of it. The short
+ * `search.crossref.org/?q=…` address answers 200 and looks right, but the
+ * current Crossref interface ignores the parameter there and opens with an
+ * EMPTY search box and no results. Both answer 200, so no link checker can tell
+ * them apart — only opening the page in a browser does.
  */
-function search(title) {
+function crossrefTitleSearch(title) {
   return `https://search.crossref.org/search/works?q=${encodeURIComponent(title)}&from_ui=yes`;
 }
 
@@ -56,7 +51,7 @@ const SITE_REFERENCES = Object.freeze({
       "Iacono, M. J., Delamere, J. S., Mlawer, E. J., Shephard, M. W., Clough, S. A. & Collins, W. D. " +
       "(2008). Radiative forcing by long-lived greenhouse gases: calculations with the AER radiative " +
       "transfer models. Journal of Geophysical Research 113, D13103. O esquema RRTMG.",
-    url: search("Radiative forcing by long-lived greenhouse gases AER radiative transfer models"),
+    url: crossrefTitleSearch("Radiative forcing by long-lived greenhouse gases AER radiative transfer models"),
   },
   thompson: {
     short: "Thompson et al., 2008",
@@ -64,24 +59,19 @@ const SITE_REFERENCES = Object.freeze({
       "Thompson, G., Field, P. R., Rasmussen, R. M. & Hall, W. D. (2008). Explicit forecasts of winter " +
       "precipitation using an improved bulk microphysics scheme. Part II: implementation of a new snow " +
       "parameterization. Monthly Weather Review 136(12), 5095-5115.",
-    url: search("Explicit forecasts of winter precipitation improved bulk microphysics scheme Part II"),
+    url: crossrefTitleSearch("Explicit forecasts of winter precipitation improved bulk microphysics scheme Part II"),
   },
   wsm6: {
     short: "Hong e Lim, 2006",
     citation:
       "Hong, S.-Y. & Lim, J.-O. J. (2006). The WRF single-moment 6-class microphysics scheme (WSM6). " +
       "Journal of the Korean Meteorological Society 42(2), 129-151.",
-    // Única exceção à política acima, e a razão é que as duas outras rotas não
-    // existem para este registro. O artigo não tem DOI (confirmado na OpenAlex,
-    // que devolve `doi: null`) e a revista não está no Crossref (a consulta a
-    // /journals por "Korean Meteorological Society" volta vazia), então a busca
-    // que este arquivo usa como padrão NÃO pode achá-lo: medida no navegador,
-    // ela responde 200, roda e devolve 1,9 milhão de resultados cujos três
-    // primeiros são outros artigos que apenas citam o WSM6 — o leitor cai no
-    // trabalho errado, que é justamente o que a política quer evitar. O endereço
-    // abaixo é o registro permanente do Semantic Scholar, cuja identidade foi
-    // conferida na API em 2026-08-09: título, autores (Hong, Lim) e ano batem, e
-    // o identificador MAG 1909100498 é o mesmo que a OpenAlex atribui ao artigo.
+    // The one exception to the policy above, because neither of the other two
+    // routes exists for this record: the paper has no DOI and the journal is
+    // not in Crossref, so the default title search CANNOT reach it and returns
+    // papers that merely cite WSM6 — the wrong work, which is what the policy
+    // is there to prevent. This is the verified permanent Semantic Scholar
+    // record for it.
     url: "https://www.semanticscholar.org/paper/f6014c7853ea15270114b4f1bfec2e64559e63dd",
   },
   ysu: {
@@ -89,7 +79,7 @@ const SITE_REFERENCES = Object.freeze({
     citation:
       "Hong, S.-Y., Noh, Y. & Dudhia, J. (2006). A new vertical diffusion package with an explicit " +
       "treatment of entrainment processes. Monthly Weather Review 134(9), 2318-2341. O esquema YSU.",
-    url: search("A new vertical diffusion package with an explicit treatment of entrainment processes"),
+    url: crossrefTitleSearch("A new vertical diffusion package with an explicit treatment of entrainment processes"),
   },
   myj: {
     short: "Janjic, 1994",
@@ -97,7 +87,7 @@ const SITE_REFERENCES = Object.freeze({
       "Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the " +
       "convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), " +
       "927-945. O esquema MYJ de camada limite.",
-    url: search("step-mountain eta coordinate model further developments convection viscous sublayer"),
+    url: crossrefTitleSearch("step-mountain eta coordinate model further developments convection viscous sublayer"),
   },
   noahmp: {
     short: "Niu et al., 2011",
@@ -105,13 +95,8 @@ const SITE_REFERENCES = Object.freeze({
       "Niu, G.-Y. et al. (2011). The community Noah land surface model with multiparameterization " +
       "options (Noah-MP): 1. Model description and evaluation with local-scale measurements. " +
       "Journal of Geophysical Research 116, D12109.",
-    // DOI conferido na API do Crossref em 2026-08-09: o registro devolve este
-    // título, Niu/Yang/Mitchell e 2011, exatamente o que a citação afirma.
-    // Aqui a busca por título não servia: medida no navegador, ela devolve como
-    // primeiro resultado um artigo de outros autores sobre neve no Noah-MP, e o
-    // artigo citado (a Parte 1) nem aparece entre os três primeiros — o terceiro
-    // é a Parte 2, que é outro trabalho. Como a página de destino abre certa e o
-    // status é 200, só olhar o resultado da busca acusa a troca.
+    // Verified DOI, deliberately: a title search puts a paper by other authors
+    // first and the cited Part 1 does not even reach the top three results.
     url: "https://doi.org/10.1029/2010JD015139",
   },
   kainfritsch: {
@@ -119,7 +104,7 @@ const SITE_REFERENCES = Object.freeze({
     citation:
       "Kain, J. S. (2004). The Kain-Fritsch convective parameterization: an update. " +
       "Journal of Applied Meteorology 43(1), 170-181.",
-    url: search("The Kain-Fritsch convective parameterization an update"),
+    url: crossrefTitleSearch("The Kain-Fritsch convective parameterization an update"),
   },
   codata2018: {
     short: "CODATA 2018",

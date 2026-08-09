@@ -13,12 +13,13 @@ module.exports = [
     },
   }),
   page("monitoring", {
-    // Variante interativa da rota: lê o payload horário de
-    // `dataset.paths.monitoring` em vez dos PNGs de `dataset.observations`. A
-    // variante estática (pages/monitoring.html) segue disponível e é a que o
-    // LEAL usa, que ainda publica imagens prontas.
+    // Interactive variant of the route: it reads the hourly payload from
+    // `dataset.paths.monitoring`. The static variant (pages/monitoring.html)
+    // remains available for publications that ship ready-made PNGs in
+    // `dataset.observations`.
     source: templateSource("pages/monitoring-live.html"),
-    // Chart.js só nas páginas que desenham, como na climatologia.
+    // Chart.js is declared per page: loading it from the institutional layout
+    // would cost 200 KB on the routes that draw nothing.
     vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
     scripts: ["assets/js/monitoramento.js"],
     append: [siteSource("fragments/funding.html")],
@@ -37,8 +38,6 @@ module.exports = [
     },
   }),
   page("climatology", {
-    // Chart.js só aqui: carregá-lo no layout institucional custaria 200 KB nas
-    // páginas de início, equipe e monitoramento, que não desenham nada.
     vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
     scripts: ["assets/js/climatologia.js"],
     seo: {

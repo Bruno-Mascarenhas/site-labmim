@@ -1,17 +1,11 @@
-<!-- Conteúdo editorial específico do LabMiM/UFBA. -->
-
 <!--
-  Os nomes são links para o currículo Lattes e precisam PARECER links. A classe
-  utilitária .text-dark do Bootstrap declara a cor com !important e vencia
-  `.team-group a { color: var(--primary-color) }`: no tema claro o nome ficava
-  em rgb(33,37,41), exatamente a cor do texto ao redor, e `.team-group a` já
-  zera o sublinhado — nada distinguia o link da prosa (o tema escuro escapava
-  só porque theme.css tem uma regra própria para `.team-group a`). Mesmo sem a
-  utilitária, cor sozinha não separaria link de texto: o azul institucional
-  #06235e fica a ~1:1 de luminância de #212529 (WCAG 1.4.1/G183). Daí o
-  sublinhado explícito no atributo style — o CSP do site libera
-  style-src 'unsafe-inline' justamente para atributos style, e classe
-  utilitária nova não sobrevive ao purge do Bootstrap sem regerar o vendor.
+  Every name is a Lattes link and has to look like one. `.team-group a` zeroes the
+  underline, and colour alone cannot carry the distinction: the institutional
+  #06235e sits at roughly 1:1 luminance against the surrounding #212529
+  (WCAG 1.4.1/G183). Hence the explicit underline in a style attribute — the site
+  CSP allows style-src 'unsafe-inline' precisely for style attributes, whereas a
+  new utility class would not survive the Bootstrap purge without regenerating the
+  vendor bundle.
 -->
 <div class="modern-section">
   <div class="page-header">
@@ -20,7 +14,6 @@
   </div>
 
   <div class="row">
-    <!-- Pesquisador Responsável -->
     <div class="col-md-6 mb-4 d-flex">
       <div class="team-group w-100 p-4 border rounded shadow-sm">
         <h3 class="team-group-title"><i class="fas fa-user-tie me-2"></i>Pesquisador Responsável</h3>
@@ -30,7 +23,8 @@
             href="https://lattes.cnpq.br/3112476528507003"
             target="_blank"
             rel="noopener"
-            class="me-2" style="text-decoration: underline"
+            class="me-2"
+            style="text-decoration: underline"
             >Edson P. Marques Filho</a
           >
           <span class="badge text-bg-info">IF-UFBA</span>
@@ -38,7 +32,6 @@
       </div>
     </div>
 
-    <!-- Pesquisadores Colaboradores -->
     <div class="col-md-6 mb-4 d-flex">
       <div class="team-group w-100 p-4 border rounded shadow-sm">
         <h3 class="team-group-title"><i class="fas fa-user-friends me-2"></i>Pesquisadores Colaboradores</h3>
@@ -82,7 +75,6 @@
       </div>
     </div>
 
-    <!-- Alunos Doutorado -->
     <div class="col-md-6 mb-4 d-flex">
       <div class="team-group w-100 p-4 border rounded shadow-sm">
         <h3 class="team-group-title"><i class="fas fa-graduation-cap me-2"></i>Alunos Doutorado</h3>
@@ -98,7 +90,6 @@
       </div>
     </div>
 
-    <!-- Alunos Mestrado -->
     <div class="col-md-6 mb-4 d-flex">
       <div class="team-group w-100 p-4 border rounded shadow-sm">
         <h3 class="team-group-title"><i class="fas fa-user-graduate me-2"></i>Alunos Mestrado</h3>
@@ -114,7 +105,6 @@
       </div>
     </div>
 
-    <!-- Alunos Iniciação Científica -->
     <div class="col-md-6 mb-4 d-flex">
       <div class="team-group w-100 p-4 border rounded shadow-sm">
         <h3 class="team-group-title"><i class="fas fa-flask me-2"></i>Alunos Iniciação Científica</h3>
@@ -150,9 +140,9 @@
   </div>
 
   <div class="mt-2 mb-5">
-    <!-- Embed simples (?output=embed) no lugar do My Maps: mesmo host no CSP,
-         sem os avisos de deprecação que o frontend do My Maps emite no console
-         (Marker/PlacesService legados dentro do iframe do Google). -->
+    <!-- Plain embed (?output=embed) rather than My Maps: same host under the CSP,
+         without the deprecation warnings the My Maps frontend logs to the console
+         (legacy Marker/PlacesService inside Google's own iframe). -->
     <iframe
       loading="lazy"
       src="https://www.google.com/maps?q=-13.0007998,-38.507221&amp;z=16&amp;output=embed"

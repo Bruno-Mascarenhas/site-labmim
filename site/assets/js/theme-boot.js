@@ -1,16 +1,16 @@
 (function () {
   "use strict";
 
-  // As duas leituras ficam separadas de propósito. Onde o armazenamento do site
-  // está bloqueado o simples acesso a `localStorage` lança, e num try único essa
-  // exceção levaria junto a consulta ao sistema operacional — que não depende de
-  // armazenamento nenhum. O usuário que pede tema escuro no SO ficaria preso no
-  // claro, porque não há nenhuma regra `prefers-color-scheme` no CSS do site.
+  // The two reads stay apart on purpose. Where site storage is blocked, merely
+  // touching `localStorage` throws, and inside a single try that exception
+  // would take the OS query down with it — and the OS query needs no storage at
+  // all. A user asking for dark at the OS level would be stuck in light, since
+  // the site CSS carries no `prefers-color-scheme` rule.
   let savedTheme = null;
   try {
     savedTheme = localStorage.getItem("labmim-theme");
   } catch {
-    // Armazenamento indisponível: resta a preferência do sistema.
+    // Storage unavailable: the system preference is all that is left.
   }
 
   const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;

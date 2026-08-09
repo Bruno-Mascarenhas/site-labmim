@@ -1,25 +1,25 @@
 /**
- * REFERÊNCIAS
+ * REFERENCES
  *
- * Expande os marcadores `[[chave]]` que as páginas escrevem no lugar das
- * citações, trocando cada um por um link com o registro bibliográfico completo
- * no tooltip.
+ * Expands the `[[key]]` markers pages write in place of citations, swapping
+ * each one for a link carrying the full bibliographic record in its tooltip.
  *
- * Por que marcador e não o texto pronto: uma citação escrita à mão aparece em
- * duas grafias na terceira vez que alguém a repete, e nenhuma delas leva a lugar
- * nenhum. Com marcador existe um registro só, o build recusa uma chave que não
- * existe, e o leitor que quiser aprender tem para onde ir.
+ * Why a marker instead of the finished text: a hand-written citation shows up
+ * in two spellings by the third time someone repeats it, and neither of them
+ * leads anywhere. With a marker there is a single record, the build rejects a
+ * key that does not exist, and the reader who wants to dig has somewhere to go.
  *
- * Duas fontes de bibliografia, deliberadamente:
+ * Two bibliography sources, deliberately:
  *
- * - a do SITE, embutida pelo build em `<script id="siteReferences">` — o modelo,
- *   os esquemas de física, as constantes. É versionada em src/template/references.js.
- * - a de uma PÁGINA, registrada em runtime por quem carrega dados próprios. A
- *   climatologia faz isso com a bibliografia que vem no manifesto publicado pelo
- *   exportador, porque as famílias de distribuição são escolha do produtor dos
- *   dados e não do site.
+ * - the SITE one, embedded by the build in `<script id="siteReferences">` — the
+ *   model, the physics schemes, the constants. Versioned in
+ *   src/template/references.js.
+ * - a PAGE one, registered at runtime by whoever loads their own data. The
+ *   climatology page does this with the bibliography carried by the manifest
+ *   the exporter publishes, because the distribution families are the data
+ *   producer's choice and not the site's.
  *
- * Este arquivo é carregado por todas as páginas e não depende de nada.
+ * Every page loads this file and it depends on nothing.
  */
 
 "use strict";
@@ -36,15 +36,14 @@
   }
 
   /**
-   * Só http(s) vira link.
+   * Only http(s) becomes a link.
    *
-   * A bibliografia de uma PÁGINA vem do manifesto publicado pelo exportador —
-   * um arquivo de dados que chega ao servidor pelo deploy, fora do repositório e
-   * de todos os portões de lint e build. `short` e `citation` são texto e só
-   * podem ser lidos; `url` é a única parte que o navegador interpreta, então é a
-   * única que precisa de esquema conferido. URL ausente ou de esquema estranho
-   * não invalida a entrada: a citação continua legível, apenas não fica
-   * clicável.
+   * A PAGE bibliography comes from the manifest the exporter publishes — a data
+   * file that reaches the server through the deploy, outside the repository and
+   * outside every lint and build gate. `short` and `citation` are text and can
+   * only be read; `url` is the one part the browser interprets, so it is the
+   * one part whose scheme must be checked. A missing or odd-scheme URL does not
+   * invalidate the entry: the citation stays legible, it just is not clickable.
    */
   function linkable(url) {
     if (typeof url !== "string") return false;
@@ -56,14 +55,14 @@
     }
   }
 
-  /** Um nó de citação: link para a fonte, registro completo no tooltip. */
-  function node(key) {
+  function citationNode(key) {
     const entry = registry.get(key);
-    // Marcador sem registro fica literal de propósito: é visível na revisão e no
-    // teste, em vez de sumir e deixar a frase citando o nada.
+    // An unregistered marker stays literal on purpose: it is visible in review
+    // and in testing, instead of vanishing and leaving the sentence citing
+    // nothing.
     if (!entry) return document.createTextNode(`[[${key}]]`);
-    // Sem URL utilizável a citação sai como texto: um <a href="undefined"> só
-    // levaria o leitor a um 404. O estilo de `.site-ref` é o mesmo nos dois.
+    // With no usable URL the citation renders as text: an <a href="undefined">
+    // would only take the reader to a 404. `.site-ref` styles both the same.
     const linked = linkable(entry.url);
     const element = document.createElement(linked ? "a" : "span");
     element.className = "site-ref";
@@ -72,15 +71,15 @@
       element.target = "_blank";
       element.rel = "noopener noreferrer";
     }
-    // `title` é o tooltip nativo: não precisa de posicionamento, funciona em
-    // qualquer navegador e vai junto do link para o leitor de tela.
+    // `title` is the native tooltip: no positioning to maintain, it works in
+    // every browser and it travels with the link to the screen reader.
     element.title = entry.citation;
     element.textContent = entry.short;
     element.setAttribute("aria-label", `${entry.short}. ${entry.citation}`);
     return element;
   }
 
-  /** Texto com marcadores -> fragmento com os links no lugar deles. */
+  /** Marker text -> fragment with the citation links in their place. */
   function expand(text) {
     const source = String(text);
     const fragment = document.createDocumentFragment();
@@ -89,20 +88,20 @@
       if (match.index > cursor) {
         fragment.appendChild(document.createTextNode(source.slice(cursor, match.index)));
       }
-      fragment.appendChild(node(match[1]));
+      fragment.appendChild(citationNode(match[1]));
       cursor = match.index + match[0].length;
     }
     if (cursor < source.length) fragment.appendChild(document.createTextNode(source.slice(cursor)));
     return fragment;
   }
 
-  /** Mesma expansão em texto puro, para onde não cabe marcação. */
+  /** Same expansion in plain text, for places where markup does not fit. */
   function plain(text) {
     return String(text).replace(MARKER, (marker, key) => {
       const entry = registry.get(key);
-      // Marcador sem registro sai inteiro, como em `node()`: devolver só o slug
-      // o disfarçaria de palavra comum na legenda do gráfico, e ninguém veria
-      // que a citação não achou fonte.
+      // An unregistered marker comes out whole, as in `citationNode()`:
+      // returning the bare slug would disguise it as an ordinary word in a
+      // chart legend, and nobody would see that the citation found no source.
       return entry ? entry.short : marker;
     });
   }
@@ -116,11 +115,11 @@
   }
 
   /**
-   * Troca os marcadores do HTML estático já renderizado.
+   * Swaps the markers of already-rendered static HTML.
    *
-   * Percorre nós de TEXTO, nunca `innerHTML`: o conteúdo vem do template, mas
-   * reescrever markup para inserir um link abriria a porta para injeção no dia
-   * em que alguma dessas frases passar a vir de dados.
+   * Walks TEXT nodes, never `innerHTML`: the content comes from the template,
+   * but rewriting markup to insert a link would open the door to injection the
+   * day one of those sentences starts coming from data.
    */
   function decorate(root) {
     const scope = root || document.body;
@@ -142,9 +141,8 @@
       try {
         register(JSON.parse(embedded.textContent));
       } catch {
-        // Bibliografia ilegível não pode derrubar a página: os marcadores ficam
-        // literais e o resto do conteúdo continua de pé.
-        register(null);
+        // An unreadable bibliography must not take the page down: the markers
+        // stay literal and the rest of the content stands.
       }
     }
     decorate(document.body);

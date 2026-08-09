@@ -60,12 +60,12 @@ self.onmessage = function (e) {
   const threshold = typeof hideBelow === "number" && isFinite(hideBelow) ? hideBelow : -Infinity;
 
   // Parse the palette hex strings ONCE per message instead of running the
-  // regex twice per interpolated cell (~20k regex executions per frame for
-  // a 9801-cell domain — measured ~5x slower). Values are quantized to 2
-  // decimals, so memoizing per distinct value skips most interpolations
-  // too. Both caches are per-message: palette and scale change with the
-  // selected variable. Probed with `has`, since `null` (below the display
-  // threshold) is itself a memoizable outcome.
+  // regex twice per interpolated cell (~20k regex executions per frame on a
+  // 9801-cell domain). Values are quantized to 2 decimals, so memoizing per
+  // distinct value skips most interpolations too. Both caches are
+  // per-message: palette and scale change with the selected variable. The
+  // memo is probed with `has`, since `null` (below the display threshold) is
+  // itself a memoizable outcome.
   const paletteRgb = palette.map(hexToRgb);
   const memo = new Map();
 

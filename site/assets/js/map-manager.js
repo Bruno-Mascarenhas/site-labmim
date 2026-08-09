@@ -1,12 +1,9 @@
-/**
- * MAP UTILITY FUNCTIONS
- */
-
 const PLAYBACK_INTERVAL_MS = 800;
 const PREFETCH_AHEAD_STEPS = 2;
-// Espelha DAYLIGHT_ONLY_VARIABLES do pipeline (value_source.py): as quatro
-// variáveis de onda curta só são exportadas na janela diurna. Só vale no
-// fallback sem manifesto v2 — com ele, quem manda é `availability`.
+// Mirrors DAYLIGHT_ONLY_VARIABLES in the pipeline (value_source.py): the four
+// shortwave variables are only exported during the daylight window. Used only
+// as the fallback when no v2 manifest is available; with one, `availability`
+// is authoritative.
 const DAYLIGHT_ONLY_VARIABLE_IDS = new Set(["SWDOWN", "SWUP", "SWNET", "KT"]);
 
 function workerScriptUrl(fileName) {
@@ -20,8 +17,8 @@ function workerScriptUrl(fileName) {
     workerScriptUrl._hashes = hashes;
   }
   const version = workerScriptUrl._hashes[fileName];
-  // Sem hash (HTML sem build): URL sem ?v= — um token fixo seria congelado
-  // como immutable pela regra do .htaccess e prenderia um worker antigo.
+  // No hash (HTML served without a build) means no ?v= at all: a fixed token
+  // would be frozen as immutable by the .htaccess rule and pin an old worker.
   return version ? `assets/js/workers/${fileName}?v=${encodeURIComponent(version)}` : `assets/js/workers/${fileName}`;
 }
 function readSiteConfig() {
@@ -81,11 +78,7 @@ function _debounce(fn, delay) {
   };
 }
 
-/**
- * Ray-casting point-in-polygon for GeoJSON Polygon/MultiPolygon features.
- * Replaces the former runtime dependency on the full turf.js bundle, which
- * was only used for the state-boundary mask.
- */
+/** Ray-casting point-in-polygon for GeoJSON Polygon/MultiPolygon features. */
 function _pointInRing(lng, lat, ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -121,17 +114,16 @@ class MeteoMapManager {
   constructor() {
     this.mapContext = this.resolveMapContext();
     this.contextConfig = VARIABLE_CONTEXTS[this.mapContext] || VARIABLE_CONTEXTS.forecast;
-    // Pipeline run version from the configured manifest (adopted via applyManifest
-    // once map-init resolves the manifest): appended as ?v= to every data URL
-    // so the server can cache the fixed-name data files long-term. Null (no
-    // manifest) keeps plain URLs.
+    // Pipeline run version, adopted from the manifest by applyManifest and
+    // appended as ?v= to every data URL so the fixed-name data files can be
+    // cached long-term. Null (no manifest) keeps plain URLs.
     this.dataVersion = null;
     this.map = null;
     this.currentGeoJsonLayer = null;
     this.currentValueData = null;
-    // Identifies which (domain, variable, timestep) currentValueData holds, so
-    // a click can tell whether the loaded data matches the current view or is
-    // still catching up after a rapid slider/variable/domain change.
+    // Which (domain, variable, timestep) currentValueData holds, so a click can
+    // tell whether the loaded data matches the current view or is still
+    // catching up after a rapid slider/variable/domain change.
     this._currentValueKey = null;
     // The in-flight applyMapChanges() load, tagged with the view it targets.
     this._currentApply = null;
@@ -141,8 +133,8 @@ class MeteoMapManager {
       workerUrl: workerScriptUrl("json-parser.worker.js"),
     });
 
-    // Timeline contract from a v2 manifest (applyManifest). Until one
-    // arrives, the selected dataset supplies the static build defaults.
+    // Timeline contract from a v2 manifest (applyManifest). Until one arrives,
+    // the selected dataset supplies the static build defaults.
     this.timeline = {
       indexMin: 1,
       indexMax: null,
@@ -228,11 +220,11 @@ class MeteoMapManager {
   }
 
   /**
-   * The variables the sidebar actually consumes for the current selection:
-   * the active variable plus the companions its specificInfo reads
-   * (declared per-variable as `relatedVariables` in VARIABLES_CONFIG).
-   * Fetching every visible variable here made each map click download ~10
-   * full-domain files to display at most three numbers.
+   * The variables the sidebar actually consumes for the current selection: the
+   * active variable plus the companions its specificInfo reads (declared
+   * per-variable as `relatedVariables` in VARIABLES_CONFIG). Narrowing the set
+   * matters because fetching every visible variable would pull ~10 full-domain
+   * files per map click to display at most three numbers.
    */
   getRelatedVariableTypes() {
     const variables = new Set([this.state.type]);
@@ -243,30 +235,28 @@ class MeteoMapManager {
   }
 
   /**
-   * Fetch JSON through the shared data service (cache, in-flight dedup,
-   * negative cache and worker parsing with main-thread fallback).
-   * Kept as a method because ChartsManager consumes it via app._cachedFetch.
+   * Fetches JSON through the shared data service (cache, in-flight dedup,
+   * negative cache and worker parsing with main-thread fallback). Must stay a
+   * method: ChartsManager reaches it as app._cachedFetch.
    */
   _cachedFetch(url, options = {}) {
     return this.dataService.fetchJson(url, options);
   }
 
   /**
-   * Appends the pipeline run version (from the configured manifest) to a data
-   * URL. A new run publishes a new version, so versioned URLs may be cached
-   * aggressively by the browser without ever pinning stale forecasts; when
-   * no manifest exists the plain URL keeps today's revalidation behavior.
+   * Appends the pipeline run version to a data URL. Every run publishes a new
+   * version, so versioned URLs may be cached aggressively without ever pinning
+   * a stale forecast; without a manifest the plain URL keeps revalidating.
    */
   dataUrl(path) {
     return this.dataVersion ? `${path}?v=${encodeURIComponent(this.dataVersion)}` : path;
   }
 
-  /** Single source of the per-timestep value JSON path convention. */
   valuesJsonPath(domain, variableId, index) {
     return `${DATA_SITE_CONFIG.valuesBase}/${domain}_${variableId}_${String(index).padStart(3, "0")}.json`;
   }
 
-  /** Compact and legacy grid paths supplied by the selected dataset. */
+  /** Compact grid; gridGeoJsonPath below is the legacy fallback. */
   gridJsonPath(domain) {
     return `${DATA_SITE_CONFIG.gridsBase}/${domain}.grid.json`;
   }
@@ -276,11 +266,11 @@ class MeteoMapManager {
   }
 
   /**
-   * Adopts a pipeline manifest: run version for ?v= URLs and, when the v2
+   * Adopts a pipeline manifest: the run version for ?v= URLs and, when the v2
    * fields are present, the timeline contract — step range, per-variable
-   * availability and consolidated-artifact descriptors — replacing the
-   * hardcoded defaults that would otherwise have to be edited in lockstep
-   * with every pipeline change (longer runs, new gated variables).
+   * availability and consolidated-artifact descriptors. Reading them from the
+   * manifest keeps a longer run or a newly gated variable from requiring an
+   * edit here.
    */
   applyManifest(manifest) {
     if (typeof manifest?.version === "string" && manifest.version) {
@@ -290,21 +280,21 @@ class MeteoMapManager {
     if (Number.isInteger(manifest?.index_max) && manifest.index_max >= 1) {
       this.timeline.indexMax = manifest.index_max;
       this.timeline.indexMin = Number.isInteger(manifest.index_min) ? Math.max(1, manifest.index_min) : 1;
-      // One playback loop (values + wind overlay) plus an open modal must
-      // stay resident; scale with the timeline instead of thrashing at 121+.
+      // One playback loop (values + wind overlay) plus an open modal must stay
+      // resident, so the cache budget scales with the timeline length.
       this.dataService.ensureCacheLimit(Math.ceil(manifest.index_max * 5.5));
     } else {
-      // A v1 manifest (or a rollback) carries no timeline: the previous
-      // run's longer range must not survive it.
+      // A v1 manifest (or a rollback) carries no timeline: the previous run's
+      // longer range must not survive it.
       this.timeline.indexMax = null;
       this.timeline.indexMin = 1;
     }
     this.state.maxLayer = this.timeline.indexMax ?? DEFAULT_MAX_LAYER;
     if (this.ui.slider) {
       this.ui.slider.max = String(this.state.maxLayer);
-      // The floor has to follow the manifest for the same reason the ceiling
-      // does: a --skip-first run starts above 1, and leaving min at the markup
-      // default left those leading positions draggable but unloadable.
+      // The floor follows the manifest for the same reason the ceiling does: a
+      // --skip-first run starts above 1, and any position below indexMin is
+      // draggable but unloadable.
       this.ui.slider.min = String(this.timeline.indexMin);
       if (parseInt(this.ui.slider.value, 10) > this.state.maxLayer) {
         this.ui.slider.value = String(this.state.maxLayer);
@@ -320,11 +310,11 @@ class MeteoMapManager {
       manifest?.availability && typeof manifest.availability === "object" ? manifest.availability : null;
     this.timeline.features = manifest?.features && typeof manifest.features === "object" ? manifest.features : null;
 
-    // Anchor the date labels to the run start instead of waiting for the
-    // first loaded file's metadata. start_local is the local datetime of
-    // FILE INDEX 0 (the wrfout's first time step) — always paired with
-    // initialIndex 0, never with index_min (which is merely the first index
-    // the run wrote; skip-first runs have index_min > 0).
+    // Anchor the date labels to the run start instead of waiting for the first
+    // loaded file's metadata. start_local is the local datetime of FILE INDEX 0
+    // (the wrfout's first time step), so it always pairs with initialIndex 0,
+    // never with index_min — that is merely the first index the run wrote, and
+    // skip-first runs have index_min > 0.
     if (typeof manifest?.start_local === "string") {
       try {
         const parsed = this.parseDateTime(manifest.start_local);
@@ -338,28 +328,29 @@ class MeteoMapManager {
       }
     }
 
-    // Só agora se sabe em que passos a variável em tela existe: o passo herdado
-    // (o do documento, na abertura, ou a posição pausada, numa rodada nova)
-    // pode não ser um deles. Ajustar aqui, antes do rótulo, evita abrir a
-    // página de potenciais num quadro vazio — a variável solar não é exportada
-    // de madrugada, e o índice inicial do documento é o mesmo para todas.
+    // Only now are the steps where the current variable exists known, and the
+    // inherited index (the document's on open, or the paused position on a new
+    // run) may not be one of them. Snapping here, before the label is drawn,
+    // keeps the potentials page from opening on an empty frame: the solar
+    // variables are not exported overnight, yet the document's initial index is
+    // the same for every variable.
     this._snapIndexToAvailable();
 
     this.updateDateTime();
   }
 
   /**
-   * A manifest re-check found a manifest whose version differs from the one
-   * this session runs on. First manifest of the session (slow first fetch):
-   * adopt it in place. Genuinely NEW run under the same fixed file names:
-   * drop every cache keyed on the old bytes (parsed JSON, chart series,
-   * grid layers), close views built from them, re-anchor the timeline and
+   * Reacts to a manifest re-check. First manifest of the session (slow first
+   * fetch): adopt it in place. Genuinely new run behind the same fixed file
+   * names: drop every cache keyed on the old bytes (parsed JSON, chart series,
+   * grid layers), close the views built from them, re-anchor the timeline and
    * repaint. No-op while the version is unchanged.
    */
   handleManifestUpdate(manifest, chartsManagerInstance = this.chartsManager) {
     if (!manifest?.version) return;
     if (!this.dataVersion) {
-      // Session ran unversioned so far — same run, just late; no cache nuke.
+      // Session ran unversioned so far: same run, just late, so nothing cached
+      // is stale.
       this.applyManifest(manifest);
       this.applyMapChanges();
       return;
@@ -369,8 +360,8 @@ class MeteoMapManager {
     this.dataService.clear();
     chartsManagerInstance?.clearCaches?.();
     // The open modal/sidebar describe the previous run's series and cell
-    // values; closing beats silently showing yesterday's forecast next to
-    // today's map.
+    // values; closing them beats showing yesterday's forecast next to today's
+    // map.
     chartsManagerInstance?.closeModal?.();
     this.closeSidebar();
     // Grid geometry can change between runs (re-gridded domain): rebuild
@@ -384,19 +375,18 @@ class MeteoMapManager {
     this.state.initialIndex = null;
     this.applyManifest(manifest);
 
-    // A posição pausada pode não existir na linha do tempo da nova rodada;
-    // quem reencaixa o índice na grade publicada é applyManifest, logo acima.
+    // The paused position may not exist in the new run's timeline; applyManifest
+    // just above is what snaps the index back onto the published grid.
     this.applyMapChanges();
     this.scheduleVariablePreviewRefresh();
   }
 
   /**
    * Whether the pipeline exports this variable at this timestep. Prefers the
-   * manifest's availability ranges (derived from the files actually
-   * written); the legacy fallback derives the daylight window of the
-   * shortwave variables from the forecast anchor (6h-18h local), and
-   * optimistically allows the index when no anchor is known yet — a miss is a
-   * handled 404, never a wrong blank.
+   * manifest's availability ranges (derived from the files actually written);
+   * the legacy fallback derives the daylight window of the shortwave variables
+   * from the forecast anchor (6h-18h local) and optimistically allows the index
+   * when no anchor is known yet — a miss is a handled 404, never a wrong blank.
    */
   isIndexAvailable(index, type = this.state.type) {
     const config = VARIABLES_CONFIG[type];
@@ -439,11 +429,11 @@ class MeteoMapManager {
   }
 
   /**
-   * Leva o passo atual para o primeiro passo em que `type` existe, movendo
-   * junto o slider. As variáveis de onda curta só são exportadas na janela
-   * diurna, então herdar o passo da variável anterior deixaria o mapa vazio
-   * num instante que o pipeline nunca publicou — e sem indicação de que basta
-   * andar na linha do tempo. Devolve o índice em vigor.
+   * Moves the current step (and the slider with it) to the first step where
+   * `type` exists, returning the index now in effect. The shortwave variables
+   * are only exported during daylight, so inheriting the previous variable's
+   * step would leave the map blank at an instant the pipeline never published,
+   * with nothing to hint that moving along the timeline fixes it.
    */
   _snapIndexToAvailable(type = this.state.type) {
     if (this.isIndexAvailable(this.state.index, type)) return this.state.index;
@@ -461,8 +451,8 @@ class MeteoMapManager {
 
   /**
    * The accumulation option in effect for `variableType`: the selected window
-   * when the variable offers it, falling back to the declared default (a
-   * variable without accumulation returns null and is read as a single step).
+   * when the variable offers it, otherwise the declared default. A variable
+   * without accumulation returns null and is read as a single step.
    */
   getAccumulationOption(variableType = this.state.type) {
     const accumulation = this.getAccumulationConfig(variableType);
@@ -475,12 +465,12 @@ class MeteoMapManager {
   }
 
   /**
-   * Passos que de fato entraram no campo pintado. No começo da linha do tempo
-   * a janela de acumulado não encontra passos anteriores suficientes e encurta
-   * (o `break` de _fetchValues), então o total em tela pode ser de uma hora
-   * enquanto o botão selecionado diz três. Para qualquer coisa que não seja o
-   * campo em tela — outra variável, nada carregado ainda, um payload de outro
-   * passo — vale a janela nominal.
+   * How many steps actually went into the painted field. Near the start of the
+   * timeline the accumulation window runs out of earlier steps and shortens
+   * (the `break` in _fetchValues), so the on-screen total can cover one hour
+   * while the selected button says three. Anything that is not the field on
+   * screen — another variable, nothing loaded yet, a payload from another
+   * step — reports the nominal window.
    */
   getAccumulatedSteps(variableType = this.state.type) {
     const nominal = this.getAccumulationOption(variableType)?.hours || 1;
@@ -503,9 +493,9 @@ class MeteoMapManager {
     const steps = this.getAccumulatedSteps(variableType);
     return {
       ...config,
-      // Janela encurtada: o rótulo diz a janela que o campo realmente tem. O
-      // que estava em tela era um total de 1 h anunciado como total de 3 h —
-      // leitura científica errada, e sem nada que a denunciasse.
+      // On a shortened window the label states the window the field really
+      // covers: announcing a 1h total as a 3h total is a wrong scientific
+      // reading with nothing on screen to give it away.
       label:
         steps < option.hours ? `${config.label} (${steps}h de ${option.hours}h)` : option.variableLabel || config.label,
       scaleMax: Number.isFinite(option.scaleMax) ? option.scaleMax : config.scaleMax,
@@ -531,8 +521,8 @@ class MeteoMapManager {
       if (this.state.type === "eolico") {
         this._applyMapChangesReselecting(this.state.selectedCell);
         // The overview panel summarizes the height-resolved variable
-        // (POT_EOLICO_50M/100M/150M) — refresh it, or its chart and stats
-        // keep describing the previous hub height under the new map.
+        // (POT_EOLICO_50M/100M/150M), so without a refresh its chart and stats
+        // would describe the previous hub height under the new map.
         this.scheduleVariablePreviewRefresh();
       }
     }
@@ -545,12 +535,10 @@ class MeteoMapManager {
 
     this.state.accumHours = hours;
     this.updateAccumulationButtons();
-    // Cada janela tem sua própria faixa: repintar a legenda já aqui evita que
-    // uma carga malsucedida deixe a escala da janela anterior sob o botão que
-    // já mostra a nova.
+    // Each window has its own range, and repainting the legend up front keeps a
+    // failed load from leaving the previous window's scale under a button that
+    // already shows the new one.
     this.updateColorbar(this.getVariableConfig(), null);
-    // The window is part of the load key, so this repaints the map, the
-    // colorbar (each window has its own range) and the sidebar total.
     this._applyMapChangesReselecting(this.state.selectedCell);
   }
 
@@ -713,11 +701,10 @@ class MeteoMapManager {
   }
 
   sanitizeNumericInput(value) {
-    // A vírgula é o separador decimal de quem escreve em português — e é a
-    // tecla que `inputmode="decimal"` oferece no teclado do celular. Descartá-la
-    // como caractere inválido não rejeitava nada: "1,225" virava "1225", o
-    // campo aceitava, gravava no localStorage e o potencial saía mil vezes
-    // maior sem uma palavra de aviso. Converter para ponto preserva a intenção.
+    // The comma is the decimal separator for anyone writing in Portuguese, and
+    // the key `inputmode="decimal"` offers on a phone keyboard. Converting it to
+    // a dot preserves the intent; dropping it as an invalid character would turn
+    // "1,225" into a silently accepted 1225.
     let sanitized = value.replace(/,/g, ".").replace(/[^\d.-]/g, "");
 
     const decimalParts = sanitized.split(".");
@@ -734,9 +721,9 @@ class MeteoMapManager {
   }
 
   saveParameterInput(variableType, input) {
-    // Repetida aqui de propósito: o listener de `input` não é o único caminho
-    // até a gravação (colar com o campo já preenchido, preencher via
-    // autopreenchimento). Quem grava é quem normaliza.
+    // Sanitizing again on purpose: the `input` listener is not the only route to
+    // a save (pasting into a filled field, autofill), so whoever writes the
+    // value normalizes it.
     const value = this.sanitizeNumericInput(input.value).trim();
     const paramName = input.dataset.param;
 
@@ -773,31 +760,30 @@ class MeteoMapManager {
         });
       }
 
-      if (inputs.length > 0) {
-        inputs.forEach((input) => {
-          const validateAndSave = (e) => {
-            this.saveParameterInput(variableType, e.target);
-            this.updateSidebarWithNewParameters(variableType);
-          };
+      inputs.forEach((input) => {
+        const validateAndSave = (e) => {
+          this.saveParameterInput(variableType, e.target);
+          this.updateSidebarWithNewParameters(variableType);
+        };
 
-          input.addEventListener("blur", validateAndSave);
+        input.addEventListener("blur", validateAndSave);
 
-          input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" || e.code === "Enter") {
-              e.preventDefault();
-              // Sem `blur()`: o valor já foi gravado aqui, e tirar o foco só
-              // repetiria a gravação pelo listener de blur e jogaria quem usa
-              // teclado no <body>, de onde o próximo Tab recomeça do topo da
-              // página em vez de seguir para o parâmetro seguinte.
-              validateAndSave(e);
-            }
-          });
-
-          input.addEventListener("input", (e) => {
-            e.target.value = this.sanitizeNumericInput(e.target.value);
-          });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.code === "Enter") {
+            e.preventDefault();
+            // Deliberately no `blur()`: the value is already saved here, and
+            // dropping focus would both repeat the save through the blur
+            // listener and land keyboard users on <body>, where the next Tab
+            // restarts at the top of the page instead of moving to the next
+            // parameter.
+            validateAndSave(e);
+          }
         });
-      }
+
+        input.addEventListener("input", (e) => {
+          e.target.value = this.sanitizeNumericInput(e.target.value);
+        });
+      });
 
       if (resetBtn) {
         resetBtn.addEventListener("click", () => {
@@ -837,7 +823,6 @@ class MeteoMapManager {
     this.updateSidebarSpecificInfo(specificInfo);
   }
 
-  /** Inner HTML of the recomputed part of the sidebar section: title and stat cards. */
   _specificInfoStatsHtml(specificInfo) {
     let html = `
             <div class="info-section-title">
@@ -862,7 +847,6 @@ class MeteoMapManager {
     return html;
   }
 
-  /** Inner HTML of the variable-specific sidebar section (title, stat cards, parameters editor). */
   _specificInfoHtml(specificInfo) {
     return this._specificInfoStatsHtml(specificInfo) + this.createParametersEditor(this.state.type);
   }
@@ -875,12 +859,13 @@ class MeteoMapManager {
 
     const existingEditor = existingSpecific.querySelector(".parameters-editor");
 
-    // Quem dispara este recálculo é o `blur` de um campo do editor, ou seja, o
-    // Tab que está migrando para o campo seguinte. Recriar o editor destruiria
-    // justamente o campo prestes a receber o foco, que então cairia no <body> e
-    // deixaria os demais parâmetros inalcançáveis por teclado. Quando o editor
-    // em tela já é o da variável exibida, só o bloco de valores é redesenhado e
-    // o editor segue sendo o mesmo nó — com o foco e o estado aberto intactos.
+    // This recalculation is triggered by the `blur` of an editor field, i.e. by
+    // the Tab already on its way to the next field. Recreating the editor would
+    // destroy exactly the field about to receive focus, dropping it on <body>
+    // and leaving the remaining parameters unreachable by keyboard. When the
+    // editor on screen already belongs to the displayed variable, only the stat
+    // block is redrawn and the editor stays the same node, focus and open state
+    // intact.
     const reusableEditor =
       existingEditor?.parentElement === existingSpecific &&
       existingEditor.querySelector(`.parameters-list[data-variable="${this.state.type}"]`)
@@ -897,11 +882,7 @@ class MeteoMapManager {
       return;
     }
 
-    let wasEditorOpen = false;
-    if (existingEditor) {
-      const existingList = existingEditor.querySelector(".parameters-list");
-      wasEditorOpen = existingList && existingList.classList.contains("active");
-    }
+    const wasEditorOpen = Boolean(existingEditor?.querySelector(".parameters-list")?.classList.contains("active"));
 
     existingSpecific.innerHTML = this._specificInfoHtml(specificInfo);
 
@@ -947,10 +928,11 @@ class MeteoMapManager {
       maxZoom: 15,
     }).addTo(this.map);
 
-    // O handler de teclado do Leaflet põe tabindex="0" no container, mas sem
-    // papel nem nome acessível a parada de Tab não anuncia nada e o leitor de
-    // tela intercepta as setas em vez de repassá-las ao mapa. Só preenche o que
-    // o documento não trouxer, para não sobrepor um rótulo vindo do template.
+    // Leaflet's keyboard handler puts tabindex="0" on the container, but with
+    // no role and no accessible name the Tab stop announces nothing and the
+    // screen reader swallows the arrow keys instead of passing them to the map.
+    // Only fill in what the document did not provide, so a label coming from the
+    // template is never overwritten.
     const container = this.map.getContainer();
     if (!container.getAttribute("role")) container.setAttribute("role", "application");
     if (!container.getAttribute("aria-label")) {
@@ -992,33 +974,30 @@ class MeteoMapManager {
 
   setupWindCanvas() {
     const canvas = document.getElementById("windVectorCanvas");
-    if (canvas) {
-      if (!this.windCanvasUpdateHandler) {
-        this.windCanvasUpdateHandler = () => {
-          // With the overlay off the canvas is already blank and
-          // _renderWindFromData re-sizes it when re-enabled — skip the work.
-          // This handler runs on every 'move' event (per frame during pans),
-          // and assigning width/height discards the canvas backing store,
-          // so only do it when the size actually changed.
-          const windCheckbox = this.ui.windCheckbox || document.getElementById("windLayerCheckbox");
-          if (!windCheckbox || !windCheckbox.checked) return;
+    if (!canvas || this.windCanvasUpdateHandler) return;
 
-          const size = this.map.getSize();
-          if (canvas.width !== size.x || canvas.height !== size.y) {
-            canvas.width = size.x;
-            canvas.height = size.y;
-          }
-          cancelAnimationFrame(this.windRenderScheduled);
-          this.windRenderScheduled = requestAnimationFrame(() => this.renderWindVectors());
-        };
+    this.windCanvasUpdateHandler = () => {
+      // With the overlay off the canvas is already blank and _renderWindFromData
+      // re-sizes it when re-enabled, so there is nothing to do here. This runs on
+      // every 'move' event (once per frame while panning) and assigning
+      // width/height discards the canvas backing store, hence the size guard.
+      const windCheckbox = this.ui.windCheckbox || document.getElementById("windLayerCheckbox");
+      if (!windCheckbox || !windCheckbox.checked) return;
 
-        this.windCanvasUpdateHandler();
-
-        this.map.on("move", this.windCanvasUpdateHandler, this);
-        this.map.on("resize", this.windCanvasUpdateHandler, this);
-        this.map.on("zoomend", this.windCanvasUpdateHandler, this);
+      const size = this.map.getSize();
+      if (canvas.width !== size.x || canvas.height !== size.y) {
+        canvas.width = size.x;
+        canvas.height = size.y;
       }
-    }
+      cancelAnimationFrame(this.windRenderScheduled);
+      this.windRenderScheduled = requestAnimationFrame(() => this.renderWindVectors());
+    };
+
+    this.windCanvasUpdateHandler();
+
+    this.map.on("move", this.windCanvasUpdateHandler, this);
+    this.map.on("resize", this.windCanvasUpdateHandler, this);
+    this.map.on("zoomend", this.windCanvasUpdateHandler, this);
   }
 
   setupEventListeners() {
@@ -1026,10 +1005,10 @@ class MeteoMapManager {
     this.configureVariableSelect();
     this.configureAccumulationSelector();
 
-    // O documento entrega a legenda com uma unidade de exemplo, e ela só era
-    // reescrita no caminho de sucesso do carregamento: até o primeiro dado
-    // chegar — e para sempre, se nenhum chegar — a barra descreveria uma
-    // variável que não é a selecionada.
+    // The document ships the legend with a sample unit and only the successful
+    // load path rewrites it, so paint it here too: otherwise the bar describes a
+    // variable other than the selected one until the first data arrives — and
+    // forever if none does.
     this.updateColorbar(this.getVariableConfig(), null);
 
     const _debouncedSliderApply = _debounce(() => {
@@ -1090,14 +1069,14 @@ class MeteoMapManager {
       });
     });
 
-    // A grade é pintada num único canvas, então não existe nó de DOM por
-    // célula para receber foco. Com o mapa focado, Enter/Espaço leem a célula
-    // do centro da vista e as setas do próprio Leaflet movem esse centro pela
-    // grade — o teclado percorre o domínio sem criar milhares de nós.
+    // The grid is painted on a single canvas, so there is no per-cell DOM node to
+    // focus. With the map focused, Enter/Space read the cell at the center of the
+    // view and Leaflet's own arrow keys move that center across the grid: the
+    // keyboard covers the domain without creating thousands of nodes.
     const mapContainer = this.map.getContainer();
     mapContainer.addEventListener("keydown", (e) => {
-      // Sem isto o Enter dos controles de zoom (filhos do container) abriria
-      // a sidebar em vez de acionar o botão.
+      // The zoom controls are children of the container, so without this their
+      // Enter would open the sidebar instead of pressing the button.
       if (e.target !== mapContainer) return;
       if (e.key !== "Enter" && e.key !== " " && e.code !== "Space") return;
       e.preventDefault();
@@ -1144,7 +1123,7 @@ class MeteoMapManager {
    * Shows and populates the accumulation-window selector for variables that
    * declare one (precipitation), and hides it for every other variable. The
    * buttons come from VARIABLES_CONFIG so the windows offered can never drift
-   * from the windows the loader knows how to build.
+   * from the ones the loader knows how to build.
    */
   configureAccumulationSelector(variableType = this.state.type) {
     const selector = this.ui.accumSelector;
@@ -1198,7 +1177,6 @@ class MeteoMapManager {
 
     const closeDoc = () => {
       docModal.classList.remove("active");
-      // Devolve o foco ao elemento de origem (par do focus trap).
       if (this._docReturnFocusEl && document.contains(this._docReturnFocusEl)) {
         this._docReturnFocusEl.focus();
       }
@@ -1206,11 +1184,11 @@ class MeteoMapManager {
     };
 
     docBtn.addEventListener("click", () => {
-      // Guarda a origem do foco para devolvê-lo no fechamento.
       this._docReturnFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       docModal.classList.add("active");
-      // aria-modal="true" esconde o resto da página da tecnologia assistiva:
-      // sem mover o foco para dentro, o leitor de tela ficaria sem nada para ler.
+      // aria-modal="true" hides the rest of the page from assistive technology,
+      // so without moving focus inside the screen reader would have nothing left
+      // to read.
       docCloseBtn.focus();
     });
 
@@ -1222,13 +1200,12 @@ class MeteoMapManager {
       }
     });
 
-    // Prende Tab/Shift+Tab dentro do diálogo aberto (focus trap do role=dialog).
     const trapDocFocus = (event) => {
       const focusables = [
         ...docModal.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"),
-        // As abas inativas são <button> com tabindex="-1" (roving tabindex do
-        // padrão ARIA), então o token `button` do seletor as traz de volta:
-        // sem este filtro o "último focável" cairia numa parada que o Tab pula.
+        // Inactive tabs are <button> with tabindex="-1" (the ARIA roving
+        // tabindex), so the selector's `button` token drags them back in; without
+        // this filter the "last focusable" would be a stop that Tab skips.
       ].filter((el) => !el.disabled && el.getAttribute("tabindex") !== "-1" && el.getClientRects().length > 0);
       if (!focusables.length) {
         event.preventDefault();
@@ -1249,12 +1226,12 @@ class MeteoMapManager {
     const selectTab = (tab) => {
       const tabName = tab.getAttribute("data-tab");
 
-      docTabs.forEach((t) => {
-        const isSelected = t === tab;
-        t.classList.toggle("active", isSelected);
-        t.setAttribute("aria-selected", String(isSelected));
-        // Roving tabindex do padrão ARIA de abas: só a aba ativa é tab-stop.
-        t.setAttribute("tabindex", isSelected ? "0" : "-1");
+      docTabs.forEach((candidate) => {
+        const isSelected = candidate === tab;
+        candidate.classList.toggle("active", isSelected);
+        candidate.setAttribute("aria-selected", String(isSelected));
+        // ARIA roving tabindex for tabs: only the active tab is a tab stop.
+        candidate.setAttribute("tabindex", isSelected ? "0" : "-1");
       });
       docTabContents.forEach((content) => {
         content.classList.toggle("active", content.dataset.tab === tabName);
@@ -1264,12 +1241,12 @@ class MeteoMapManager {
     docTabs.forEach((tab, i) => {
       tab.addEventListener("click", () => selectTab(tab));
       tab.addEventListener("keydown", (e) => {
-        const n = docTabs.length;
+        const tabCount = docTabs.length;
         let next = null;
-        if (e.key === "ArrowRight") next = docTabs[(i + 1) % n];
-        else if (e.key === "ArrowLeft") next = docTabs[(i - 1 + n) % n];
+        if (e.key === "ArrowRight") next = docTabs[(i + 1) % tabCount];
+        else if (e.key === "ArrowLeft") next = docTabs[(i - 1 + tabCount) % tabCount];
         else if (e.key === "Home") next = docTabs[0];
-        else if (e.key === "End") next = docTabs[n - 1];
+        else if (e.key === "End") next = docTabs[tabCount - 1];
         if (next) {
           e.preventDefault();
           next.focus();
@@ -1381,8 +1358,7 @@ class MeteoMapManager {
       this.ui.variablePreviewTitle.textContent = config.optionLabel || config.label;
     }
     if (this.ui.variablePreviewLabel) {
-      // Adimensionais não têm unidade: sem o guarda o rótulo terminaria no
-      // separador ("EPS_SKY · ").
+      // Dimensionless variables declare no unit, so the separator would dangle.
       const source = config.sourceId || config.id;
       this.ui.variablePreviewLabel.textContent = config.unit ? `${source} · ${config.unit}` : source;
     }
@@ -1419,10 +1395,10 @@ class MeteoMapManager {
   }
 
   /**
-   * Contorno do estado da publicação, usado pelo recorte do mapa. O caminho
-   * vem sempre do `boundaryAsset` declarado: montá-lo a partir de outra sigla
-   * daria 404 no bundle, porque a narrowing por alcançabilidade de build-all
-   * varre só HTML e CSS e deixa em cada publicação apenas o próprio contorno.
+   * Loads the publication's state boundary, used by the map clip. The path
+   * must come from the declared `boundaryAsset`: build-all's reachability
+   * narrowing scans only HTML and CSS, so each bundle ships that one boundary
+   * and a path built from any other state code would 404.
    */
   loadStateGeoJson() {
     const stateCode = MAP_SITE_CONFIG.stateCode;
@@ -1467,26 +1443,25 @@ class MeteoMapManager {
     if (this.ui.layerLabel) {
       const hasData = this.isIndexAvailable(this.state.index);
       const targetDate = this.calculateTargetDateFromIndex(this.state.index);
-      // Enquanto nada foi publicado não existe instante a carimbar: o aviso
-      // sobrevive a um arraste do slider, que sem isto devolveria o rótulo ao
-      // "Carregando..." — uma promessa de dado a caminho que não se cumpre.
+      // With nothing published there is no instant to stamp, so the notice
+      // outlives a slider drag instead of promising data that never arrives.
       const label =
         !targetDate && this._noPublishedDataNotice
           ? this._noPublishedDataNotice
           : this.formatForecastDateTimeLabel(targetDate, hasData);
       this.ui.layerLabel.textContent = label;
-      // O valor do slider é um índice de passo do WRF, sem sentido para quem
-      // não vê o rótulo: sem aria-valuetext a AT anunciaria "10 de 75".
+      // The slider value is a WRF timestep index, meaningless to anyone who
+      // cannot see the label; assistive tech would announce "10 of 75".
       if (this.ui.slider) this.ui.slider.setAttribute("aria-valuetext", label);
     }
   }
 
   /**
-   * O rótulo avança no próprio evento de input do slider, mas o campo só é
-   * repintado quando a carga responde — no intervalo, o mapa mostra o passo
-   * anterior sob a hora nova. aria-busy declara essa janela em que o par
-   * rótulo/mapa ainda não é coerente. Só atributo, sem tratamento visual: a
-   * animação repinta a cada 800 ms e qualquer piscada acompanharia o ritmo.
+   * The label advances on the slider's own input event, but the field is only
+   * repainted once the load answers — in between, the map still shows the
+   * previous timestep under the new hour. aria-busy declares that window in
+   * which label and map disagree. Attribute only, no visual treatment: the
+   * animation repaints every 800 ms and any blink would follow that beat.
    */
   _setTimeLabelBusy(isBusy) {
     if (!this.ui.layerLabel) return;
@@ -1520,13 +1495,13 @@ class MeteoMapManager {
 
     if (hasData) {
       return `${year}-${month}-${day} · ${hours}:${minutes} UTC−03:00`;
-    } else {
-      // Generic wording: availability gaps are not only night hours (e.g.
-      // skip-first spin-up steps a v2 manifest marks unavailable).
-      const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-      const monthStr = months[monthIndex];
-      return `${day} ${monthStr} ${year} · ${hours}:${minutes} UTC−03:00 — sem dados neste horário`;
     }
+
+    // Generic wording: availability gaps are not only night hours (e.g.
+    // skip-first spin-up steps a v2 manifest marks unavailable).
+    const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+    const monthStr = months[monthIndex];
+    return `${day} ${monthStr} ${year} · ${hours}:${minutes} UTC−03:00 — sem dados neste horário`;
   }
 
   togglePlayPause() {
@@ -1546,12 +1521,11 @@ class MeteoMapManager {
   }
 
   /**
-   * Liga o timelapse na abertura, a não ser que o sistema peça menos
-   * movimento: o maior movimento do site não é CSS — é este setInterval
-   * repintando a grade inteira a cada 800 ms —, e o bloco
-   * `prefers-reduced-motion` de base.css não alcança JavaScript. Quem tem a
-   * preferência ligada continua podendo dar Play; o que muda é o movimento não
-   * começar sem ter sido pedido (WCAG 2.3.3).
+   * Starts the timelapse on load unless the system asks for less motion: the
+   * largest movement on the site is not CSS but this setInterval repainting
+   * the whole grid every 800 ms, and the `prefers-reduced-motion` block in
+   * base.css does not reach JavaScript. Play stays available to everyone; what
+   * changes is that motion never starts unrequested (WCAG 2.3.3).
    */
   startInitialPlayback() {
     if (this.state.hasUserControlledPlayback) return;
@@ -1560,17 +1534,17 @@ class MeteoMapManager {
   }
 
   /**
-   * O diretório de saída do modelo ainda não existe neste servidor (bundle
-   * recém-publicado, CI, janela entre o deploy das páginas e o dos dados). O
-   * rótulo de hora é o único texto da linha do tempo, então é ele que explica
-   * a ausência, no mesmo tom das páginas de monitoramento e climatologia. A
-   * animação não parte junto (map-init.js), senão o mapa vazio repetiria a
-   * cada 800 ms as requisições que acabaram de falhar.
+   * The model output directory does not exist on this server yet (fresh
+   * bundle, CI, the window between deploying pages and deploying data). The
+   * time label is the only text on the timeline, so it is what explains the
+   * absence, in the same tone as the monitoring and climatology pages.
+   * Playback does not start alongside it (map-init.js), or the empty map
+   * would repeat the just-failed requests every 800 ms.
    */
   showNoPublishedDataNotice() {
-    // A primeira frase é curta de propósito: no celular o rótulo é recortado
-    // na largura da barra, então o essencial precisa caber antes do corte, e
-    // o detalhe do deploy fica para quem tem espaço para ler.
+    // The first sentence is deliberately short: on phones the label is clipped
+    // to the bar width, so the essential part must fit before the cut and the
+    // deploy detail is left for whoever has room to read it.
     this._noPublishedDataNotice =
       "Dados do modelo ainda não publicados. Eles são anexados ao site no deploy, separadamente das páginas.";
     this.updateDateTime();
@@ -1616,7 +1590,7 @@ class MeteoMapManager {
     this.ui.playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
   }
 
-  /** Advances the slider to the next available timestep and fires its input pipeline (label, preview, load). */
+  /** The synthetic input event is what drives the label, preview and data load. */
   _advanceToNextPlayable() {
     const next = this.nextPlayableIndex(parseInt(this.ui.slider.value, 10) + 1);
     this.ui.slider.value = String(next);
@@ -1638,9 +1612,9 @@ class MeteoMapManager {
     this.updateWindLayerToggleVisibility(variableType);
     this.refreshVariableOverviewPreview(variableType);
 
-    // A legenda descreve a variável selecionada, não o último campo pintado:
-    // se a carga falhar (404) ou o passo não existir para a nova variável,
-    // sem isto a escala e a unidade continuariam sendo as da anterior.
+    // The legend describes the selected variable, not the last painted field:
+    // if the load 404s or the timestep is missing for the new variable, the
+    // scale and unit must still be the new one's.
     this.updateColorbar(this.getVariableConfig(variableType), null);
     this._snapIndexToAvailable(variableType);
     this.updateDateTime();
@@ -1689,8 +1663,8 @@ class MeteoMapManager {
    */
   _loadKey(index = this.state.index, type = this.state.type, domain = this.state.domain) {
     const hours = this.getAccumulationOption(type)?.hours;
-    const window = hours > 1 ? `@${hours}h` : "";
-    return `${this.dataVersion || "v0"}:${domain}:${this.getVariableId(type)}${window}:${index}`;
+    const windowSuffix = hours > 1 ? `@${hours}h` : "";
+    return `${this.dataVersion || "v0"}:${domain}:${this.getVariableId(type)}${windowSuffix}:${index}`;
   }
 
   /**
@@ -1710,12 +1684,12 @@ class MeteoMapManager {
       this._clearCurrentData();
       this._removeSelectedMarker();
       this.updateDateTime();
-      // A legenda é o único elemento que sobrevive à limpeza; sem repintá-la
-      // ela continuaria anunciando a escala e a unidade da variável anterior ao
-      // lado de um seletor que já mostra outra.
+      // The legend is the only element that survives the wipe; left alone it
+      // would keep announcing the previous variable's scale and unit next to a
+      // selector already showing another one.
       this.updateColorbar(this.getVariableConfig(), null);
       this._currentApply = null;
-      // Rótulo e mapa voltam a concordar: os dois estão vazios.
+      // Label and map agree again: both are empty.
       this._setTimeLabelBusy(false);
       return Promise.resolve(null);
     }
@@ -1724,8 +1698,8 @@ class MeteoMapManager {
     this._currentApply = { key: this._loadKey(), promise };
     this._setTimeLabelBusy(true);
     promise.finally(() => {
-      // Uma carga superada não fala pelo rótulo: quem chegou depois ainda está
-      // pendente e a janela de incoerência continua aberta.
+      // A superseded load does not speak for the label: the one that came
+      // after it is still pending, so the incoherent window is still open.
       if (this._currentApply?.promise === promise) this._setTimeLabelBusy(false);
     });
     return promise;
@@ -1763,11 +1737,11 @@ class MeteoMapManager {
    * re-quantized to the pipeline's 2 decimals so the palette memoization
    * keeps hitting on the summed field.
    *
-   * O resultado carrega `accumulatedSteps`, o número de passos que de fato
-   * entraram na soma: no início da rodada não há passos anteriores suficientes
-   * e a janela encurta em silêncio, então quem escreve os rótulos precisa
-   * saber que o total exibido é de uma hora e não de três. Sempre uma cópia —
-   * `latest` é o objeto do cache, compartilhado com a janela de 1 h.
+   * The result carries `accumulatedSteps`, how many steps the sum really
+   * covered: early in the run there are not enough earlier steps and the
+   * window silently shortens, so whoever writes the labels must know the
+   * displayed total is one hour and not three. Always a copy — `latest` is
+   * the cached object, shared with the 1 h window.
    */
   _sumValuePayloads([latest, ...older]) {
     if (!Array.isArray(latest?.values)) return latest;
@@ -1780,10 +1754,10 @@ class MeteoMapManager {
       accumulatedSteps++;
       for (let i = 0; i < values.length; i++) {
         if (previous[i] === null || previous[i] === undefined) continue;
-        // Uma célula nula no passo mais recente permanece nula: naquele
-        // instante o pipeline declarou não haver leitura, e herdar o valor do
-        // passo anterior devolveria um número indistinguível de um dado real
-        // sob a data/hora do passo selecionado.
+        // A null cell in the newest step stays null: the pipeline declared no
+        // reading for that instant, and inheriting the earlier step's value
+        // would show a number indistinguishable from real data under the
+        // selected step's date and time.
         if (values[i] === null || values[i] === undefined) continue;
         values[i] += previous[i];
       }
@@ -1940,9 +1914,9 @@ class MeteoMapManager {
         this.updateDomainIndicator();
         this.refreshVariableOverviewPreview();
 
-        // Um clique invalida o enquadramento pedido pelo anterior. Os dois
-        // ramos abaixo terminam com um flyTo assíncrono; sem um token comum,
-        // o voo do domínio abandonado ainda pode resolver por último.
+        // A click invalidates the framing the previous one asked for. Both
+        // branches below end in an async flyTo, so they share a token: without
+        // it the abandoned domain's flight could still resolve last.
         const switchGen = (this._domainSwitchGen = (this._domainSwitchGen || 0) + 1);
 
         if (this.state.selectedCell) {
@@ -1964,14 +1938,14 @@ class MeteoMapManager {
             if (switchGen !== this._domainSwitchGen) return;
             this.applyMapChanges().then(() => {
               if (switchGen !== this._domainSwitchGen) return;
-              const alvo = L.latLng(selectedLat, selectedLng);
-              const grade = this.currentGeoJsonLayer?.getBounds?.();
-              // Os domínios são aninhados e cobrem áreas muito diferentes: uma
-              // seleção feita na borda de BA/NE não existe na grade de Salvador,
-              // e o voo até ela deixaria o mapa só com tiles, sem uma célula na
-              // tela e sem dizer o que aconteceu. Aqui a grade nova já está
-              // carregada, então dá para voltar ao centro do domínio e explicar.
-              if (!grade || !grade.contains(alvo)) {
+              const target = L.latLng(selectedLat, selectedLng);
+              const gridBounds = this.currentGeoJsonLayer?.getBounds?.();
+              // The domains are nested and cover very different areas: a cell
+              // picked at the edge of BA/NE does not exist in the Salvador
+              // grid, and flying there would leave the map showing tiles only,
+              // with no cell on screen and no explanation. The new grid is
+              // already loaded here, so we can fall back to the domain center.
+              if (!gridBounds || !gridBounds.contains(target)) {
                 this.closeSidebar();
                 this.showErrorMessage(
                   `A célula selecionada está fora do domínio ${this.getDomainLabel(selectedDomain)}`
@@ -1985,15 +1959,15 @@ class MeteoMapManager {
               // The user may have closed the sidebar / started playback during
               // the 1.5s flyTo; don't resurrect a cleared selection.
               if (!this.state.selectedCell) return;
-              this.handleMapClick({ latlng: alvo }).catch(() => this.closeSidebar());
+              this.handleMapClick({ latlng: target }).catch(() => this.closeSidebar());
             });
           });
         } else {
           this.applyMapChanges().then(() => {
-            // Os domínios compartilham o centro e diferem no zoom: sem esta
-            // trava, clicar em BA e logo em BA/NE deixava a carga mais lenta
-            // resolver depois e enquadrar o mapa no recorte de BA, enquanto o
-            // botão aceso, a grade pintada e a legenda já eram os de BA/NE.
+            // The domains share a center and differ only in zoom, so a slower
+            // load resolving late would frame the map on the abandoned domain
+            // while the lit button, the painted grid and the legend already
+            // belong to the newer one.
             if (switchGen !== this._domainSwitchGen) return;
             this.map.flyTo(config.center, targetZoom, {
               duration: 1.5,
@@ -2114,9 +2088,9 @@ class MeteoMapManager {
           },
         });
 
-        // Hover delegado no grupo (e.propagatedFrom) em vez de 2 closures por
-        // célula — são até ~9.801 células por domínio, ~63k closures com os
-        // 4 domínios em cache.
+        // Hover is delegated on the group (e.propagatedFrom): per-cell
+        // handlers would mean two closures for each of the ~10k cells of
+        // every cached domain.
         layer.on("mouseover", (e) => {
           const cell = e.propagatedFrom;
           if (!cell || this._isCellHidden(cell)) return;
@@ -2286,9 +2260,9 @@ class MeteoMapManager {
   }
 
   /**
-   * Whether a grid cell is currently rendered fully transparent — clipped
-   * outside the state boundary, or below the variable's display threshold.
-   * Hover must neither reveal it nor restore it as a painted cell.
+   * Hidden means fully transparent: clipped outside the state boundary, or
+   * below the variable's display threshold. Hover must neither reveal such a
+   * cell nor restore it as a painted one.
    */
   _isCellHidden(cell) {
     if (cell._hiddenByValue === true) return true;
@@ -2435,7 +2409,7 @@ class MeteoMapManager {
     const gradient = `linear-gradient(to top, ${config.colors.join(", ")})`;
     this.ui.colorbarGradient.style.background = gradient;
     this.ui.colorbarUnit.textContent = config.unit;
-    // Dimensionless variables (kt, emissividade) declare no unit: the element
+    // Dimensionless variables (kt, sky emissivity) declare no unit: the element
     // carries a top border and padding, so leaving it empty hangs a stray rule
     // under the scale.
     this.ui.colorbarUnit.hidden = !config.unit;
@@ -2454,8 +2428,8 @@ class MeteoMapManager {
 
   /**
    * Decimal places shared by every tick of a scale: the fewest that keep the
-   * ticks distinct AND the largest one at two significant digits. Formatting
-   * each label on its own turned a 0.6-1 scale into "1" next to "0.956",
+   * ticks distinct AND the largest one at two significant digits. One count
+   * for the whole scale, so a 0.6-1 range never shows "1" next to "0.956",
    * which reads as two different scales; the significant-digit rule keeps a
    * 0-0.85 index from collapsing its top tick to "0.9".
    */
@@ -2517,8 +2491,7 @@ class MeteoMapManager {
           lng: e.latlng.lng,
           allValues: {},
         };
-        // Cells don't overlap: the first hit is the only hit (eachLayer
-        // could not break and always scanned all ~10k layers).
+        // Cells don't overlap: the first hit is the only hit.
         break;
       }
     }
@@ -2576,7 +2549,6 @@ class MeteoMapManager {
     }).addTo(this.map);
   }
 
-  /** Removes the selected-cell ping marker from the map, if present. */
   _removeSelectedMarker() {
     if (this.selectedMarker) {
       this.map.removeLayer(this.selectedMarker);
@@ -2771,10 +2743,11 @@ class MeteoMapManager {
       return;
     }
 
-    // Mesma guarda do windCanvasUpdateHandler, e é aqui que ela decide: este
-    // método roda a cada quadro de arraste (o handler de 'move' agenda o
-    // repaint) e atribuir width/height descarta o backing store mesmo quando o
-    // valor não muda. O clearRect abaixo já entrega o quadro limpo.
+    // Same guard as windCanvasUpdateHandler, and it is here that it pays off:
+    // this method runs on every drag frame (the 'move' handler schedules the
+    // repaint) and assigning width/height throws the backing store away even
+    // when the value does not change. The clearRect below already hands over
+    // a clean frame.
     const size = this.map.getSize();
     if (canvas.width !== size.x || canvas.height !== size.y) {
       canvas.width = size.x;
@@ -2877,10 +2850,10 @@ class MeteoMapManager {
   showErrorMessage(message) {
     const alertDiv = document.createElement("div");
     alertDiv.className = "map-alert";
-    // É a única resposta a um clique que não achou dado, e ela some em 3,3 s:
-    // sem papel de alerta o leitor de tela não anuncia nada e o usuário fica
-    // sem qualquer retorno. O texto entra antes de inserir o nó para que a AT
-    // leia a mensagem já pronta.
+    // This is the only answer to a click that found no data and it is gone in
+    // 3.3 s, so without the alert role a screen reader user gets no feedback
+    // at all. The text is set before the node is inserted so assistive tech
+    // announces an already complete message.
     alertDiv.setAttribute("role", "alert");
     alertDiv.textContent = message;
 

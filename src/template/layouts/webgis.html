@@ -3,23 +3,23 @@
   <head>
 {{> head}}
 
-    <!-- Configuração da publicação e do mapa; JSON em meta preserva a CSP sem
-         exigir script executável inline. Fica neste layout (e não no partial
-         head) porque o único consumidor é assets/js/map-manager.js, carregado
-         apenas aqui; as páginas institucionais não precisam desses bytes. -->
+    <!-- Publication and map configuration. JSON in a meta tag keeps the CSP
+         free of executable inline script. It lives in this layout, not in the
+         head partial, because the only consumer is assets/js/map-manager.js,
+         loaded only here; institutional pages do not pay for these bytes. -->
     <meta name="site-config" content="{{SITE_CONFIG}}" />
 
-    <!-- Content hashes dos Web Workers (carimbados por build.js): map-manager.js
-         monta as URLs dos workers a partir daqui, então editar um worker já
-         invalida o cache. Mesmo motivo do site-config para morar neste layout. -->
+    <!-- Web Worker content hashes, stamped by build.js: map-manager.js builds
+         the worker URLs from here, so editing a worker already invalidates the
+         cache. It lives in this layout for the same reason as site-config. -->
     <meta name="labmim-asset-hashes" content="{{WORKER_HASHES}}" />
 
-    <!-- Leaflet 1.9.4 vendorizado; o CSS entra pelo slot pageVendorStyles antes dos estilos próprios. -->
+    <!-- Vendored Leaflet 1.9.4; its CSS comes through the pageVendorStyles slot, ahead of the site's own styles. -->
     <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
 
-    <!-- preconnect: os tiles são pedidos ~1s após a navegação, então a
-         conexão aquecida (DNS + TCP + TLS) é sempre aproveitada; dns-prefetch
-         permanece como fallback para navegadores antigos. -->
+    <!-- preconnect: tiles are requested about a second into the navigation, so
+         the warm connection (DNS + TCP + TLS) is always used; dns-prefetch
+         stays as the fallback for older browsers. -->
     <link rel="preconnect" href="https://tile.openstreetmap.org" />
     <link rel="dns-prefetch" href="https://tile.openstreetmap.org" />
   </head>
@@ -31,7 +31,7 @@
     </header>
 
 <main class="container-main" id="main">
-  <!-- O h1 mora dentro da landmark main, como no layout institucional. -->
+  <!-- The h1 lives inside the main landmark, as in the institutional layout. -->
   <h1 class="visually-hidden">{{h1}}</h1>
 
   <!-- MAP -->
@@ -45,15 +45,13 @@
       </a>
     </div>
     <div class="sidebar-header">
-      <!-- h2, não h3: é o primeiro cabeçalho depois do h1 e pularia um nível. -->
+      <!-- h2, not h3: this is the first heading after the h1, so h3 would skip a level. -->
       <h2>Detalhes da Célula</h2>
       <button type="button" class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Fechar painel de detalhes">
         <i class="fas fa-times" aria-hidden="true"></i>
       </button>
     </div>
-    <div class="sidebar-content" id="sidebarContent" aria-live="polite">
-      <!-- Conteúdo será preenchido dinamicamente -->
-    </div>
+    <div class="sidebar-content" id="sidebarContent" aria-live="polite"></div>
   </div>
 
   <!-- COLORBAR -->
@@ -104,14 +102,14 @@
     <div class="variable-selector-wrapper">
       <label for="variableSelect">Variável:</label>
       <select id="variableSelect" class="variable-select">
-        <!-- Opções preenchidas em runtime por map-manager (configureVariableSelect)
-                 a partir de VARIABLES_CONFIG; este placeholder some no carregamento. -->
+        <!-- Options are filled at runtime by map-manager (configureVariableSelect)
+             from VARIABLES_CONFIG; this placeholder disappears on load. -->
         <option disabled selected>Carregando…</option>
       </select>
     </div>
   </div>
 
-  <!-- HEIGHT SELECTOR (Eólico) -->
+  <!-- HEIGHT SELECTOR (wind) -->
   <div class="segmented-selector" id="heightSelector" role="group" aria-label="Altura (m)">
     <span class="segmented-selector-title">Altura (m):</span>
     <div class="segmented-button-group">
@@ -121,9 +119,9 @@
     </div>
   </div>
 
-  <!-- ACCUMULATION SELECTOR (Precipitação) — botões preenchidos em runtime por
-       map-manager (configureAccumulationSelector) a partir da janela declarada
-       em VARIABLES_CONFIG; some para variáveis sem acumulado. -->
+  <!-- ACCUMULATION SELECTOR (precipitation) — buttons are filled at runtime by
+       map-manager (configureAccumulationSelector) from the window declared in
+       VARIABLES_CONFIG; it disappears for variables with no accumulation. -->
   <div class="segmented-selector" id="accumSelector" role="group" aria-label="Janela de acumulado">
     <span class="segmented-selector-title" id="accumSelectorTitle">Acumulado:</span>
     <div class="segmented-button-group" id="accumButtonGroup"></div>
@@ -138,8 +136,8 @@
     </label>
   </div>
 
-  <!-- WIND VECTORS CANVAS — overlay decorativo: aria-hidden porque um canvas
-       mudo só polui a árvore de acessibilidade. -->
+  <!-- WIND VECTORS CANVAS — decorative overlay: aria-hidden because a mute
+       canvas only clutters the accessibility tree. -->
   <canvas id="windVectorCanvas" aria-hidden="true"></canvas>
 
   <!-- DOCUMENTATION BUTTON -->
@@ -255,17 +253,16 @@
   </div>
 </div>
 
-    <!-- Scripts ao final do body — não bloqueiam o rendering -->
 {{> scripts}}
 
-    <!-- Chart.js 3.9.1 (vendorizado localmente) -->
+    <!-- Chart.js 3.9.1, vendored locally -->
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
 
-    <!-- Configuração de variáveis + serviço de dados + gráficos + mapa.
-         O build.js estampa ?v=<hash do conteúdo> em todo CSS/JS próprio; os
-         Web Workers recebem hash pela <meta name="labmim-asset-hashes">
-         (lida por workerScriptUrl em map-manager.js; sem hash a URL sai
-         sem ?v= e cai nas regras de cache curto). -->
+    <!-- Variables config + data service + charts + map.
+         build.js stamps a ?v= content hash on every CSS/JS file of our own; the
+         Web Workers get their hash from the labmim-asset-hashes meta tag (read
+         by workerScriptUrl in map-manager.js — with no hash the URL comes out
+         without ?v= and falls into the short cache rules). -->
     <script src="assets/js/variables-config.js" defer></script>
     <script src="assets/js/data-service.js" defer></script>
     <script src="assets/js/charts-manager.js" defer></script>

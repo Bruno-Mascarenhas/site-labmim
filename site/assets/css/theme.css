@@ -1,7 +1,8 @@
-/* A classe de tema vive no próprio <html>. Os tokens institucionais claros e
-   escuros são declarados pelo site-theme.css da publicação ativa. */
+/* The theme class lives on <html> itself. Both the light and the dark
+   institutional tokens come from the active publication's site-theme.css. */
 html.dark-theme {
-  /* A identidade da publicação permanece consistente entre os temas. */
+  /* Only the neutral surface ramp flips here; the publication's identity colors
+     stay the same across themes. */
   --bg-primary: #1e1e1e;
   --bg-secondary: #2d2d2d;
   --text-primary: #fff;
@@ -9,16 +10,13 @@ html.dark-theme {
   --border-color: #404040;
   --bg-elevated: #252525;
 
-  /* Os tokens de gráfico do modo claro moram em base.css; aqui a publicação
-     pode opcionalmente fornecer a contraparte escura, como já acontece com
-     --lab-header-dark-bg. Sem declaração, o valor compartilhado continua. */
+  /* The light-mode chart tokens live in base.css; here a publication may
+     optionally supply the dark counterpart, as it already does for
+     --lab-header-dark-bg. Without a declaration the shared value stands. */
   --chart-grid-color: var(--chart-grid-dark-color, rgba(255, 255, 255, 0.12));
   --chart-legend-color: var(--chart-legend-dark-color, #fff);
   --lab-header-bg: var(--lab-header-dark-bg);
   --lab-footer-bg: var(--lab-footer-dark-bg);
-
-  /* O accent escuro também vem do tema da publicação ativa. */
-  --accent-violet: var(--map-accent);
 }
 
 [data-theme-toggle] {
@@ -87,9 +85,9 @@ input:focus-visible {
   color: var(--white) !important;
 }
 
-/* Fora da navbar o botão fica sobre a superfície escura da página, onde
-   --primary-color (o azul da marca) desaparece. A regra da navbar logo abaixo é
-   mais específica e continua mandando lá. */
+/* Outside the navbar this button sits on the page's dark surface, where
+   --primary-color (the brand blue) disappears. The navbar rule just below is
+   more specific and keeps ruling there. */
 .dark-theme .btn-outline-lab {
   border-color: var(--dark-accent) !important;
   color: var(--dark-accent) !important;
@@ -174,8 +172,8 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
-/* Elementos com cor de marca própria precisam de override para manter o
-   contraste sobre superfícies escuras, independentemente da publicação. */
+/* Elements painted with a brand color of their own need an override to keep
+   contrast over dark surfaces, whichever publication is active. */
 .dark-theme .partner-logo-text,
 .dark-theme .partner-logo-text small {
   color: var(--text-primary) !important;
@@ -238,12 +236,12 @@ input:focus-visible {
   color: var(--text-secondary) !important;
 }
 
-/* A tinta é --dark-accent, como em .info-value e .slider-time: --accent-violet é
-   apelido de --map-accent, a cor de identidade do mapa, e sobre --bg-secondary
-   ela fica em 3,76:1. Na borda ela permanece — ali vale o piso de 3:1. */
+/* Ink is --dark-accent, as in .info-value and .slider-time: --map-accent is the
+   map's identity color and lands at 3.76:1 over --bg-secondary. It stays on the
+   border, where the 3:1 floor for non-text elements applies. */
 .dark-theme .doc-tab.active {
   background-color: var(--bg-secondary) !important;
-  border-bottom-color: var(--accent-violet) !important;
+  border-bottom-color: var(--map-accent) !important;
   color: var(--dark-accent) !important;
 }
 
@@ -262,9 +260,9 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
-/* #777 sobre --bg-primary dava 3,72:1, e o placeholder dos parâmetros energéticos
-   carrega o valor padrão do cálculo. --text-secondary é a tinta secundária do
-   tema e continua abaixo do branco do valor digitado. */
+/* The energy-parameter placeholder carries the default value of the
+   calculation, so it has to be legible. --text-secondary is the theme's
+   secondary ink and still reads below the white of a typed value. */
 .dark-theme input::placeholder,
 .dark-theme textarea::placeholder,
 .dark-theme .parameter-input::placeholder {
@@ -301,8 +299,8 @@ input:focus-visible {
   background: linear-gradient(135deg, #242936 0%, #1f2937 100%) !important;
 }
 
-/* Sidebar de detalhes (click-to-inspect): as .info-item têm fundo claro fixo;
-   sem override o texto claro do dark mode fica ilegível sobre ele. */
+/* Detail sidebar (click-to-inspect): .info-item carries a hard-coded light
+   background, which the dark theme's light ink would be unreadable over. */
 .dark-theme .info-item {
   background: var(--bg-primary) !important;
 }
@@ -331,19 +329,19 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
-/* maps.css fixa `background: white` neste botão, sem contraparte de tema. Sem a
-   linha do fundo, o escuro trocaria só a tinta e deixaria azul-claro sobre
-   branco. Transparente é o que os demais .btn-outline-lab fazem no escuro. */
+/* maps.css pins `background: white` on this button, so the override has to
+   repaint the surface too — otherwise the dark theme swaps only the ink and
+   leaves light blue on white. Transparent is what the other .btn-outline-lab
+   buttons do in the dark theme. */
 .dark-theme .chart-export-btn {
   background-color: transparent !important;
   border-color: var(--dark-accent) !important;
   color: var(--dark-accent) !important;
 }
 
-/* Este botão também tem `background: white` fixo em maps.css e nunca teve
-   contraparte escura: a pílula branca sobrevivia inteira dentro da
-   .parameters-editor já escurecida. O fundo acompanha a superfície do painel e a
-   borda deixa de ser a linha clara de #ddd sobre escuro. */
+/* This button also has a fixed `background: white` in maps.css: inside the
+   already darkened .parameters-editor the surface has to follow the panel and
+   the border has to leave the light #ddd hairline behind. */
 .dark-theme .reset-parameters-btn {
   background: var(--bg-secondary) !important;
   border-color: var(--border-color) !important;
@@ -432,19 +430,16 @@ input:focus-visible {
 }
 
 /* ---------------------------------------------------------------------------
-   IMPRESSÃO / PDF
+   PRINT / PDF
 
-   A climatologia existe para ser citada, e citar passa por imprimir ou salvar
-   em PDF. Nenhum navegador imprime cor de fundo por padrão (economia de tinta),
-   e o site não tinha folha de impressão: quem lê com o sistema em modo escuro
-   levava --text-primary: #fff para o papel branco — a página inteira saía em
-   branco sobre branco. O rodapé some do mesmo jeito nos dois temas, porque sua
-   tinta clara depende do azul --lab-footer-bg, que também não é impresso.
+   The climatology exists to be cited, and citing goes through printing or
+   saving to PDF. No browser prints background colors by default, so a reader in
+   dark mode would carry --text-primary: #fff onto white paper. Paper is always
+   light, and the tokens are rewritten here for both themes.
 
-   O papel é sempre claro. Os tokens são reescritos aqui repetindo o seletor
-   html.dark-theme: media query não acrescenta especificidade, e sem repetir o
-   seletor o bloco escuro continuaria vencendo. Como theme.css é a última folha
-   da página, a ordem de origem resolve o empate.
+   The selector html.dark-theme is repeated because a media query adds no
+   specificity: without it the dark block would keep winning. theme.css is the
+   last stylesheet on the page, so source order breaks the tie.
    --------------------------------------------------------------------------- */
 @media print {
   :root,
@@ -466,8 +461,8 @@ input:focus-visible {
     color: #000 !important;
   }
 
-  /* O azul do rodapé não chega ao papel; a tinta clara precisa virar escura,
-     senão o bloco institucional (quem publicou, sob qual licença) desaparece. */
+  /* The footer blue never reaches the paper, so its light ink has to turn dark
+     or the institutional block (who published, under which license) vanishes. */
   .modern-footer,
   html.dark-theme .modern-footer {
     background: #fff !important;
@@ -488,7 +483,8 @@ input:focus-visible {
     border-top-color: #999;
   }
 
-  /* Controles não têm função no papel, e a barra grudada repetiria a cada folha. */
+  /* Controls have no function on paper, and the sticky bar would repeat on
+     every sheet. */
   [data-theme-toggle],
   .navbar-toggler {
     display: none !important;
@@ -498,7 +494,7 @@ input:focus-visible {
     position: static !important;
   }
 
-  /* Um gráfico partido entre duas folhas não é citável. */
+  /* A chart split across two sheets is not citable. */
   .clima-chart,
   .chart-container,
   .monitor-card,

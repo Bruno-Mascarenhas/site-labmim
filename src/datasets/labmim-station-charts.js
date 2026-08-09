@@ -1,20 +1,15 @@
 "use strict";
 
 /**
- * Gráficos publicados na página de monitoramento.
+ * Station plots for `dataset.observations.charts` on the static monitoring page.
  *
- * ATENÇÃO: estes PNG são gerados pela estação micrometeorológica do LabMiM e
- * trazem a marca d'água "LabMiM ... UFBA" gravada na imagem. A lista existe
- * aqui para que cada publicação declare explicitamente o que exibe, em vez de
- * a página compartilhada apontar para arquivos fixos.
+ * The LabMiM micrometeorological station writes these PNGs with a
+ * "LabMiM ... UFBA" watermark burned into the image, so the list belongs to this
+ * publication alone and no other laboratory can point at it.
  *
- * Campos de cada gráfico:
- *   id        — sufixo do id do modal (`radiacao_difusa` -> `#modalRadiacaoDifusa`)
- *   title     — texto do botão e do cabeçalho do modal
- *   src       — caminho do PNG relativo à raiz publicada
- *   alt       — texto alternativo (default: `title`)
- *   modalSize — classe de tamanho do modal Bootstrap (default: `modal-lg`)
- *   width/height — dimensões intrínsecas do PNG (default: 800x400)
+ * `id` is the modal id suffix (`radiacao_difusa` -> `#modalRadiacaoDifusa`).
+ * Optional fields fall back to `alt: title`, `modalSize: "modal-lg"` and
+ * 800x400 intrinsic dimensions.
  */
 const LABMIM_STATION_CHARTS = [
   {

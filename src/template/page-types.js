@@ -1,11 +1,11 @@
 "use strict";
 
 /**
- * Catálogo estrutural de páginas.
+ * Structural page catalog.
  *
- * Referências de fonte são lógicas: `template` aponta para src/template e
- * `site` aponta para src/sites/<id>. O build que consumir este módulo é quem
- * resolve os caminhos físicos.
+ * Source references are logical: `template` points at src/template and `site`
+ * at src/sites/<id>. Turning them into physical paths is the job of whichever
+ * build consumes this module.
  */
 
 function isNonEmptyString(value) {
@@ -88,19 +88,10 @@ const PAGE_TYPES = Object.freeze({
   }),
 });
 
-/**
- * Contratos por layout: o que o arquivo em src/template/layouts/<id>.html
- * precisa para renderizar corretamente, independentemente do tipo de página.
- *
- * `vendorStyles`/`styles` entram antes das folhas declaradas pelo tipo e pelas
- * options (e são omitidos quando já declarados explicitamente, para não gerar
- * duplicatas). `required` recusa a página quando o layout depende de um campo
- * que ninguém informou — sem isso, uma página webgis nasce sem o CSS do mapa e
- * o map-manager cai no contexto "forecast" em silêncio.
- */
-// Contextos que map-manager.js (VARIABLE_CONTEXTS em assets/js/variables-config.js)
-// realmente conhece. Um valor fora disto cai em "forecast" calado no browser, então
-// é recusado no build em vez de renderizar um mapa com o conjunto de variáveis errado.
+// The contexts map-manager.js actually knows (VARIABLE_CONTEXTS in
+// assets/js/variables-config.js). Anything else falls back to "forecast"
+// silently in the browser, so the build refuses it instead of rendering a map
+// with the wrong set of variables.
 const KNOWN_MAP_CONTEXTS = Object.freeze(["forecast", "energy"]);
 
 function mapContextOf(bodyAttrs) {
@@ -108,19 +99,27 @@ function mapContextOf(bodyAttrs) {
   return match ? match[1] : null;
 }
 
+/**
+ * Per-layout contracts: what src/template/layouts/<id>.html needs in order to
+ * render, whichever page type is using it.
+ *
+ * `vendorStyles`/`styles` come before the sheets declared by the type and by
+ * the options, and are skipped when already declared explicitly so nothing is
+ * linked twice. `required` refuses a page when the layout depends on a field
+ * nobody supplied.
+ */
 const LAYOUT_CONTRACTS = Object.freeze({
   webgis: Object.freeze({
     vendorStyles: Object.freeze(["assets/vendor/leaflet/leaflet.css?v=1.9.4"]),
     styles: Object.freeze(["assets/css/maps.css"]),
-    // O layout webgis declara Leaflet, Chart.js e os cinco scripts do mapa no
-    // próprio arquivo; o slot fica vazio para não duplicar as tags.
+    // The webgis layout declares Leaflet, Chart.js and the five map scripts in
+    // the layout file itself; the slot stays empty so no tag is emitted twice.
     vendorScripts: Object.freeze([]),
     scripts: Object.freeze([]),
     required: Object.freeze({
-      // O <body data-map-context="..."> escolhe o conjunto de variáveis em
-      // map-manager.js; sem o atributo o mapa volta para "forecast" calado.
       bodyAttrs: Object.freeze({
-        // O espaço inicial faz parte do contrato: o renderer emite `<body{{bodyAttrs}}>`.
+        // The leading space is part of the contract: the renderer emits
+        // `<body{{bodyAttrs}}>` with no separator of its own.
         test: (value) =>
           isNonEmptyString(value) && value.startsWith(" ") && KNOWN_MAP_CONTEXTS.includes(mapContextOf(value)),
         expectation: `a <body> attribute string carrying data-map-context set to one of: ${KNOWN_MAP_CONTEXTS.join(", ")}`,
@@ -147,15 +146,15 @@ function layoutContract(layout) {
 }
 
 /**
- * Chaves aceitas em `page(type, options)`. Qualquer outra é erro: sem esta
- * lista um `styles` escrito como `style` sumia sem deixar rastro no HTML.
+ * Keys accepted by `page(type, options)`. Anything else is an error, so a
+ * `styles` misspelled as `style` fails loudly instead of being ignored.
  *
- * - source/append/styles/vendorStyles/scripts/vendorScripts/seo/nav: composição
- *   da página.
- * - bodyAttrs/kicker/docModalTitle: slots dos layouts (hoje só o webgis usa).
- * - indexable: `false` remove a página do sitemap.xml E emite
- *   `<meta name="robots" content="noindex, follow">` (renderer.js); ausente ou
- *   `true` mantém a página listada e indexável.
+ * - source/append/styles/vendorStyles/scripts/vendorScripts/seo/nav: page
+ *   composition.
+ * - bodyAttrs/kicker/docModalTitle: layout slots (only webgis uses them today).
+ * - indexable: `false` drops the page from sitemap.xml AND emits
+ *   `<meta name="robots" content="noindex, follow">` (renderer.js); absent or
+ *   `true` keeps it listed and indexable.
  */
 const PAGE_OPTION_KEYS = Object.freeze([
   "append",
@@ -172,14 +171,14 @@ const PAGE_OPTION_KEYS = Object.freeze([
   "vendorStyles",
 ]);
 
-/** `customPage()` também declara a rota, que em `page()` vem do tipo. */
+/** `customPage()` declares the route as well; `page()` takes it from the type. */
 const STRUCTURAL_OPTION_KEYS = Object.freeze(["id", "file", "layout"]);
 const CUSTOM_PAGE_OPTION_KEYS = Object.freeze([...STRUCTURAL_OPTION_KEYS, ...PAGE_OPTION_KEYS].sort());
 
 /**
- * `home` carrega semântica no renderer (JSON-LD de ResearchOrganization) e no
- * validador (index.html + conteúdo próprio da publicação). Só `page("home")`
- * pode produzi-la.
+ * `home` carries semantics in the renderer (ResearchOrganization JSON-LD) and
+ * in the validator (index.html plus the publication's own content), so only
+ * `page("home")` may produce it.
  */
 const RESERVED_PAGE_IDS = Object.freeze(["home"]);
 
@@ -196,7 +195,7 @@ function editDistance(left, right) {
   return previous[right.length];
 }
 
-/** Sugere a chave válida mais próxima quando o erro parece um typo óbvio. */
+/** Nearest valid key, or null past a third of the key length — an unrelated key gets no bogus suggestion. */
 function closestKey(key, candidates) {
   let best = null;
   let bestDistance = Infinity;
@@ -237,20 +236,18 @@ function isSourceReference(value) {
 function sameStylesheet(left, right) {
   if (typeof left === "string" || typeof right === "string") {
     if (typeof left !== "string" || typeof right !== "string") return false;
-    // Compara pelo caminho sem o sufixo ?v=/#, do mesmo modo que validate.js
-    // separa assetPath de suffix: o mesmo arquivo declarado com outra versão é
-    // uma SUBSTITUIÇÃO do default do layout, não um segundo <link>.
-    return assetPathOf(left) === assetPathOf(right);
+    // Compare the path without its ?v=/# suffix, the same split validate.js
+    // makes between assetPath and suffix: the same file declared at another
+    // version REPLACES the layout default, it is not a second link.
+    return assetPathWithoutVersion(left) === assetPathWithoutVersion(right);
   }
   return isSourceReference(left) && isSourceReference(right) && left.scope === right.scope && left.path === right.path;
 }
 
-/** Caminho de um asset sem o sufixo de versão/fragmento (`?v=1.9.4`, `#foo`). */
-function assetPathOf(asset) {
+function assetPathWithoutVersion(asset) {
   return asset.split(/(?=[?#])/, 2)[0];
 }
 
-/** Defaults do layout que ainda não foram declarados pelo tipo ou pelas options. */
 function missingLayoutAssets(layoutAssets, declared) {
   return layoutAssets.filter((asset) => !declared.some((entry) => sameStylesheet(entry, asset)));
 }
@@ -302,9 +299,10 @@ function finalizePage(definition, options, typeName) {
     throw new TypeError(`${typeName}.vendorStyles must be an array of versioned vendor asset paths`);
   }
 
-  // Scripts são sempre caminhos já publicados sob site/assets/, nunca fontes em
-  // src/**: ao contrário do CSS de página, site/assets/js/ é fonte versionada e
-  // não saída do build, então não há o que copiar para assets/js/generated/.
+  // Scripts are always paths already published under site/assets/, never
+  // sources in src/**: unlike page CSS, site/assets/js/ is versioned source
+  // rather than build output, so there is nothing to copy into
+  // assets/js/generated/.
   const declaredVendorScripts = mergeArrayOption(definition, options, "vendorScripts", typeName);
   const vendorScripts = [
     ...missingLayoutAssets(contract.vendorScripts, declaredVendorScripts),
@@ -407,9 +405,9 @@ module.exports = {
   PAGE_OPTION_KEYS,
   CUSTOM_PAGE_OPTION_KEYS,
   LAYOUT_CONTRACTS,
-  // Exportado para que outros conjuntos de chaves fechadas (o bloco `model` do
-  // dataset, em scripts/site-builder/validate.js) recusem um typo com a mesma
-  // sugestão que `page()` dá para suas options, em vez de reimplementá-la.
+  // Exported so that other closed key sets (the dataset `model` block, in
+  // scripts/site-builder/validate.js) can refuse a typo with the same
+  // suggestion `page()` gives for its options instead of reimplementing it.
   closestKey,
   templateSource,
   siteSource,

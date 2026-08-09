@@ -3,41 +3,38 @@
 module.exports = {
   id: "labmim-wrf",
   attribution: "LabMiM-UFBA",
-  // Nome real da CLI Python que converte o NetCDF do WRF no JSON/GeoJSON servido.
+  // Actual name of the Python CLI that turns the WRF NetCDF into the served
+  // JSON/GeoJSON; it is not derived from the dataset id.
   generator: "labmim-wrf-geojson",
-  // O namelist WRF vem de DEFAULT_MODEL (renderer); só declare `model` aqui para
-  // sobrescrever campos quando esta simulação divergir da configuração padrão.
+  // The WRF namelist comes from DEFAULT_MODEL (renderer); declare `model` here
+  // only for the fields where this simulation diverges from that default.
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",
     grids: "GeoJSON",
-    // Janela móvel de 7 dias que a página de monitoramento desenha, reescrita a
-    // cada hora pelo deploy. Mesma procedência e mesma restrição da climatologia
-    // abaixo: sai de `labmim-monitoring` sobre o acervo de sensores do
-    // laboratório, que não é público.
+    // Rolling 7-day window, rewritten hourly by the deploy. Produced by
+    // `labmim-monitoring` over the laboratory's sensor archive, which is not
+    // public, so it reaches the site through the deploy and stays out of git.
     monitoring: "Monitoramento",
-    // Distribuições observadas pré-calculadas que a página de climatologia lê.
-    // Derivadas do acervo de sensores do laboratório, que NÃO é público: como as
-    // saídas do WRF, chegam pelo deploy e ficam fora do git (.gitignore).
-    // Produzidas por `labmim-climatology` no repositório micrometeorology.
+    // Pre-computed observed distributions, produced by `labmim-climatology` in
+    // the micrometeorology repository. Same non-public sensor archive and same
+    // deploy-only route as the monitoring window above.
     climatology: "Climatologia",
   },
   timeline: {
-    // Teto de reserva para quando o manifesto não chega: espelha o `index_max`
-    // que a rodada publicada declara (arquivos `_000`..`_075`). Abaixo disso o
-    // slider estático perde os últimos passos e a documentação renderizada
-    // anuncia menos timesteps do que o pipeline entrega.
+    // Fallback ceiling for when the manifest does not arrive: it mirrors the
+    // `index_max` the published run declares (files `_000`..`_075`).
     defaultMaxLayer: 75,
     initialIndex: 7,
     stepHours: 1,
     label: "Horário local (UTC−03)",
   },
   defaultDomain: "D01",
-  // A extensão citada em cada `description` é a da grade publicada
-  // (`shape × metadata.resolucao_m` dos `GeoJSON/*.grid.json`): 1863, 891, 297
-  // e 84 km. Não dá para derivá-la no build — os `grid.json` são dados de
-  // deploy e não estão no repositório —, então ela é revista à mão sempre que
-  // o namelist mudar a grade.
+  // The extent quoted in each `description` is the published grid's
+  // (`shape × metadata.resolucao_m` from `GeoJSON/*.grid.json`): 1863, 891, 297
+  // and 84 km. The build cannot derive it — the `grid.json` files are deploy
+  // data and never live in the repository — so review it by hand whenever the
+  // namelist changes the grid.
   domains: [
     {
       id: "D01",

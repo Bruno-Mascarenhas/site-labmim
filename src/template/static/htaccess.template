@@ -1,39 +1,40 @@
 # ---------------------------------------------------------------------------
-# Publicações WebGIS — configuração Apache (charset, MIME, compressão e cache)
-# Todas as diretivas estão protegidas por <IfModule> para que o site nunca
-# retorne 500 caso algum módulo não esteja habilitado no servidor.
+# WebGIS publications — Apache configuration (charset, MIME, compression, cache)
+# Every directive is guarded by <IfModule> so the site never answers 500 when a
+# module is not enabled on the server.
 #
-# Este template é COMPARTILHADO por todas as publicações: só os redirects legados
-# variam por publicação (vêm do manifesto). CSP, origens de tile/frame e cache são
-# iguais para todos os sites — mudá-los para um único site exige editar este arquivo
-# (acoplamento aceito). Requer um host Apache com AllowOverride; num host sem .htaccess
-# (ou sem os módulos abaixo) toda esta camada some silenciosamente, então confirme as
-# capacidades do host antes de depender de CSP/redirect aqui.
+# This template is SHARED by every publication: only the legacy redirects vary
+# per publication (they come from the manifest). CSP, tile/frame origins and
+# cache are identical for every site, so changing them for a single site means
+# editing this file (accepted coupling). Requires an Apache host with
+# AllowOverride; on a host without .htaccess (or without the modules below) this
+# whole layer disappears silently, so confirm what the host supports before
+# relying on the CSP or the redirects here.
 # ---------------------------------------------------------------------------
 
 AddDefaultCharset UTF-8
 
-# --- Página de erro 404 personalizada ---------------------------------------
+# --- Custom 404 error page --------------------------------------------------
 ErrorDocument 404 /404.html
 
-# --- Redirects permanentes de páginas legadas -------------------------------
-# Cada publicação declara apenas seus próprios aliases no manifesto.
+# --- Permanent redirects for legacy pages -----------------------------------
+# Each publication declares only its own aliases in the manifest.
 <IfModule mod_alias.c>
 {{LEGACY_REDIRECTS}}
 </IfModule>
 
 # --- MIME types -------------------------------------------------------------
-# Garante o Content-Type correto dos dados de previsão (JSON/GeoJSON).
+# Makes sure the forecast data (JSON/GeoJSON) gets the right Content-Type.
 <IfModule mod_mime.c>
   AddType application/json .json
   AddType application/geo+json .geojson
 </IfModule>
 
-# --- Compressão -------------------------------------------------------------
-# Os payloads JSON/GeoJSON de previsão variam de centenas de KB a vários MB;
-# a compressão é o maior ganho de transferência do site.
-# No Apache 2.4 a diretiva AddOutputFilterByType pertence ao mod_filter,
-# então o guard duplo evita 500 caso apenas um dos módulos esteja ativo.
+# --- Compression ------------------------------------------------------------
+# The forecast JSON/GeoJSON payloads run from hundreds of KB to several MB, so
+# compression is the site's largest transfer win.
+# On Apache 2.4 AddOutputFilterByType belongs to mod_filter, so the double guard
+# avoids a 500 when only one of the two modules is active.
 <IfModule mod_deflate.c>
   <IfModule mod_filter.c>
     AddOutputFilterByType DEFLATE text/html
@@ -46,8 +47,8 @@ ErrorDocument 404 /404.html
   </IfModule>
 </IfModule>
 
-# Brotli (quando disponível) — densidade melhor que gzip para texto/JSON.
-# Clientes sem suporte a Brotli continuam recebendo gzip pelo mod_deflate acima.
+# Brotli when available — better density than gzip for text/JSON.
+# Clients without Brotli support still get gzip from the mod_deflate block above.
 <IfModule mod_brotli.c>
   <IfModule mod_filter.c>
     AddOutputFilterByType BROTLI_COMPRESS text/html
@@ -60,84 +61,83 @@ ErrorDocument 404 /404.html
   </IfModule>
 </IfModule>
 
-# --- Cabeçalhos de segurança e política de cache ----------------------------
+# --- Security headers and cache policy --------------------------------------
 <IfModule mod_headers.c>
-  # Segurança (always = valem inclusive para respostas de erro).
+  # Security (always = applies to error responses too).
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Permissions-Policy "geolocation=(), camera=(), microphone=()"
 
-  # Content-Security-Policy: todo CSS/JS é same-origin (vendorizado); não há
-  # <script> executável inline nem handlers on*. O bloco JSON-LD
-  # (type=application/ld+json) não é executável e é permitido independentemente.
-  # style-src 'unsafe-inline' cobre apenas os atributos style inline (Leaflet e
-  # style="display:none"). script-src permanece 'self' — sem 'unsafe-inline'/'eval'.
-  # data: em img-src cobre o favicon e o ícone SVG do navbar-toggler; os hosts
-  # OSM cobrem os tiles do mapa; frame-src libera o iframe do Google Maps.
+  # Content-Security-Policy: every CSS/JS file is same-origin (vendored); there
+  # is no executable inline script and no on* handler. The JSON-LD block
+  # (type=application/ld+json) is not executable and is allowed regardless.
+  # style-src 'unsafe-inline' only covers inline style attributes (Leaflet and
+  # style="display:none"). script-src stays 'self' — no 'unsafe-inline'/'eval'.
+  # data: in img-src covers the favicon and the navbar-toggler SVG icon; the OSM
+  # hosts cover the map tiles; frame-src allows the Google Maps iframe.
   Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org https://*.tile.osm.org https://*.tile.openstreetmap.org; font-src 'self'; connect-src 'self'; frame-src https://www.google.com; upgrade-insecure-requests"
 
-  # Dados de previsão (JSON/GeoJSON e séries binárias .series.bin): o pipeline
-  # REUTILIZA os mesmos nomes de arquivo a cada nova rodada, então o navegador
-  # nunca pode confiar em cópia antiga sem revalidar. "no-cache" permite
-  # armazenar, mas exige revalidação a cada uso — respostas 304 baratas via
-  # ETag/Last-Modified e previsões sempre atualizadas. Os .bin ficam FORA das
-  # listas de compressão acima de propósito: mod_deflate não comprime
-  # respostas 206, e comprimir o corpo inteiro anularia as leituras parciais
-  # (Range, ~300B) que o site faz nesses arquivos.
+  # Forecast data (JSON/GeoJSON and the binary .series.bin series): the pipeline
+  # REUSES the same file names on every new run, so the browser may never trust
+  # an old copy without revalidating. "no-cache" allows storing but requires
+  # revalidation on each use — cheap 304 responses via ETag/Last-Modified and
+  # forecasts that are always current. The .bin files are kept OUT of the
+  # compression lists above on purpose: mod_deflate does not compress 206
+  # responses, and compressing the whole body would defeat the partial reads
+  # (Range, ~300B) the site makes on those files.
   <FilesMatch "\.(json|geojson|bin)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
 
-  # HTML: sempre revalidar para entregar a versão mais recente das páginas.
+  # HTML: always revalidate, so visitors get the newest version of a page.
   <FilesMatch "\.html$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
 
-  # CSS/JS: cache curto com stale-while-revalidate; o app já usa
-  # cache-busting via query string (?v=) para atualizações imediatas.
+  # CSS/JS: short cache with stale-while-revalidate; the app already cache-busts
+  # through the query string (?v=) for immediate updates.
   <FilesMatch "\.(css|js)$">
     Header set Cache-Control "public, max-age=3600, stale-while-revalidate=86400"
   </FilesMatch>
 
-  # Imagens e fontes: conteúdo estável, cache de 7 dias.
+  # Images and fonts: stable content, 7-day cache.
   <FilesMatch "\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf)$">
     Header set Cache-Control "public, max-age=604800"
   </FilesMatch>
 
-  # Bibliotecas vendorizadas (assets/vendor/**): versionadas no deploy e
-  # imutáveis — cache longo e agressivo (sobrepõe as regras acima para esse
-  # caminho). <If> é do core do Apache 2.4. EXCEÇÃO: as webfonts do Font
-  # Awesome ficam na regra de 7 dias das fontes — fa-solid-900.woff2 é um
-  # SUBSET regenerável (conteúdo muda sem mudar de URL), e um ano imutável
-  # deixaria visitantes recorrentes com a fonte antiga após um resubset.
+  # Vendored libraries (assets/vendor/**): versioned at deploy time and
+  # immutable — long, aggressive cache (overrides the rules above for that
+  # path). <If> is Apache 2.4 core. EXCEPTION: the Font Awesome webfonts stay
+  # on the 7-day font rule — fa-solid-900.woff2 is a regenerable SUBSET (its
+  # content changes without the URL changing), and an immutable year would
+  # leave returning visitors on the old font after a resubset.
   <If "%{REQUEST_URI} =~ m#^/assets/vendor/# && %{REQUEST_URI} !~ m#^/assets/vendor/fontawesome/webfonts/#">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </If>
 
-  # Gráficos do monitoramento: regenerados NO MESMO nome de arquivo pela
-  # estação (tempo quase real) — sobrepõe a regra de 7 dias das imagens com
-  # revalidação a cada uso (304 barato via ETag/Last-Modified).
+  # Monitoring charts: regenerated under the SAME file name by the station
+  # (near real time) — overrides the 7-day image rule with revalidation on each
+  # use (cheap 304 via ETag/Last-Modified).
   <If "%{REQUEST_URI} =~ m#^/assets/graphs/#">
     Header set Cache-Control "no-cache"
   </If>
 
-  # CSS/JS próprios com token de versão (?v=<hash de conteúdo> estampado pelo
-  # build.js): a URL muda sempre que o conteúdo muda — cache longo e imutável.
-  # Sobrepõe a regra curta de CSS/JS acima (blocos <If> aplicam por último na
-  # fusão de configuração). Inclui os Web Workers: eles também são
-  # content-hashed pelo build (meta labmim-asset-hashes); sem a meta a URL
-  # sai sem ?v= e cai nas regras de cache curto acima.
+  # Our own CSS/JS carrying a version token (?v=<content hash> stamped by
+  # build.js): the URL changes whenever the content does — long, immutable
+  # cache. Overrides the short CSS/JS rule above (<If> blocks apply last when
+  # the configuration is merged). Web Workers are included: the build
+  # content-hashes them too (labmim-asset-hashes meta tag); without that meta
+  # the URL comes out with no ?v= and falls into the short cache rules above.
   <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(css|js)$#">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </If>
 
-  # Dados de previsão com token de versão (?v= vindo do manifest configurado),
-  # incluindo os .series.bin: 24h em vez de 1 ano — o teto limita o estrago
-  # caso um manifest órfão continue publicado (ex.: rollback do pipeline para
-  # uma versão que não escreve manifest, com os dados sendo trocados sob os
-  # mesmos nomes). As rodadas são diárias, então 24h ainda elimina as
-  # revalidações por sessão.
+  # Forecast data carrying a version token (?v= from the configured manifest),
+  # .series.bin included: 24h instead of a year — the ceiling limits the damage
+  # if an orphan manifest stays published (say, a pipeline rollback to a version
+  # that writes no manifest while the data is swapped under the same names).
+  # Runs are daily, so 24h still removes the per-session revalidations.
   <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(json|geojson|bin)$#">
     Header set Cache-Control "public, max-age=86400"
   </If>

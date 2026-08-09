@@ -1,6 +1,3 @@
-/**
- * APPLICATION INITIALIZATION
- */
 let app;
 let chartsManager;
 
@@ -79,31 +76,32 @@ document.addEventListener("DOMContentLoaded", () => {
   manifestPromise.then((manifest) => {
     if (manifest) app.applyManifest(manifest);
     app.applyMapChanges().then((values) => {
-      // Com valores em tela, ou com uma âncora de tempo vinda do manifesto, a
-      // linha do tempo tem o que dizer: segue o roteiro normal.
+      // With values on screen, or with a time anchor from the manifest, the
+      // timeline has something to say: follow the normal script.
       //
-      // A condição não pergunta se o manifesto veio: num upload parcial por
-      // FTP ele pode ser o único arquivo no ar, e um manifesto v1 (ou uma
-      // reversão do pipeline) não traz `start_local`, logo não deixa âncora
-      // nenhuma. Quem tem âncora — todo manifesto v2 — nunca cai aqui.
+      // The condition does not ask whether the manifest arrived: in a partial
+      // FTP upload it may be the only file online, and a v1 manifest (or a
+      // pipeline rollback) carries no `start_local`, hence no anchor at all.
+      // Anything with an anchor — every v2 manifest — never lands here.
       if (values || app.state.initialDateTime) {
         app.startInitialPlayback();
         return;
       }
 
-      // A grade desempata "não há nada publicado" e "faltou este quadro": ela
-      // não depende de variável nem de passo. Se ela carrega, o diretório está
-      // no ar e só aquele passo faltou (a variável de onda curta na madrugada,
-      // por exemplo) — aí o timelapse deve andar até um passo publicado. Vem
-      // do cache/da requisição já em curso, não é uma segunda leitura.
+      // The grid breaks the tie between "nothing is published" and "this frame
+      // is missing": it depends on neither variable nor step. If it loads, the
+      // directory is online and only that step was absent (the shortwave
+      // variable overnight, say) — then the timelapse should walk on to a
+      // published step. It comes from the cache or the in-flight request, not
+      // from a second read.
       app.loadGridLayer(app.state.domain).then((grid) => {
         if (grid) {
           app.startInitialPlayback();
           return;
         }
-        // Nem a grade existe: o diretório de saída do modelo não está neste
-        // servidor. Ligar o timelapse repetiria a cada 800 ms as requisições
-        // que acabaram de falhar, sob um "Carregando..." que nunca mudaria.
+        // Not even the grid exists: the model output directory is not on this
+        // server. Starting the timelapse would repeat the requests that just
+        // failed every 800 ms, under a "Carregando..." that would never change.
         app.showNoPublishedDataNotice();
       });
     });

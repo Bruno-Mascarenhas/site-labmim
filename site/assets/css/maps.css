@@ -1,8 +1,7 @@
 /* Z-INDEX LADDER
-   Named stacking layers whose values EXACTLY equal the raw z-index numbers
-   previously used inline. Substituting var() below is computed-identical.
-   Small local z-indexes used only inside mobile flex-stacks (10, 20, 21)
-   are intentionally NOT part of this global ladder. */
+   Named stacking layers for the map UI. The small local z-indexes used only
+   inside the mobile flex stacks (10, 20, 21) are intentionally NOT part of this
+   global ladder. */
 :root {
   --z-map: 1;
   --z-wind-canvas: 400;
@@ -17,14 +16,14 @@
 }
 
 /* LEFT RAIL CLEARANCE
-   A colorbar e os botões de domínio formam uma coluna encostada na borda
-   esquerda do mapa que cresce para baixo: em telas baixas (ex.: 1024x768) ela
-   chega à barra de controles. Os controles flutuantes do canto inferior
-   esquerdo (vetores de vento, seletor de altura, janela de acumulado) partem
-   daqui para nunca ficarem por baixo dela. O valor cobre o rótulo de domínio
-   mais largo entre as publicações — "Grande Vitória" (ufes), cuja coluna
-   termina em 178px — com folga. Abaixo de 900px esses controles entram na
-   pilha estática e o deslocamento deixa de valer. */
+   The colorbar and the domain buttons form a column pinned to the left edge of
+   the map that grows downwards: on short screens (1024x768, say) it reaches the
+   controls bar. The floating controls in the lower-left corner (wind vectors,
+   height selector, accumulation window) start from here so they never end up
+   underneath it. The value clears the widest domain label across publications —
+   "Grande Vitória" (ufes), whose column ends at 178px — with room to spare.
+   Below 900px those controls join the static stack and the offset stops
+   applying. */
 :root {
   --map-left-rail-clear: 190px;
 }
@@ -55,11 +54,8 @@ header.maps-header {
   flex-direction: row;
   position: relative;
   height: calc(100vh - var(--navbar-height));
-
-  /* Approximate navbar height */
 }
 
-/* MAP CONTAINER */
 #map {
   flex: 1;
   z-index: var(--z-map);
@@ -67,13 +63,11 @@ header.maps-header {
   width: 100%;
 }
 
-/* SIDEBAR - Flutuante e Retrátil */
+/* SIDEBAR — floating and retractable */
 .sidebar {
   position: fixed;
   right: 0;
   top: var(--navbar-height);
-
-  /* Below navbar */
   width: 380px;
   height: calc(100vh - var(--navbar-height));
   background: white;
@@ -82,10 +76,10 @@ header.maps-header {
   flex-direction: column;
   transform: translateX(100%);
 
-  /* O painel fechado sai da tela só por transform, então sem visibility ele
-     continuaria na ordem de tabulação e na árvore de acessibilidade: dois tab
-     stops fora da viewport. O atraso igual à duração do slide preserva a
-     animação de saída. */
+  /* The closed panel leaves the screen through transform alone, so without
+     visibility it would stay in the tab order and in the accessibility tree:
+     tab stops outside the viewport. The delay matching the slide duration
+     preserves the exit animation. */
   visibility: hidden;
   transition:
     transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
@@ -102,7 +96,6 @@ header.maps-header {
     visibility 0s 0s;
 }
 
-/* SIDEBAR LOGO HEADER */
 .sidebar-logo-header {
   padding: 0;
   background: var(--map-accent-gradient);
@@ -173,7 +166,6 @@ header.maps-header {
   color: var(--map-accent-2);
 }
 
-/* FLOATING CLOSE BUTTON (Botão flutuante no canto) */
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
@@ -219,19 +211,19 @@ header.maps-header {
   color: #555;
 }
 
-/* --map-accent é cor de identidade do mapa, não tinta de texto: sobre #f8f9fa ele
-   fica em 3,47:1 (2,56:1 na publicação do LEAL). Valor lido é texto, então usa a
-   rampa de tinta do contrato de tema, como o resto dos painéis já faz. */
+/* --map-accent is the map's identity color, not a text ink: over #f8f9fa it
+   lands at 3.47:1 (2.56:1 in the LEAL publication). A read value is text, so it
+   uses the theme contract's ink ramp, like the rest of the panels. */
 .info-value {
   font-weight: 600;
   color: var(--ink-strong, #172033);
   font-family: "Courier New", monospace;
 }
 
-/* A unidade qualifica o número lido na célula, então é texto e não decoração:
-   #888 sobre o #f8f9fa da .info-item dava 3,36:1 em 13,6px. O tema escuro troca
-   o fundo da .info-item para --bg-primary, onde esta tinta não serve — a
-   contraparte está em theme.css. */
+/* The unit qualifies the number read in the cell, so it is text and not
+   decoration, and has to clear 4.5:1 over the #f8f9fa of .info-item. The dark
+   theme swaps that background for --bg-primary, where this ink no longer
+   serves — the counterpart lives in theme.css. */
 .info-unit {
   font-size: 0.85rem;
   color: #6b6b6b;
@@ -317,10 +309,10 @@ header.maps-header {
   appearance: none;
 }
 
-/* O `outline: none` acima tem especificidade de id e derrotava o anel que
-   `input:focus-visible` (theme.css) dá a todo campo do site — o controle
-   principal do WebGIS ficava sem nenhum sinal de foco de teclado. A regra repete
-   o anel da casa, e só no foco por teclado: o estado ocioso segue sem contorno. */
+/* The `outline: none` above carries id specificity and beats the ring that
+   `input:focus-visible` (theme.css) gives every field on the site, so the
+   WebGIS's main control repeats the house ring here — keyboard focus only, the
+   idle state stays outline-free. */
 #layerSlider:focus-visible {
   outline: 3px solid rgba(var(--brand-secondary-rgb), 0.35);
   outline-offset: 3px;
@@ -347,8 +339,8 @@ header.maps-header {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Mesma razão de .info-value: o relógio da animação é o dado que o leitor
-   procura, e a cor de identidade não alcança 4,5:1 sobre o branco do painel. */
+/* Same reason as .info-value: the animation clock is the datum the reader is
+   after, and the identity color does not reach 4.5:1 over the panel white. */
 .slider-time {
   font-weight: 600;
   color: var(--ink-deep, #0d2b4d);
@@ -407,7 +399,6 @@ header.maps-header {
   border-color: var(--map-accent);
 }
 
-/* TOGGLE SWITCH */
 .variable-selector-wrapper {
   display: flex;
   align-items: center;
@@ -456,9 +447,9 @@ header.maps-header {
   box-shadow: 0 0 0 3px rgba(var(--map-accent-rgb), 0.1);
 }
 
-/* SEGMENTED SELECTOR — altura do hub (eólico) e janela de acumulado (chuva).
-   Só uma delas fica ativa por vez, pois cada uma pertence a uma variável
-   diferente; por isso ambas ocupam o mesmo canto do mapa. */
+/* SEGMENTED SELECTOR — hub height (wind) and accumulation window (rain). Only
+   one of them is active at a time, since each belongs to a different variable;
+   that is why both take the same corner of the map. */
 .segmented-selector {
   display: none;
   position: absolute;
@@ -474,8 +465,8 @@ header.maps-header {
   white-space: nowrap;
 }
 
-/* O eólico exibe o botão de vetores de vento na mesma faixa: o seletor de
-   altura fica encostado nele. */
+/* The wind variable shows the wind-vector button in the same strip, so the
+   height selector sits right next to it. */
 #heightSelector {
   left: calc(var(--map-left-rail-clear) + 60px);
 }
@@ -569,7 +560,8 @@ header.maps-header {
   box-shadow: 0 4px 16px rgba(var(--map-accent-rgb), 0.6);
 }
 
-/* Foco visivel via teclado no toggle de vento (checkbox visualmente oculto). */
+/* The checkbox is visually hidden, so the keyboard focus ring goes on the
+   label. */
 .wind-layer-toggle:has(input[type="checkbox"]:focus-visible) label {
   outline: 3px solid rgba(var(--brand-secondary-rgb), 0.35);
   outline-offset: 3px;
@@ -640,9 +632,7 @@ header.maps-header {
   padding-top: 8px;
 }
 
-/* DOMAIN INDICATOR */
-
-/* DOMAIN INDICATORS CONTAINER */
+/* DOMAIN INDICATORS */
 .domain-indicators-container {
   position: absolute;
   top: 360px;
@@ -697,9 +687,8 @@ header.maps-header {
   box-shadow: 0 4px 12px rgba(var(--map-accent-rgb), 0.3);
 }
 
-/* RESPONSIVE - TABLET E MOBILE */
+/* RESPONSIVE - TABLET AND MOBILE */
 @media (width <= 1024px) {
-  /* Ajustes gerais para telas < 1024px */
   .sidebar {
     max-width: 95vw;
   }
@@ -720,9 +709,6 @@ header.maps-header {
 }
 
 @media (width <= 768px) {
-  /* MOBILE: Até 768px */
-
-  /* Layout Base */
   .container-main {
     flex-direction: column;
   }
@@ -732,7 +718,8 @@ header.maps-header {
     width: 100%;
   }
 
-  /* Sidebar em Mobile - Slide-up do fundo */
+  /* On mobile the sidebar slides up from the bottom instead of in from the
+     right. */
   .sidebar {
     position: fixed;
     inset: auto auto 200px 2.5vw;
@@ -754,7 +741,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Ocultar logo da sidebar em mobile */
   .sidebar-logo-header {
     display: none;
     height: 0;
@@ -774,7 +760,6 @@ header.maps-header {
     padding: 0;
   }
 
-  /* Controls Container - Mais compacto */
   .controls-container {
     height: 130px;
     min-height: 130px;
@@ -787,7 +772,6 @@ header.maps-header {
     pointer-events: none;
   }
 
-  /* Slider - Ocupa linha cheia */
   .slider-wrapper {
     width: 100%;
     min-width: unset;
@@ -809,23 +793,22 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* O `overflow: hidden` + reticências de .slider-time abaixo só funcionam se a
-     caixa que o embrulha puder encolher, e todo item de flex nasce com
-     min-width: auto — recusa ficar menor que o próprio conteúdo. Quando o
-     relógio dá lugar ao aviso de modelo ainda não publicado (o estado do LEAL
-     hoje), esse texto longo esticava a linha do slider até 623px numa tela de
-     320px: a página do WebGIS rolava na horizontal e os botões de animação
-     saíam pela direita. Só no mobile: no desktop a linha tem folga e cortar
-     seria pior que deixar o aviso quebrar em duas linhas. */
+  /* The `overflow: hidden` and ellipsis on .slider-time below only work if the
+     box wrapping it can shrink, and every flex item starts at min-width: auto —
+     it refuses to go below its own content. When the clock gives way to the
+     "model not published yet" notice, that long text stretches the slider row
+     and the WebGIS page scrolls sideways, pushing the animation buttons off to
+     the right. Mobile only: on desktop the row has slack, and truncating would
+     be worse than letting the notice wrap onto two lines. */
   .slider-time-container {
     min-width: 0;
     overflow: hidden;
   }
 
-  /* 12px é o piso de legibilidade que o resto do site respeita, e este relógio é
-     o dado que o leitor procura na animação — não é rótulo decorativo. Com a
-     caixa agora encolhível, o texto maior trunca com reticências em vez de
-     empurrar a linha. */
+  /* 12px is the legibility floor the rest of the site respects, and this clock
+     is the datum the reader looks for during the animation, not a decorative
+     label. Since the box can shrink, the text truncates with an ellipsis
+     instead of pushing the row. */
   .slider-time {
     font-size: 0.75rem;
     min-width: 100px;
@@ -835,7 +818,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Botões - Layout horizontal compacto */
   .buttons-group {
     width: 100%;
     flex-basis: 100%;
@@ -860,7 +842,6 @@ header.maps-header {
     display: none;
   }
 
-  /* Seletor de Variáveis */
   .variable-selector-wrapper {
     width: 100%;
     flex-basis: 100%;
@@ -886,7 +867,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Colorbar - Repositionado */
   .colorbar-container {
     position: absolute;
     inset: 12px auto auto 8px;
@@ -913,7 +893,7 @@ header.maps-header {
     padding-top: 4px;
   }
 
-  /* Domain Indicators - Mais alto em mobile, mas sem sobrepor colorbar */
+  /* Pushed down far enough to clear the colorbar above it. */
   .domain-indicators-container {
     top: 165px;
     left: 8px;
@@ -941,7 +921,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Documentation Button - Canto inferior direito em mobile */
   .documentation-btn-container {
     position: fixed !important;
     inset: auto 8px 140px auto !important;
@@ -965,7 +944,6 @@ header.maps-header {
     box-shadow: 0 2px 8px rgba(var(--map-accent-rgb), 0.4) !important;
   }
 
-  /* Segmented Selector - Reposicionado em mobile e compacto */
   .segmented-selector {
     position: fixed !important;
     inset: auto auto 140px 8px !important;
@@ -975,7 +953,7 @@ header.maps-header {
   }
 
   #heightSelector {
-    left: 56px !important; /* Ao lado do botão de vento */
+    left: 56px !important; /* Beside the wind button */
   }
 
   .segmented-selector .segmented-selector-title {
@@ -988,7 +966,6 @@ header.maps-header {
     min-width: 40px !important;
   }
 
-  /* Wind Layer Toggle - Móvel: botão flutuante inferior esquerdo */
   .wind-layer-toggle {
     position: fixed !important;
     inset: auto auto 140px 8px !important;
@@ -1003,7 +980,6 @@ header.maps-header {
     font-size: 1rem !important;
   }
 
-  /* Info Sections */
   .info-section {
     padding: 12px;
     margin-bottom: 8px;
@@ -1040,7 +1016,6 @@ header.maps-header {
     margin: 4px 0;
   }
 
-  /* Chart - Menor em mobile */
   .chart-container {
     padding: 8px;
     margin: 8px 0;
@@ -1071,7 +1046,6 @@ header.maps-header {
     font-size: 0.9rem;
   }
 
-  /* Documentação no topo/canto */
   .documentation-btn-container {
     position: fixed !important;
     inset: auto 8px 115px auto !important;
@@ -1095,7 +1069,7 @@ header.maps-header {
     box-shadow: 0 2px 8px rgba(var(--map-accent-rgb), 0.4) !important;
   }
 
-  /* Domain indicators mais alto */
+  /* Pushed down far enough to clear the colorbar above it. */
   .domain-indicators-container {
     top: 180px;
     left: 4px;
@@ -1117,7 +1091,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Colorbar - Pequeno no ultra-mobile */
   .colorbar-container {
     top: 8px;
     left: 4px;
@@ -1138,7 +1111,6 @@ header.maps-header {
     min-width: 28px;
   }
 
-  /* Controles ainda mais compactos */
   .controls-container {
     height: auto;
     min-height: 0;
@@ -1224,7 +1196,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Info Sections */
   .info-section {
     padding: 8px;
     margin-bottom: 6px;
@@ -1246,7 +1217,6 @@ header.maps-header {
     font-size: 0.9rem;
   }
 
-  /* Segmented Selector - Ajuste ultra-mobile */
   .segmented-selector {
     position: fixed !important;
     inset: auto auto 115px 8px !important;
@@ -1256,16 +1226,15 @@ header.maps-header {
   }
 
   #heightSelector {
-    left: 50px !important; /* Ao lado do botão de vento */
+    left: 50px !important; /* Beside the wind button */
   }
 
   .segmented-selector .segmented-selector-title {
     font-size: 0.65rem !important;
   }
 
-  /* O encolhimento deixava o botão com 23,6px de altura, abaixo dos 24px que o
-     resto dos controles de toque já adota. A altura mínima é declarada em vez
-     de derivada do padding: a fonte e a largura podem encolher, o alvo não. */
+  /* The minimum height is declared rather than derived from the padding: the
+     font and the width may shrink here, the 24px touch target may not. */
   .segmented-btn {
     padding: 2px 6px !important;
     font-size: 0.65rem !important;
@@ -1273,7 +1242,6 @@ header.maps-header {
     min-height: 24px !important;
   }
 
-  /* Wind Layer Toggle - Ultra-mobile: botão flutuante inferior esquerdo */
   .wind-layer-toggle {
     position: fixed !important;
     inset: auto auto 115px 8px !important;
@@ -1289,14 +1257,14 @@ header.maps-header {
   }
 }
 
-/* O trilho tem 6px, e num aparelho de toque o elemento inteiro é o alvo: 6px de
-   altura para o controle principal do mapa significa errar o arrasto. A área
-   cresce para 32px sem engordar o trilho — o fundo continua pintado só nele,
-   pela borda transparente, e o polegar ganha onde pegar.
-   O bloco fica DEPOIS das media queries de largura de propósito: elas
-   redeclaram `height: 4px` com a mesma especificidade e, como a caixa é
-   border-box, 4px menos as bordas de 13px colapsa a caixa de padding a zero e
-   apaga o degradê — o polegar ficaria flutuando sobre nada no celular. */
+/* The track is 6px tall and on a touch device the whole element is the target,
+   so 6px for the map's main control means missing the drag. The area grows to
+   32px without fattening the track: the transparent borders keep the background
+   painted on the track alone, and the thumb gains somewhere to be grabbed.
+   This block comes AFTER the width media queries on purpose — they redeclare
+   `height: 4px` at the same specificity, and since the box is border-box, 4px
+   minus the 13px borders collapses the padding box to zero and erases the
+   gradient. */
 @media (pointer: coarse) {
   #layerSlider {
     height: 32px;
@@ -1504,10 +1472,10 @@ header.maps-header {
   box-shadow: 0 0 0 3px rgba(var(--map-accent-rgb), 0.1);
 }
 
-/* O placeholder não é decorativo aqui: ele carrega o valor padrão do parâmetro
-   ("18 (padrão)"). Em #ccc sobre o branco do campo ficava em 1,61:1. A tinta
-   segue mais clara que o preto do valor digitado, então continua distinguindo
-   sugestão de entrada, mas agora é legível. */
+/* The placeholder is not decorative here: it carries the parameter's default
+   value ("18 (padrão)"), so it has to be legible over the field's white. The
+   ink stays lighter than the black of a typed value, which keeps a suggestion
+   distinguishable from an entry. */
 .parameter-input::placeholder {
   color: #6b6b6b;
 }
@@ -1519,10 +1487,10 @@ header.maps-header {
   display: block;
 }
 
-/* O tema escuro já leva esta dica para --text-secondary; o claro tinha ficado com
-   o #aaa original, que sobre o branco de .parameter-item dá 2,32:1 em 11,2px — e
-   a frase instrui como voltar ao valor padrão, não é decoração. O itálico
-   continua marcando o papel de dica sem apoiar-se no contraste baixo. */
+/* The hint tells the reader how to get back to the default value, so it is
+   instruction and not decoration, and has to be legible at 11.2px over the
+   white of .parameter-item. The italics carry the hint role without leaning on
+   low contrast. (The dark theme takes this to --text-secondary.) */
 .parameter-hint {
   font-size: 0.7rem;
   color: #6b6b6b;
@@ -1531,9 +1499,9 @@ header.maps-header {
   font-style: italic;
 }
 
-/* Mesma razão de .info-value e .doc-tab.active: o rótulo é texto e a cor de
-   identidade do mapa fica em 3,66:1 sobre o branco fixo do botão (2,70:1 na
-   publicação do LEAL). A rampa de tinta do contrato de tema resolve nas duas. */
+/* Same reason as .info-value and .doc-tab.active: the label is text, and the
+   map's identity color lands at 3.66:1 over the button's fixed white (2.70:1 in
+   the LEAL publication). The theme contract's ink ramp works for both. */
 .reset-parameters-btn {
   width: 100%;
   padding: 6px;
@@ -1714,8 +1682,8 @@ header.maps-header {
   color: var(--map-accent);
 }
 
-/* A identidade fica na borda inferior, que é elemento não textual e passa no piso
-   de 3:1; o rótulo da aba é texto e vai para a rampa de tinta. */
+/* The identity color stays on the bottom border, a non-text element that only
+   needs the 3:1 floor; the tab label is text and goes to the ink ramp. */
 .doc-tab.active {
   color: var(--ink-deep, #0d2b4d);
   border-bottom-color: var(--map-accent);
@@ -2293,7 +2261,7 @@ header.maps-header {
   }
 }
 
-/* GRÁFICOS TEMPORAIS */
+/* TIME SERIES CHARTS */
 .chart-container {
   background: white;
   border-radius: 8px;
@@ -2325,7 +2293,7 @@ header.maps-header {
   color: var(--map-accent-2);
 }
 
-/* MODAL DE GRÁFICO EXPANDIDO */
+/* EXPANDED CHART MODAL */
 .chart-modal-overlay {
   position: fixed;
   inset: 0;
@@ -2436,12 +2404,11 @@ header.maps-header {
   }
 }
 
-/* Painéis flutuantes do mapa recolhidos para os cantos superiores. Este
-   breakpoint acompanha o da MOBILE MAP CONTROLS STACK abaixo de propósito:
-   assim que os controles inferiores viram pilha estática, a coluna esquerda
-   (colorbar + domínios) precisa sair do caminho — enquanto ela ficava até
-   768px, a faixa de 769-900px deixava os domínios por cima da barra de
-   controles e do botão de vetores de vento. */
+/* Floating map panels folded into the top corners. This breakpoint matches the
+   MOBILE MAP CONTROLS STACK below on purpose: as soon as the bottom controls
+   become a static stack, the left column (colorbar + domains) has to get out of
+   the way, or the domains sit on top of the controls bar and the wind-vector
+   button. */
 @media (width <= 900px) {
   .colorbar-container {
     top: 8px;

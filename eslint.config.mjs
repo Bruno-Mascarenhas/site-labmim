@@ -18,10 +18,10 @@ export default defineConfig([
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: "latest",
-      // As páginas carregam estes arquivos com `<script src>` clássico — nenhuma tag
-      // tem `type="module"`, e os workers são instanciados sem `{ type: "module" }`.
-      // Analisá-los como módulo deixava `import`/`export`/`await` de topo passarem
-      // limpos no lint e explodirem no navegador, onde o arquivo inteiro não avalia.
+      // The pages load these files through a classic `<script src>` — no tag carries
+      // `type="module"` and the workers are instantiated without `{ type: "module" }`.
+      // Parsed as modules, a top-level `import`/`export`/`await` would lint clean and
+      // then break the browser, where the whole file fails to evaluate.
       sourceType: "script",
       globals: {
         ...globals.browser,
@@ -41,10 +41,9 @@ export default defineConfig([
       "no-console": ["warn", { allow: ["warn", "error", "info", "debug"] }],
       "no-useless-escape": "warn",
       "no-empty": "warn",
-      // Em escopo de script as declarações de topo caem no escopo global e colidem
-      // com os mesmos nomes listados em `globals` — que existem justamente porque
-      // estes arquivos compartilham o escopo global. Sem isto, o código atual
-      // acusaria sete redeclarações inexistentes.
+      // In script scope the top-level declarations land in the global scope and clash
+      // with the very names listed under `globals`, which are listed there precisely
+      // because these files share that scope.
       "no-redeclare": ["error", { builtinGlobals: false }],
     },
   },
