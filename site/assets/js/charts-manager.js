@@ -207,7 +207,7 @@ class ChartsManager {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
 
-    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}"></i> Série Temporal: ${config.label}`;
+    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}"></i> Série Temporal: ${this._stepLabel(config)}`;
 
     const isSolarOrWind = variableType === "solar" || variableType === "eolico";
 
@@ -254,7 +254,13 @@ class ChartsManager {
     const { canvasId = "variablePreviewCanvas", statsContainer, titleElement, labelElement, domainElement } = elements;
 
     if (titleElement) titleElement.textContent = config.optionLabel || config.label;
-    if (labelElement) labelElement.textContent = `${config.sourceId || config.id} · ${config.unit}`;
+    if (labelElement) {
+      // Mesmo cuidado de `updateVariablePreviewShell` em map-manager.js: os dois
+      // escrevem no MESMO nó, e este escreve por último. Sem o guarda, o rótulo das
+      // adimensionais (EPS_SKY, KT) termina no separador — "EPS_SKY · ".
+      const source = config.sourceId || config.id;
+      labelElement.textContent = config.unit ? `${source} · ${config.unit}` : source;
+    }
     if (domainElement) {
       domainElement.textContent = this.app?.getDomainLabel ? this.app.getDomainLabel(domain) : domain;
       domainElement.title = `Domínio técnico: ${domain}`;
@@ -491,8 +497,21 @@ class ChartsManager {
     );
     const chartData = series.map((entry) => entry.value);
     const chartColor = config.colors?.[config.colors.length - 1] || "#0d6efd";
-    const chartLabel = `Média do domínio · ${config.label}`;
+    const chartLabel = `Média do domínio · ${this._stepLabel(config)}`;
     const tooltipLabel = (ctx) => this._formatPreviewValue(ctx.parsed.y, config.unit);
+
+    // Um <canvas> não expõe conteúdo à árvore de acessibilidade: sem
+    // role/aria-label a prévia é um elemento anônimo para o leitor de tela
+    // (WCAG 1.1.1), como já se faz nos gráficos de monitoramento.
+    if (labels.length) {
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute(
+        "aria-label",
+        `Média do domínio para ${this._stepLabel(config)}${config.unit ? ` em ${config.unit}` : ""}, ` +
+          `de ${labels[0]} a ${labels[labels.length - 1]}. ` +
+          "As estatísticas do período estão no resumo desta prévia."
+      );
+    }
 
     let chartInstance = this.previewCharts.get(canvasId);
 
@@ -533,7 +552,15 @@ class ChartsManager {
     // a fake "0 <unit>" instead of N/D.
     if (value === null || value === undefined || !Number.isFinite(Number(value))) return "N/D";
     const numericValue = Number(value);
-    const precision = unit === "%" || unit === "W/m²" || unit === "hPa" || unit === "mm" ? 0 : 1;
+    // Escalas de centenas (percentual, irradiância, pressão) leem melhor
+    // inteiras; nas demais a casa decimal segue a MAGNITUDE, não a unidade.
+    // A média espacial de precipitação de um domínio inteiro é centesimal —
+    // o WRF grava zero em quase toda a grade, que é o motivo do hideBelow —,
+    // então zero casas fixas prendiam "Atual/Média/Mín" em "0 mm" sobre uma
+    // série que varia mais de dez vezes.
+    const isCoarseUnit = unit === "%" || unit === "W/m²" || unit === "hPa";
+    const abs = Math.abs(numericValue);
+    const precision = isCoarseUnit || abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
     return `${numericValue.toFixed(precision)} ${unit}`;
   }
 
@@ -564,6 +591,20 @@ class ChartsManager {
       return d._formattedLabel;
     });
 
+    const canvas = this._getChartCanvas(canvasId);
+    // Um <canvas> não expõe conteúdo à árvore de acessibilidade: sem
+    // role/aria-label o principal produto de dados do modal é um elemento
+    // anônimo para o leitor de tela (WCAG 1.1.1).
+    if (canvas && labels.length) {
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute(
+        "aria-label",
+        `Série temporal de ${chartLabel}${chartUnit ? ` em ${chartUnit}` : ""}, ` +
+          `de ${labels[0]} a ${labels[labels.length - 1]}. ` +
+          "Use o botão CSV para a versão textual dos dados."
+      );
+    }
+
     let chartInstance = this.charts.get(canvasId);
 
     if (chartInstance) {
@@ -575,7 +616,7 @@ class ChartsManager {
       this._applyChartTheme(chartInstance, chartColor);
       chartInstance.update("none");
     } else {
-      const ctx = this._getChartCanvas(canvasId)?.getContext("2d");
+      const ctx = canvas?.getContext("2d");
       if (!ctx) return;
       chartInstance = new Chart(ctx, this._buildChartConfig(chartData, labels, chartLabel, chartColor, chartUnit));
       this.charts.set(canvasId, chartInstance);
@@ -697,7 +738,15 @@ class ChartsManager {
             ticks: {
               color: theme.textSecondary,
               font: { size: 13 },
-              callback: (v) => v.toFixed(1),
+              // As casas seguem o passo entre ticks: numa faixa menor que 1
+              // (a média de precipitação do domínio vai de 0,02 a 0,23 mm)
+              // uma casa fixa colapsava ticks distintos no mesmo rótulo e o
+              // eixo repetia "0.1" em três linhas de grade seguidas.
+              callback: (value, index, ticks) => {
+                const step = ticks?.length > 1 ? Math.abs(ticks[1].value - ticks[0].value) : 0;
+                const decimals = step > 0 && step < 1 ? Math.min(4, Math.ceil(-Math.log10(step))) : 1;
+                return value.toFixed(decimals);
+              },
             },
             grid: { color: theme.grid, drawBorder: false },
             title: {
@@ -716,11 +765,27 @@ class ChartsManager {
     };
   }
 
+  /**
+   * Designação da variável POR PASSO do modelo. As séries do modal, da prévia
+   * e do CSV são sempre horárias — a janela do seletor "Acumulado" só muda o
+   * que o mapa soma —, então elas precisam do rótulo da janela de 1 h e nunca
+   * do rótulo da janela selecionada (é o que `app.getVariableConfig` devolve:
+   * com 3h ativo ele colaria "acumulada (3h)" em números horários corretos).
+   * Sem isso o gráfico diz "Precipitação" ao lado de um mapa que diz
+   * "Precipitação acumulada (3h)", com a mesma unidade, e a divergência entre
+   * os dois números fica invisível.
+   */
+  _stepLabel(config) {
+    const options = config?.accumulation?.options;
+    if (!Array.isArray(options)) return config?.label;
+    return options.find((option) => option.hours === 1)?.variableLabel || `${config?.label} (1h)`;
+  }
+
   _prepareChartData(variableType, chartType, config, timeData) {
     if (chartType === "value") {
       return {
         data: timeData.map((d) => d.value),
-        label: config.label,
+        label: this._stepLabel(config),
         unit: config.unit,
         color: config.colors[config.colors.length - 1],
       };
@@ -940,7 +1005,7 @@ class ChartsManager {
 
       // Chart series are numeric throughout (_prepareChartData never emits
       // formatted strings anymore).
-      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${config.label}",${this._formatCsvValue(Number(chartDataValue[i]))}`;
+      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${this._stepLabel(config)}",${this._formatCsvValue(Number(chartDataValue[i]))}`;
 
       if (isEnergy && chartDataEnergy) {
         csv += `,${this._formatCsvValue(Number(chartDataEnergy[i]))}`;

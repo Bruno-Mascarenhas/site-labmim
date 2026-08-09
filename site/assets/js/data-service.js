@@ -59,7 +59,12 @@ class LabmimDataService {
       if (!callback) return;
       this._workerCallbacks.delete(id);
       if (error) {
-        callback.reject(Number.isFinite(status) ? this._httpError(status, "worker") : new Error(error));
+        // O protocolo do worker devolve só { id, error, status }: a URL vem do
+        // callback guardado em _workerFetch. Sem ela a mensagem sairia como
+        // "(HTTP 404): worker" e um upload de FTP incompleto — falha conhecida
+        // deste host — produziria N erros indistinguíveis no console, enquanto
+        // o mesmo caso na main thread (_mainThreadFetch) nomeia o arquivo.
+        callback.reject(Number.isFinite(status) ? this._httpError(status, callback.url) : new Error(error));
       } else {
         callback.resolve(data);
       }
@@ -173,7 +178,7 @@ class LabmimDataService {
   _workerFetch(url) {
     return new Promise((resolve, reject) => {
       const id = String(++this._workerRequestId);
-      this._workerCallbacks.set(id, { resolve, reject });
+      this._workerCallbacks.set(id, { resolve, reject, url });
       const absoluteUrl = new URL(url, window.location.href).href;
       this._worker.postMessage({ url: absoluteUrl, id });
     });
