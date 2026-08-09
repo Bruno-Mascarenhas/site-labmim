@@ -60,9 +60,9 @@
     <link rel="stylesheet" href="assets/css/base.css?v=7733cbd6" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=16a80c2d" />
-    <link rel="stylesheet" href="assets/css/components.css?v=70ecdd3a" />
+    <link rel="stylesheet" href="assets/css/components.css?v=dfe5c862" />
 
-    <link rel="stylesheet" href="assets/css/theme.css?v=f7bf4768" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=1bd8cbd2" />
 
     <script src="assets/js/theme-boot.js?v=7c6c0260"></script>
     <script src="assets/js/theme-toggle.js?v=1d6af372" defer></script>
@@ -145,6 +145,20 @@
     <main id="main">
       <h1 class="visually-hidden">Equipe</h1>
       <!-- Conteúdo editorial específico do LabMiM/UFBA. -->
+
+      <!--
+  Os nomes são links para o currículo Lattes e precisam PARECER links. A classe
+  utilitária .text-dark do Bootstrap declara a cor com !important e vencia
+  `.team-group a { color: var(--primary-color) }`: no tema claro o nome ficava
+  em rgb(33,37,41), exatamente a cor do texto ao redor, e `.team-group a` já
+  zera o sublinhado — nada distinguia o link da prosa (o tema escuro escapava
+  só porque theme.css tem uma regra própria para `.team-group a`). Mesmo sem a
+  utilitária, cor sozinha não separaria link de texto: o azul institucional
+  #06235e fica a ~1:1 de luminância de #212529 (WCAG 1.4.1/G183). Daí o
+  sublinhado explícito no atributo style — o CSP do site libera
+  style-src 'unsafe-inline' justamente para atributos style, e classe
+  utilitária nova não sobrevive ao purge do Bootstrap sem regerar o vendor.
+-->
       <div class="modern-section">
         <div class="page-header">
           <i class="fas fa-users"></i>
@@ -158,7 +172,12 @@
               <h3 class="team-group-title"><i class="fas fa-user-tie me-2"></i>Pesquisador Responsável</h3>
               <div class="d-flex align-items-center mb-2">
                 <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i>
-                <a href="https://lattes.cnpq.br/3112476528507003" target="_blank" rel="noopener" class="me-2 text-dark"
+                <a
+                  href="https://lattes.cnpq.br/3112476528507003"
+                  target="_blank"
+                  rel="noopener"
+                  class="me-2"
+                  style="text-decoration: underline"
                   >Edson P. Marques Filho</a
                 >
                 <span class="badge text-bg-info">IF-UFBA</span>
@@ -173,35 +192,55 @@
               <div class="stack-sm">
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a href="https://lattes.cnpq.br/8212836406462666" target="_blank" rel="noopener" class="text-dark"
+                  ><a
+                    href="https://lattes.cnpq.br/8212836406462666"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
                     >Maxsuel M. Rocha Pereira</a
                   >
                   <span class="badge text-bg-secondary float-end">CT-UFES</span>
                 </div>
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a href="https://lattes.cnpq.br/1778866012464923" target="_blank" rel="noopener" class="text-dark"
+                  ><a
+                    href="https://lattes.cnpq.br/1778866012464923"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
                     >José Ricardo A. França</a
                   >
                   <span class="badge text-bg-secondary float-end">IGEO-UFRJ</span>
                 </div>
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a href="https://lattes.cnpq.br/1364246301366731" target="_blank" rel="noopener" class="text-dark"
+                  ><a
+                    href="https://lattes.cnpq.br/1364246301366731"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
                     >Amauri Pereira de Oliveira</a
                   >
                   <span class="badge text-bg-secondary float-end">IAG-USP</span>
                 </div>
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a href="https://lattes.cnpq.br/6401622195719726" target="_blank" rel="noopener" class="text-dark"
+                  ><a
+                    href="https://lattes.cnpq.br/6401622195719726"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
                     >Iuri Muniz Pepe</a
                   >
                   <span class="badge text-bg-secondary float-end">IF-UFBA</span>
                 </div>
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a href="https://lattes.cnpq.br/6553529534653449" target="_blank" rel="noopener" class="text-dark"
+                  ><a
+                    href="https://lattes.cnpq.br/6553529534653449"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
                     >Umberto Rizza</a
                   >
                   <span class="badge text-bg-secondary float-end">ISAC-CNR</span>
@@ -217,7 +256,11 @@
               <div class="stack-sm">
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a href="https://lattes.cnpq.br/6895899768798180" target="_blank" rel="noopener" class="text-dark"
+                  ><a
+                    href="https://lattes.cnpq.br/6895899768798180"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
                     >Ernando Ferreira</a
                   >
                   <span class="badge text-bg-light border float-end">PGEnAm-UFBA</span>
@@ -233,7 +276,11 @@
               <div class="stack-sm">
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i>
-                  <a href="https://lattes.cnpq.br/9111550721326814" target="_blank" rel="noopener" class="text-dark"
+                  <a
+                    href="https://lattes.cnpq.br/9111550721326814"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
                     >Diogo Santos de Jesus</a
                   >
                   <span class="badge text-bg-light border float-end">PPGM-UFBA</span>
@@ -249,7 +296,11 @@
               <div class="stack-sm">
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a href="https://lattes.cnpq.br/8164651360713654" target="_blank" rel="noopener" class="text-dark"
+                  ><a
+                    href="https://lattes.cnpq.br/8164651360713654"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
                     >Bruno S. Mascarenhas</a
                   >
                   <span class="badge text-bg-light border float-end">EP-UFBA</span>
@@ -399,7 +450,7 @@
         "wsm6": {
           "short": "Hong e Lim, 2006",
           "citation": "Hong, S.-Y. & Lim, J.-O. J. (2006). The WRF single-moment 6-class microphysics scheme (WSM6). Journal of the Korean Meteorological Society 42(2), 129-151.",
-          "url": "https://search.crossref.org/search/works?q=WRF%20single-moment%206-class%20microphysics%20scheme%20WSM6&from_ui=yes"
+          "url": "https://www.semanticscholar.org/paper/f6014c7853ea15270114b4f1bfec2e64559e63dd"
         },
         "ysu": {
           "short": "Hong, Noh e Dudhia, 2006",
@@ -414,7 +465,7 @@
         "noahmp": {
           "short": "Niu et al., 2011",
           "citation": "Niu, G.-Y. et al. (2011). The community Noah land surface model with multiparameterization options (Noah-MP): 1. Model description and evaluation with local-scale measurements. Journal of Geophysical Research 116, D12109.",
-          "url": "https://search.crossref.org/search/works?q=community%20Noah%20land%20surface%20model%20with%20multiparameterization%20options%20Noah-MP&from_ui=yes"
+          "url": "https://doi.org/10.1029/2010JD015139"
         },
         "kainfritsch": {
           "short": "Kain, 2004",
