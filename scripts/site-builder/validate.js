@@ -645,22 +645,47 @@ function validateObservations(errors, observations, graphsDirectory) {
   });
 }
 
+/** O template interativo do monitoramento, escolhido via `source:` na publicação. */
+const LIVE_MONITORING_TEMPLATE = "pages/monitoring-live.html";
+
+function isLiveMonitoring(page) {
+  return page.source?.scope === "template" && page.source.path === LIVE_MONITORING_TEMPLATE;
+}
+
 /**
- * The monitoring page renders a station-plot section from dataset.observations. A
- * publication that offers the page but declares no observations ships that section
- * with a header and explanation above an empty grid — a silent gap. Require the two
- * to travel together (or neither).
+ * A rota `monitoring.html` tem duas implementações, e cada uma depende de uma
+ * fonte de dados diferente:
+ *
+ * - `pages/monitoring.html` (estática) desenha os PNGs de `dataset.observations`;
+ * - `pages/monitoring-live.html` (interativa) busca o payload horário em
+ *   `dataset.paths.monitoring`.
+ *
+ * Exigir a fonte errada é pior do que não exigir nada: a publicação estática
+ * seria recusada por não declarar um diretório que não usa, e a interativa
+ * passaria sem o diretório de que depende, indo ao ar como uma página vazia cujo
+ * único sintoma é um 404 no console. Por isso a checagem olha qual template a
+ * página resolveu, não o id da rota — que é `monitoring` nas duas.
  */
-function validateMonitoringHasObservations(errors, publication) {
+function validateMonitoringHasData(errors, publication) {
   if (!Array.isArray(publication.pages)) return;
-  const hasMonitoring = publication.pages.some(
+  const monitoring = publication.pages.find(
     (page) => page && (page.id === "monitoring" || page.file === "monitoring.html")
   );
-  if (!hasMonitoring) return;
+  if (!monitoring) return;
+
+  if (isLiveMonitoring(monitoring)) {
+    if (!isNonEmptyString(publication.dataset?.paths?.monitoring)) {
+      errors.push(
+        "dataset.paths.monitoring: the interactive monitoring page requires a data directory; declare it or use the static pages/monitoring.html source"
+      );
+    }
+    return;
+  }
+
   const charts = publication.dataset?.observations?.charts;
   if (!Array.isArray(charts) || charts.length === 0) {
     errors.push(
-      "dataset.observations: the monitoring page requires at least one chart; declare dataset.observations.charts or drop the monitoring page"
+      "dataset.observations: the static monitoring page requires at least one chart; declare dataset.observations.charts or drop the monitoring page"
     );
   }
 }
@@ -669,7 +694,7 @@ function validateMonitoringHasObservations(errors, publication) {
  * The climatology page fetches its histograms from `dataset.paths.climatology`.
  * A publication that offers the page without declaring the directory ships a
  * permanently empty page whose only symptom is a console 404, so require the two
- * to travel together — the same contract `validateMonitoringHasObservations`
+ * to travel together — the same contract `validateMonitoringHasData`
  * enforces between the monitoring page and its station plots.
  */
 function validateClimatologyHasData(errors, publication) {
@@ -716,9 +741,17 @@ function validateDataset(errors, warnings, dataset, siteDirectory) {
         directory: true,
       });
     }
+    // Optional, and operational for the same reason: the rolling seven-day window
+    // the interactive monitoring page draws, rewritten hourly by the deploy from
+    // the same non-public sensor archive.
+    if (dataset.paths.monitoring !== undefined && dataset.paths.monitoring !== null) {
+      validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.monitoring, "dataset.paths.monitoring", {
+        directory: true,
+      });
+    }
 
     const seen = new Map();
-    for (const key of ["manifest", "values", "grids", "graphs", "climatology"]) {
+    for (const key of ["manifest", "values", "grids", "graphs", "climatology", "monitoring"]) {
       const value = dataset.paths[key];
       if (!isNonEmptyString(value)) continue;
       const normalized = path.posix.normalize(value);
@@ -1208,7 +1241,7 @@ function validatePublication({ root, templateRoot, siteDir, publication } = {}) 
   validateTheme(errors, publicationDirectory, publication.theme);
   const computedBoundaryBounds = validateTerritory(errors, publication.territory, siteDirectory);
   validateDataset(errors, warnings, publication.dataset, siteDirectory);
-  validateMonitoringHasObservations(errors, publication);
+  validateMonitoringHasData(errors, publication);
   validateClimatologyHasData(errors, publication);
   const pageOutputs = validatePages(errors, publication.pages, templateDirectory, publicationDirectory, siteDirectory);
   validateRedirects(errors, publication.redirects, pageOutputs);

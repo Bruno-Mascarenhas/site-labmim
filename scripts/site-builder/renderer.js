@@ -303,6 +303,10 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     // checkout e em CI), então uma referência que os checadores de link e de
     // bundle enxergassem falharia o build em toda máquina que não tem os dados.
     CLIMATOLOGY_BASE: escapeAttribute(dataset.paths.climatology ?? ""),
+    // Mesma natureza do token acima: diretório operacional entregue pelo deploy,
+    // publicado como `data-` justamente para ficar invisível aos checadores de
+    // link e de bundle, que rodam onde os dados não existem.
+    MONITORING_BASE: escapeAttribute(dataset.paths.monitoring ?? ""),
   };
 
   function applySiteTokens(html) {
@@ -537,6 +541,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
         dataset.paths.values,
         dataset.paths.grids,
         dataset.paths.climatology,
+        dataset.paths.monitoring,
       ]
         .filter(Boolean)
         .map((directory) => `Disallow: /${directory}/`)

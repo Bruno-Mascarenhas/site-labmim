@@ -35,10 +35,11 @@ function run(command, args, label) {
  * here as well would let a typo in dataset.observations reach production unnoticed.
  */
 function operationalDirectories(publication) {
-  const { values, grids, climatology } = publication.dataset.paths;
-  // `climatology` is optional: only a publication that actually publishes an
-  // observed-distribution record declares it.
-  return [...new Set([values, grids, climatology].filter(Boolean))];
+  const { values, grids, climatology, monitoring } = publication.dataset.paths;
+  // `climatology` and `monitoring` are optional: only a publication that actually
+  // publishes a record of its own station declares them. Both derive from the
+  // laboratory's sensor archive, which is not public, so they arrive by deploy.
+  return [...new Set([values, grids, climatology, monitoring].filter(Boolean))];
 }
 
 function isOperationalDataPath(publication, relativePath) {
