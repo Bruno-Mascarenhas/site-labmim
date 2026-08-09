@@ -9,9 +9,9 @@ Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gera
 ## Funcionalidades
 
 - Página inicial institucional, equipe, identidade e SEO próprios de cada publicação.
-- Página de monitoramento com gráficos PNG em cards e modais Bootstrap.
+- Página de monitoramento em duas variantes, escolhidas por `source:` na declaração da página: a **viva**, que lê `labmim-monitoring-v1` do diretório `dataset.paths.monitoring` e desenha a janela de 7 dias em três camadas (amostras brutas, média horária e WRF), e a **estática**, que exibe os PNGs de `dataset.observations` em cards e modais Bootstrap (é a que o LEAL usa hoje).
 - Página de equipe com links de pesquisadores e localização incorporada.
-- Página de climatologia atualmente em construção.
+- Página de climatologia com as distribuições observadas da estação (`labmim-climatology-v1` em `dataset.paths.climatology`): histograma medido, densidade teórica ajustada e bibliografia vinda do próprio manifesto.
 - WebGIS de previsões em `mapas_interativos.html` com variáveis meteorológicas.
 - WebGIS de potenciais energéticos em `potenciais_energeticos.html` com potencial fotovoltaico, potencial eólico e densidade eólica.
 - Leaflet com renderização em Canvas, domínios WRF, palhetas por variável, animação temporal, recorte por estado, camada de vento e séries temporais em modal.
@@ -146,6 +146,7 @@ O deploy é manual e deve ser precedido por `npm run build -- --site=<id>` (ou p
 - **Publicar o site completo junto com o `.htaccess`** — nunca subir o `.htaccess` sozinho sobre uma versão antiga do site: a CSP `script-src 'self'` quebra páginas que ainda usem CDN/scripts inline.
 - **Ordem segura para mudanças de formato de dados**: (1) publicar o site novo, (2) conferir em produção, (3) atualizar o pipeline no servidor de operação e regenerar os dados — o cliente tem fallback para todos os contratos, então site novo + dados velhos funciona; o inverso não é garantido.
 - **Rollback do pipeline**: se voltar a uma versão que não escreve `manifest.json`, deletar o manifest órfão do servidor junto (um manifest órfão congela o `?v=` enquanto os bytes mudam por baixo; o `.htaccess` limita o estrago a 24 h). Os artefatos `series.bin`/`summary.json` devem ir e vir junto com o manifest que os anuncia.
+- **O host roda `mod_pagespeed` e ele reescreve o HTML servido.** Hoje (`Server: Apache/2.4.6 (CloudLinux)`, `X-Mod-Pagespeed: 1.13.35.2-0`) toda resposta HTML volta com dois `<script>` **inline** injetados pelo módulo (`window.mod_pagespeed_start` e o beacon com `data-pagespeed-no-defer`) que não existem em nenhum arquivo deste repositório. A CSP que o `.htaccess` publica é `script-src 'self'`, sem `'unsafe-inline'` e sem nonce: assim que o `.htaccess` entrar, o navegador **bloqueia esses dois blocos** e registra a violação em toda página. O estrago hoje é cosmético (é telemetria do módulo), mas os filtros do PageSpeed que embutem ou combinam JS transformariam os nossos próprios scripts em inline — e aí a página para de funcionar. Antes de confiar na CSP em produção, desligue a reescrita do módulo no `.htaccess` (dentro de `<IfModule pagespeed_module>`, para não arriscar 500 num host sem ele) e confirme com `curl -ks https://labmim.if.ufba.br/ | grep -c mod_pagespeed_start` — o esperado é `0`.
 - Após publicar, conferir se o `.htaccess` realmente entrou: `curl -ksI https://labmim.if.ufba.br/ | grep -i content-security-policy`. O `-k` é necessário enquanto a cadeia TLS do host estiver incompleta (sem ele o `curl` sai com 60 e não imprime nada). Não use a compressão como sinal: o `mod_deflate` do host já comprime tudo por conta própria, então `Content-Encoding: gzip` aparece mesmo com o `.htaccess` ausente. A CSP, ao contrário, só existe se o arquivo estiver ativo.
 
 ## Dependências Externas Em Runtime
@@ -211,19 +212,19 @@ make format-check  # Prettier (somente verifica)
 make fix           # aplica Prettier + correções dos linters
 make audit         # npm audit --audit-level=high
 make serve         # python3 -m http.server 8000 --directory site
-make ci            # build-check + format-check + lint + lint-html + lint-links + audit
+make ci            # build-check + build-all + format-check + lint + lint-html + lint-links + audit
 ```
 
-`make ci` roda os mesmos checks do CI do GitHub (o alvo `lint` inclui `lint:icons` e `lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`.
+`make ci` roda os mesmos checks do CI do GitHub (o alvo `lint` inclui `lint:icons` e `lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`, e publica os bundles de `dist/` como artefato do build.
 
 As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, linkinator) são `devDependencies` em `package.json`. Não há dependências de runtime instaladas via npm: o servidor recebe somente os arquivos estáticos gerados. O PurgeCSS é uma dependência exclusiva de desenvolvimento.
 
 ## Páginas Principais
 
 - `site/index.html`: página inicial.
-- `site/monitoring.html`: monitoramento ambiental com gráficos e financiadores.
+- `site/monitoring.html`: monitoramento ambiental (gráficos vivos ou PNGs, conforme a variante) e financiadores.
 - `site/team.html`: equipe e localização.
-- `site/climatologia.html`: página em construção.
+- `site/climatologia.html`: distribuições observadas da estação, lidas de `Climatologia/`.
 - `site/mapas_interativos.html`: WebGIS de previsões meteorológicas.
 - `site/potenciais_energeticos.html`: WebGIS de potenciais fotovoltaico, eólico e densidade eólica.
 - `site/404.html`: página de erro standalone (caminhos absolutos, servida via `ErrorDocument`).
