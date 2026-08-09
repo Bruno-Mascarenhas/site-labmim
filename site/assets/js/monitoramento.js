@@ -84,6 +84,18 @@
     windowId: "7d",
     charts: new Map(),
     canvases: new Map(),
+    // Os dois trechos de texto do cartão que precisam acompanhar o que o canvas
+    // mostra: a lista de camadas do cabeçalho e o aviso de gráfico sem nada para
+    // desenhar. Guardados por id porque o cartão é montado uma vez e o desenho
+    // se repete a cada troca de camada, janela ou tema.
+    layerLabels: new Map(),
+    notices: new Map(),
+    // Ids que o observador já mandou desenhar. É a intenção registrada, e não a
+    // geometria do momento, que diz o que `redrawAll` precisa refazer: um gráfico
+    // pode sair de `charts` (nenhuma camada selecionada existe para ele) e o
+    // observador não dispara de novo enquanto o cartão não cruzar a borda da faixa
+    // que ele vigia — o cartão ficaria em branco até sair da tela e voltar.
+    created: new Set(),
   };
 
   const el = (id) => document.getElementById(id);
@@ -147,6 +159,20 @@
     return `${formatDay(ms)} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
   }
 
+  /**
+   * Carimbo com ANO, para o cabeçalho da página.
+   *
+   * O eixo e os tooltips podem ficar em dia/mês — é o que cabe numa marca de
+   * eixo e o ano seria a mesma informação repetida centenas de vezes. Mas o
+   * cabeçalho é o único lugar que diz QUANDO é a janela desenhada, e a página se
+   * apresenta como atualizada a cada hora: sem o ano, um documento parado há
+   * anos se lê exatamente como o de hoje.
+   */
+  function formatStampYear(ms) {
+    const date = new Date(ms);
+    return `${formatDay(ms)}/${date.getUTCFullYear()} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
+  }
+
   // ─── Tema ─────────────────────────────────────────────────────────────────
 
   function isDark() {
@@ -176,11 +202,33 @@
 
   // ─── Camadas do documento ─────────────────────────────────────────────────
 
+  /**
+   * Rótulo da camada NESTE gráfico.
+   *
+   * O botão de camada é global e por isso genérico, mas a agregação horária não é
+   * sempre média: onde o exportador declara `kind: "bar"` ela é o acumulado da
+   * hora — é o que a ressalva publicada com a chuva diz, e é o que o documento
+   * traz (a horária da precipitação é a soma das doze amostras, não a média
+   * delas). Chamar isso de "média" no cabeçalho do CSV e na alternativa textual
+   * do gráfico entrega um total sob o nome de uma taxa, e o CSV é justamente o
+   * caminho de quem quer os números.
+   */
+  function layerLabel(chart, layer) {
+    if (layer.id === "hourly" && chart.kind === "bar") return "Soma horária";
+    return layer.label;
+  }
+
   /** Recorte visível: os últimos N dias da janela publicada. */
   function windowStart() {
     const selected = WINDOWS.find((entry) => entry.id === state.windowId) || WINDOWS[0];
-    const end = parseStationTime(state.payload.window.end);
-    return end - selected.days * DAY_MS;
+    // Âncora no fim do REGISTRO DA ESTAÇÃO, não no fim do documento. Desde que o
+    // acumulado do modelo passou a estender a janela à frente, `window.end` quer
+    // dizer "fim do que este documento carrega": ancorar nele faria a vista de 7
+    // dias virar `fim_do_modelo − 7d` e empurrar para fora dias de observação real
+    // que estão no payload — o dado presente e invisível. `station_end` é aditivo,
+    // e o fallback mantém funcionando o artefato antigo, que não o traz.
+    const anchor = parseStationTime(state.payload.window.station_end || state.payload.window.end);
+    return anchor - selected.days * DAY_MS;
   }
 
   /**
@@ -197,12 +245,32 @@
     const start = parseStationTime(layer.axis.start);
     const step = layer.axis.step_minutes * MINUTE_MS;
     const points = [];
+    let finitos = 0;
     for (let index = 0; index < values.length; index += 1) {
       const x = start + index * step;
       if (x < from) continue;
-      points.push({ x, y: values[index] });
+      const y = values[index];
+      if (typeof y === "number" && Number.isFinite(y)) finitos += 1;
+      points.push({ x, y });
     }
-    return points.length ? points : null;
+    // Uma série RESOLVIDA e inteiramente nula na janela não vira dataset. O array
+    // de `null` tem o comprimento certo e o Chart.js o aceita, mas desenha nada sob
+    // uma entrada de legenda — e legenda sem traço se lê como "a linha existe e saiu
+    // da escala", que é pior do que ausência declarada. Isto não é hipótese: quando
+    // um sensor sai do ar o exportador segue publicando a grade de tempo cheia de
+    // buracos, e a camada da estação chega assim enquanto a do modelo continua cheia.
+    // `points.length` sozinho não distingue os dois casos, porque conta os nulos.
+    return finitos ? points : null;
+  }
+
+  /**
+   * As séries que cada camada de fato desenha. A bruta entra uma vez só: é a base
+   * sobre a qual as outras são lidas, e uma entrada por parcela repetiria a mesma
+   * informação. Existe para `buildDatasets` e `availableLayers` não divergirem —
+   * duas cópias da mesma regra é o que faz o rótulo prometer o que o canvas não tem.
+   */
+  function layerSeriesIds(chart, layerId) {
+    return layerId === "raw" ? [chart.series[0].id] : chart.series.map((series) => series.id);
   }
 
   // ─── Datasets ─────────────────────────────────────────────────────────────
@@ -355,7 +423,14 @@
     for (const series of chart.series) {
       if (state.layers.has("hourly")) {
         const points = layerPoints(chart.layers.hourly, series.id, from);
-        if (points) datasets.push(hourlyDataset(chart, series, seriesColor(chart, series, theme), points));
+        if (points) {
+          const dataset = hourlyDataset(chart, series, seriesColor(chart, series, theme), points);
+          // Única camada rotulada por INTERVALO: o carimbo é o começo da hora que
+          // ela resume. É o que `otherSeriesAt` precisa saber para ler a hora que
+          // contém o instante apontado, e não a vizinha.
+          dataset.labmimInterval = true;
+          datasets.push(dataset);
+        }
       }
     }
     for (const series of chart.series) {
@@ -429,25 +504,42 @@
   function otherSeriesAt(items, digits, unit) {
     if (!items.length) return [];
     const hovered = items[0];
+    // O acerto do Chart.js devolve TODAS as séries empatadas na menor distância
+    // em x, e não uma só: a camada horária e a do WRF dividem a grade de 60
+    // minutos, então sobre uma hora cheia todos os datasets empatam. O corpo do
+    // tooltip já imprime uma linha por série empatada, de modo que aqui é o
+    // conjunto inteiro que precisa ficar de fora — pular só a primeira repetiria
+    // cada valor duas vezes.
+    const shown = new Set(items.map((item) => item.datasetIndex));
     const stamp = hovered.parsed.x;
     const lines = [];
     hovered.chart.data.datasets.forEach((dataset, index) => {
-      if (index === hovered.datasetIndex) return;
+      if (shown.has(index)) return;
       if (!hovered.chart.isDatasetVisible(index)) return;
       const points = dataset.data;
       if (!points.length) return;
       const step = points.length > 1 ? points[1].x - points[0].x : 0;
       if (!step) return;
-      const position = Math.round((stamp - points[0].x) / step);
-      const point = points[position];
+      const offset = (stamp - points[0].x) / step;
       // Casa quando o instante apontado cai DENTRO do intervalo daquela amostra,
       // não quando o carimbo é idêntico. As camadas têm cadências diferentes — a
       // bruta tem doze pontos por hora e a horária um — e exigir igualdade
-      // deixaria a lista vazia em onze de cada doze posições. Meio passo para
-      // cada lado é o intervalo que a amostra de fato representa: a média da hora
-      // que contém aquele instante é resposta honesta, o vizinho de outra hora
-      // não seria.
-      if (!point || Math.abs(point.x - stamp) > step / 2 || point.y === null) return;
+      // deixaria a lista vazia em onze de cada doze posições.
+      //
+      // São duas regras, porque são duas semânticas de carimbo. A camada horária
+      // resume um INTERVALO e o carimbo é o começo dele (o exportador a produz
+      // com `resample`, que rotula à esquerda), então a hora que CONTÉM o
+      // instante é a do piso: por arredondamento, 05:40 leria a média de
+      // [06:00, 07:00), e no gráfico de chuva a soma de uma hora que não choveu.
+      // As camadas instantâneas — a bruta e a do WRF, cuja semântica o documento
+      // não declara — continuam pelo carimbo mais próximo.
+      const position = dataset.labmimInterval ? Math.floor(offset) : Math.round(offset);
+      const point = points[position];
+      if (!point || point.y === null) return;
+      const inside = dataset.labmimInterval
+        ? stamp >= point.x && stamp < point.x + step
+        : Math.abs(point.x - stamp) <= step / 2;
+      if (!inside) return;
       lines.push(`${dataset.label}: ${decimal(point.y, digits)} ${unit}`.trim());
     });
     return lines;
@@ -507,9 +599,9 @@
             callbacks: {
               title: (items) => formatStamp(items[0].parsed.x),
               label: (item) => `${item.dataset.label}: ${decimal(item.parsed.y, digits)} ${chart.unit}`.trim(),
-              // O acerto do Chart.js devolve só o ponto mais próximo, o que num
-              // gráfico de sete séries responde a pergunta errada: no balanço o
-              // que se quer é o instante inteiro, as cinco parcelas e o modelo
+              // O acerto do Chart.js devolve só o que está mais perto em x, o que
+              // num gráfico de sete séries responde a pergunta errada: no balanço
+              // o que se quer é o instante inteiro, as cinco parcelas e o modelo
               // lado a lado. Aqui as demais são buscadas pelo carimbo do ponto
               // sob o cursor e listadas embaixo.
               afterBody: (items) => otherSeriesAt(items, digits, chart.unit),
@@ -557,20 +649,15 @@
       state.charts.delete(chart.id);
     }
     const config = chartConfig(chart, themeColors());
+    syncCardText(chart, config.data.datasets.length);
     if (!config.data.datasets.length) return;
     state.charts.set(chart.id, new Chart(canvas.getContext("2d"), { type: "line", ...config, plugins: [crosshair] }));
   }
 
   function redrawAll() {
     for (const chart of state.payload.charts) {
-      if (state.charts.has(chart.id) || isOnScreen(state.canvases.get(chart.id))) drawChart(chart);
+      if (state.created.has(chart.id)) drawChart(chart);
     }
-  }
-
-  function isOnScreen(canvas) {
-    if (!canvas) return false;
-    const box = canvas.getBoundingClientRect();
-    return box.bottom > 0 && box.top < window.innerHeight;
   }
 
   // ─── CSV ──────────────────────────────────────────────────────────────────
@@ -586,7 +673,7 @@
     for (const series of chart.series) {
       for (const layer of LAYERS) {
         const points = layerPoints(chart.layers[layer.id], series.id, from);
-        if (points) columns.push({ header: `${series.label} (${layer.label})`, points });
+        if (points) columns.push({ header: `${series.label} (${layerLabel(chart, layer)})`, points });
       }
     }
     if (!columns.length) return;
@@ -632,9 +719,76 @@
     return element;
   }
 
-  /** Quais camadas este gráfico realmente tem, para o cartão não prometer o que falta. */
+  /**
+   * Quais camadas este gráfico tem PARA DESENHAR na janela escolhida.
+   *
+   * Presença no payload não basta. Uma camada pode existir com todas as séries
+   * nulas — sensor fora do ar, ou uma janela do modelo que ainda não cobre o
+   * recorte pedido —, e derivar o rótulo da presença fazia o cartão anunciar
+   * "Bruto 5 min · Média horária · WRF" sobre um canvas com só a curva do modelo.
+   * A regra é a mesma de `layerPoints`, para o texto do cartão e o que o canvas
+   * mostra concordarem por construção em vez de por manutenção.
+   */
   function availableLayers(chart) {
-    return LAYERS.filter((layer) => chart.layers[layer.id]);
+    const from = windowStart();
+    return LAYERS.filter((layer) => {
+      const data = chart.layers[layer.id];
+      if (!data) return false;
+      return layerSeriesIds(chart, layer.id).some((seriesId) => layerPoints(data, seriesId, from));
+    });
+  }
+
+  /** Interseção do que o gráfico tem com o que está ligado: o que o canvas mostra. */
+  function drawnLayers(chart) {
+    return availableLayers(chart).filter((layer) => state.layers.has(layer.id));
+  }
+
+  /**
+   * Deixa o texto do cartão dizer o que o canvas está mostrando.
+   *
+   * O cabeçalho e a alternativa textual listavam as camadas DISPONÍVEIS, que não
+   * mudam: com as três desligadas o cartão continuava anunciando "Bruto 5 min ·
+   * Média horária · WRF" sobre um canvas totalmente vazio — sem eixos, sem
+   * grade, sem aviso —, indistinguível de falha de carregamento. Quando não
+   * sobra nada para desenhar, o cartão passa a dizer por quê: ou nenhuma camada
+   * está selecionada, ou as selecionadas não existem para aquela variável (a
+   * chuva e a radiação PAR não têm WRF).
+   */
+  function syncCardText(chart, drawnCount) {
+    const labels = drawnLayers(chart).map((layer) => layerLabel(chart, layer));
+    const span = state.layerLabels.get(chart.id);
+    if (span) span.textContent = labels.join(" · ");
+
+    const canvas = state.canvases.get(chart.id);
+    if (canvas) {
+      // Sem camadas o canvas não desenha nada, e prometer três na alternativa
+      // textual seria descrever um gráfico que não está ali. O motivo vem logo
+      // depois, no parágrafo de aviso.
+      const descricao = labels.length ? `camadas ${labels.join(", ")}` : "sem camadas para desenhar";
+      canvas.setAttribute(
+        "aria-label",
+        `${chart.title} — ${descricao}. Use o botão CSV para a versão textual dos dados.`
+      );
+    }
+
+    const notice = state.notices.get(chart.id);
+    if (notice) {
+      notice.hidden = drawnCount > 0;
+      // Três motivos diferentes para um canvas vazio, e o leitor precisa saber qual.
+      // O terceiro é o que a estação de fato produz: quando um sensor sai do ar, o
+      // exportador omite a série e o gráfico chega sem nenhuma camada desenhável.
+      // Dizer "nenhuma das selecionadas" ali culparia a escolha do leitor por uma
+      // ausência que não é dele — não há recorte de camada que traga o dado de volta.
+      if (!state.layers.size) {
+        notice.textContent = "Nenhuma camada selecionada — ative pelo menos uma acima.";
+      } else if (!availableLayers(chart).length) {
+        // Sem interpolar o título: ele é o cabeçalho logo acima, e minusculizá-lo
+        // estragaria as siglas ("Radiação PAR" viraria "radiação par").
+        notice.textContent = "Sem registro nesta janela — nem a estação nem o modelo publicaram dados desta variável.";
+      } else {
+        notice.textContent = "Nenhuma das camadas selecionadas tem dados para esta variável.";
+      }
+    }
   }
 
   function buildCard(chart) {
@@ -647,8 +801,9 @@
     head.appendChild(heading);
 
     const actions = node("div", "monitor-card-actions");
-    const present = availableLayers(chart);
-    actions.appendChild(node("span", "monitor-layers", present.map((layer) => layer.label).join(" · ")));
+    const layers = node("span", "monitor-layers");
+    state.layerLabels.set(chart.id, layers);
+    actions.appendChild(layers);
     const download = node("button", "btn btn-sm btn-outline-lab", "CSV");
     download.type = "button";
     download.setAttribute("aria-label", `Baixar os dados de ${chart.title} em CSV`);
@@ -660,14 +815,20 @@
     const wrap = node("div", "chart-container monitor-chart");
     const canvas = document.createElement("canvas");
     canvas.setAttribute("role", "img");
-    canvas.setAttribute(
-      "aria-label",
-      `${chart.title} — camadas ${present.map((layer) => layer.label).join(", ")}. ` +
-        "Use o botão CSV para a versão textual dos dados."
-    );
     wrap.appendChild(canvas);
     card.appendChild(wrap);
     state.canvases.set(chart.id, canvas);
+
+    // Fica logo abaixo do canvas, escondido enquanto há o que desenhar: é o
+    // texto que substitui o gráfico em branco quando nenhuma camada sobra.
+    const notice = node("p", "monitor-pending");
+    notice.hidden = true;
+    card.appendChild(notice);
+    state.notices.set(chart.id, notice);
+
+    // O cabeçalho, a alternativa textual e o aviso saem do mesmo lugar que o
+    // desenho usa, e não da lista fixa de camadas disponíveis.
+    syncCardText(chart, drawnLayers(chart).length);
 
     // O que o modelo ainda não entrega. Registrar é o ponto: sem isto a ausência
     // de uma camada é indistinguível de um erro de carregamento, e a chegada da
@@ -760,7 +921,9 @@
           if (!entry.isIntersecting) continue;
           entry.target.classList.add("is-visible");
           const chart = state.payload.charts.find((item) => `monitor-card-${item.id}` === entry.target.id);
-          if (chart && !state.charts.has(chart.id)) drawChart(chart);
+          if (!chart) continue;
+          state.created.add(chart.id);
+          if (!state.charts.has(chart.id)) drawChart(chart);
         }
       },
       { rootMargin: "200px 0px" }
@@ -772,13 +935,26 @@
     const window_ = state.payload.window || {};
     const start = parseStationTime(window_.start);
     const end = parseStationTime(window_.end);
+    const stationEnd = parseStationTime(window_.station_end || window_.end);
     if (Number.isFinite(start) && Number.isFinite(end)) {
+      // `end` é o fim do DOCUMENTO e passa do fim do registro quando o acumulado do
+      // modelo vai à frente. Anunciar "N dias" sobre um intervalo maior que N
+      // descreveria mal o que está na tela, então a previsão é nomeada à parte em
+      // vez de diluída no mesmo intervalo.
+      //
+      // A contagem de dias é MEDIDA sobre os carimbos, não lida de `window.days`:
+      // os dois só coincidem no caminho padrão do exportador — com `--end` explícito
+      // o início e o comprimento são independentes, e imprimir o campo ao lado de um
+      // intervalo calculado à parte é como o rótulo passa a contradizer as datas que
+      // ele mesmo emoldura.
+      const dias = Math.max(1, Math.round((stationEnd - start) / DAY_MS));
+      const registro = `Janela móvel de ${dias} ${dias === 1 ? "dia" : "dias"} — ${formatStampYear(start)} a ${formatStampYear(stationEnd)} (horário local)`;
       el("monitorPeriodo").textContent =
-        `Janela móvel de ${window_.days} dias — ${formatStamp(start)} a ${formatStamp(end)} (horário local)`;
+        Number.isFinite(stationEnd) && end > stationEnd ? `${registro}; modelo até ${formatStampYear(end)}` : registro;
     }
     const generated = parseStationTime(state.payload.generated_utc || "");
     el("monitorAtualizado").textContent = Number.isFinite(generated)
-      ? `Publicado em ${formatStamp(generated)} UTC`
+      ? `Publicado em ${formatStampYear(generated)} UTC`
       : "";
   }
 
@@ -796,16 +972,37 @@
     }
 
     el("monitorEmpty").hidden = false;
+    let response;
     try {
       // Sem `?v=`: o arquivo é reescrito no mesmo nome a cada hora, então quem
       // decide o frescor é o cabeçalho da requisição, não a URL.
-      const response = await fetch(`${state.base}/monitoring.json`, { cache: "no-cache" });
+      response = await fetch(`${state.base}/monitoring.json`, { cache: "no-cache" });
       if (!response.ok) throw new Error(String(response.status));
-      state.payload = await response.json();
     } catch {
       showEmpty(
         "Os dados de monitoramento ainda não foram publicados para esta estação. " +
           "Eles são anexados ao site no deploy, separadamente das páginas."
+      );
+      return;
+    }
+
+    // A leitura do corpo fica FORA do try da rede porque as duas falhas pedem
+    // respostas diferentes de quem opera o deploy. Ausência é 404; corpo
+    // incompleto é resposta 200 com JSON cortado no meio, que é o estado normal
+    // enquanto o envio do arquivo está em curso — ele é reescrito de hora em
+    // hora com o mesmo nome. Dizer "ainda não foi publicado" nesse caso manda
+    // quem opera o deploy procurar um arquivo que já está no servidor, quando
+    // basta esperar o envio terminar.
+    try {
+      state.payload = await response.json();
+    } catch (error) {
+      // O detalhe técnico vai para o console: a mensagem do motor de JS é em
+      // inglês e não diz nada a quem lê a página, mas é o que distingue corpo
+      // truncado de documento corrompido para quem investiga.
+      console.error(error);
+      showEmpty(
+        "O documento de monitoramento chegou incompleto ou ilegível; o arquivo pode estar sendo " +
+          "publicado neste momento. Recarregar a página em alguns minutos deve resolver."
       );
       return;
     }
