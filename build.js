@@ -75,12 +75,16 @@ function yearFromGeneratedOutput() {
 /**
  * Copyright year stamped into the generated pages.
  *
- * Resolved from repository content only, never from the wall clock: an
- * explicit BUILD_YEAR wins, then the date of the checked out commit, then the
- * year already present in the committed site/index.html (tarballs without
- * .git). Guessing `new Date().getFullYear()` used to make the same source tree
- * render differently depending on when it was built, which is exactly what the
- * generated-output drift check exists to catch.
+ * Resolvido a partir do conteúdo do repositório, nunca do relógio: um BUILD_YEAR
+ * explícito ganha, depois o ano já presente no site/index.html versionado e, só
+ * quando não há saída gerada, a data do commit em HEAD.
+ *
+ * A ordem importa. A data de commit do HEAD é relógio de parede disfarçado: um
+ * commit vazio na virada do ano basta para o rebuild divergir do site/ versionado,
+ * e num evento `pull_request` o HEAD é o merge ref que o GitHub recria a cada
+ * atualização do PR. Como a saída gerada é versionada, lê-la torna o ano um ponto
+ * fixo — ele só muda quando alguém constrói com BUILD_YEAR de propósito, que é
+ * exatamente o invariante que o portão de drift cobra.
  */
 function buildYear() {
   const override = (process.env.BUILD_YEAR ?? "").trim();
@@ -90,7 +94,7 @@ function buildYear() {
     }
     return override;
   }
-  const year = yearFromGit() ?? yearFromGeneratedOutput();
+  const year = yearFromGeneratedOutput() ?? yearFromGit();
   if (year) return year;
   throw new Error(
     "could not resolve the copyright year: this is not a git checkout and site/index.html carries no © year.\n" +

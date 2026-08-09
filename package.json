@@ -21,7 +21,7 @@
     "lint:all": "npm run lint && npm run lint:html && npm run lint:links",
     "lint:icons": "node scripts/check-fa-subset.mjs",
     "lint:purge": "node scripts/check-bootstrap-purge.mjs",
-    "lint:js": "eslint \"site/assets/js/**/*.js\" build.js \"scripts/**/*.{js,cjs,mjs}\" \"src/**/*.js\"",
+    "lint:js": "eslint --max-warnings=0 \"site/assets/js/**/*.js\" build.js \"scripts/**/*.{js,cjs,mjs}\" \"src/**/*.js\"",
     "lint:css": "stylelint \"site/assets/css/**/*.css\" \"src/**/*.css\"",
     "lint:themes": "node scripts/check-site-themes.mjs",
     "lint:html": "html-validate \"site/*.html\"",

@@ -45,10 +45,17 @@ for (const file of sources) {
 // gerado da publicação não-padrão) e os bundles em dist/, quando existirem.
 const cssDirs = ["site/assets/css", "src", ...bundles.map((dir) => join(dir, "assets/css"))];
 const usedCodepoints = new Set();
+// Casa a DECLARAÇÃO e extrai todos os escapes do valor, em vez de exigir uma grafia
+// única. Três formas legítimas escapavam de uma regex presa a `"\f078"`: o idioma da
+// própria Font Awesome com o espaço que termina o escape (`content: "\f078 "`), aspas
+// simples e dois glifos na mesma declaração. Cada uma delas ficava fora do subset e
+// renderizaria como caixa vazia, com o check declarando cobertura completa.
 for (const file of cssDirs.flatMap((dir) => collectFiles(root, dir, [".css"]))) {
   const text = readFileSync(join(root, file), "utf8");
-  for (const match of text.matchAll(/content:\s*"\\([0-9a-fA-F]{4,6})"/g)) {
-    usedCodepoints.add(match[1].toLowerCase());
+  for (const declaration of text.matchAll(/(?:^|[\s;{}])content\s*:\s*([^;}]+)/g)) {
+    for (const escaped of declaration[1].matchAll(/\\([0-9a-fA-F]{4,6})/g)) {
+      usedCodepoints.add(escaped[1].toLowerCase());
+    }
   }
 }
 
