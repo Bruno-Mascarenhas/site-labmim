@@ -644,9 +644,22 @@
       );
     }
 
+    // A contagem absoluta vai junto da fração, e não é enfeite. A fração é sobre o
+    // subconjunto INTEIRO — antes de a massa pontual ser removida do ajuste —, mas o
+    // painel ao lado imprime `n`, que é o que SOBROU. Quem multiplicasse os dois
+    // erraria: na velocidade do vento são 5,2% de 70.008, e não de 66.345, ou seja
+    // 3.663 horas de calmaria contra as 3.472 que a conta ingênua daria. Publicar o
+    // número medido remove a subtração implícita em vez de pedir que o leitor a faça.
     const atoms = subset.atoms || [];
     el("climaAtoms").textContent = atoms.length
-      ? atoms.map((atom) => `${atom.label}: ${percent(atom.fraction, 1)}`).join(" · ")
+      ? atoms
+          .map((atom) => {
+            const fracao = percent(atom.fraction, 1);
+            return Number.isFinite(atom.count)
+              ? `${atom.label}: ${fracao} (${integer(atom.count)} h)`
+              : `${atom.label}: ${fracao}`;
+          })
+          .join(" · ")
       : "";
   }
 
