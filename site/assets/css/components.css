@@ -128,8 +128,10 @@
   border-radius: var(--radius-lg);
 }
 
+/* #888 sobre o --bg-light da .theme-surface dava 3,36:1 em 13,6px. No escuro a
+   tinta não chega a valer: o rótulo é um h3 e `.dark-theme h1..h6` o repinta. */
 .sponsor-title {
-  color: #888;
+  color: #6b6b6b;
   font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.06em;

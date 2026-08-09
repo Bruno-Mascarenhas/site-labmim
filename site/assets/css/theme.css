@@ -238,10 +238,13 @@ input:focus-visible {
   color: var(--text-secondary) !important;
 }
 
+/* A tinta é --dark-accent, como em .info-value e .slider-time: --accent-violet é
+   apelido de --map-accent, a cor de identidade do mapa, e sobre --bg-secondary
+   ela fica em 3,76:1. Na borda ela permanece — ali vale o piso de 3:1. */
 .dark-theme .doc-tab.active {
   background-color: var(--bg-secondary) !important;
   border-bottom-color: var(--accent-violet) !important;
-  color: var(--accent-violet) !important;
+  color: var(--dark-accent) !important;
 }
 
 .dark-theme .doc-var-card {
@@ -259,13 +262,16 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
+/* #777 sobre --bg-primary dava 3,72:1, e o placeholder dos parâmetros energéticos
+   carrega o valor padrão do cálculo. --text-secondary é a tinta secundária do
+   tema e continua abaixo do branco do valor digitado. */
 .dark-theme input::placeholder,
 .dark-theme textarea::placeholder,
 .dark-theme .parameter-input::placeholder {
-  color: #777 !important;
+  color: var(--text-secondary) !important;
 }
 
-.dark-theme .sidebar-header h3,
+.dark-theme .sidebar-header h2,
 .dark-theme .info-section-title,
 .dark-theme .info-label,
 .dark-theme .slider-wrapper label,
@@ -303,6 +309,7 @@ input:focus-visible {
 
 .dark-theme .colorbar-labels,
 .dark-theme .colorbar-unit,
+.dark-theme .info-unit,
 .dark-theme .stat-card-label,
 .dark-theme .stat-card-unit,
 .dark-theme .parameter-unit,
@@ -324,8 +331,22 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
+/* maps.css fixa `background: white` neste botão, sem contraparte de tema. Sem a
+   linha do fundo, o escuro trocaria só a tinta e deixaria azul-claro sobre
+   branco. Transparente é o que os demais .btn-outline-lab fazem no escuro. */
 .dark-theme .chart-export-btn {
+  background-color: transparent !important;
   border-color: var(--dark-accent) !important;
+  color: var(--dark-accent) !important;
+}
+
+/* Este botão também tem `background: white` fixo em maps.css e nunca teve
+   contraparte escura: a pílula branca sobrevivia inteira dentro da
+   .parameters-editor já escurecida. O fundo acompanha a superfície do painel e a
+   borda deixa de ser a linha clara de #ddd sobre escuro. */
+.dark-theme .reset-parameters-btn {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
   color: var(--dark-accent) !important;
 }
 

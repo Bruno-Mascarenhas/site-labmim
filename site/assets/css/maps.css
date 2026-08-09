@@ -81,13 +81,25 @@ header.maps-header {
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* O painel fechado sai da tela só por transform, então sem visibility ele
+     continuaria na ordem de tabulação e na árvore de acessibilidade: dois tab
+     stops fora da viewport. O atraso igual à duração do slide preserva a
+     animação de saída. */
+  visibility: hidden;
+  transition:
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s 0.35s;
   z-index: var(--z-sidebar);
   overflow-y: auto;
 }
 
 .sidebar.active {
   transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s 0s;
 }
 
 /* SIDEBAR LOGO HEADER */
@@ -133,7 +145,7 @@ header.maps-header {
   color: #333;
 }
 
-.sidebar-header h3 {
+.sidebar-header h2 {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
@@ -207,15 +219,22 @@ header.maps-header {
   color: #555;
 }
 
+/* --map-accent é cor de identidade do mapa, não tinta de texto: sobre #f8f9fa ele
+   fica em 3,47:1 (2,56:1 na publicação do LEAL). Valor lido é texto, então usa a
+   rampa de tinta do contrato de tema, como o resto dos painéis já faz. */
 .info-value {
   font-weight: 600;
-  color: var(--map-accent);
+  color: var(--ink-strong, #172033);
   font-family: "Courier New", monospace;
 }
 
+/* A unidade qualifica o número lido na célula, então é texto e não decoração:
+   #888 sobre o #f8f9fa da .info-item dava 3,36:1 em 13,6px. O tema escuro troca
+   o fundo da .info-item para --bg-primary, onde esta tinta não serve — a
+   contraparte está em theme.css. */
 .info-unit {
   font-size: 0.85rem;
-  color: #888;
+  color: #6b6b6b;
   margin-left: 4px;
 }
 
@@ -298,17 +317,13 @@ header.maps-header {
   appearance: none;
 }
 
-/* O trilho tem 6px, e num aparelho de toque o elemento inteiro é o alvo: 6px de
-   altura para o controle principal do mapa significa errar o arrasto. A área
-   cresce para 32px sem engordar o trilho — o fundo continua pintado só nele,
-   pela borda transparente, e o polegar ganha onde pegar. */
-@media (pointer: coarse) {
-  #layerSlider {
-    height: 32px;
-    border-top: 13px solid transparent;
-    border-bottom: 13px solid transparent;
-    background-clip: padding-box;
-  }
+/* O `outline: none` acima tem especificidade de id e derrotava o anel que
+   `input:focus-visible` (theme.css) dá a todo campo do site — o controle
+   principal do WebGIS ficava sem nenhum sinal de foco de teclado. A regra repete
+   o anel da casa, e só no foco por teclado: o estado ocioso segue sem contorno. */
+#layerSlider:focus-visible {
+  outline: 3px solid rgba(var(--brand-secondary-rgb), 0.35);
+  outline-offset: 3px;
 }
 
 #layerSlider::-webkit-slider-thumb {
@@ -332,9 +347,11 @@ header.maps-header {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* Mesma razão de .info-value: o relógio da animação é o dado que o leitor
+   procura, e a cor de identidade não alcança 4,5:1 sobre o branco do painel. */
 .slider-time {
   font-weight: 600;
-  color: var(--map-accent);
+  color: var(--ink-deep, #0d2b4d);
   min-width: 200px;
   font-size: 0.95rem;
 }
@@ -1033,7 +1050,7 @@ header.maps-header {
     max-height: 50vh;
   }
 
-  .sidebar-header h3 {
+  .sidebar-header h2 {
     font-size: 0.9rem;
   }
 
@@ -1229,10 +1246,14 @@ header.maps-header {
     font-size: 0.65rem !important;
   }
 
+  /* O encolhimento deixava o botão com 23,6px de altura, abaixo dos 24px que o
+     resto dos controles de toque já adota. A altura mínima é declarada em vez
+     de derivada do padding: a fonte e a largura podem encolher, o alvo não. */
   .segmented-btn {
     padding: 2px 6px !important;
     font-size: 0.65rem !important;
     min-width: 32px !important;
+    min-height: 24px !important;
   }
 
   /* Wind Layer Toggle - Ultra-mobile: botão flutuante inferior esquerdo */
@@ -1248,6 +1269,23 @@ header.maps-header {
     width: 36px !important;
     height: 36px !important;
     font-size: 0.9rem !important;
+  }
+}
+
+/* O trilho tem 6px, e num aparelho de toque o elemento inteiro é o alvo: 6px de
+   altura para o controle principal do mapa significa errar o arrasto. A área
+   cresce para 32px sem engordar o trilho — o fundo continua pintado só nele,
+   pela borda transparente, e o polegar ganha onde pegar.
+   O bloco fica DEPOIS das media queries de largura de propósito: elas
+   redeclaram `height: 4px` com a mesma especificidade e, como a caixa é
+   border-box, 4px menos as bordas de 13px colapsa a caixa de padding a zero e
+   apaga o degradê — o polegar ficaria flutuando sobre nada no celular. */
+@media (pointer: coarse) {
+  #layerSlider {
+    height: 32px;
+    border-top: 13px solid transparent;
+    border-bottom: 13px solid transparent;
+    background-clip: padding-box;
   }
 }
 
@@ -1449,8 +1487,12 @@ header.maps-header {
   box-shadow: 0 0 0 3px rgba(var(--map-accent-rgb), 0.1);
 }
 
+/* O placeholder não é decorativo aqui: ele carrega o valor padrão do parâmetro
+   ("18 (padrão)"). Em #ccc sobre o branco do campo ficava em 1,61:1. A tinta
+   segue mais clara que o preto do valor digitado, então continua distinguindo
+   sugestão de entrada, mas agora é legível. */
 .parameter-input::placeholder {
-  color: #ccc;
+  color: #6b6b6b;
 }
 
 .parameter-unit {
@@ -1460,21 +1502,28 @@ header.maps-header {
   display: block;
 }
 
+/* O tema escuro já leva esta dica para --text-secondary; o claro tinha ficado com
+   o #aaa original, que sobre o branco de .parameter-item dá 2,32:1 em 11,2px — e
+   a frase instrui como voltar ao valor padrão, não é decoração. O itálico
+   continua marcando o papel de dica sem apoiar-se no contraste baixo. */
 .parameter-hint {
   font-size: 0.7rem;
-  color: #aaa;
+  color: #6b6b6b;
   margin-top: 2px;
   display: block;
   font-style: italic;
 }
 
+/* Mesma razão de .info-value e .doc-tab.active: o rótulo é texto e a cor de
+   identidade do mapa fica em 3,66:1 sobre o branco fixo do botão (2,70:1 na
+   publicação do LEAL). A rampa de tinta do contrato de tema resolve nas duas. */
 .reset-parameters-btn {
   width: 100%;
   padding: 6px;
   border: 1px solid #ddd;
   border-radius: 4px;
   background: white;
-  color: var(--map-accent);
+  color: var(--ink-deep, #0d2b4d);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
@@ -1648,8 +1697,10 @@ header.maps-header {
   color: var(--map-accent);
 }
 
+/* A identidade fica na borda inferior, que é elemento não textual e passa no piso
+   de 3:1; o rótulo da aba é texto e vai para a rampa de tinta. */
 .doc-tab.active {
-  color: var(--map-accent);
+  color: var(--ink-deep, #0d2b4d);
   border-bottom-color: var(--map-accent);
   background: white;
 }
@@ -1676,7 +1727,7 @@ header.maps-header {
 }
 
 .doc-tab-content h3 {
-  color: var(--map-accent);
+  color: var(--ink-strong, #172033);
   font-size: 1.4rem;
   margin-bottom: 16px;
   margin-top: 0;
@@ -1734,7 +1785,7 @@ header.maps-header {
 }
 
 .doc-tab-content a {
-  color: var(--map-accent);
+  color: var(--ink-deep, #0d2b4d);
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s;
@@ -1757,7 +1808,7 @@ header.maps-header {
 
 .doc-var-card h4 {
   margin-top: 0;
-  color: var(--map-accent);
+  color: var(--ink-strong, #172033);
   border-bottom: 2px solid #e9ecef;
   padding-bottom: 8px;
   display: flex;
@@ -2334,7 +2385,7 @@ header.maps-header {
   color: var(--text-primary) !important;
 }
 
-.dark-theme .sidebar-header h3,
+.dark-theme .sidebar-header h2,
 .dark-theme .doc-tab-content h3,
 .dark-theme .chart-modal-header h2 {
   color: var(--text-primary) !important;
