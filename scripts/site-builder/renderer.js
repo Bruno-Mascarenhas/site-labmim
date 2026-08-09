@@ -43,8 +43,7 @@ const DEFAULT_FAVICON_EMOJI = "🌦️";
  * quietly crediting the wrong paper.
  */
 const DEFAULT_MODEL = Object.freeze({
-  initialConditions:
-    "GFS (Global Forecast System) da NOAA [[gfs]], resolução 0.25°, atualizações a cada 6h.",
+  initialConditions: "GFS (Global Forecast System) da NOAA [[gfs]], resolução 0.25°, atualizações a cada 6h.",
   verticalLevels: "~40 níveis sigma, com maior concentração na camada limite planetária (CLP).",
   radiation: "RRTMG [[rrtmg]]",
   microphysics: "Thompson [[thompson]] / WSM6 [[wsm6]]",
