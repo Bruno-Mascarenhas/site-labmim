@@ -714,7 +714,7 @@
   // memory for a screen that is almost always closed.
   function openZoom(chart) {
     const dialog = document.createElement("dialog");
-    dialog.className = "monitor-zoom";
+    dialog.className = "theme-surface monitor-zoom";
     dialog.setAttribute("closedby", "any");
     dialog.setAttribute("aria-label", `${chart.title} ampliado`);
 
