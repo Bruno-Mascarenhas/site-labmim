@@ -1,12 +1,8 @@
 #!/usr/bin/env node
 /**
- * Verifies that bootstrap.purged.min.css still covers every selector of the full
- * bootstrap.min.css that CAN apply to the site: a selector whose classes are all
- * present in the generated HTML / first-party JS (or in the list of classes the
- * Bootstrap plugins toggle at runtime) has to survive in the purged file. A failure
- * means the purge needs regenerating (scripts/purgecss.config.cjs).
- *
- * Node stdlib only, like build.js.
+ * Fails when a selector of the full bootstrap.min.css that CAN apply to the site — all
+ * its classes present in the generated HTML / first-party JS, its tags and attributes
+ * produced somewhere — is missing from bootstrap.purged.min.css.
  */
 
 import { readFileSync } from "node:fs";
@@ -20,9 +16,8 @@ const { collectFiles, htmlFilesIn, bundleDirs } = require("./site-builder/corpus
 
 const read = (rel) => readFileSync(join(root, rel), "utf8");
 
-// Seeded with the classes Bootstrap toggles at runtime (collapse, modal, and generic
-// states): they never show up in a class="..." attribute of the generated HTML. The
-// scan below adds the classes the HTML and the first-party JS do carry.
+// Seeded with what Bootstrap toggles at runtime, which the scan below cannot be relied
+// on to find in a class="..." attribute of the generated HTML.
 const usedClasses = new Set([
   "collapsing",
   "collapse-horizontal",
@@ -37,9 +32,8 @@ const usedClasses = new Set([
 
 const usedTags = new Set(["html", "body", "*"]);
 
-// site/ only ever holds one publication at a time. dist/<id>/ (npm run
-// build:all) holds all of them, so when the bundles exist the corpus covers
-// every publication instead of just the one currently rendered.
+// site/ holds one publication at a time; dist/<id>/ (npm run build:all) holds all of
+// them, so the corpus covers every publication whenever the bundles exist.
 const htmlFiles = [...htmlFilesIn(root, "site"), ...bundleDirs(root).flatMap((dir) => htmlFilesIn(root, dir))];
 
 const corpusParts = [];
@@ -60,8 +54,8 @@ for (const file of collectFiles(root, "site/assets/js", [".js"])) {
 }
 const corpusText = corpusParts.join("\n");
 
-// Selectors of a minified stylesheet: whatever precedes each '{' without being an
-// at-rule, split on the commas of a selector list.
+// Minified stylesheet: whatever precedes each '{' without being an at-rule, split on
+// the commas of a selector list.
 const parseSelectors = (cssText) => {
   const selectors = new Set();
   for (const match of cssText.matchAll(/(?:^|[{};])\s*([^{};@]+)\{/g)) {
@@ -75,13 +69,12 @@ const parseSelectors = (cssText) => {
 
 const classTokens = (selector) => [...selector.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map((m) => m[1]);
 
-// Bare tags of the selector (outside [attr], with no . # : - prefix).
+// Bare tags only: outside [attr], with no . # : - prefix.
 const tagTokens = (selector) =>
   [...selector.replace(/\[[^\]]*\]/g, "").matchAll(/(?:^|[\s>+~(])([a-z][a-z0-9]*)\b/g)]
     .map((m) => m[1])
     .filter((tag) => !["not", "hover", "focus", "active", "disabled", "checked"].includes(tag));
 
-// Attribute names of the selector ([data-bs-theme=dark] and the like).
 const attrTokens = (selector) => [...selector.matchAll(/\[([a-zA-Z-]+)/g)].map((m) => m[1]);
 
 const originalSelectors = parseSelectors(read("site/assets/vendor/bootstrap/bootstrap.min.css"));
@@ -92,8 +85,8 @@ for (const selector of originalSelectors) {
   const classes = classTokens(selector);
   if (classes.length === 0) continue; // element/attr-only: PurgeCSS keeps it
   if (!classes.every((cls) => usedClasses.has(cls))) continue; // can never apply
-  // Constrained to a tag or attribute the site never produces => can never apply
-  // (e.g. fieldset:disabled .btn, .navbar[data-bs-theme=dark]).
+  // Constrained to a tag or attribute the site never produces (fieldset:disabled .btn,
+  // .navbar[data-bs-theme=dark]) => can never apply.
   if (!tagTokens(selector).every((tag) => usedTags.has(tag))) continue;
   if (!attrTokens(selector).every((attr) => corpusText.includes(attr))) continue;
   if (!purgedSelectors.has(selector)) missing.push(selector);

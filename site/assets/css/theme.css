@@ -1,18 +1,11 @@
-/* The theme class lives on <html> itself. Both the light and the dark
-   institutional tokens come from the active publication's site-theme.css. */
+/* Only the neutral ramp flips; the identity colors are the same in both themes. */
 html.dark-theme {
-  /* Only the neutral surface ramp flips here; the publication's identity colors
-     stay the same across themes. */
   --bg-primary: #1e1e1e;
   --bg-secondary: #2d2d2d;
   --text-primary: #fff;
   --text-secondary: #b0b0b0;
   --border-color: #404040;
   --bg-elevated: #252525;
-
-  /* The light-mode chart tokens live in base.css; here a publication may
-     optionally supply the dark counterpart, as it already does for
-     --lab-header-dark-bg. Without a declaration the shared value stands. */
   --chart-grid-color: var(--chart-grid-dark-color, rgba(255, 255, 255, 0.12));
   --chart-legend-color: var(--chart-legend-dark-color, #fff);
   --lab-header-bg: var(--lab-header-dark-bg);
@@ -85,9 +78,7 @@ input:focus-visible {
   color: var(--white) !important;
 }
 
-/* Outside the navbar this button sits on the page's dark surface, where
-   --primary-color (the brand blue) disappears. The navbar rule just below is
-   more specific and keeps ruling there. */
+/* Outside the navbar only; the navbar keeps its more specific rule below. */
 .dark-theme .btn-outline-lab {
   border-color: var(--dark-accent) !important;
   color: var(--dark-accent) !important;
@@ -172,8 +163,6 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
-/* Elements painted with a brand color of their own need an override to keep
-   contrast over dark surfaces, whichever publication is active. */
 .dark-theme .partner-logo-text,
 .dark-theme .partner-logo-text small {
   color: var(--text-primary) !important;
@@ -236,9 +225,6 @@ input:focus-visible {
   color: var(--text-secondary) !important;
 }
 
-/* Ink is --dark-accent, as in .info-value and .slider-time: --map-accent is the
-   map's identity color and lands at 3.76:1 over --bg-secondary. It stays on the
-   border, where the 3:1 floor for non-text elements applies. */
 .dark-theme .doc-tab.active {
   background-color: var(--bg-secondary) !important;
   border-bottom-color: var(--map-accent) !important;
@@ -260,9 +246,8 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
-/* The energy-parameter placeholder carries the default value of the
-   calculation, so it has to be legible. --text-secondary is the theme's
-   secondary ink and still reads below the white of a typed value. */
+/* The energy-parameter placeholder carries the calculation's default value, so
+   it has to stay legible — see .parameter-input::placeholder in maps.css. */
 .dark-theme input::placeholder,
 .dark-theme textarea::placeholder,
 .dark-theme .parameter-input::placeholder {
@@ -299,8 +284,7 @@ input:focus-visible {
   background: linear-gradient(135deg, #242936 0%, #1f2937 100%) !important;
 }
 
-/* Detail sidebar (click-to-inspect): .info-item carries a hard-coded light
-   background, which the dark theme's light ink would be unreadable over. */
+/* .info-item carries a hard-coded light background in maps.css. */
 .dark-theme .info-item {
   background: var(--bg-primary) !important;
 }
@@ -329,19 +313,14 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
-/* maps.css pins `background: white` on this button, so the override has to
-   repaint the surface too — otherwise the dark theme swaps only the ink and
-   leaves light blue on white. Transparent is what the other .btn-outline-lab
-   buttons do in the dark theme. */
+/* maps.css pins `background: white` on this and on .reset-parameters-btn below,
+   so the dark override has to repaint the surface, not just the ink. */
 .dark-theme .chart-export-btn {
   background-color: transparent !important;
   border-color: var(--dark-accent) !important;
   color: var(--dark-accent) !important;
 }
 
-/* This button also has a fixed `background: white` in maps.css: inside the
-   already darkened .parameters-editor the surface has to follow the panel and
-   the border has to leave the light #ddd hairline behind. */
 .dark-theme .reset-parameters-btn {
   background: var(--bg-secondary) !important;
   border-color: var(--border-color) !important;
@@ -352,7 +331,8 @@ input:focus-visible {
   color: var(--text-secondary) !important;
 }
 
-/* Bootstrap 5 modal close button (SVG background) — invert so it stays visible on dark modals */
+/* Bootstrap paints .btn-close as an SVG background: a filter is the only way to
+   recolor it. */
 .dark-theme .btn-close {
   filter: invert(1) grayscale(100%) brightness(200%);
 }
@@ -429,18 +409,10 @@ input:focus-visible {
   }
 }
 
-/* ---------------------------------------------------------------------------
-   PRINT / PDF
-
-   The climatology exists to be cited, and citing goes through printing or
-   saving to PDF. No browser prints background colors by default, so a reader in
-   dark mode would carry --text-primary: #fff onto white paper. Paper is always
-   light, and the tokens are rewritten here for both themes.
-
-   The selector html.dark-theme is repeated because a media query adds no
-   specificity: without it the dark block would keep winning. theme.css is the
-   last stylesheet on the page, so source order breaks the tie.
-   --------------------------------------------------------------------------- */
+/* Paper is always light: browsers do not print background colors, so a reader
+   in dark mode would carry --text-primary: #fff onto white. html.dark-theme is
+   repeated throughout because @media adds no specificity — without it the dark
+   block above would keep winning. */
 @media print {
   :root,
   html.dark-theme {
@@ -462,7 +434,7 @@ input:focus-visible {
   }
 
   /* The footer blue never reaches the paper, so its light ink has to turn dark
-     or the institutional block (who published, under which license) vanishes. */
+     or the institutional block vanishes. */
   .modern-footer,
   html.dark-theme .modern-footer {
     background: #fff !important;
@@ -483,8 +455,6 @@ input:focus-visible {
     border-top-color: #999;
   }
 
-  /* Controls have no function on paper, and the sticky bar would repeat on
-     every sheet. */
   [data-theme-toggle],
   .navbar-toggler {
     display: none !important;
@@ -494,7 +464,6 @@ input:focus-visible {
     position: static !important;
   }
 
-  /* A chart split across two sheets is not citable. */
   .clima-chart,
   .chart-container,
   .monitor-card,

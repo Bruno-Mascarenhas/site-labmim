@@ -3,23 +3,20 @@
   <head>
 {{> head}}
 
-    <!-- Publication and map configuration. JSON in a meta tag keeps the CSP
-         free of executable inline script. It lives in this layout, not in the
-         head partial, because the only consumer is assets/js/map-manager.js,
-         loaded only here; institutional pages do not pay for these bytes. -->
+    <!-- JSON in a meta tag keeps the CSP free of executable inline script. Both
+         metas live in this layout rather than the head partial because their
+         only consumer is map-manager.js; institutional pages skip the bytes. -->
     <meta name="site-config" content="{{SITE_CONFIG}}" />
 
-    <!-- Web Worker content hashes, stamped by build.js: map-manager.js builds
-         the worker URLs from here, so editing a worker already invalidates the
-         cache. It lives in this layout for the same reason as site-config. -->
+    <!-- Worker content hashes stamped by build.js; map-manager.js builds the
+         worker URLs from here, so editing a worker invalidates the cache. -->
     <meta name="labmim-asset-hashes" content="{{WORKER_HASHES}}" />
 
-    <!-- Vendored Leaflet 1.9.4; its CSS comes through the pageVendorStyles slot, ahead of the site's own styles. -->
+    <!-- Leaflet's CSS arrives through the pageVendorStyles slot, ahead of ours. -->
     <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
 
-    <!-- preconnect: tiles are requested about a second into the navigation, so
-         the warm connection (DNS + TCP + TLS) is always used; dns-prefetch
-         stays as the fallback for older browsers. -->
+    <!-- Tiles are requested about a second into the navigation, so the warm
+         connection is always used; dns-prefetch is the older-browser fallback. -->
     <link rel="preconnect" href="https://tile.openstreetmap.org" />
     <link rel="dns-prefetch" href="https://tile.openstreetmap.org" />
   </head>
@@ -31,13 +28,10 @@
     </header>
 
 <main class="container-main" id="main">
-  <!-- The h1 lives inside the main landmark, as in the institutional layout. -->
   <h1 class="visually-hidden">{{h1}}</h1>
 
-  <!-- MAP -->
   <div id="map"></div>
 
-  <!-- SIDEBAR -->
   <div class="sidebar" id="sidebar">
     <div class="sidebar-logo-header">
       <a href="index.html" title="Voltar ao início">
@@ -45,7 +39,7 @@
       </a>
     </div>
     <div class="sidebar-header">
-      <!-- h2, not h3: this is the first heading after the h1, so h3 would skip a level. -->
+      <!-- h2, not h3: first heading after the h1, so h3 would skip a level. -->
       <h2>Detalhes da Célula</h2>
       <button type="button" class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Fechar painel de detalhes">
         <i class="fas fa-times" aria-hidden="true"></i>
@@ -54,7 +48,6 @@
     <div class="sidebar-content" id="sidebarContent" aria-live="polite"></div>
   </div>
 
-  <!-- COLORBAR -->
   <div class="colorbar-container">
     <div class="colorbar-content">
       <div class="colorbar-gradient" id="colorbarGradient"></div>
@@ -63,7 +56,6 @@
     <div class="colorbar-unit" id="colorbarUnit">W/m²</div>
   </div>
 
-  <!-- DOMAIN INDICATORS -->
   <div class="domain-indicators-container">
     <span class="domain-label">Domínios:</span>
     <div class="domain-buttons-group">
@@ -71,7 +63,6 @@
     </div>
   </div>
 
-  <!-- CONTROLS -->
   <div class="controls-container">
     <div class="slider-wrapper">
       <label for="layerSlider">Hora:</label>
@@ -102,14 +93,12 @@
     <div class="variable-selector-wrapper">
       <label for="variableSelect">Variável:</label>
       <select id="variableSelect" class="variable-select">
-        <!-- Options are filled at runtime by map-manager (configureVariableSelect)
-             from VARIABLES_CONFIG; this placeholder disappears on load. -->
+        <!-- Filled at runtime by map-manager (configureVariableSelect). -->
         <option disabled selected>Carregando…</option>
       </select>
     </div>
   </div>
 
-  <!-- HEIGHT SELECTOR (wind) -->
   <div class="segmented-selector" id="heightSelector" role="group" aria-label="Altura (m)">
     <span class="segmented-selector-title">Altura (m):</span>
     <div class="segmented-button-group">
@@ -119,15 +108,13 @@
     </div>
   </div>
 
-  <!-- ACCUMULATION SELECTOR (precipitation) — buttons are filled at runtime by
-       map-manager (configureAccumulationSelector) from the window declared in
-       VARIABLES_CONFIG; it disappears for variables with no accumulation. -->
+  <!-- Filled by map-manager (configureAccumulationSelector); hidden entirely for
+       variables that declare no accumulation window. -->
   <div class="segmented-selector" id="accumSelector" role="group" aria-label="Janela de acumulado">
     <span class="segmented-selector-title" id="accumSelectorTitle">Acumulado:</span>
     <div class="segmented-button-group" id="accumButtonGroup"></div>
   </div>
 
-  <!-- WIND VECTOR LAYER TOGGLE -->
   <div class="wind-layer-toggle" id="windLayerToggle">
     <label title="Vetores de Vento">
       <input type="checkbox" id="windLayerCheckbox" class="visually-hidden" />
@@ -136,11 +123,9 @@
     </label>
   </div>
 
-  <!-- WIND VECTORS CANVAS — decorative overlay: aria-hidden because a mute
-       canvas only clutters the accessibility tree. -->
+  <!-- Decorative overlay: a mute canvas only clutters the a11y tree. -->
   <canvas id="windVectorCanvas" aria-hidden="true"></canvas>
 
-  <!-- DOCUMENTATION BUTTON -->
   <div class="documentation-btn-container">
     <button type="button" class="documentation-btn" id="docBtn" title="Abrir Documentação">
       <i class="fas fa-question-circle"></i>
@@ -148,7 +133,6 @@
     </button>
   </div>
 
-  <!-- VARIABLE GUIDE / LAZY PREVIEW -->
   <section class="variable-overview-panel is-collapsed" id="variableOverviewPanel" aria-label="Resumo das variáveis">
     <div class="variable-overview-header">
       <div>
@@ -178,7 +162,6 @@
     </div>
   </section>
 
-  <!-- DOCUMENTATION MODAL -->
   <div
     class="documentation-modal"
     id="documentationModal"
@@ -208,7 +191,6 @@
   </div>
 </main>
 
-<!-- PERSISTENT TIME-SERIES MODAL -->
 <div
   class="chart-modal-overlay"
   id="timeSeriesModal"
@@ -234,7 +216,6 @@
       </div>
     </div>
     <div class="chart-modal-body">
-      <!-- Loading overlay that only covers the body -->
       <div id="timeSeriesLoadingOverlay" class="chart-loading-overlay" style="display: none">
         <div class="spinner-border text-primary chart-loading-spinner" role="status">
           <span class="visually-hidden">Carregando...</span>
@@ -242,7 +223,6 @@
         <div class="chart-loading-message">Carregando dados...</div>
       </div>
 
-      <!-- Containers for the charts -->
       <div class="chart-container">
         <canvas id="chartCanvasValue"></canvas>
       </div>
@@ -255,14 +235,8 @@
 
 {{> scripts}}
 
-    <!-- Chart.js 3.9.1, vendored locally -->
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
 
-    <!-- Variables config + data service + charts + map.
-         build.js stamps a ?v= content hash on every CSS/JS file of our own; the
-         Web Workers get their hash from the labmim-asset-hashes meta tag (read
-         by workerScriptUrl in map-manager.js — with no hash the URL comes out
-         without ?v= and falls into the short cache rules). -->
     <script src="assets/js/variables-config.js" defer></script>
     <script src="assets/js/data-service.js" defer></script>
     <script src="assets/js/charts-manager.js" defer></script>

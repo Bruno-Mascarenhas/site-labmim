@@ -3,38 +3,35 @@
 module.exports = {
   id: "labmim-wrf",
   attribution: "LabMiM-UFBA",
-  // Actual name of the Python CLI that turns the WRF NetCDF into the served
-  // JSON/GeoJSON; it is not derived from the dataset id.
+  // Name of the Python CLI, not derived from the dataset id.
   generator: "labmim-wrf-geojson",
-  // The WRF namelist comes from DEFAULT_MODEL (renderer); declare `model` here
-  // only for the fields where this simulation diverges from that default.
+  // No `model` block: the WRF namelist comes from DEFAULT_MODEL (renderer), and
+  // this simulation diverges from it in no field.
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",
     grids: "GeoJSON",
-    // Rolling 7-day window, rewritten hourly by the deploy. Produced by
-    // `labmim-monitoring` over the laboratory's sensor archive, which is not
-    // public, so it reaches the site through the deploy and stays out of git.
+    // Rolling 7-day window rewritten hourly by `labmim-monitoring`, over the
+    // laboratory's non-public sensor archive: it reaches the site through the
+    // deploy and stays out of git.
     monitoring: "Monitoramento",
-    // Pre-computed observed distributions, produced by `labmim-climatology` in
-    // the micrometeorology repository. Same non-public sensor archive and same
-    // deploy-only route as the monitoring window above.
+    // Observed distributions from `labmim-climatology`; same archive, same
+    // deploy-only route.
     climatology: "Climatologia",
   },
   timeline: {
-    // Fallback ceiling for when the manifest does not arrive: it mirrors the
-    // `index_max` the published run declares (files `_000`..`_075`).
+    // Used only when the manifest does not arrive; mirrors the `index_max` the
+    // published run declares (files `_000`..`_075`).
     defaultMaxLayer: 75,
     initialIndex: 7,
     stepHours: 1,
     label: "Horário local (UTC−03)",
   },
   defaultDomain: "D01",
-  // The extent quoted in each `description` is the published grid's
-  // (`shape × metadata.resolucao_m` from `GeoJSON/*.grid.json`): 1863, 891, 297
-  // and 84 km. The build cannot derive it — the `grid.json` files are deploy
-  // data and never live in the repository — so review it by hand whenever the
-  // namelist changes the grid.
+  // The extent in each `description` is `shape × metadata.resolucao_m` from
+  // `GeoJSON/*.grid.json` (1863, 891, 297, 84 km). Those files are deploy data
+  // and never live here, so review this by hand whenever the namelist changes
+  // the grid.
   domains: [
     {
       id: "D01",

@@ -13,10 +13,8 @@ module.exports = [
     },
   }),
   page("monitoring", {
-    // Interactive variant of the route: it reads the hourly payload from
-    // `dataset.paths.monitoring`. The static variant (pages/monitoring.html)
-    // remains available for publications that ship ready-made PNGs in
-    // `dataset.observations`.
+    // Interactive variant, reading the hourly payload from
+    // `dataset.paths.monitoring`; pages/monitoring.html is the static one.
     source: templateSource("pages/monitoring-live.html"),
     // Chart.js is declared per page: loading it from the institutional layout
     // would cost 200 KB on the routes that draw nothing.

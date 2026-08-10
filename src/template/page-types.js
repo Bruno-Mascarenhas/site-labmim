@@ -1,11 +1,9 @@
 "use strict";
 
 /**
- * Structural page catalog.
- *
- * Source references are logical: `template` points at src/template and `site`
- * at src/sites/<id>. Turning them into physical paths is the job of whichever
- * build consumes this module.
+ * Structural page catalog. Source references stay logical (`template` =
+ * src/template, `site` = src/sites/<id>); resolving them to physical paths is
+ * the job of whichever build consumes this module.
  */
 
 function isNonEmptyString(value) {
@@ -88,10 +86,9 @@ const PAGE_TYPES = Object.freeze({
   }),
 });
 
-// The contexts map-manager.js actually knows (VARIABLE_CONTEXTS in
-// assets/js/variables-config.js). Anything else falls back to "forecast"
-// silently in the browser, so the build refuses it instead of rendering a map
-// with the wrong set of variables.
+// Mirrors VARIABLE_CONTEXTS in assets/js/variables-config.js. Anything else
+// falls back to "forecast" silently in the browser, so the build refuses it
+// rather than render a map with the wrong set of variables.
 const KNOWN_MAP_CONTEXTS = Object.freeze(["forecast", "energy"]);
 
 function mapContextOf(bodyAttrs) {
@@ -99,21 +96,13 @@ function mapContextOf(bodyAttrs) {
   return match ? match[1] : null;
 }
 
-/**
- * Per-layout contracts: what src/template/layouts/<id>.html needs in order to
- * render, whichever page type is using it.
- *
- * `vendorStyles`/`styles` come before the sheets declared by the type and by
- * the options, and are skipped when already declared explicitly so nothing is
- * linked twice. `required` refuses a page when the layout depends on a field
- * nobody supplied.
- */
+/** What src/template/layouts/<id>.html needs, whichever page type is using it. */
 const LAYOUT_CONTRACTS = Object.freeze({
   webgis: Object.freeze({
     vendorStyles: Object.freeze(["assets/vendor/leaflet/leaflet.css?v=1.9.4"]),
     styles: Object.freeze(["assets/css/maps.css"]),
-    // The webgis layout declares Leaflet, Chart.js and the five map scripts in
-    // the layout file itself; the slot stays empty so no tag is emitted twice.
+    // Leaflet, Chart.js and the five map scripts are declared in the layout file
+    // itself; the slot stays empty so no tag is emitted twice.
     vendorScripts: Object.freeze([]),
     scripts: Object.freeze([]),
     required: Object.freeze({
@@ -146,15 +135,10 @@ function layoutContract(layout) {
 }
 
 /**
- * Keys accepted by `page(type, options)`. Anything else is an error, so a
- * `styles` misspelled as `style` fails loudly instead of being ignored.
- *
- * - source/append/styles/vendorStyles/scripts/vendorScripts/seo/nav: page
- *   composition.
- * - bodyAttrs/kicker/docModalTitle: layout slots (only webgis uses them today).
- * - indexable: `false` drops the page from sitemap.xml AND emits
- *   `<meta name="robots" content="noindex, follow">` (renderer.js); absent or
- *   `true` keeps it listed and indexable.
+ * Keys accepted by `page(type, options)`. `bodyAttrs`/`kicker`/`docModalTitle`
+ * are layout slots, used only by webgis today. `indexable: false` both drops the
+ * page from sitemap.xml and emits `<meta name="robots" content="noindex,
+ * follow">` (renderer.js).
  */
 const PAGE_OPTION_KEYS = Object.freeze([
   "append",
@@ -171,15 +155,11 @@ const PAGE_OPTION_KEYS = Object.freeze([
   "vendorStyles",
 ]);
 
-/** `customPage()` declares the route as well; `page()` takes it from the type. */
 const STRUCTURAL_OPTION_KEYS = Object.freeze(["id", "file", "layout"]);
 const CUSTOM_PAGE_OPTION_KEYS = Object.freeze([...STRUCTURAL_OPTION_KEYS, ...PAGE_OPTION_KEYS].sort());
 
-/**
- * `home` carries semantics in the renderer (ResearchOrganization JSON-LD) and
- * in the validator (index.html plus the publication's own content), so only
- * `page("home")` may produce it.
- */
+// `home` carries semantics in the renderer (ResearchOrganization JSON-LD) and in
+// the validator, so only `page("home")` may produce it.
 const RESERVED_PAGE_IDS = Object.freeze(["home"]);
 
 function editDistance(left, right) {
@@ -195,7 +175,6 @@ function editDistance(left, right) {
   return previous[right.length];
 }
 
-/** Nearest valid key, or null past a third of the key length — an unrelated key gets no bogus suggestion. */
 function closestKey(key, candidates) {
   let best = null;
   let bestDistance = Infinity;
@@ -206,7 +185,8 @@ function closestKey(key, candidates) {
       best = candidate;
     }
   }
-  return bestDistance <= Math.max(1, Math.floor(key.length / 3)) ? best : null;
+  const distanceStillPlausibleAsTypo = Math.max(1, Math.floor(key.length / 3));
+  return bestDistance <= distanceStillPlausibleAsTypo ? best : null;
 }
 
 function assertKnownOptions(options, allowedKeys, typeName) {
@@ -236,9 +216,8 @@ function isSourceReference(value) {
 function sameStylesheet(left, right) {
   if (typeof left === "string" || typeof right === "string") {
     if (typeof left !== "string" || typeof right !== "string") return false;
-    // Compare the path without its ?v=/# suffix, the same split validate.js
-    // makes between assetPath and suffix: the same file declared at another
-    // version REPLACES the layout default, it is not a second link.
+    // Same assetPath/suffix split validate.js makes: the same file declared at
+    // another version REPLACES the layout default, it is not a second link.
     return assetPathWithoutVersion(left) === assetPathWithoutVersion(right);
   }
   return isSourceReference(left) && isSourceReference(right) && left.scope === right.scope && left.path === right.path;
@@ -257,10 +236,9 @@ function optionValue(definition, options, field) {
 }
 
 /**
- * Concatenate a list-valued option (styles, vendorStyles) with the type's own
- * defaults, validating the RAW option is an array first. Without that check a
- * mistyped `styles: "x.css"` would spread into single characters that silently
- * pass the item validation below and only break far downstream.
+ * The RAW option is checked for arrayness first because a mistyped
+ * `styles: "x.css"` would otherwise spread into single characters that pass the
+ * per-item validation below and only break far downstream.
  */
 function mergeArrayOption(definition, options, field, typeName) {
   const provided = options[field];
@@ -299,10 +277,9 @@ function finalizePage(definition, options, typeName) {
     throw new TypeError(`${typeName}.vendorStyles must be an array of versioned vendor asset paths`);
   }
 
-  // Scripts are always paths already published under site/assets/, never
-  // sources in src/**: unlike page CSS, site/assets/js/ is versioned source
-  // rather than build output, so there is nothing to copy into
-  // assets/js/generated/.
+  // Scripts are always paths already published under site/assets/, never sources
+  // in src/**: unlike page CSS, site/assets/js/ is versioned source rather than
+  // build output, so there is nothing to copy into assets/js/generated/.
   const declaredVendorScripts = mergeArrayOption(definition, options, "vendorScripts", typeName);
   const vendorScripts = [
     ...missingLayoutAssets(contract.vendorScripts, declaredVendorScripts),
@@ -405,9 +382,8 @@ module.exports = {
   PAGE_OPTION_KEYS,
   CUSTOM_PAGE_OPTION_KEYS,
   LAYOUT_CONTRACTS,
-  // Exported so that other closed key sets (the dataset `model` block, in
-  // scripts/site-builder/validate.js) can refuse a typo with the same
-  // suggestion `page()` gives for its options instead of reimplementing it.
+  // Reused by other closed key sets (the dataset `model` block, in
+  // scripts/site-builder/validate.js) so a typo gets the same suggestion there.
   closestKey,
   templateSource,
   siteSource,

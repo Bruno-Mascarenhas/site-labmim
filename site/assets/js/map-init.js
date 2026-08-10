@@ -1,11 +1,11 @@
 let app;
 let chartsManager;
 
-// How often a long-lived session re-checks the manifest for a new pipeline
-// run (the daily job replaces the fixed-name data files in place, so a page
-// left open across the regeneration would otherwise mix two forecast runs).
+// The daily job replaces the fixed-name data files in place, so a session left
+// open across a regeneration would otherwise mix two forecast runs.
 const MANIFEST_RECHECK_INTERVAL_MS = 15 * 60 * 1000;
 const MANIFEST_RECHECK_MIN_GAP_MS = 5 * 60 * 1000;
+const MANIFEST_FIRST_LOAD_WAIT_MS = 3000;
 
 function fetchManifest() {
   return fetch(window.SITE_RUNTIME_CONFIG.data.manifestPath, { cache: "no-cache" })
@@ -14,22 +14,20 @@ function fetchManifest() {
     .catch(() => null);
 }
 
-// Kicked off at script-parse time so it overlaps document loading (deferred
-// scripts run before DOMContentLoaded). The manifest carries the pipeline
-// run version used to build long-cacheable versioned data URLs, plus the
-// timeline contract (step range, per-variable availability, consolidated
-// artifact descriptors) when produced by a v2 pipeline. On any failure
-// (older pipeline, offline) the app falls back to plain URLs and the
-// built-in timeline defaults. The timeout keeps a stalled manifest response
-// from delaying the FIRST DATA LOAD — map construction and all control
-// listeners never wait for it (see below).
+// Kicked off at parse time, ahead of DOMContentLoaded, so it overlaps document
+// loading. A v2 manifest carries the run version for cacheable ?v= URLs plus the
+// timeline contract (step range, per-variable availability, artifact
+// descriptors); on any failure the app falls back to plain URLs and the built-in
+// timeline defaults.
 const manifestFetch = fetchManifest();
-const manifestPromise = Promise.race([manifestFetch, new Promise((resolve) => setTimeout(() => resolve(null), 3000))]);
+const manifestPromise = Promise.race([
+  manifestFetch,
+  new Promise((resolve) => setTimeout(() => resolve(null), MANIFEST_FIRST_LOAD_WAIT_MS)),
+]);
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Construct immediately: the map, Play/slider/domain/variable listeners
-  // and the UI must be live the moment the DOM is ready — a slow manifest
-  // response must never leave the page inert.
+  // Construct before the manifest resolves: map, controls and UI must be live
+  // the moment the DOM is ready, however slow the manifest response is.
   app = new MeteoMapManager();
   chartsManager = new ChartsManager(app);
   app.chartsManager = chartsManager;
@@ -41,9 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!app.state.selectedCell) return;
 
-    // Only a real user click on the map may open the modal. Programmatic
-    // refreshes (slider drags, variable switches, wind-height changes) just
-    // update the charts silently — and only if the modal is already visible.
+    // Only a real map click opens the modal; programmatic refreshes (slider,
+    // variable, wind height) refresh the charts, and only when already open.
     const userInitiated = options?.userInitiated === true;
     if (userInitiated) {
       chartsManager.openModal();
@@ -69,57 +66,42 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   };
 
-  // The first data load still waits (bounded by the 3s race) for the
-  // manifest so the very first fetches already carry the ?v= version and
-  // the timeline/availability contract — otherwise every first-frame file
-  // would be fetched twice (plain, then versioned).
+  // Waiting here buys the ?v= version and the availability contract for the very
+  // first fetches; without it every first-frame file would be fetched twice.
   manifestPromise.then((manifest) => {
     if (manifest) app.applyManifest(manifest);
     app.applyMapChanges().then((values) => {
-      // With values on screen, or with a time anchor from the manifest, the
-      // timeline has something to say: follow the normal script.
-      //
-      // The condition does not ask whether the manifest arrived: in a partial
-      // FTP upload it may be the only file online, and a v1 manifest (or a
-      // pipeline rollback) carries no `start_local`, hence no anchor at all.
-      // Anything with an anchor — every v2 manifest — never lands here.
+      // Values or an anchor, never "did the manifest arrive": a partial FTP
+      // upload can leave the manifest as the only file online, and a v1 manifest
+      // carries no `start_local`, hence no anchor at all.
       if (values || app.state.initialDateTime) {
         app.startInitialPlayback();
         return;
       }
 
-      // The grid breaks the tie between "nothing is published" and "this frame
-      // is missing": it depends on neither variable nor step. If it loads, the
-      // directory is online and only that step was absent (the shortwave
-      // variable overnight, say) — then the timelapse should walk on to a
-      // published step. It comes from the cache or the in-flight request, not
-      // from a second read.
+      // The grid breaks the tie between "nothing is published" and "this frame is
+      // missing": it depends on neither variable nor step. If it loads, only that
+      // step was absent (shortwave overnight, say) and the timelapse walks on.
       app.loadGridLayer(app.state.domain).then((grid) => {
         if (grid) {
           app.startInitialPlayback();
           return;
         }
-        // Not even the grid exists: the model output directory is not on this
-        // server. Starting the timelapse would repeat the requests that just
-        // failed every 800 ms, under a "Carregando..." that would never change.
+        // No grid either: the output directory is not on this server. Playback
+        // would retry the failed requests every 800 ms under a frozen notice.
         app.showNoPublishedDataNotice();
       });
     });
     if (!manifest) {
-      // The manifest lost the 3s race but is not discarded: adopt it in
-      // place whenever it lands (handleManifestUpdate's unversioned path),
-      // so the session gains versioned URLs and the timeline contract — and
-      // the 15-minute recheck won't misread "first manifest of the session"
-      // as a new pipeline run and needlessly wipe every cache mid-playback.
+      // A manifest that lost the race is adopted in place whenever it lands, so
+      // the recheck below cannot misread the session's first manifest as a new
+      // pipeline run and wipe every cache mid-playback.
       manifestFetch.then((late) => {
         if (late && !app.dataVersion) app.handleManifestUpdate(late, chartsManager);
       });
     }
   });
 
-  // Detect a new pipeline run during long sessions and resynchronize
-  // (caches, ?v= version, timeline anchor) instead of silently mixing two
-  // forecast runs under one timeline.
   let lastCheckAt = Date.now();
   const recheckManifest = () => {
     lastCheckAt = Date.now();

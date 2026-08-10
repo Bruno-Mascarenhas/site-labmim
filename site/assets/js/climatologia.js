@@ -1,36 +1,23 @@
 /**
  * CLIMATOLOGIA
  *
- * Controller for the climatology page. Reads the `labmim-climatology-v1`
- * artifacts from the directory declared in `dataset.paths.climatology` and, for
- * the chosen variable and subset, draws the measured distribution with the
- * theoretical density from the literature on top.
+ * Controller for the climatology page: reads the `labmim-climatology-v1` artifacts from the directory named in the
+ * `data-climatology-base` attribute.
  *
- * Contracts this file assumes:
+ * Nothing is computed here. Bins, fit, theoretical curve and goodness-of-fit arrive ready from the Python exporter
+ * (`labmim-climatology`), curve already rescaled by one minus the atom mass; a second numerical path in JavaScript
+ * would be free to diverge from the parameters printed beside it. The curve is sampled AT THE BIN CENTERS, one value
+ * per bar, so bars and line share one categorical axis with no interpolation — logarithmic rainfall bins included.
  *
- * - Nothing is computed here. Bins, fit, theoretical curve and goodness-of-fit
- *   measures arrive ready from the Python exporter (`labmim-climatology`),
- *   including the curve already rescaled by one minus the atom mass.
- *   Reimplementing Weibull/gamma/beta in JavaScript would create a second
- *   numerical path free to diverge from the parameters printed beside the curve.
- * - A histogram curve is sampled AT THE BIN CENTERS, one value per bar, so bars
- *   and line share the same categorical axis with no interpolation — which holds
- *   for the logarithmic rainfall bins as well.
- * - Nothing here is specific to a publication: the directory comes from the
- *   `data-climatology-base` attribute and every label comes from the JSON. A
- *   publication with a record of its own reuses the whole page by publishing its
- *   files.
- * - The directory is operational data: in a development checkout and in CI it is
- *   empty, and the page has to say so instead of breaking.
+ * Nothing is publication-specific: every label comes from the JSON. The directory holds operational data, so in a
+ * development checkout and in CI it is empty and the page has to say so instead of breaking.
  */
 
 "use strict";
 
 (function () {
-  // Pairs validated with scripts/validate_palette.js from the visualization
-  // guide: luminance band, chroma floor, colour-blind separation and contrast
-  // against the surface. Changing any of these values means running the
-  // validator again.
+  // Pairs validated with scripts/validate_palette.js: luminance band, chroma floor, colour-blind separation and
+  // contrast against the surface. Changing a value means running the validator again.
   const PALETTE = {
     light: { empirical: "#3761b4", model: "#e07a1f" },
     dark: { empirical: "#5589e6", model: "#cb8030" },
@@ -38,6 +25,9 @@
 
   const ROSE_RINGS = 4;
   const COMPASS = ["N", "NE", "L", "SE", "S", "SO", "O", "NO"];
+
+  // Without it Excel in pt-BR opens the CSV as Latin-1 and the accented labels reach the researcher corrupted.
+  const EXCEL_UTF8_BOM = "\uFEFF";
 
   const state = {
     base: "",
@@ -47,15 +37,10 @@
     subsetId: "",
     chart: null,
     cache: new Map(),
-    // Generation of the reader's latest choice: responses to earlier requests
-    // that land after it are discarded in refresh().
     seq: 0,
   };
 
   const el = (id) => document.getElementById(id);
-
-  // ─── Formatting ───────────────────────────────────────────────────────────
-  // pt-BR across the page (decimal comma), as everywhere else on the site.
 
   function decimal(value, digits) {
     if (value === null || value === undefined || Number.isNaN(value)) return "—";
@@ -84,9 +69,8 @@
     return Math.max(0, Math.min(3, Math.ceil(-Math.log10(smallest))));
   }
 
-  // ─── Theme ────────────────────────────────────────────────────────────────
-  // Same runtime read as charts-manager.js: Chart.js keeps nothing from the CSS,
-  // so re-reading the tokens when the theme class flips is enough.
+  // Chart.js keeps nothing from the CSS, so re-reading the tokens when the theme class flips is enough — the same
+  // runtime read as charts-manager.js.
 
   function isDark() {
     return document.documentElement.classList.contains("dark-theme");
@@ -105,8 +89,6 @@
       tooltipText: root.getPropertyValue("--tooltip-text").trim() || "#fff",
     };
   }
-
-  // ─── Data ─────────────────────────────────────────────────────────────────
 
   function dataUrl(file) {
     const version = state.manifest ? `?v=${encodeURIComponent(state.manifest.version)}` : "";
@@ -136,8 +118,6 @@
     const entry = state.manifest.subsets.find((item) => item.id === id);
     return entry ? entry.label : id;
   }
-
-  // ─── Controls ─────────────────────────────────────────────────────────────
 
   function buildControls() {
     const select = el("climaVariavel");
@@ -182,8 +162,6 @@
     }
   }
 
-  // ─── Histogram ────────────────────────────────────────────────────────────
-
   function binLabels(edges, digits) {
     const labels = [];
     for (let index = 1; index < edges.length; index += 1) {
@@ -207,7 +185,6 @@
         borderWidth: 0,
         borderRadius: 4,
         borderSkipped: "bottom",
-        // 2px of breathing room between neighbouring bars, as the mark guide asks.
         categoryPercentage: 0.96,
         barPercentage: 0.94,
         order: 2,
@@ -266,10 +243,8 @@
         },
         scales: {
           x: {
-            // Window published with the variable, identical across subsets: the
-            // edges cover the whole physically possible range, but drawing all
-            // of it would leave most of the chart empty. Nothing is clipped from
-            // the data — only from the axis.
+            // Window published with the variable, identical across subsets: the edges cover the whole physically
+            // possible range, and only the axis is clipped — never the data.
             min: axisWindow[0],
             max: axisWindow[1],
             title: {
@@ -307,11 +282,9 @@
     );
   }
 
-  // ─── Wind rose (SVG) ──────────────────────────────────────────────────────
-  // Drawn here rather than with Chart.js: in 3.9.1 no series of type `line` can
-  // be laid over a radial scale, so the von Mises mixture would have no way to
-  // appear on top of a polarArea. The SVG also satisfies the CSP with no new
-  // dependency and reskins itself from the theme tokens.
+  // The rose is SVG and not Chart.js: in 3.9.1 no series of type `line` can be laid over a radial scale, so the von
+  // Mises mixture would have no way to appear on top of a polarArea. The SVG also satisfies the CSP with no new
+  // dependency.
 
   const SVG_NS = "http://www.w3.org/2000/svg";
   const CENTER = 200;
@@ -346,17 +319,11 @@
     const frequencies = subset.frequencies || [];
     const curve = subset.curve || [];
     const peak = Math.max(...frequencies, ...curve, 0.0001);
-    // Radius scales LINEARLY with frequency, with the rings labelled: that is the
-    // wind atlas convention, and it reads only because the rings state the value.
+    // Radius scales LINEARLY with frequency (wind atlas convention), which reads only because the rings are labelled.
     const scale = (value) => (value / peak) * MAX_RADIUS;
 
-    // Rings and frequency labels.
-    //
-    // The labels are held back to go LAST in the SVG. Petals are opaque fill and
-    // the SVG paints in document order, so a label appended next to its circle
-    // ends up under any petal that reaches it. The surface-coloured outline
-    // completes the defence: over a petal the text stays legible without needing
-    // an opaque box.
+    // Ring labels are held back to be appended LAST: petals are opaque fill and the SVG paints in document order.
+    // The surface-coloured outline completes the defence — over a petal the text stays legible with no opaque box.
     const surface = isDark() ? "#2d2d2d" : "#fff";
     const ringLabels = [];
     for (let ring = 1; ring <= ROSE_RINGS; ring += 1) {
@@ -385,7 +352,6 @@
       ringLabels.push(label);
     }
 
-    // Spokes and compass labels.
     COMPASS.forEach((name, index) => {
       const degrees = index * 45;
       const [x, y] = polar(degrees, MAX_RADIUS);
@@ -412,7 +378,6 @@
       svg.appendChild(label);
     });
 
-    // Measured petals.
     const halfWidth = sectors.length > 1 ? 360 / sectors.length / 2 : 22.5;
     sectors.forEach((center, index) => {
       const value = frequencies[index] || 0;
@@ -420,7 +385,6 @@
       const petal = svgNode("path", {
         d: sectorPath(center, halfWidth * 0.92, scale(value)),
         fill: theme.empirical,
-        // A 2px ring in the surface colour separates neighbouring petals.
         stroke: surface,
         "stroke-width": 2,
       });
@@ -430,7 +394,6 @@
       svg.appendChild(petal);
     });
 
-    // von Mises mixture as a closed ring.
     if (curve.length > 1) {
       const points = curve.map((value, index) => {
         const degrees = (index * 360) / (curve.length - 1);
@@ -448,7 +411,6 @@
       );
     }
 
-    // On top of everything: seeing the scale is what gives the petal radius meaning.
     for (const label of ringLabels) svg.appendChild(label);
 
     const circular = subset.circular || {};
@@ -460,8 +422,6 @@
       )} graus. Use o botão "Ver tabela de dados" para a versão textual.`
     );
   }
-
-  // ─── Text panels ──────────────────────────────────────────────────────────
 
   function statTile(label, value) {
     const tile = document.createElement("div");
@@ -499,15 +459,9 @@
     tiles.appendChild(statTile("Assimetria", decimal(stats.skewness, 2)));
   }
 
-  /**
-   * Finite samples that fell outside the histogram edges.
-   *
-   * The exporter counts them in `below`/`above` instead of discarding them,
-   * precisely so the reader knows the axis is clipped. They sit outside the bars
-   * and outside the published `n` — which is the denominator of the density — so
-   * without this note the announced total hides the extreme samples. Rose subsets
-   * carry neither field, and the note simply does not come out.
-   */
+  // Finite samples outside the histogram edges: the exporter counts them in `below`/`above` instead of discarding
+  // them, and they sit outside the published `n` that denominates the density — so the announced total would
+  // otherwise hide the extreme samples. Rose subsets carry neither field.
   function overflowNote(subset) {
     const below = subset.below || 0;
     const above = subset.above || 0;
@@ -541,15 +495,9 @@
     gain: "Ganho estimado",
   };
 
-  /**
-   * Fit panel rows, chosen by FAMILY and not by the shape of the parameters.
-   *
-   * More than one family carries `weights` — the induced radiation densities as
-   * much as the wind rose — so that vector says nothing about which rows to
-   * print. Dumping the vectors themselves does not serve either: what the reader
-   * needs to see are the INHERITED parameters and the single estimated scalar,
-   * not the quadrature behind them.
-   */
+  // Rows chosen by FAMILY and not by the shape of the parameters: more than one family carries `weights`, so that
+  // vector says nothing about which rows to print. What the reader needs are the INHERITED parameters and the single
+  // estimated scalar, not the quadrature behind them.
   function parameterRows(fit) {
     const params = fit.params || {};
     const rows = [];
@@ -638,11 +586,8 @@
       );
     }
 
-    // The absolute count goes next to the fraction, and it is not decoration. The
-    // fraction is over the WHOLE subset — before the point mass is removed from the
-    // fit — while the panel beside it prints `n`, which is what was LEFT. Anyone
-    // multiplying the two would get it wrong. Publishing the measured count removes
-    // the implicit subtraction instead of asking the reader to do it.
+    // The fraction is over the WHOLE subset — before the point mass is removed from the fit — while the panel beside
+    // it prints `n`, which is what was LEFT. The absolute count is published so nobody multiplies the two.
     const atoms = subset.atoms || [];
     el("climaAtoms").textContent = atoms.length
       ? atoms
@@ -656,13 +601,9 @@
       : "";
   }
 
-  // ─── References ───────────────────────────────────────────────────────────
-  // Expanding the `[[chave]]` markers belongs to assets/js/references.js, which
-  // runs on every page. What is specific here is the SOURCE: the distribution
-  // families are a choice of whoever produces the data, not of the site, so their
-  // bibliography arrives in the manifest and is registered at runtime on top of
-  // the static bibliography. A second implementation of the same expansion would
-  // only create two places for the citation style to diverge.
+  // Expanding the `[[chave]]` markers belongs to assets/js/references.js. What is specific here is the SOURCE: the
+  // distribution families are a choice of whoever produces the data, so their bibliography arrives in the manifest
+  // and is registered at runtime on top of the static one.
 
   const refs = () =>
     window.labmimReferences || {
@@ -695,9 +636,8 @@
       const entry = refs().get(key);
       if (!entry) continue;
       const item = document.createElement("li");
-      // Same criterion as assets/js/references.js: the bibliography comes from
-      // the manifest published by the exporter, so only an http(s) scheme becomes
-      // a link. With no usable URL the citation stays as text, not a dead href.
+      // Same criterion as assets/js/references.js: the bibliography comes from the exporter's manifest, so only an
+      // http(s) scheme becomes a link.
       if (refs().linkable(entry.url)) {
         const link = document.createElement("a");
         link.href = entry.url;
@@ -716,10 +656,8 @@
   function renderCaveats() {
     const list = el("climaCaveats");
     list.replaceChildren();
-    // The manifest caveats hold for the whole page — the record is not a
-    // thirty-year climate normal, and the time zone is Salvador local time — and
-    // come before the ones from the variable. The producer publishes them
-    // alongside the data precisely so the presentation cannot drop them.
+    // Manifest caveats hold for the whole page — the record is not a thirty-year climate normal, and the time zone
+    // is Salvador local time — and come before the variable's own.
     const shared = (state.manifest && state.manifest.caveats) || [];
     for (const text of [...shared, ...(state.variable.caveats || [])]) {
       const item = document.createElement("li");
@@ -729,20 +667,15 @@
     list.hidden = list.children.length === 0;
   }
 
-  // ─── Table ────────────────────────────────────────────────────────────────
-
   function tableRows(subset) {
     const variable = state.variable;
     if (variable.chart === "rose") {
       const header = ["Setor (°)", "Frequência", "Mistura de von Mises"];
       const curve = subset.curve || [];
       const step = curve.length > 1 ? (curve.length - 1) / variable.sectors.length : 0;
-      // The curve comes on a 201-point grid (1.8°) and the centre of the eight odd
-      // sectors falls exactly between two samples: rounding the index would always
-      // read 0.9° past the bearing the first column of the same row announces. The
-      // drawn rose does not have the problem because drawRose() uses the whole
-      // curve as a polyline; the table and the CSV are the textual version, and
-      // need the value at the centre.
+      // The curve comes on a 201-point grid (1.8°) and the centre of the eight odd sectors falls exactly between two
+      // samples, so the index is interpolated: rounding it would read 0.9° past the bearing the first column of the
+      // same row announces. drawRose() escapes this by drawing the whole curve as a polyline.
       const atCenter = (index) => {
         const exact = index * step;
         const low = Math.floor(exact);
@@ -773,12 +706,9 @@
     const body = el("climaTabelaBody");
     body.replaceChildren();
 
-    // The column-scoped header cells come from the HTML: filling only their text
-    // and hiding the spare columns keeps the table accessible without this file
-    // carrying that attribute value as a literal. The guard in
-    // scripts/check-bootstrap-purge.mjs pulls EVERY quoted token out of the
-    // site's own JS, comments included, and would read it as a use of a Bootstrap
-    // grid class absent from the purged CSS.
+    // The column-scoped header cells come from the HTML, so this fills only their text: writing that attribute value
+    // here as a literal would trip scripts/check-bootstrap-purge.mjs, which pulls EVERY quoted token out of the
+    // site's own JS, comments included, and would read it as a Bootstrap grid class absent from the purged CSS.
     Array.from(head.children).forEach((cell, index) => {
       cell.textContent = header[index] || "";
       cell.hidden = index >= header.length;
@@ -804,14 +734,11 @@
 
   function exportCsv() {
     const subset = currentSubset();
-    // `n` is required here too, not only in the button state: a disabled button
-    // is a UI layer, the listener stays reachable.
+    // Required here too, not only in the button state: a disabled button is a UI layer, the listener stays reachable.
     if (!subset || !subset.n) return;
     const { header, rows } = tableRows(subset);
     const lines = [header.join(";"), ...rows.map((row) => row.join(";"))];
-    // Explicit BOM: without it Excel in pt-BR opens the CSV as Latin-1 and the
-    // accented labels reach the researcher corrupted.
-    const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([`${EXCEL_UTF8_BOM}${lines.join("\n")}`], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -822,17 +749,12 @@
     URL.revokeObjectURL(url);
   }
 
-  // ─── Coverage ─────────────────────────────────────────────────────────────
-
   function renderCoverage() {
     const container = el("climaCoverage");
     container.replaceChildren();
     const years = (state.manifest.coverage && state.manifest.coverage.years) || [];
-    // Scaled to the best covered year OF THIS VARIABLE, not to the peak of the
-    // whole manifest. Under a global denominator the variables with structurally
-    // smaller counts (rain, PAR, night-time net radiation) turn into a row of
-    // indistinguishable stubs, and the panel stops showing the year-to-year
-    // variation it exists for.
+    // Scaled to the best covered year OF THIS VARIABLE: under a global denominator the structurally sparser
+    // variables (rain, PAR, night-time net radiation) turn into a row of indistinguishable stubs.
     let peak = 0;
     for (const entry of years) peak = Math.max(peak, (entry.hours || {})[state.variableId] || 0);
 
@@ -840,10 +762,8 @@
       const hours = (entry.hours || {})[state.variableId] || 0;
       const column = document.createElement("div");
       column.className = "clima-coverage-year";
-      // A bar `title` opens neither by keyboard nor by touch, so each column
-      // carries an accessible label of its own: without it the row of years
-      // reaches the tree with no value at all, and a year with no observation and
-      // a year with very few valid hours differ only by the dashed frame.
+      // A bar `title` opens neither by keyboard nor by touch, so each column carries an accessible label of its own:
+      // without it a year with no observation and a year with very few valid hours differ only by the dashed frame.
       column.setAttribute("role", "img");
       column.setAttribute(
         "aria-label",
@@ -868,21 +788,17 @@
       container.appendChild(column);
     }
 
-    // Hours of the variable on screen, not the year count of the whole record:
-    // `seasons[].years` is global, comes out the same for every variable and
-    // contradicts the bars just above, which are per variable.
+    // Hours of the variable on screen, not the year count of the whole record: `seasons[].years` is global, comes
+    // out the same for every variable and contradicts the per-variable bars just above.
     const seasons = (state.manifest.coverage && state.manifest.coverage.seasons) || [];
     const seasonNote = seasons
       .map((season) => `${season.season}: ${integer((season.hours || {})[state.variableId] || 0)} horas válidas`)
       .join(" · ");
-    // With the per-variable scale the top of the track means something different
-    // for each one, so the peak has to be written out: without the number, a
-    // sparsely measured variable would look as well covered as temperature.
+    // With the per-variable scale the top of the track means something different for each one, so without the peak
+    // written out a sparsely measured variable would look as well covered as temperature.
     const scaleNote = peak ? `Barras na escala do ano mais coberto desta variável: ${integer(peak)} horas.` : "";
     el("climaSeasons").textContent = [scaleNote, seasonNote].filter(Boolean).join(" ");
   }
-
-  // ─── Orchestration ────────────────────────────────────────────────────────
 
   function showEmpty(message) {
     el("climaApp").hidden = true;
@@ -898,9 +814,8 @@
     el("climaRoseWrap").hidden = !isRose;
     el("climaTitulo").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)}`;
 
-    // These three panels describe the VARIABLE, never the subset: they have to be
-    // redrawn even when the subset is empty, or the caveats, the bibliography and
-    // the coverage hours of the previous variable stay under the new title.
+    // These three describe the VARIABLE, never the subset: redrawn even on an empty subset, or the previous
+    // variable's caveats, bibliography and coverage hours stay under the new title.
     renderCaveats();
     renderReferences();
     renderCoverage();
@@ -911,9 +826,8 @@
       el("climaFitPanel").hidden = true;
       el("climaAtoms").textContent = "";
       el("climaLegenda").textContent = "";
-      // Table emptied by hand instead of through renderTable(): on a missing
-      // subset there is no subset object, and on a rose with no observations
-      // `frequencies` may be absent.
+      // Emptied by hand instead of through renderTable(): there may be no subset object at all, and a rose with no
+      // observations may be missing `frequencies`.
       el("climaTabelaBody").replaceChildren();
       el("climaTabelaCaption").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)} (0 observações)`;
       el("climaExport").disabled = true;
@@ -937,9 +851,8 @@
 
     el("climaExport").disabled = false;
     if (isRose) {
-      // Destroy the previous histogram so it does not stay registered on the
-      // hidden canvas — with the Chart.js listeners, its ResizeObserver and that
-      // variable's data — until the reader returns to a histogram variable.
+      // Destroy the previous histogram so it does not stay registered on the hidden canvas — with its listeners,
+      // its ResizeObserver and that variable's data — until the reader returns to a histogram variable.
       if (state.chart) {
         state.chart.destroy();
         state.chart = null;
@@ -966,20 +879,12 @@
       overflowNote(subset);
   }
 
-  /**
-   * A failure in ONE variable must not blank the whole page.
-   *
-   * Hiding `#climaApp` — which is all `showEmpty()` does — takes the variable
-   * selector down with it, and only `start()` brings it back; a file truncated on
-   * the server would leave the reader with no control to choose another variable
-   * until a reload. Here the app stays up and only the panels of the failed
-   * variable are cleared. The technical detail goes to the console: the JS engine
-   * message is in English and says nothing to whoever is reading the page.
-   */
+  // A failure in ONE variable must not blank the whole page: hiding `#climaApp`, which is all `showEmpty()` does,
+  // takes the variable selector down with it and only `start()` brings it back. The technical detail goes to the
+  // console — the engine message is in English and says nothing to whoever is reading the page.
   function variableFailed(error) {
     console.error(error);
-    // Mandatory: clearing this is what keeps the chart and the table of the
-    // previous variable from sitting under the label of the one that failed.
+    // Mandatory: keeps the previous variable's chart and table from sitting under the label of the one that failed.
     state.variable = null;
     const entry = (state.manifest.variables || []).find((item) => item.id === state.variableId);
     const label = entry ? entry.label : state.variableId;
@@ -999,9 +904,6 @@
     el("climaRefs").replaceChildren();
     el("climaRefsPanel").hidden = true;
     el("climaRose").replaceChildren();
-    // The two accessible labels as well: emptying the drawing without rewriting
-    // them leaves the screen reader announcing the previous variable's
-    // distribution.
     el("climaCanvas").setAttribute("aria-label", `Sem dados para exibir: os dados de ${label} não puderam ser lidos.`);
     el("climaRose").setAttribute("aria-label", `Sem dados para exibir: os dados de ${label} não puderam ser lidos.`);
     if (state.chart) {
@@ -1013,9 +915,8 @@
   }
 
   async function refresh() {
-    // Every change of variable or subset invalidates the responses still in
-    // flight: without this mark the slowest one arrives last and draws the old
-    // choice while the selector and the coverage panel already show the new one.
+    // Every change of variable or subset invalidates the responses still in flight: without this mark the slowest
+    // one arrives last and draws the old choice.
     const generation = (state.seq += 1);
     try {
       const variable = await loadVariable(state.variableId);
@@ -1052,8 +953,7 @@
       return;
     }
 
-    // Producer bibliography on top of the site's: the two coexist because they
-    // cover different things — model schemes versus density families.
+    // Producer bibliography on top of the site's: they cover different things — model schemes versus families.
     refs().register(state.manifest.references);
 
     if (!state.manifest.variables || !state.manifest.variables.length) {

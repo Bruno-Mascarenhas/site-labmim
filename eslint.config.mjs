@@ -18,10 +18,8 @@ export default defineConfig([
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: "latest",
-      // The pages load these files through a classic `<script src>` — no tag carries
-      // `type="module"` and the workers are instantiated without `{ type: "module" }`.
-      // Parsed as modules, a top-level `import`/`export`/`await` would lint clean and
-      // then break the browser, where the whole file fails to evaluate.
+      // Classic `<script src>` everywhere, workers included. Parsed as modules, a
+      // top-level `import`/`export`/`await` would lint clean and break the browser.
       sourceType: "script",
       globals: {
         ...globals.browser,
@@ -41,9 +39,8 @@ export default defineConfig([
       "no-console": ["warn", { allow: ["warn", "error", "info", "debug"] }],
       "no-useless-escape": "warn",
       "no-empty": "warn",
-      // In script scope the top-level declarations land in the global scope and clash
-      // with the very names listed under `globals`, which are listed there precisely
-      // because these files share that scope.
+      // In script scope top-level declarations land in the global scope and clash with
+      // the names under `globals`, listed there precisely because they share it.
       "no-redeclare": ["error", { builtinGlobals: false }],
     },
   },

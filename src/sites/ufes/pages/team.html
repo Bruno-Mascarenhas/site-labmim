@@ -1,9 +1,7 @@
 <!--
   Same reason as the UFBA team.html: `.team-group a` zeroes the underline and
-  colour alone cannot tell a Lattes link apart from the prose around it
-  (WCAG 1.4.1/G183), so the underline is explicit in a style attribute. The CSP
-  allows style-src 'unsafe-inline' for style attributes, and a new utility class
-  would not survive the Bootstrap purge.
+  colour alone cannot mark the Lattes links (WCAG 1.4.1/G183), so the underline
+  is explicit in a style attribute — a utility class would not survive the purge.
 -->
 <div class="modern-section">
   <div class="page-header">

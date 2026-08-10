@@ -1,29 +1,9 @@
-/**
- * DATA SERVICE
- *
- * Shared JSON fetch/cache layer for the WebGIS pages.
- *
- * Responsibilities:
- *   - In-memory LRU-ish cache of parsed JSON payloads (bounded size).
- *   - In-flight request deduplication: concurrent requests for the same URL
- *     share a single network fetch + parse.
- *   - Short-lived negative cache: URLs that failed recently are not
- *     re-requested on every playback tick.
- *   - Off-main-thread parsing via the JSON parser Web Worker, with a
- *     transparent fallback to main-thread fetch when the worker script
- *     fails to load or crashes (workers fail asynchronously, so the
- *     constructor try/catch alone cannot catch that).
- */
-
-// 400 entries x ~47KB average parsed payload keeps one full playback loop
-// (73 steps + wind overlays) AND an open time-series modal in memory at
-// once (~19MB, fine for a data-viz page).
-// When the manifest advertises a longer timeline the map manager raises the
-// limit via ensureCacheLimit() so longer runs never thrash mid-loop.
+// ~47KB per parsed payload: 400 entries hold one full playback loop (73 steps
+// + wind overlays) plus an open time-series modal. map-manager raises it via
+// ensureCacheLimit() when the manifest advertises a longer timeline.
 const DATA_SERVICE_CACHE_LIMIT = 400;
-// Deterministic 404s (files the pipeline never exports) stay negative-cached
-// for a full minute; transient failures (network/5xx) may recover at any
-// moment, so they only get a few playback ticks.
+// Deterministic 404s (files the pipeline never exports) stay cached for a full
+// minute; transient failures may recover at any moment.
 const DATA_SERVICE_FAILURE_TTL_MS = 60000;
 const DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS = 4000;
 
@@ -59,10 +39,9 @@ class LabmimDataService {
       if (!callback) return;
       this._workerCallbacks.delete(id);
       if (error) {
-        // The worker protocol carries only { id, error, status }: the URL
-        // comes from the callback stored in _workerFetch, so a failing file
-        // is named here just as _mainThreadFetch names it — an incomplete FTP
-        // upload otherwise yields N indistinguishable console errors.
+        // The worker reply carries no URL, so the failing file is named from
+        // the stored callback — an incomplete FTP upload otherwise yields N
+        // indistinguishable console errors.
         callback.reject(Number.isFinite(status) ? this._httpError(status, callback.url) : new Error(error));
       } else {
         callback.resolve(data);
@@ -77,9 +56,9 @@ class LabmimDataService {
   }
 
   /**
-   * Worker script failed to load or crashed. Pending requests are rejected
-   * with a marker error so fetchJson can transparently retry them on the
-   * main thread; later requests skip the worker entirely.
+   * Workers fail asynchronously, so the constructor try/catch cannot see a
+   * script that never loads or later crashes. Pending requests are rejected
+   * with a marker error `_fetchAndParse` retries on the main thread.
    */
   _handleWorkerFailure(reason) {
     console.warn("JSON worker failed, falling back to main-thread fetch:", reason);
@@ -104,9 +83,8 @@ class LabmimDataService {
   }
 
   /**
-   * Fetch and parse a JSON URL with caching, in-flight deduplication and
-   * negative caching. `options.signal` aborts only this caller's view of
-   * the request — the shared underlying fetch keeps running for others.
+   * `options.signal` aborts only this caller's view of the request — the
+   * shared underlying fetch keeps running for the other callers.
    */
   fetchJson(url, options = {}) {
     if (options.signal?.aborted) {
@@ -114,9 +92,8 @@ class LabmimDataService {
     }
 
     if (this._cache.has(url)) {
-      // Refresh recency (delete+set moves the key to the end of the Map) so
-      // eviction is LRU instead of insertion-order FIFO — otherwise entries
-      // still hot in the current playback loop get evicted first.
+      // delete+set moves the key to the end of the Map, making eviction LRU
+      // instead of FIFO — a FIFO drops entries still hot in the playback loop.
       const cached = this._cache.get(url);
       this._cache.delete(url);
       this._cache.set(url, cached);
@@ -184,10 +161,9 @@ class LabmimDataService {
   }
 
   /**
-   * Builds a fetch error tagged with the HTTP status and a `notFound` flag.
-   * `notFound` marks a deterministically absent resource (404/403/410) — e.g.
-   * SWDOWN night hours the pipeline never exports — which callers may treat as
-   * expected rather than as a transient failure.
+   * `notFound` marks a deterministically absent resource — e.g. SWDOWN night
+   * hours the pipeline never exports — which callers treat as an expected gap
+   * rather than a failure.
    */
   _httpError(status, url) {
     const error = new Error(`Dados não encontrados (HTTP ${status}): ${url}`);
@@ -210,7 +186,6 @@ class LabmimDataService {
     this._cache.set(url, data);
   }
 
-  /** Grow (never shrink) the cache so a full playback loop stays resident. */
   ensureCacheLimit(limit) {
     if (Number.isFinite(limit) && limit > this.cacheLimit) {
       this.cacheLimit = limit;
@@ -218,10 +193,8 @@ class LabmimDataService {
   }
 
   /**
-   * Drops every cached payload and negative-cache entry (in-flight requests
-   * finish on their own). Used when a new pipeline run is detected: the
-   * fixed-name files now hold different data, so nothing cached under the
-   * old run may be served again.
+   * Called when a new pipeline run is detected: the fixed-name files now hold
+   * different data, so nothing cached under the old run may be served again.
    */
   clear() {
     this._cache.clear();

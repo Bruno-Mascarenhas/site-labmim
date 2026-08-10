@@ -28,18 +28,12 @@ function run(command, args, label) {
   if (result.status !== 0) throw new Error(`${label} failed`);
 }
 
-/**
- * Model output only. Station plots (assets/graphs) are deliberately NOT listed here:
- * they are committed, so both this check and scripts/check-links.mjs must verify that
- * every referenced plot exists. scripts/build-all.mjs keeps them out of dist/ bundles
- * instead, which is a packaging concern rather than a validation one — exempting them
- * here as well would let a typo in dataset.observations reach production unnoticed.
- */
+// Model output only. Station plots (assets/graphs) are committed, so this check and
+// check-links.mjs must verify every referenced plot exists; exempting them here too
+// would let a typo in dataset.observations reach production unnoticed. build-all.mjs
+// still keeps them out of dist/, which is packaging rather than validation.
 const OPERATIONAL_OPTIONS = Object.freeze({ includeGraphs: false });
 
-// Path composition lives in site-builder/operational-paths.js so that every script
-// derives the same set from `dataset.paths` instead of enumerating those fields by
-// hand, where one script silently drifts from another.
 function operationalDirectories(publication) {
   return publicationOperationalPaths(publication, OPERATIONAL_OPTIONS).directories;
 }
@@ -49,15 +43,11 @@ function isOperationalDataPath(publication, relativePath) {
   return isOperationalPath(relativePath.split(path.sep).join("/"), declared);
 }
 
-// Placeholders that legitimately keep an otherwise-ignored directory in git.
 const OPERATIONAL_PLACEHOLDERS = new Set([".keep", ".gitkeep"]);
 
-/**
- * Pipeline output must stay out of git. Rather than reason about .gitignore glob
- * coverage — where `site/JSON/*.json` looks like it covers the directory while a
- * `.csv` or `.bin` sibling slips through — assert the actual tracked state: no file
- * under a declared operational directory may be committed, except a bare placeholder.
- */
+// Asserts the tracked state rather than reasoning about .gitignore glob coverage,
+// where `site/JSON/*.json` looks like it covers the directory while a `.csv` or `.bin`
+// sibling slips through.
 function assertOperationalDataIgnored() {
   const leaked = [];
   for (const publication of publications) {
@@ -90,8 +80,8 @@ function assertLocalReferences(publication) {
   for (const pageFile of pages) {
     const html = fs.readFileSync(path.join(siteRoot, pageFile), "utf8");
     for (const rawValue of htmlReferences(html)) {
-      // No originPrefix: a same-origin absolute URL to this publication's own host is
-      // external here (the reference check only resolves root- and page-relative paths).
+      // Empty originPrefix: only root- and page-relative paths resolve here, so a
+      // same-origin absolute URL to this publication's own host counts as external.
       if (isExternalReference(rawValue, "")) continue;
       const cleanValue = rawValue.split(/[?#]/, 1)[0];
       if (!cleanValue) continue;
@@ -168,9 +158,8 @@ function buildAndValidate(publication) {
   run(process.execPath, [htmlValidate, ...htmlFiles], `HTML validation ${publication.id}`);
   run(process.execPath, [purgeCheck], `Bootstrap/PurgeCSS validation ${publication.id}`);
   // Both vendor subsets are shared by every publication while site/ holds one at a
-  // time, so a page that introduces a new icon only fails while its own publication is
-  // rendered. Running the check here puts it inside `npm run build:check` — the command
-  // the guide points a new maintainer at — instead of three CI steps later.
+  // time, so a page introducing a new icon only fails while its own publication is
+  // rendered — hence per publication, inside build:check, not once later in CI.
   run(process.execPath, [iconCheck], `Font Awesome subset validation ${publication.id}`);
 
   const index = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");

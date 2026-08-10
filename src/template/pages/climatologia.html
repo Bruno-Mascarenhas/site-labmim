@@ -1,15 +1,12 @@
-<!-- Shared page: any publication that declares `dataset.paths.climatology` can
- enable it. Everything below is filled at runtime by assets/js/climatologia.js
- from the JSON in that directory — nothing here is specific to LabMiM, so a
- publication with a record of its own reuses the whole page just by publishing
- its data. -->
+<!-- Shared page: any publication declaring `dataset.paths.climatology` enables
+ it, and everything below is filled at runtime by assets/js/climatologia.js from
+ the JSON in that directory. Nothing here is specific to LabMiM. -->
   <div class="modern-section" id="climatologia" data-climatology-base="{{CLIMATOLOGY_BASE}}">
     <div class="modern-header mb-4">
       <h2><i class="fas fa-cloud-sun me-2"></i>Climatologia</h2>
       <p id="climaPeriodo">Distribuições estatísticas do registro observado</p>
     </div>
 
-    <!-- EXPLANATION BLOCK -->
     <div class="text-center mb-3">
       <button
         class="btn btn-sm btn-outline-secondary"
@@ -59,13 +56,11 @@
       <hr class="mb-4 max-w-1000" />
     </div>
 
-    <!-- LOADING / EMPTY STATES -->
     <div class="clima-empty" id="climaEmpty" hidden>
       <p id="climaEmptyMessage">Carregando distribuições…</p>
     </div>
 
     <div id="climaApp" hidden>
-      <!-- CONTROLS -->
       <div class="clima-controls" role="group" aria-label="Seleção de variável e recorte">
         <div class="clima-control">
           <label class="clima-control-label" for="climaVariavel">Variável</label>
@@ -80,7 +75,6 @@
         </div>
       </div>
 
-      <!-- CHART -->
       <div class="theme-surface clima-panel">
         <div class="clima-panel-head">
           <h3 class="clima-panel-title" id="climaTitulo">—</h3>
@@ -92,9 +86,8 @@
         </div>
 
         <div class="clima-rose-wrap" id="climaRoseWrap" hidden>
-          <!-- Wind rose drawn in SVG by climatologia.js: direction is circular
-         and no Chart.js type takes the theoretical curve overlaid on a radial
-         scale. -->
+          <!-- Drawn in SVG by climatologia.js: no Chart.js type overlays the
+         theoretical curve on a radial scale. -->
           <svg
             id="climaRose"
             class="clima-rose"
@@ -107,30 +100,24 @@
         <p class="clima-status" id="climaStatus" aria-live="polite"></p>
       </div>
 
-      <!-- STATISTICS -->
       <div class="clima-stats" id="climaStats"></div>
 
-      <!-- THEORETICAL FIT -->
       <div class="theme-surface clima-panel clima-fit" id="climaFitPanel">
         <h3 class="clima-panel-title" id="climaFitTitulo">Ajuste teórico</h3>
         <div class="clima-fit-grid" id="climaFit"></div>
         <p class="clima-atoms" id="climaAtoms"></p>
       </div>
 
-      <!-- CAVEATS -->
       <ul class="clima-caveats" id="climaCaveats"></ul>
 
-      <!-- REFERENCES -->
-      <!-- The citations in the text above are links carrying the full record in
-       the tooltip; this panel repeats the same sources in full, for a reader who
-       wants to read them rather than just check the provenance. Filled by
+      <!-- Repeats in full the sources the inline citations link to, for a reader
+       who wants to read them rather than check provenance. Filled by
        climatologia.js from the bibliography published in the manifest. -->
       <div class="theme-surface clima-panel clima-refs-panel" id="climaRefsPanel" hidden>
         <h3 class="clima-panel-title">Referências desta variável</h3>
         <ol class="clima-refs" id="climaRefs"></ol>
       </div>
 
-      <!-- TABLE — the non-visual alternative to the canvas -->
       <div class="text-center mb-3">
         <button
           class="btn btn-sm btn-outline-secondary"
@@ -150,10 +137,9 @@
             <caption id="climaTabelaCaption">
               Valores do gráfico acima
             </caption>
-            <!-- The headers stay static and only their text is filled at
-           runtime: emitting `scope="col"` from JavaScript would make
-           scripts/check-bootstrap-purge.mjs read "col" as a Bootstrap class in
-           use and demand a regeneration of the purged CSS. -->
+            <!-- Headers stay static, only their text is filled at runtime:
+           emitting `scope="col"` from JavaScript makes check-bootstrap-purge.mjs
+           read "col" as a Bootstrap class in use. -->
             <thead>
               <tr id="climaTabelaHead">
                 <th scope="col"></th>
@@ -167,7 +153,6 @@
         </div>
       </div>
 
-      <!-- RECORD COVERAGE -->
       <div class="theme-surface clima-panel">
         <h3 class="clima-panel-title">Cobertura do registro</h3>
         <p class="clima-panel-note">

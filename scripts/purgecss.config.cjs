@@ -1,37 +1,23 @@
 /**
- * PurgeCSS configuration that generates
- * assets/vendor/bootstrap/bootstrap.purged.min.css from the full bootstrap.min.css
- * (which stays vendored alongside it).
- *
- * To regenerate (after changing Bootstrap classes in the HTML/JS):
- *   npm run purge:bootstrap
- *
- * Use the script, not the CLI directly: PurgeCSS names its output after the basename
- * of the input, so `--output site/assets/vendor/bootstrap/` overwrites the very full
- * bootstrap.min.css that serves as its source.
- *
- * The purged file is a SINGLE file shared by every publication, but `site/` holds one
- * publication at a time. That is why the analysed content includes `dist/<id>/*.html`
- * (the output of `npm run build:all`): regenerating from `site/` alone would strip
- * classes used only by the other publications.
- *
- * The `npm run lint:purge` check (scripts/check-bootstrap-purge.mjs) fails when a new
- * Bootstrap class reaches the site without a rule in the purged file.
- *
- * The safelist covers the classes Bootstrap's JS plugins toggle at runtime (only
- * collapse and modal are used on the site) plus generic states.
+ * Generates bootstrap.purged.min.css from the full bootstrap.min.css vendored beside
+ * it. Regenerate with `npm run purge:bootstrap`, never the purgecss CLI directly —
+ * see scripts/purge-bootstrap.mjs.
  */
 module.exports = {
+  // One purged file serves every publication while site/ holds one at a time, so the
+  // corpus includes dist/<id>/*.html (npm run build:all); site/ alone would strip the
+  // classes only another publication uses.
   content: ["site/*.html", "dist/*/*.html", "site/assets/js/**/*.js"],
   css: ["site/assets/vendor/bootstrap/bootstrap.min.css"],
-  // Keep the --bs-* variables and the @keyframes (spinner-border drives the loading
-  // overlays of the maps).
+  // false = do not purge: keeps the --bs-* variables and @keyframes (spinner-border
+  // drives the loading overlays of the maps).
   variables: false,
   keyframes: false,
   fontFace: false,
   safelist: {
+    // Toggled at runtime by Bootstrap's JS (collapse on the navbar, modal on
+    // monitoring) or by ours, so they are kept whatever the corpus happens to show.
     standard: [
-      // Bootstrap Collapse (navbar)
       "collapse",
       "collapsing",
       "collapse-horizontal",
@@ -39,11 +25,9 @@ module.exports = {
       "showing",
       "hiding",
       "fade",
-      // Bootstrap Modal (monitoring page)
       "modal-open",
       "modal-backdrop",
       "modal-static",
-      // Generic states toggled at runtime
       "active",
       "disabled",
     ],

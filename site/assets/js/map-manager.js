@@ -1,10 +1,12 @@
 const PLAYBACK_INTERVAL_MS = 800;
 const PREFETCH_AHEAD_STEPS = 2;
-// Mirrors DAYLIGHT_ONLY_VARIABLES in the pipeline (value_source.py): the four
-// shortwave variables are only exported during the daylight window. Used only
-// as the fallback when no v2 manifest is available; with one, `availability`
-// is authoritative.
+// One playback loop (values + wind overlay) plus an open modal must stay resident.
+const CACHE_ENTRIES_PER_TIMELINE_STEP = 5.5;
+// Mirrors DAYLIGHT_ONLY_VARIABLES in the pipeline (value_source.py). Fallback only:
+// with a v2 manifest, `availability` is authoritative.
 const DAYLIGHT_ONLY_VARIABLE_IDS = new Set(["SWDOWN", "SWUP", "SWNET", "KT"]);
+const DAYLIGHT_FALLBACK_FIRST_LOCAL_HOUR = 6;
+const DAYLIGHT_FALLBACK_LAST_LOCAL_HOUR = 18;
 
 function workerScriptUrl(fileName) {
   if (!workerScriptUrl._hashes) {
@@ -17,8 +19,7 @@ function workerScriptUrl(fileName) {
     workerScriptUrl._hashes = hashes;
   }
   const version = workerScriptUrl._hashes[fileName];
-  // No hash (HTML served without a build) means no ?v= at all: a fixed token
-  // would be frozen as immutable by the .htaccess rule and pin an old worker.
+  // A fixed fallback token would be frozen as immutable by the .htaccess rule and pin an old worker.
   return version ? `assets/js/workers/${fileName}?v=${encodeURIComponent(version)}` : `assets/js/workers/${fileName}`;
 }
 function readSiteConfig() {
@@ -78,7 +79,6 @@ function _debounce(fn, delay) {
   };
 }
 
-/** Ray-casting point-in-polygon for GeoJSON Polygon/MultiPolygon features. */
 function _pointInRing(lng, lat, ring) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -114,16 +114,14 @@ class MeteoMapManager {
   constructor() {
     this.mapContext = this.resolveMapContext();
     this.contextConfig = VARIABLE_CONTEXTS[this.mapContext] || VARIABLE_CONTEXTS.forecast;
-    // Pipeline run version, adopted from the manifest by applyManifest and
-    // appended as ?v= to every data URL so the fixed-name data files can be
-    // cached long-term. Null (no manifest) keeps plain URLs.
+    // Pipeline run version from the manifest, appended as ?v= to every data URL so
+    // the fixed-name files can be cached long-term.
     this.dataVersion = null;
     this.map = null;
     this.currentGeoJsonLayer = null;
     this.currentValueData = null;
-    // Which (domain, variable, timestep) currentValueData holds, so a click can
-    // tell whether the loaded data matches the current view or is still
-    // catching up after a rapid slider/variable/domain change.
+    // Which (domain, variable, timestep) currentValueData holds, so a click can tell
+    // whether the load has caught up with the current view.
     this._currentValueKey = null;
     // The in-flight applyMapChanges() load, tagged with the view it targets.
     this._currentApply = null;
@@ -133,8 +131,7 @@ class MeteoMapManager {
       workerUrl: workerScriptUrl("json-parser.worker.js"),
     });
 
-    // Timeline contract from a v2 manifest (applyManifest). Until one arrives,
-    // the selected dataset supplies the static build defaults.
+    // Timeline contract from a v2 manifest; until one arrives, the build defaults hold.
     this.timeline = {
       indexMin: 1,
       indexMax: null,
@@ -180,9 +177,7 @@ class MeteoMapManager {
       type: this.contextConfig.defaultVariable,
       domain: MAP_SITE_CONFIG.defaultDomain,
       index: DEFAULT_INITIAL_INDEX,
-      // Accumulation window (hours) for variables that declare one; a single
-      // step for everything else. configureAccumulationSelector re-anchors it
-      // to the selected variable's default.
+      // Accumulation window in hours; re-anchored per variable by configureAccumulationSelector.
       accumHours: 1,
       isPlaying: false,
       hasUserControlledPlayback: false,
@@ -220,11 +215,8 @@ class MeteoMapManager {
   }
 
   /**
-   * The variables the sidebar actually consumes for the current selection: the
-   * active variable plus the companions its specificInfo reads (declared
-   * per-variable as `relatedVariables` in VARIABLES_CONFIG). Narrowing the set
-   * matters because fetching every visible variable would pull ~10 full-domain
-   * files per map click to display at most three numbers.
+   * The active variable plus the companions its specificInfo reads: fetching every
+   * visible one would pull ~10 full-domain files per click to show three numbers.
    */
   getRelatedVariableTypes() {
     const variables = new Set([this.state.type]);
@@ -234,20 +226,12 @@ class MeteoMapManager {
     return [...variables];
   }
 
-  /**
-   * Fetches JSON through the shared data service (cache, in-flight dedup,
-   * negative cache and worker parsing with main-thread fallback). Must stay a
-   * method: ChartsManager reaches it as app._cachedFetch.
-   */
+  /** Must stay a method: ChartsManager reaches it as app._cachedFetch. */
   _cachedFetch(url, options = {}) {
     return this.dataService.fetchJson(url, options);
   }
 
-  /**
-   * Appends the pipeline run version to a data URL. Every run publishes a new
-   * version, so versioned URLs may be cached aggressively without ever pinning
-   * a stale forecast; without a manifest the plain URL keeps revalidating.
-   */
+  /** Every pipeline run publishes a new version, so a versioned URL never pins a stale forecast. */
   dataUrl(path) {
     return this.dataVersion ? `${path}?v=${encodeURIComponent(this.dataVersion)}` : path;
   }
@@ -256,7 +240,6 @@ class MeteoMapManager {
     return `${DATA_SITE_CONFIG.valuesBase}/${domain}_${variableId}_${String(index).padStart(3, "0")}.json`;
   }
 
-  /** Compact grid; gridGeoJsonPath below is the legacy fallback. */
   gridJsonPath(domain) {
     return `${DATA_SITE_CONFIG.gridsBase}/${domain}.grid.json`;
   }
@@ -266,11 +249,8 @@ class MeteoMapManager {
   }
 
   /**
-   * Adopts a pipeline manifest: the run version for ?v= URLs and, when the v2
-   * fields are present, the timeline contract — step range, per-variable
-   * availability and consolidated-artifact descriptors. Reading them from the
-   * manifest keeps a longer run or a newly gated variable from requiring an
-   * edit here.
+   * Adopts a pipeline manifest: the run version for ?v= URLs and, on v2, the timeline
+   * contract, so a longer run or a newly gated variable never requires an edit here.
    */
   applyManifest(manifest) {
     if (typeof manifest?.version === "string" && manifest.version) {
@@ -280,21 +260,16 @@ class MeteoMapManager {
     if (Number.isInteger(manifest?.index_max) && manifest.index_max >= 1) {
       this.timeline.indexMax = manifest.index_max;
       this.timeline.indexMin = Number.isInteger(manifest.index_min) ? Math.max(1, manifest.index_min) : 1;
-      // One playback loop (values + wind overlay) plus an open modal must stay
-      // resident, so the cache budget scales with the timeline length.
-      this.dataService.ensureCacheLimit(Math.ceil(manifest.index_max * 5.5));
+      this.dataService.ensureCacheLimit(Math.ceil(manifest.index_max * CACHE_ENTRIES_PER_TIMELINE_STEP));
     } else {
-      // A v1 manifest (or a rollback) carries no timeline: the previous run's
-      // longer range must not survive it.
+      // A v1 manifest (or a rollback) carries no timeline: the previous run's range must not survive it.
       this.timeline.indexMax = null;
       this.timeline.indexMin = 1;
     }
     this.state.maxLayer = this.timeline.indexMax ?? DEFAULT_MAX_LAYER;
     if (this.ui.slider) {
       this.ui.slider.max = String(this.state.maxLayer);
-      // The floor follows the manifest for the same reason the ceiling does: a
-      // --skip-first run starts above 1, and any position below indexMin is
-      // draggable but unloadable.
+      // A --skip-first run starts above 1, and any position below indexMin is draggable but unloadable.
       this.ui.slider.min = String(this.timeline.indexMin);
       if (parseInt(this.ui.slider.value, 10) > this.state.maxLayer) {
         this.ui.slider.value = String(this.state.maxLayer);
@@ -310,11 +285,8 @@ class MeteoMapManager {
       manifest?.availability && typeof manifest.availability === "object" ? manifest.availability : null;
     this.timeline.features = manifest?.features && typeof manifest.features === "object" ? manifest.features : null;
 
-    // Anchor the date labels to the run start instead of waiting for the first
-    // loaded file's metadata. start_local is the local datetime of FILE INDEX 0
-    // (the wrfout's first time step), so it always pairs with initialIndex 0,
-    // never with index_min — that is merely the first index the run wrote, and
-    // skip-first runs have index_min > 0.
+    // start_local is the local datetime of FILE INDEX 0, so it always pairs with
+    // initialIndex 0 — never index_min, which a skip-first run pushes above 0.
     if (typeof manifest?.start_local === "string") {
       try {
         const parsed = this.parseDateTime(manifest.start_local);
@@ -328,29 +300,21 @@ class MeteoMapManager {
       }
     }
 
-    // Only now are the steps where the current variable exists known, and the
-    // inherited index (the document's on open, or the paused position on a new
-    // run) may not be one of them. Snapping here, before the label is drawn,
-    // keeps the potentials page from opening on an empty frame: the solar
-    // variables are not exported overnight, yet the document's initial index is
-    // the same for every variable.
+    // Availability is only known now, and the inherited index may not be one of the
+    // steps this variable was exported at (the solar ones are absent overnight).
     this._snapIndexToAvailable();
 
     this.updateDateTime();
   }
 
   /**
-   * Reacts to a manifest re-check. First manifest of the session (slow first
-   * fetch): adopt it in place. Genuinely new run behind the same fixed file
-   * names: drop every cache keyed on the old bytes (parsed JSON, chart series,
-   * grid layers), close the views built from them, re-anchor the timeline and
-   * repaint. No-op while the version is unchanged.
+   * Reacts to a manifest re-check. A genuinely new run behind the same fixed file
+   * names invalidates every cache keyed on the old bytes; no-op while unchanged.
    */
   handleManifestUpdate(manifest, chartsManagerInstance = this.chartsManager) {
     if (!manifest?.version) return;
     if (!this.dataVersion) {
-      // Session ran unversioned so far: same run, just late, so nothing cached
-      // is stale.
+      // Session ran unversioned so far: same run, just late, so nothing is stale.
       this.applyManifest(manifest);
       this.applyMapChanges();
       return;
@@ -359,14 +323,11 @@ class MeteoMapManager {
 
     this.dataService.clear();
     chartsManagerInstance?.clearCaches?.();
-    // The open modal/sidebar describe the previous run's series and cell
-    // values; closing them beats showing yesterday's forecast next to today's
-    // map.
+    // Both describe the previous run: closing beats showing two runs side by side.
     chartsManagerInstance?.closeModal?.();
     this.closeSidebar();
-    // Grid geometry can change between runs (re-gridded domain): rebuild
-    // layers from the new run's files. The generation token keeps an
-    // in-flight old-run grid fetch from repopulating the cache after it.
+    // Grid geometry can change between runs; the generation token keeps an in-flight
+    // old-run fetch from repopulating the cache after this reset.
     this.gridLayers = {};
     this._gridLayerPromises.clear();
     this._gridGeneration = (this._gridGeneration || 0) + 1;
@@ -375,25 +336,21 @@ class MeteoMapManager {
     this.state.initialIndex = null;
     this.applyManifest(manifest);
 
-    // The paused position may not exist in the new run's timeline; applyManifest
-    // just above is what snaps the index back onto the published grid.
+    // Safe only after applyManifest: it snapped the paused index onto the new grid.
     this.applyMapChanges();
     this.scheduleVariablePreviewRefresh();
   }
 
   /**
-   * Whether the pipeline exports this variable at this timestep. Prefers the
-   * manifest's availability ranges (derived from the files actually written);
-   * the legacy fallback derives the daylight window of the shortwave variables
-   * from the forecast anchor (6h-18h local) and optimistically allows the index
-   * when no anchor is known yet — a miss is a handled 404, never a wrong blank.
+   * Whether the pipeline exports this variable at this step. Manifest ranges win; the
+   * legacy fallback optimistically allows the index when no anchor is known yet — a
+   * miss is a handled 404, never a wrong blank.
    */
   isIndexAvailable(index, type = this.state.type) {
     const config = VARIABLES_CONFIG[type];
     if (!config) return true;
 
-    // A v2 manifest bounds the whole timeline (skip-first runs start above
-    // index 1); variables absent from `availability` cover that full range.
+    // A v2 manifest bounds the whole timeline; variables absent from `availability` cover it all.
     if (this.timeline.indexMax !== null && (index < this.timeline.indexMin || index > this.timeline.indexMax)) {
       return false;
     }
@@ -407,13 +364,12 @@ class MeteoMapManager {
     const date = this.calculateTargetDateFromIndex(index);
     if (!date) return true;
     const hour = date.getUTCHours();
-    return hour >= 6 && hour <= 18;
+    return hour >= DAYLIGHT_FALLBACK_FIRST_LOCAL_HOUR && hour <= DAYLIGHT_FALLBACK_LAST_LOCAL_HOUR;
   }
 
   /**
-   * First index with data at or after `from`, wrapping past maxLayer to 1.
-   * Returns `from` unchanged when everything up to a full lap is
-   * unavailable (the load path then shows the honest no-data state).
+   * First index with data at or after `from`, wrapping past maxLayer to indexMin;
+   * `from` unchanged when a full lap finds nothing (the load path then shows no-data).
    */
   nextPlayableIndex(from, type = this.state.type) {
     const maxLayer = this.state.maxLayer;
@@ -429,11 +385,9 @@ class MeteoMapManager {
   }
 
   /**
-   * Moves the current step (and the slider with it) to the first step where
-   * `type` exists, returning the index now in effect. The shortwave variables
-   * are only exported during daylight, so inheriting the previous variable's
-   * step would leave the map blank at an instant the pipeline never published,
-   * with nothing to hint that moving along the timeline fixes it.
+   * Moves the current step (and the slider) to the first one where `type` exists.
+   * The shortwave variables only exist by day, and a blank map at an instant the
+   * pipeline never published gives no hint that moving the timeline fixes it.
    */
   _snapIndexToAvailable(type = this.state.type) {
     if (this.isIndexAvailable(this.state.index, type)) return this.state.index;
@@ -443,17 +397,11 @@ class MeteoMapManager {
     return next;
   }
 
-  /** Accumulation contract of a variable, or null when it has no window selector. */
   getAccumulationConfig(variableType = this.state.type) {
     const accumulation = VARIABLES_CONFIG[variableType]?.accumulation;
     return Array.isArray(accumulation?.options) && accumulation.options.length ? accumulation : null;
   }
 
-  /**
-   * The accumulation option in effect for `variableType`: the selected window
-   * when the variable offers it, otherwise the declared default. A variable
-   * without accumulation returns null and is read as a single step.
-   */
   getAccumulationOption(variableType = this.state.type) {
     const accumulation = this.getAccumulationConfig(variableType);
     if (!accumulation) return null;
@@ -465,12 +413,9 @@ class MeteoMapManager {
   }
 
   /**
-   * How many steps actually went into the painted field. Near the start of the
-   * timeline the accumulation window runs out of earlier steps and shortens
-   * (the `break` in _fetchValues), so the on-screen total can cover one hour
-   * while the selected button says three. Anything that is not the field on
-   * screen — another variable, nothing loaded yet, a payload from another
-   * step — reports the nominal window.
+   * How many steps really went into the painted field: near the start of the timeline
+   * the accumulation window runs out of earlier steps and shortens (the `break` in
+   * _fetchValues). Anything that is not the field on screen reports the nominal window.
    */
   getAccumulatedSteps(variableType = this.state.type) {
     const nominal = this.getAccumulationOption(variableType)?.hours || 1;
@@ -480,11 +425,9 @@ class MeteoMapManager {
   }
 
   /**
-   * VARIABLES_CONFIG entry resolved against the current accumulation window:
-   * a 3h precipitation total needs its own colorbar range and label, but
-   * shares everything else (palette, unit, specificInfo) with the 1h field.
-   * Every consumer of the *displayed* variable must read this, not
-   * VARIABLES_CONFIG directly.
+   * VARIABLES_CONFIG resolved against the current accumulation window: a 3h total
+   * needs its own range and label. Every consumer of the *displayed* variable must
+   * read this, not VARIABLES_CONFIG directly.
    */
   getVariableConfig(variableType = this.state.type) {
     const config = VARIABLES_CONFIG[variableType];
@@ -493,9 +436,7 @@ class MeteoMapManager {
     const steps = this.getAccumulatedSteps(variableType);
     return {
       ...config,
-      // On a shortened window the label states the window the field really
-      // covers: announcing a 1h total as a 3h total is a wrong scientific
-      // reading with nothing on screen to give it away.
+      // On a shortened window, announcing a 1h total as a 3h one is a wrong reading.
       label:
         steps < option.hours ? `${config.label} (${steps}h de ${option.hours}h)` : option.variableLabel || config.label,
       scaleMax: Number.isFinite(option.scaleMax) ? option.scaleMax : config.scaleMax,
@@ -520,9 +461,7 @@ class MeteoMapManager {
       this.windHeight = height;
       if (this.state.type === "eolico") {
         this._applyMapChangesReselecting(this.state.selectedCell);
-        // The overview panel summarizes the height-resolved variable
-        // (POT_EOLICO_50M/100M/150M), so without a refresh its chart and stats
-        // would describe the previous hub height under the new map.
+        // The panel summarizes the height-resolved variable, so it must follow the map.
         this.scheduleVariablePreviewRefresh();
       }
     }
@@ -535,9 +474,7 @@ class MeteoMapManager {
 
     this.state.accumHours = hours;
     this.updateAccumulationButtons();
-    // Each window has its own range, and repainting the legend up front keeps a
-    // failed load from leaving the previous window's scale under a button that
-    // already shows the new one.
+    // Repaint up front, or a failed load leaves the previous window's scale under the new button.
     this.updateColorbar(this.getVariableConfig(), null);
     this._applyMapChangesReselecting(this.state.selectedCell);
   }
@@ -701,10 +638,8 @@ class MeteoMapManager {
   }
 
   sanitizeNumericInput(value) {
-    // The comma is the decimal separator for anyone writing in Portuguese, and
-    // the key `inputmode="decimal"` offers on a phone keyboard. Converting it to
-    // a dot preserves the intent; dropping it as an invalid character would turn
-    // "1,225" into a silently accepted 1225.
+    // The comma is the decimal separator in Portuguese and what `inputmode="decimal"`
+    // offers on a phone; dropping it would turn "1,225" into an accepted 1225.
     let sanitized = value.replace(/,/g, ".").replace(/[^\d.-]/g, "");
 
     const decimalParts = sanitized.split(".");
@@ -721,9 +656,7 @@ class MeteoMapManager {
   }
 
   saveParameterInput(variableType, input) {
-    // Sanitizing again on purpose: the `input` listener is not the only route to
-    // a save (pasting into a filled field, autofill), so whoever writes the
-    // value normalizes it.
+    // Sanitize again: `input` is not the only route to a save (paste, autofill).
     const value = this.sanitizeNumericInput(input.value).trim();
     const paramName = input.dataset.param;
 
@@ -771,11 +704,8 @@ class MeteoMapManager {
         input.addEventListener("keydown", (e) => {
           if (e.key === "Enter" || e.code === "Enter") {
             e.preventDefault();
-            // Deliberately no `blur()`: the value is already saved here, and
-            // dropping focus would both repeat the save through the blur
-            // listener and land keyboard users on <body>, where the next Tab
-            // restarts at the top of the page instead of moving to the next
-            // parameter.
+            // Deliberately no `blur()`: it would repeat the save through the blur
+            // listener and drop keyboard users on <body>, restarting Tab at the top.
             validateAndSave(e);
           }
         });
@@ -859,13 +789,9 @@ class MeteoMapManager {
 
     const existingEditor = existingSpecific.querySelector(".parameters-editor");
 
-    // This recalculation is triggered by the `blur` of an editor field, i.e. by
-    // the Tab already on its way to the next field. Recreating the editor would
-    // destroy exactly the field about to receive focus, dropping it on <body>
-    // and leaving the remaining parameters unreachable by keyboard. When the
-    // editor on screen already belongs to the displayed variable, only the stat
-    // block is redrawn and the editor stays the same node, focus and open state
-    // intact.
+    // This runs on the `blur` of an editor field, i.e. with Tab already on its way to
+    // the next one. Recreating the editor would destroy the field about to take focus,
+    // so reuse it when it belongs to the displayed variable and redraw only the stats.
     const reusableEditor =
       existingEditor?.parentElement === existingSpecific &&
       existingEditor.querySelector(`.parameters-list[data-variable="${this.state.type}"]`)
@@ -928,11 +854,9 @@ class MeteoMapManager {
       maxZoom: 15,
     }).addTo(this.map);
 
-    // Leaflet's keyboard handler puts tabindex="0" on the container, but with
-    // no role and no accessible name the Tab stop announces nothing and the
-    // screen reader swallows the arrow keys instead of passing them to the map.
-    // Only fill in what the document did not provide, so a label coming from the
-    // template is never overwritten.
+    // Leaflet's keyboard handler puts tabindex="0" on the container, but with no role
+    // and no accessible name the Tab stop announces nothing and screen readers swallow
+    // the arrow keys. Only fill in what the document did not provide.
     const container = this.map.getContainer();
     if (!container.getAttribute("role")) container.setAttribute("role", "application");
     if (!container.getAttribute("aria-label")) {
@@ -977,10 +901,8 @@ class MeteoMapManager {
     if (!canvas || this.windCanvasUpdateHandler) return;
 
     this.windCanvasUpdateHandler = () => {
-      // With the overlay off the canvas is already blank and _renderWindFromData
-      // re-sizes it when re-enabled, so there is nothing to do here. This runs on
-      // every 'move' event (once per frame while panning) and assigning
-      // width/height discards the canvas backing store, hence the size guard.
+      // Assigning width/height discards the canvas backing store and this runs once per
+      // frame while panning, hence the size guard.
       const windCheckbox = this.ui.windCheckbox || document.getElementById("windLayerCheckbox");
       if (!windCheckbox || !windCheckbox.checked) return;
 
@@ -1005,10 +927,8 @@ class MeteoMapManager {
     this.configureVariableSelect();
     this.configureAccumulationSelector();
 
-    // The document ships the legend with a sample unit and only the successful
-    // load path rewrites it, so paint it here too: otherwise the bar describes a
-    // variable other than the selected one until the first data arrives — and
-    // forever if none does.
+    // The document ships the legend with a sample unit and only a successful load
+    // rewrites it, so paint it here too — otherwise it describes another variable.
     this.updateColorbar(this.getVariableConfig(), null);
 
     const _debouncedSliderApply = _debounce(() => {
@@ -1048,9 +968,7 @@ class MeteoMapManager {
       });
     });
 
-    // Delegated: configureAccumulationSelector rebuilds the buttons whenever
-    // the selected variable changes its window options, so per-button
-    // listeners would have to be re-attached on every switch.
+    // Delegated: configureAccumulationSelector rebuilds these buttons per variable.
     this.ui.accumButtonGroup?.addEventListener("click", (e) => {
       const button = e.target.closest(".accum-btn");
       if (!button) return;
@@ -1069,14 +987,11 @@ class MeteoMapManager {
       });
     });
 
-    // The grid is painted on a single canvas, so there is no per-cell DOM node to
-    // focus. With the map focused, Enter/Space read the cell at the center of the
-    // view and Leaflet's own arrow keys move that center across the grid: the
-    // keyboard covers the domain without creating thousands of nodes.
+    // The grid is one canvas with no per-cell node to focus: Enter/Space read the cell
+    // at the center and Leaflet's arrow keys move that center across the grid.
     const mapContainer = this.map.getContainer();
     mapContainer.addEventListener("keydown", (e) => {
-      // The zoom controls are children of the container, so without this their
-      // Enter would open the sidebar instead of pressing the button.
+      // The zoom controls are children of the container; their Enter must not land here.
       if (e.target !== mapContainer) return;
       if (e.key !== "Enter" && e.key !== " " && e.code !== "Space") return;
       e.preventDefault();
@@ -1120,10 +1035,8 @@ class MeteoMapManager {
   }
 
   /**
-   * Shows and populates the accumulation-window selector for variables that
-   * declare one (precipitation), and hides it for every other variable. The
-   * buttons come from VARIABLES_CONFIG so the windows offered can never drift
-   * from the ones the loader knows how to build.
+   * The buttons come from VARIABLES_CONFIG, so the windows offered can never drift
+   * from the ones _fetchValues knows how to build.
    */
   configureAccumulationSelector(variableType = this.state.type) {
     const selector = this.ui.accumSelector;
@@ -1186,9 +1099,7 @@ class MeteoMapManager {
     docBtn.addEventListener("click", () => {
       this._docReturnFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       docModal.classList.add("active");
-      // aria-modal="true" hides the rest of the page from assistive technology,
-      // so without moving focus inside the screen reader would have nothing left
-      // to read.
+      // aria-modal="true" hides the rest of the page, so focus must move inside.
       docCloseBtn.focus();
     });
 
@@ -1203,9 +1114,8 @@ class MeteoMapManager {
     const trapDocFocus = (event) => {
       const focusables = [
         ...docModal.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"),
-        // Inactive tabs are <button> with tabindex="-1" (the ARIA roving
-        // tabindex), so the selector's `button` token drags them back in; without
-        // this filter the "last focusable" would be a stop that Tab skips.
+        // Inactive tabs are <button> with tabindex="-1" (roving tabindex), which the
+        // `button` token drags back in — hence the filter below.
       ].filter((el) => !el.disabled && el.getAttribute("tabindex") !== "-1" && el.getClientRects().length > 0);
       if (!focusables.length) {
         event.preventDefault();
@@ -1395,10 +1305,9 @@ class MeteoMapManager {
   }
 
   /**
-   * Loads the publication's state boundary, used by the map clip. The path
-   * must come from the declared `boundaryAsset`: build-all's reachability
-   * narrowing scans only HTML and CSS, so each bundle ships that one boundary
-   * and a path built from any other state code would 404.
+   * The path must come from the declared `boundaryAsset`: build-all's reachability
+   * narrowing scans only HTML and CSS, so a path built from any other state code
+   * would 404.
    */
   loadStateGeoJson() {
     const stateCode = MAP_SITE_CONFIG.stateCode;
@@ -1415,9 +1324,7 @@ class MeteoMapManager {
           this.ui.clipStateBtn.style.display = "inline-block";
         }
 
-        // The mask is only computed when clipping is active — it costs an
-        // O(cells x boundary points) ray cast (hundreds of ms on mobile),
-        // so it must never run on the plain startup path.
+        // The mask is an O(cells x boundary points) ray cast: never on plain startup.
         if (this.currentGeoJsonLayer && this.state.isClippedToState) {
           this._precomputeStateMask(this.currentGeoJsonLayer);
           if (this.currentValueData) {
@@ -1443,25 +1350,21 @@ class MeteoMapManager {
     if (this.ui.layerLabel) {
       const hasData = this.isIndexAvailable(this.state.index);
       const targetDate = this.calculateTargetDateFromIndex(this.state.index);
-      // With nothing published there is no instant to stamp, so the notice
-      // outlives a slider drag instead of promising data that never arrives.
+      // With nothing published there is no instant to stamp.
       const label =
         !targetDate && this._noPublishedDataNotice
           ? this._noPublishedDataNotice
           : this.formatForecastDateTimeLabel(targetDate, hasData);
       this.ui.layerLabel.textContent = label;
-      // The slider value is a WRF timestep index, meaningless to anyone who
-      // cannot see the label; assistive tech would announce "10 of 75".
+      // The slider value is a WRF timestep index: assistive tech would say "10 of 75".
       if (this.ui.slider) this.ui.slider.setAttribute("aria-valuetext", label);
     }
   }
 
   /**
-   * The label advances on the slider's own input event, but the field is only
-   * repainted once the load answers — in between, the map still shows the
-   * previous timestep under the new hour. aria-busy declares that window in
-   * which label and map disagree. Attribute only, no visual treatment: the
-   * animation repaints every 800 ms and any blink would follow that beat.
+   * The label advances on the slider's input event, but the field is repainted only
+   * once the load answers; aria-busy declares that window. Attribute only: any blink
+   * would follow the 800 ms repaint beat.
    */
   _setTimeLabelBusy(isBusy) {
     if (!this.ui.layerLabel) return;
@@ -1497,8 +1400,7 @@ class MeteoMapManager {
       return `${year}-${month}-${day} · ${hours}:${minutes} UTC−03:00`;
     }
 
-    // Generic wording: availability gaps are not only night hours (e.g.
-    // skip-first spin-up steps a v2 manifest marks unavailable).
+    // Generic wording: gaps are not only night hours (skip-first spin-up steps too).
     const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
     const monthStr = months[monthIndex];
     return `${day} ${monthStr} ${year} · ${hours}:${minutes} UTC−03:00 — sem dados neste horário`;
@@ -1521,11 +1423,9 @@ class MeteoMapManager {
   }
 
   /**
-   * Starts the timelapse on load unless the system asks for less motion: the
-   * largest movement on the site is not CSS but this setInterval repainting
-   * the whole grid every 800 ms, and the `prefers-reduced-motion` block in
-   * base.css does not reach JavaScript. Play stays available to everyone; what
-   * changes is that motion never starts unrequested (WCAG 2.3.3).
+   * The largest movement on the site is this setInterval repainting the whole grid
+   * every 800 ms, and base.css's `prefers-reduced-motion` block does not reach JS.
+   * Motion never starts unrequested (WCAG 2.3.3); Play stays available to everyone.
    */
   startInitialPlayback() {
     if (this.state.hasUserControlledPlayback) return;
@@ -1534,17 +1434,12 @@ class MeteoMapManager {
   }
 
   /**
-   * The model output directory does not exist on this server yet (fresh
-   * bundle, CI, the window between deploying pages and deploying data). The
-   * time label is the only text on the timeline, so it is what explains the
-   * absence, in the same tone as the monitoring and climatology pages.
-   * Playback does not start alongside it (map-init.js), or the empty map
-   * would repeat the just-failed requests every 800 ms.
+   * The model output directory does not exist on this server yet (fresh bundle, CI,
+   * the window between deploying pages and deploying data). Playback does not start
+   * alongside it (map-init.js), or the empty map would retry every 800 ms.
    */
   showNoPublishedDataNotice() {
-    // The first sentence is deliberately short: on phones the label is clipped
-    // to the bar width, so the essential part must fit before the cut and the
-    // deploy detail is left for whoever has room to read it.
+    // On phones the label is clipped to the bar width, so the essential part goes first.
     this._noPublishedDataNotice =
       "Dados do modelo ainda não publicados. Eles são anexados ao site no deploy, separadamente das páginas.";
     this.updateDateTime();
@@ -1559,8 +1454,6 @@ class MeteoMapManager {
     btn.classList.toggle("active", this.state.isClippedToState);
 
     if (this.currentGeoJsonLayer) {
-      // Lazily computed on first activation (and per domain in
-      // loadValueData); a no-op once the layer's mask exists.
       if (this.state.isClippedToState) {
         try {
           this._precomputeStateMask(this.currentGeoJsonLayer);
@@ -1578,8 +1471,6 @@ class MeteoMapManager {
     if (this.state.intervalId) {
       clearInterval(this.state.intervalId);
     }
-    // Skip straight to the next timestep the pipeline actually exports
-    // (e.g. SWDOWN daylight hours), wrapping at the end of the timeline.
     this.state.intervalId = setInterval(() => this._advanceToNextPlayable(), PLAYBACK_INTERVAL_MS);
   }
 
@@ -1612,9 +1503,7 @@ class MeteoMapManager {
     this.updateWindLayerToggleVisibility(variableType);
     this.refreshVariableOverviewPreview(variableType);
 
-    // The legend describes the selected variable, not the last painted field:
-    // if the load 404s or the timestep is missing for the new variable, the
-    // scale and unit must still be the new one's.
+    // The legend describes the selected variable, not the last painted field.
     this.updateColorbar(this.getVariableConfig(variableType), null);
     this._snapIndexToAvailable(variableType);
     this.updateDateTime();
@@ -1640,11 +1529,9 @@ class MeteoMapManager {
   }
 
   /**
-   * Re-applies the current view, then re-clicks `cell` ({lat, lng}) so the
-   * sidebar and marker track the selection across slider, variable,
-   * hub-height and domain changes. No re-click when no cell was given or the
-   * selection was cleared while data loaded; a failed re-click closes the
-   * sidebar.
+   * Re-applies the current view, then re-clicks `cell` so sidebar and marker track
+   * the selection across slider, variable, hub-height and domain changes. A failed
+   * re-click closes the sidebar.
    */
   _applyMapChangesReselecting(cell) {
     return this.applyMapChanges().then(() => {
@@ -1654,12 +1541,9 @@ class MeteoMapManager {
   }
 
   /**
-   * Key identifying a (run, domain, variable, window, timestep) view. The
-   * variable part is the resolved data id (getVariableId), so eolico
-   * 50/100/150 m are distinct, plus the accumulation window, so the 1h and 3h
-   * precipitation fields are too; the run version makes an in-flight response
-   * from BEFORE a detected pipeline-run switch fail the staleness guards
-   * instead of repainting old-run data over the resynchronized view.
+   * Identifies a (run, domain, variable, window, timestep) view. Including the run
+   * version is what makes an in-flight response from BEFORE a detected run switch
+   * fail the staleness guards instead of repainting old-run data.
    */
   _loadKey(index = this.state.index, type = this.state.type, domain = this.state.domain) {
     const hours = this.getAccumulationOption(type)?.hours;
@@ -1668,9 +1552,8 @@ class MeteoMapManager {
   }
 
   /**
-   * Drops the current value data and painted layer together, so the map never
-   * shows a previous timestep/variable under an advanced time label. Also
-   * clears any wind overlay left from the previous frame.
+   * Drops value data and painted layer together, so the map never shows a previous
+   * timestep or variable under an advanced time label.
    */
   _clearCurrentData() {
     this.currentValueData = null;
@@ -1684,12 +1567,9 @@ class MeteoMapManager {
       this._clearCurrentData();
       this._removeSelectedMarker();
       this.updateDateTime();
-      // The legend is the only element that survives the wipe; left alone it
-      // would keep announcing the previous variable's scale and unit next to a
-      // selector already showing another one.
+      // The legend survives the wipe; left alone it announces the previous variable.
       this.updateColorbar(this.getVariableConfig(), null);
       this._currentApply = null;
-      // Label and map agree again: both are empty.
       this._setTimeLabelBusy(false);
       return Promise.resolve(null);
     }
@@ -1698,17 +1578,15 @@ class MeteoMapManager {
     this._currentApply = { key: this._loadKey(), promise };
     this._setTimeLabelBusy(true);
     promise.finally(() => {
-      // A superseded load does not speak for the label: the one that came
-      // after it is still pending, so the incoherent window is still open.
+      // A superseded load does not speak for the label: a newer one is still pending.
       if (this._currentApply?.promise === promise) this._setTimeLabelBusy(false);
     });
     return promise;
   }
 
   /**
-   * Values payload for a view, honoring the variable's accumulation window.
-   * A one-step window is the per-timestep file as published; longer windows
-   * are summed here because the pipeline only writes per-timestep totals.
+   * Values payload for a view, honoring the variable's accumulation window. Longer
+   * windows are summed here because the pipeline only writes per-timestep totals.
    */
   _fetchValues(domain, type, index) {
     const variableId = this.getVariableId(type);
@@ -1720,8 +1598,7 @@ class MeteoMapManager {
     for (let back = 1; back < steps; back++) {
       const previousIndex = index - back;
       if (previousIndex < this.timeline.indexMin) break;
-      // Best-effort: a missing earlier step shortens the window instead of
-      // blanking the map (the run's first steps have nothing behind them).
+      // Best-effort: a missing earlier step shortens the window instead of blanking the map.
       older.push(
         this._cachedFetch(this.dataUrl(this.valuesJsonPath(domain, variableId, previousIndex))).catch(() => null)
       );
@@ -1731,17 +1608,11 @@ class MeteoMapManager {
   }
 
   /**
-   * Element-wise sum of per-timestep payloads, newest first. The newest one
-   * owns the result's metadata (its date/time labels the view) and is the
-   * only mandatory member — its absence already rejected upstream. Values are
-   * re-quantized to the pipeline's 2 decimals so the palette memoization
-   * keeps hitting on the summed field.
-   *
-   * The result carries `accumulatedSteps`, how many steps the sum really
-   * covered: early in the run there are not enough earlier steps and the
-   * window silently shortens, so whoever writes the labels must know the
-   * displayed total is one hour and not three. Always a copy — `latest` is
-   * the cached object, shared with the 1 h window.
+   * Element-wise sum of per-timestep payloads, newest first: it owns the metadata and
+   * is the only mandatory member. Re-quantized to the pipeline's 2 decimals so the
+   * palette memoization keeps hitting; always a copy, since `latest` is the cached
+   * object shared with the 1h window. `accumulatedSteps` reports the steps really
+   * summed — early in the run the window silently shortens.
    */
   _sumValuePayloads([latest, ...older]) {
     if (!Array.isArray(latest?.values)) return latest;
@@ -1754,10 +1625,8 @@ class MeteoMapManager {
       accumulatedSteps++;
       for (let i = 0; i < values.length; i++) {
         if (previous[i] === null || previous[i] === undefined) continue;
-        // A null cell in the newest step stays null: the pipeline declared no
-        // reading for that instant, and inheriting the earlier step's value
-        // would show a number indistinguishable from real data under the
-        // selected step's date and time.
+        // A null cell in the newest step stays null: inheriting the earlier value would
+        // show a number indistinguishable from real data under this step's date.
         if (values[i] === null || values[i] === undefined) continue;
         values[i] += previous[i];
       }
@@ -1777,23 +1646,19 @@ class MeteoMapManager {
 
     return Promise.all([this._fetchValues(domain, type, index), this.loadGridLayer(domain)])
       .then(([valueData, gridLayer]) => {
-        // Staleness guard: a rapid variable/domain/timestep switch starts a
-        // newer load. applyMapChanges tags the latest requested view on
-        // this._currentApply.key. If this resolution is no longer the latest,
-        // drop it so we never paint stale data under the new scale/colorbar.
+        // A rapid variable/domain/timestep switch starts a newer load; dropping a
+        // superseded resolution keeps stale data off the new scale and colorbar.
         if (loadKey !== this._currentApply?.key) {
           return null;
         }
 
-        // Grid fetch failed while the value fetch succeeded: still a no-data
-        // state — clear so a stale frame/value is never shown under the label.
+        // Grid fetch failed while values succeeded: still a no-data state.
         if (!gridLayer) {
           this._clearCurrentData();
           return null;
         }
 
-        // Only when clipping is active: the mask ray cast is expensive and
-        // its output is unused while the clip toggle is off.
+        // The mask ray cast is expensive and its output unused while the clip is off.
         if (this.state.isClippedToState) {
           try {
             this._precomputeStateMask(gridLayer);
@@ -1820,10 +1685,8 @@ class MeteoMapManager {
       })
       .catch((err) => {
         console.error("Error loading data:", err);
-        // Honest no-data state — but ONLY if this load is still the current
-        // view. A superseded (stale) rejection must not wipe the freshly
-        // painted newer load. The data service's negative cache keeps
-        // playback from re-hitting the network for the same missing file.
+        // Honest no-data state, but only while this load is still the current view:
+        // a superseded rejection must not wipe the freshly painted newer one.
         if (loadKey === this._currentApply?.key) {
           this._clearCurrentData();
           this._maybeFastSkipEmptyFrame(err);
@@ -1833,13 +1696,10 @@ class MeteoMapManager {
   }
 
   /**
-   * Degraded-mode playback helper. Without a v2 manifest OR a timeline
-   * anchor (old data, first session frames), unavailable indices (e.g.
-   * SWDOWN night hours) can only be discovered by fetching — isIndexAvailable
-   * optimistically allowed them. Instead of spending a full playback tick
-   * per blank frame, hop to the next index right away; the streak cap stops
-   * the hopping when there is no data at all (it resets on any successful
-   * load, which also establishes the anchor that makes this path moot).
+   * Degraded-mode playback. Without a v2 manifest or a timeline anchor, unavailable
+   * indices can only be discovered by fetching, so hop to the next one instead of
+   * spending a full playback tick per blank frame; the streak cap stops the hopping
+   * when there is no data at all.
    */
   _maybeFastSkipEmptyFrame(err) {
     if (!this.state.isPlaying || err?.notFound !== true) return;
@@ -1852,12 +1712,9 @@ class MeteoMapManager {
   }
 
   /**
-   * Warms the shared data-service cache with the next timesteps of the
-   * current view (fire-and-forget). During playback and manual stepping the
-   * next frame then paints from memory instead of paying fetch + parse
-   * inside the 800ms tick budget. Mirrors the animation loop's SWDOWN
-   * daylight skip; duplicate calls are free thanks to in-flight dedup and
-   * the negative cache. Skipped for users who opted into data saving.
+   * Warms the shared cache with the next timesteps (fire-and-forget) so the next frame
+   * paints from memory instead of paying fetch + parse inside the 800 ms tick budget.
+   * Duplicate calls are free (in-flight dedup, negative cache); skipped under saveData.
    */
   _prefetchUpcoming(index, type, count = PREFETCH_AHEAD_STEPS) {
     if (navigator.connection?.saveData) return;
@@ -1865,9 +1722,8 @@ class MeteoMapManager {
     if (!config) return;
     const domain = this.state.domain;
     const variableId = this.getVariableId(type);
-    // The 'wind' overlay draws from standalone WIND_VECTORS files (eolico
-    // embeds its vectors in the values JSON) — warm those too, or the arrows
-    // paint one fetch round-trip behind the field they annotate.
+    // The 'wind' overlay draws from standalone WIND_VECTORS files (eolico embeds its
+    // vectors in the values JSON), so the arrows need warming too.
     const prefetchWind = type === "wind" && this.ui.windCheckbox?.checked;
 
     const warm = (path) =>
@@ -1914,9 +1770,8 @@ class MeteoMapManager {
         this.updateDomainIndicator();
         this.refreshVariableOverviewPreview();
 
-        // A click invalidates the framing the previous one asked for. Both
-        // branches below end in an async flyTo, so they share a token: without
-        // it the abandoned domain's flight could still resolve last.
+        // A click invalidates the framing the previous one asked for; both branches
+        // below end in an async flyTo, so they share a token.
         const switchGen = (this._domainSwitchGen = (this._domainSwitchGen || 0) + 1);
 
         if (this.state.selectedCell) {
@@ -1928,23 +1783,18 @@ class MeteoMapManager {
             easeLinearity: 0.25,
           });
 
-          // Rapid domain switches during a 1.5s flyTo would otherwise stack
-          // one-shot moveend handlers, each re-applying an outdated view.
-          // Use a generation token so only the LATEST handler acts. Do NOT
-          // call map.off("moveend") with no function — that also removes
-          // Leaflet's own tile-layer and canvas-renderer moveend handlers,
-          // breaking tile loading and grid repaint on pan.
+          // Generation token so only the LATEST handler acts: rapid switches during a
+          // 1.5s flyTo would stack one-shot moveend handlers. Do NOT call
+          // map.off("moveend") with no function — that also removes Leaflet's own
+          // tile-layer and canvas-renderer handlers, breaking tiles and grid repaint.
           this.map.once("moveend", () => {
             if (switchGen !== this._domainSwitchGen) return;
             this.applyMapChanges().then(() => {
               if (switchGen !== this._domainSwitchGen) return;
               const target = L.latLng(selectedLat, selectedLng);
               const gridBounds = this.currentGeoJsonLayer?.getBounds?.();
-              // The domains are nested and cover very different areas: a cell
-              // picked at the edge of BA/NE does not exist in the Salvador
-              // grid, and flying there would leave the map showing tiles only,
-              // with no cell on screen and no explanation. The new grid is
-              // already loaded here, so we can fall back to the domain center.
+              // The domains are nested over very different areas: a cell picked at the
+              // edge of BA/NE does not exist in the Salvador grid, so fall back to its center.
               if (!gridBounds || !gridBounds.contains(target)) {
                 this.closeSidebar();
                 this.showErrorMessage(
@@ -1956,18 +1806,15 @@ class MeteoMapManager {
                 });
                 return;
               }
-              // The user may have closed the sidebar / started playback during
-              // the 1.5s flyTo; don't resurrect a cleared selection.
+              // Don't resurrect a selection cleared during the 1.5s flyTo.
               if (!this.state.selectedCell) return;
               this.handleMapClick({ latlng: target }).catch(() => this.closeSidebar());
             });
           });
         } else {
           this.applyMapChanges().then(() => {
-            // The domains share a center and differ only in zoom, so a slower
-            // load resolving late would frame the map on the abandoned domain
-            // while the lit button, the painted grid and the legend already
-            // belong to the newer one.
+            // The domains share a center and differ only in zoom: a load resolving late
+            // would frame the abandoned domain under the newer one's grid and legend.
             if (switchGen !== this._domainSwitchGen) return;
             this.map.flyTo(config.center, targetZoom, {
               duration: 1.5,
@@ -1980,12 +1827,10 @@ class MeteoMapManager {
   }
 
   /**
-   * Rebuilds the legacy FeatureCollection from a compact grid payload
-   * (grid-edges-v1 / grid-bounds-v1, written by the pipeline alongside the
-   * .geojson) so everything downstream — Leaflet layer construction,
-   * linear_index mapping, bounds-based hover/click/mask — stays identical
-   * to the legacy path. Throws on malformed payloads so the caller can fall
-   * back to the .geojson file.
+   * Rebuilds the legacy FeatureCollection from a compact grid payload so everything
+   * downstream — layer construction, linear_index mapping, bounds-based
+   * hover/click/mask — stays identical to the legacy path. Throws on malformed
+   * payloads so the caller can fall back to the .geojson file.
    */
   _featureCollectionFromCompactGrid(compact) {
     const shape = Array.isArray(compact?.shape) ? compact.shape : [];
@@ -1995,9 +1840,8 @@ class MeteoMapManager {
       throw new Error("Malformed compact grid payload: bad shape");
     }
 
-    // Same ring vertex order as the legacy writer: [left,bottom],
-    // [right,bottom], [right,top], [left,top], closed. Leaflet normalizes
-    // bounds, so the grid's latitude orientation does not matter.
+    // Same ring vertex order as the legacy writer, closed. Leaflet normalizes bounds,
+    // so the grid's latitude orientation does not matter.
     const cellFeature = (left, bottom, right, top, linearIndex) => ({
       type: "Feature",
       geometry: {
@@ -2060,15 +1904,11 @@ class MeteoMapManager {
       return this._gridLayerPromises.get(cacheKey);
     }
 
-    // Bumped by handleManifestUpdate: an in-flight fetch started under the
-    // previous run must not repopulate the cache it just cleared.
+    // Bumped by handleManifestUpdate: an old-run fetch must not repopulate the cache.
     const generation = this._gridGeneration || 0;
 
-    // Compact grid first (a few KB vs 1.2-2.6MB); the legacy GeoJSON is the
-    // fallback for servers still holding data from an older pipeline run.
-    // Both go through the data service: worker-side parsing, in-flight dedup
-    // and 60s negative caching on failure (so a missing grid is not
-    // re-requested on every playback tick).
+    // Compact grid first (a few KB vs 1.2-2.6MB); the legacy GeoJSON is the fallback
+    // for servers still holding data from an older pipeline run.
     const gridPromise = this.dataService
       .fetchJson(this.dataUrl(this.gridJsonPath(domain)))
       .then((compact) => this._featureCollectionFromCompactGrid(compact))
@@ -2088,9 +1928,7 @@ class MeteoMapManager {
           },
         });
 
-        // Hover is delegated on the group (e.propagatedFrom): per-cell
-        // handlers would mean two closures for each of the ~10k cells of
-        // every cached domain.
+        // Delegated on the group: per-cell handlers mean two closures per ~10k cells.
         layer.on("mouseover", (e) => {
           const cell = e.propagatedFrom;
           if (!cell || this._isCellHidden(cell)) return;
@@ -2103,11 +1941,8 @@ class MeteoMapManager {
         layer.on("mouseout", (e) => {
           const cell = e.propagatedFrom;
           if (!cell) return;
-          // Restore the cell's resting style from its current state. A cell
-          // hidden by the state clip or by the variable's display threshold
-          // must return to GRID_HIDDEN_STYLE; a fixed visible style would
-          // repaint it and defeat the hiding. Visible (and no-data gray)
-          // cells keep their stored fillColor.
+          // Restore from the cell's current state: one hidden by the clip or by the
+          // display threshold must return to GRID_HIDDEN_STYLE, not to a painted style.
           cell.setStyle(
             this._isCellHidden(cell)
               ? GRID_HIDDEN_STYLE
@@ -2149,8 +1984,6 @@ class MeteoMapManager {
     const layers = gridLayer.getLayers();
     const config = this.getVariableConfig();
     const scaleValues = this.getScaleValues(config, valueData);
-    // Below this the cell is left unpainted rather than colored (see
-    // `hideBelow` in VARIABLES_CONFIG); -Infinity paints everything.
     const hideBelow = Number.isFinite(config.hideBelow) ? config.hideBelow : -Infinity;
 
     if (this._colorWorker) {
@@ -2177,10 +2010,8 @@ class MeteoMapManager {
   _applyColorsOnMainThread(layers, values, scaleValues, config) {
     const colors = new Array(values.length);
     const hideBelow = Number.isFinite(config.hideBelow) ? config.hideBelow : -Infinity;
-    // Values are quantized to 2 decimals, so a few thousand cells share far
-    // fewer distinct values — memoize per call (palette/scale can change
-    // between calls, so the map must not outlive this repaint). Keyed with
-    // `has`, since `null` (below threshold) is a valid memoized outcome.
+    // Values are quantized to 2 decimals, so thousands of cells share few distinct
+    // ones; per call only (palette/scale can change), and `has` since null is valid.
     const memo = new Map();
     for (let i = 0; i < values.length; i++) {
       const value = values[i];
@@ -2204,9 +2035,8 @@ class MeteoMapManager {
 
   applyComputedColorsToGrid(layers, values, colors) {
     const isClipped = this.state.isClippedToState;
-    // Scratch style reused across cells: setStyle copies the properties into
-    // each layer's own options, so mutating one shared object between calls
-    // is safe and avoids ~10k short-lived allocations per repaint.
+    // Scratch style reused across cells: setStyle copies the properties into each
+    // layer's options, so this avoids ~10k short-lived allocations per repaint.
     const visibleStyle = { ...GRID_VISIBLE_STYLE, fillColor: undefined };
 
     for (let i = 0; i < layers.length; i++) {
@@ -2217,8 +2047,7 @@ class MeteoMapManager {
       const hiddenByClip = isClipped && !inState;
 
       if (color === undefined) {
-        // No data at this timestep: reset the previous timestep's value and
-        // color instead of leaving a stale reading on the map.
+        // No data at this step: clear the previous one's value instead of leaving it.
         layer.feature.properties.valor = null;
         layer._hiddenByValue = false;
         this._setGridCellStyle(layer, hiddenByClip ? GRID_HIDDEN_STYLE : GRID_NODATA_STYLE);
@@ -2227,9 +2056,8 @@ class MeteoMapManager {
 
       layer.feature.properties.valor = values[cellIndex];
 
-      // `null` (never `undefined`) marks a value under the variable's
-      // `hideBelow`: there IS data, it just must not be painted. The flag
-      // keeps hover from revealing the cell and mouseout from restoring it.
+      // `null` (never `undefined`) marks a value under `hideBelow`: there IS data, it
+      // just must not be painted. The flag keeps hover from revealing the cell.
       layer._hiddenByValue = color === null;
 
       if (hiddenByClip || color === null) {
@@ -2242,12 +2070,9 @@ class MeteoMapManager {
   }
 
   /**
-   * setStyle only when the layer's current options differ from the target
-   * on some property the style would actually change (setStyle merges, so
-   * untouched options are irrelevant). Revisiting a cached frame or toggling
-   * the clip then skips Leaflet's option merge and redraw bookkeeping for
-   * unchanged cells. A hovered cell (weight 1.2) never matches its resting
-   * style, so repaints restore it exactly as before.
+   * setStyle only when the target differs on some property it would actually change
+   * (setStyle merges, so untouched options are irrelevant). A hovered cell never
+   * matches its resting style, so repaints restore it exactly as before.
    */
   _setGridCellStyle(layer, style) {
     const options = layer.options;
@@ -2260,9 +2085,8 @@ class MeteoMapManager {
   }
 
   /**
-   * Hidden means fully transparent: clipped outside the state boundary, or
-   * below the variable's display threshold. Hover must neither reveal such a
-   * cell nor restore it as a painted one.
+   * Hidden means fully transparent: clipped outside the state boundary, or below the
+   * variable's display threshold. Hover must neither reveal nor repaint such a cell.
    */
   _isCellHidden(cell) {
     if (cell._hiddenByValue === true) return true;
@@ -2330,9 +2154,8 @@ class MeteoMapManager {
   }
 
   showGeoJsonLayer(newLayer) {
-    // Playback repaints the SAME cached per-domain layer every tick — a full
-    // Leaflet teardown/re-add of ~10k vector paths (plus marker churn and a
-    // hover reset) would be paid per frame for no visual change.
+    // Playback repaints the SAME cached per-domain layer every tick: a full teardown
+    // and re-add of ~10k vector paths would be paid per frame for no visual change.
     if (this.currentGeoJsonLayer === newLayer && this.map.hasLayer(newLayer)) {
       return;
     }
@@ -2360,8 +2183,7 @@ class MeteoMapManager {
 
     if (!this.state.initialDateTime && metadata?.date_time) {
       this.state.initialDateTime = this.parseDateTime(metadata.date_time);
-      // Anchor to the index whose metadata we actually loaded, not whatever
-      // the slider reads at resolution time (which may have moved on).
+      // Anchor to the index whose metadata we loaded, not what the slider reads now.
       this.state.initialIndex = loadedIndex;
     }
 
@@ -2392,16 +2214,14 @@ class MeteoMapManager {
   }
 
   /**
-   * Repaints the legend for `config`. Callers that run BEFORE a payload exists
-   * (startup, variable switch onto an unavailable timestep) pass
-   * `valueData: null` so a variable whose scale comes from the file metadata
-   * shows no ticks at all instead of borrowing the previous variable's.
+   * Callers that run BEFORE a payload exists pass `valueData: null`, so a variable
+   * whose scale comes from the file metadata shows no ticks at all instead of
+   * borrowing the previous variable's.
    */
   updateColorbar(config, valueData = this.currentValueData) {
     const scaleValues = this.getScaleValues(config, valueData);
-    // Rebuilding the gradient + label DOM every playback tick forces style
-    // and layout work for identical output; skip when nothing changed.
-    // The signature covers the metadata-driven scale fallback too.
+    // Rebuilding the gradient + label DOM every playback tick forces style and layout
+    // for identical output; the signature covers the metadata-driven scale too.
     const signature = `${config.unit}|${config.colors.join(",")}|${scaleValues.join(",")}`;
     if (signature === this._colorbarSignature) return;
     this._colorbarSignature = signature;
@@ -2409,9 +2229,8 @@ class MeteoMapManager {
     const gradient = `linear-gradient(to top, ${config.colors.join(", ")})`;
     this.ui.colorbarGradient.style.background = gradient;
     this.ui.colorbarUnit.textContent = config.unit;
-    // Dimensionless variables (kt, sky emissivity) declare no unit: the element
-    // carries a top border and padding, so leaving it empty hangs a stray rule
-    // under the scale.
+    // Dimensionless variables (kt, sky emissivity) declare no unit: the element carries
+    // a top border and padding, so leaving it empty hangs a stray rule under the scale.
     this.ui.colorbarUnit.hidden = !config.unit;
 
     const labelsContainer = this.ui.colorbarLabels;
@@ -2427,11 +2246,9 @@ class MeteoMapManager {
   }
 
   /**
-   * Decimal places shared by every tick of a scale: the fewest that keep the
-   * ticks distinct AND the largest one at two significant digits. One count
-   * for the whole scale, so a 0.6-1 range never shows "1" next to "0.956",
-   * which reads as two different scales; the significant-digit rule keeps a
-   * 0-0.85 index from collapsing its top tick to "0.9".
+   * Fewest decimals that keep the ticks distinct AND the largest at two significant
+   * digits. One count for the whole scale, so a 0.6-1 range never shows "1" next to
+   * "0.956"; the significant-digit rule keeps 0-0.85 from collapsing its top tick.
    */
   colorbarDecimals(scaleValues) {
     const largest = Math.max(...scaleValues.map((value) => Math.abs(value)));
@@ -2451,10 +2268,8 @@ class MeteoMapManager {
   }
 
   async handleMapClick(e, options = {}) {
-    // The data for the current view may still be loading (the user clicked
-    // mid-drag). Wait for the matching in-flight load so the sidebar reflects
-    // the selected view, not a previous one. Bounded to avoid chasing a user
-    // who keeps dragging; a residual mismatch falls through to "no data".
+    // The user may have clicked mid-drag: wait for the matching in-flight load so the
+    // sidebar reflects the selected view. Bounded; a residual mismatch reads no-data.
     for (let attempt = 0; attempt < 3; attempt++) {
       const wantKey = this._loadKey();
       if (this._currentValueKey === wantKey) break;
@@ -2470,8 +2285,7 @@ class MeteoMapManager {
       return Promise.reject(new Error("No GeoJSON layer available"));
     }
 
-    // Only trust currentValueData when it matches the current view; otherwise
-    // the value would be shown under a mismatched variable/time label.
+    // Only trust currentValueData when it matches the current view.
     const values =
       this._currentValueKey === this._loadKey() && Array.isArray(this.currentValueData?.values)
         ? this.currentValueData.values
@@ -2491,7 +2305,6 @@ class MeteoMapManager {
           lng: e.latlng.lng,
           allValues: {},
         };
-        // Cells don't overlap: the first hit is the only hit.
         break;
       }
     }
@@ -2506,8 +2319,7 @@ class MeteoMapManager {
 
     return this.loadAllVariableValuesForCell(foundCell)
       .then((allValues) => {
-        // A programmatic refresh must not resurrect a selection the user
-        // cleared (closed the sidebar / started playback) while data loaded.
+        // A programmatic refresh must not resurrect a selection the user cleared.
         if (!options.userInitiated && !this.state.selectedCell) {
           this._removeSelectedMarker();
           return null;
@@ -2625,10 +2437,9 @@ class MeteoMapManager {
   }
 
   /**
-   * Renders the selected-cell sidebar. `options.userInitiated` distinguishes
-   * a real map click from programmatic refreshes (slider, variable or domain
-   * switches) — consumed by the showSidebar wrapper in map-init.js to decide
-   * whether the time-series modal may open.
+   * `options.userInitiated` separates a real map click from programmatic refreshes —
+   * read by the showSidebar wrapper in map-init.js to decide whether the time-series
+   * modal may open.
    */
   showSidebar() {
     const cell = this.state.selectedCell;
@@ -2702,9 +2513,8 @@ class MeteoMapManager {
     }
 
     if (this.currentValueData?.metadata?.wind) {
-      // Invalidate any in-flight WIND_VECTORS fetch: a late response from
-      // the previous variable (same domain:index key) must not repaint its
-      // 10m arrows over the embedded hub-height arrows rendered here.
+      // Invalidate any in-flight WIND_VECTORS fetch: a late response for the same
+      // domain:index must not paint its 10m arrows over these hub-height ones.
       this._windRequestKey = null;
       this._renderWindFromData(this.currentValueData.metadata.wind);
     } else {
@@ -2720,8 +2530,7 @@ class MeteoMapManager {
         })
         .catch((err) => {
           console.warn("Wind vectors not available:", err.message);
-          // Only clear if this is still the current wind request — a stale
-          // rejection must not wipe a newer wind layer.
+          // Only clear if this is still the current wind request.
           if (this._windRequestKey === requestKey) {
             this.clearWindVectors();
           }
@@ -2743,11 +2552,7 @@ class MeteoMapManager {
       return;
     }
 
-    // Same guard as windCanvasUpdateHandler, and it is here that it pays off:
-    // this method runs on every drag frame (the 'move' handler schedules the
-    // repaint) and assigning width/height throws the backing store away even
-    // when the value does not change. The clearRect below already hands over
-    // a clean frame.
+    // Same size guard as windCanvasUpdateHandler; the clearRect below hands over a clean frame.
     const size = this.map.getSize();
     if (canvas.width !== size.x || canvas.height !== size.y) {
       canvas.width = size.x;
@@ -2773,9 +2578,8 @@ class MeteoMapManager {
     const magRange = maxMag - minMag || 1;
 
     const isClipped = this.state.isClippedToState;
-    // Resolve cells through the linear_index -> layer map built in
-    // loadGridLayer: feature order in the GeoJSON is not guaranteed to
-    // match linear_index, so positional lookup could misplace arrows.
+    // Feature order in the GeoJSON is not guaranteed to match linear_index, so a
+    // positional lookup could misplace arrows.
     const layersByLinearIndex = this.currentGeoJsonLayer._layersByLinearIndex;
 
     linearIndices.forEach((linearIndex, idx) => {
@@ -2850,10 +2654,8 @@ class MeteoMapManager {
   showErrorMessage(message) {
     const alertDiv = document.createElement("div");
     alertDiv.className = "map-alert";
-    // This is the only answer to a click that found no data and it is gone in
-    // 3.3 s, so without the alert role a screen reader user gets no feedback
-    // at all. The text is set before the node is inserted so assistive tech
-    // announces an already complete message.
+    // The only answer to a click that found no data, and gone in 3.3s. The text is set
+    // before insertion so assistive tech announces an already complete message.
     alertDiv.setAttribute("role", "alert");
     alertDiv.textContent = message;
 

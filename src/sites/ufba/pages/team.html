@@ -1,11 +1,8 @@
 <!--
-  Every name is a Lattes link and has to look like one. `.team-group a` zeroes the
-  underline, and colour alone cannot carry the distinction: the institutional
-  #06235e sits at roughly 1:1 luminance against the surrounding #212529
-  (WCAG 1.4.1/G183). Hence the explicit underline in a style attribute — the site
-  CSP allows style-src 'unsafe-inline' precisely for style attributes, whereas a
-  new utility class would not survive the Bootstrap purge without regenerating the
-  vendor bundle.
+  `.team-group a` zeroes the underline, and colour alone cannot mark the Lattes
+  links: #06235e sits at roughly 1:1 luminance against #212529 (WCAG 1.4.1/G183).
+  Hence the underline in a style attribute — allowed by the CSP, whereas a new
+  utility class would not survive the Bootstrap purge.
 -->
 <div class="modern-section">
   <div class="page-header">
@@ -141,8 +138,7 @@
 
   <div class="mt-2 mb-5">
     <!-- Plain embed (?output=embed) rather than My Maps: same host under the CSP,
-         without the deprecation warnings the My Maps frontend logs to the console
-         (legacy Marker/PlacesService inside Google's own iframe). -->
+         without the deprecation warnings My Maps logs from Google's own iframe. -->
     <iframe
       loading="lazy"
       src="https://www.google.com/maps?q=-13.0007998,-38.507221&amp;z=16&amp;output=embed"

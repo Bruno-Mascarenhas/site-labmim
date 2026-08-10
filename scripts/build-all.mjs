@@ -19,17 +19,14 @@ const defaultSite = defaultPublication(publications);
 const siteDir = path.join(root, "site");
 const distDir = path.join(root, "dist");
 
-// Operational data belongs to the TREE, not to the publication being bundled: site/
-// is rebuilt in place and the data directories survive from one build to the next, so
-// the exclusion list must be the union across publications rather than what the
-// current one declares. See operational-paths.js.
+// site/ is rebuilt in place and the data directories survive from one build to the
+// next, so the exclusion list must be the union across publications rather than what
+// the currently rendered one declares.
 const operationalPaths = allOperationalPaths(publications);
 
-// Build inputs: committed under site/ because the repository needs them to regenerate
-// the derived files, yet no page references them. The full Bootstrap is the purgecss
-// input (pages link bootstrap.purged.min.css) and the complete Font Awesome face is
-// the pyftsubset input (the vendor CSS references only the subset). Together they are
-// ~376 KB per bundle on a host that serves uncompressed and is updated over FTP.
+// Sources the repository needs to regenerate the derived vendor files (purgecss reads
+// the full Bootstrap, pyftsubset the complete Font Awesome face) but no page links.
+// ~376 KB per bundle on a host that serves uncompressed and deploys over FTP.
 const buildInputAssets = new Set([
   "assets/vendor/bootstrap/bootstrap.min.css",
   "assets/vendor/fontawesome/webfonts/fa-solid-900.full.woff2",
@@ -90,11 +87,8 @@ function collectFiles(directory, predicate) {
   });
 }
 
-/**
- * Publication modules provide their own assets, and territory outlines are shared
- * source files that still belong to exactly one publication's map — the Bahia
- * outline is 170 KB of dead weight in the Espírito Santo bundle.
- */
+// Territory outlines live outside the publication modules but still belong to exactly
+// one publication's map: the Bahia outline is 170 KB of dead weight in the ES bundle.
 function narrowableAssets(allPublications, provided) {
   return new Set([
     ...provided,
@@ -105,12 +99,9 @@ function narrowableAssets(allPublications, provided) {
 }
 
 /**
- * A bundle is narrowed by REACHABILITY rather than by who provides a file: the two
- * labs display each other's mark as a partner, so "provided by ufba" and "needed by
- * ufes" are both true of the same PNG. Whatever a publication's own pages never
- * reference — through HTML attributes OR the CSS the bundle ships — is another
- * publication's identity and stays out of its bundle. Called while site/ still
- * holds this publication's freshly built output.
+ * Narrowed by REACHABILITY, not by who provides a file: the two labs display each
+ * other's mark as a partner, so "provided by ufba" and "needed by ufes" are both true
+ * of the same PNG. Call only while site/ still holds this publication's fresh output.
  */
 function reachablePublicationAssets(publication, candidateAssets) {
   const originPrefix = `${publication.origin}/`;
@@ -120,8 +111,8 @@ function reachablePublicationAssets(publication, candidateAssets) {
     if (candidateAssets.has(key)) reachable.add(key);
   };
 
-  // brand.ogImage only ever appears as an absolute same-origin URL, in og:image,
-  // twitter:image and the JSON-LD logo — none of which the scans below look at.
+  // brand.ogImage only ever appears as an absolute same-origin URL (og:image,
+  // twitter:image, JSON-LD logo), which the scans below do not look at.
   for (const asset of declaredIdentityAssets(publication)) {
     if (candidateAssets.has(asset)) reachable.add(asset);
   }
@@ -130,7 +121,7 @@ function reachablePublicationAssets(publication, candidateAssets) {
     const pagePath = path.join(siteDir, pageFile);
     if (fs.existsSync(pagePath)) htmlReferences(fs.readFileSync(pagePath, "utf8")).forEach(consider);
   }
-  // A page can reach an asset only through its stylesheet (background: url(...)),
+  // A page can reach an asset through its stylesheet alone (background: url(...)),
   // which the HTML scan never sees; drop those and the bundle ships a 404.
   for (const cssFile of collectFiles(path.join(siteDir, "assets", "css"), (name) => name.endsWith(".css"))) {
     cssReferences(fs.readFileSync(cssFile, "utf8")).forEach(consider);
@@ -138,12 +129,8 @@ function reachablePublicationAssets(publication, candidateAssets) {
   return reachable;
 }
 
-/**
- * Fail if the bundle references a first-party asset it does not contain. The
- * bundle is the artifact CI publishes and reviewers download, so the reachability
- * narrowing above must be verifiable, not trusted. Operational data (values,
- * grids, manifest, station plots) is intentionally deploy-supplied and exempt.
- */
+// Operational data (values, grids, manifest, station plots) is exempt: the deploy,
+// not the bundle, supplies it.
 function assertBundleIntegrity(publication, target) {
   const originPrefix = `${publication.origin}/`;
   const missing = new Set();
@@ -205,9 +192,8 @@ installSignalRestore(restoreDefault, { label: "build-all", defaultId: defaultSit
 
 let failure;
 try {
-  // Rebuild dist/ from scratch: copyBundle only clears its own target, so a bundle
-  // left behind by a publication that has since been removed would keep feeding the
-  // corpus that scripts/purgecss.config.cjs and the asset-subset checks read.
+  // copyBundle only clears its own target, so a bundle left by a publication that has
+  // since been removed would keep feeding the corpus purgecss and the subset checks read.
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.mkdirSync(distDir, { recursive: true });
   for (const publication of publications) {

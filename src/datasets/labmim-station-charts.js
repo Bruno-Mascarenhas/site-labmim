@@ -2,14 +2,11 @@
 
 /**
  * Station plots for `dataset.observations.charts` on the static monitoring page.
- *
- * The LabMiM micrometeorological station writes these PNGs with a
- * "LabMiM ... UFBA" watermark burned into the image, so the list belongs to this
- * publication alone and no other laboratory can point at it.
+ * The station burns a "LabMiM ... UFBA" watermark into each PNG, so no other
+ * laboratory can point at this list.
  *
  * `id` is the modal id suffix (`radiacao_difusa` -> `#modalRadiacaoDifusa`).
- * Optional fields fall back to `alt: title`, `modalSize: "modal-lg"` and
- * 800x400 intrinsic dimensions.
+ * Omitted fields fall back to `alt: title`, `modalSize: "modal-lg"` and 800x400.
  */
 const LABMIM_STATION_CHARTS = [
   {

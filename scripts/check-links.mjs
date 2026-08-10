@@ -19,15 +19,13 @@ function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// --check-css follows url() into all.min.css, which declares .ttf fallbacks and
-// fa-v4compatibility.* that this repo deliberately does not distribute (see
-// scripts/subset-fontawesome.md). Only those two shapes are skipped, so a
-// missing .woff2 — the format browsers actually fetch — still fails the check.
+// all.min.css declares .ttf fallbacks and fa-v4compatibility.* that this repo
+// deliberately does not distribute. Only those two shapes are skipped, so a missing
+// .woff2 — the format browsers actually fetch — still fails the check.
 const FONTAWESOME_UNSHIPPED = String.raw`/assets/vendor/fontawesome/webfonts/(?:[^/]+\.ttf|fa-v4compatibility\.[^/]+)$`;
 
 // The crawler walks site/, which holds the data directories of EVERY publication
-// (nothing clears them between one build and the next), so the skip list has to be
-// the union rather than what the currently rendered publication declares.
+// (nothing clears them between builds), so the skip list has to be the union.
 const { directories: OPERATIONAL_DIRECTORIES, files: OPERATIONAL_FILES } = allOperationalPaths(publications, {
   includeGraphs: false,
 });
@@ -54,8 +52,6 @@ function run(args, label) {
   if (result.status !== 0) throw new Error(`${label} failed`);
 }
 
-// Publication currently rendered into site/, so the restore step knows whether
-// it still has work to do after a failure.
 let siteHolds;
 
 function checkPublication(publication) {
@@ -64,18 +60,16 @@ function checkPublication(publication) {
   run([buildScript, `--site=${publication.id}`], `build ${publication.id}`);
   siteHolds = publication.id;
   // --check-fragments resolves the `href="#main"` skip links against the ids the
-  // layouts actually render; --check-css follows url() references so a purged or
-  // renamed asset that only CSS points at cannot slip through.
+  // layouts render; --check-css follows url() so a purged or renamed asset that only
+  // CSS points at cannot slip through.
   run(
     [cli, "/", "--server-root", "site", "--recurse", "--check-fragments", "--check-css", "--skip", skipPattern()],
     `link check ${publication.id}`
   );
 }
 
-/**
- * See scripts/build-all.mjs: a Ctrl-C reaches the whole process group, so the first
- * attempt is often killed along with the build it replaces; retry once.
- */
+// A Ctrl-C reaches the whole process group, so the first attempt is often killed along
+// with the build it replaces; retry once.
 function restoreDefault() {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const result = spawnSync(process.execPath, [buildScript, `--site=${defaultSite.id}`], {

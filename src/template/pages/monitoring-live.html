@@ -1,18 +1,14 @@
-<!-- Interactive monitoring. Variant of the `monitoring.html` route for
- publications that declare `dataset.paths.monitoring`; the static variant, which
- draws the PNGs from `dataset.observations`, stays in pages/monitoring.html and
- is what LEAL uses. Pick one of the two with `source:` on the page declaration.
-
- Everything below is filled at runtime by assets/js/monitoramento.js from the
- `labmim-monitoring-v1` payload in that directory — nothing here is specific to
- a publication. -->
+<!-- Interactive variant of the `monitoring.html` route, for publications that
+ declare `dataset.paths.monitoring`; the static PNG variant stays in
+ pages/monitoring.html. Pick one with `source:` on the page declaration.
+ Filled at runtime by assets/js/monitoramento.js from the
+ `labmim-monitoring-v1` payload. -->
 <div class="modern-section" id="monitoramento" data-monitoring-base="{{MONITORING_BASE}}">
   <div class="modern-header mb-4">
     <h2><i class="fas fa-satellite-dish me-2"></i>Monitoramento Ambiental</h2>
     <p id="monitorPeriodo">Janela móvel de 7 dias — atualização a cada 1h</p>
   </div>
 
-  <!-- EXPLANATION BLOCK -->
   <div class="text-center mb-3">
     <button
       class="btn btn-sm btn-outline-secondary"
@@ -57,13 +53,11 @@
     <hr class="mb-4 max-w-1000" />
   </div>
 
-  <!-- LOADING / EMPTY STATES -->
   <div class="clima-empty" id="monitorEmpty" hidden>
     <p id="monitorEmptyMessage">Carregando observações…</p>
   </div>
 
   <div id="monitorApp" hidden>
-    <!-- CONTROLS -->
     <div class="monitor-controls" role="group" aria-label="Camadas e período">
       <div class="monitor-control">
         <span class="clima-control-label" id="monitorCamadasLabel">Camadas</span>
@@ -78,7 +72,6 @@
       </div>
     </div>
 
-    <!-- CHART GRID -->
     <div class="monitor-grid" id="monitorGrid"></div>
   </div>
 

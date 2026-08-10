@@ -1,11 +1,7 @@
-<!-- Scripts shared by every publication. -->
-<!-- Bootstrap 5.3.8, vendored locally -->
 <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
-<!-- Site bibliography, inlined by the build from src/template/references.js.
- It goes out as JSON rather than JavaScript so the CSP needs no exception and no
- reference content can ever be executed. -->
+<!-- Inlined by the build from src/template/references.js. It goes out as JSON
+ rather than JavaScript so the CSP needs no exception. -->
 <script type="application/json" id="siteReferences">{{SITE_REFERENCES}}</script>
-<!-- Replaces the [[key]] markers on the pages with links carrying the full
- record in the tooltip. It comes before each page's own scripts because the
- climatology page uses the API it publishes on window.labmimReferences. -->
+<!-- Replaces the [[key]] markers with links. Must come before each page's own
+ scripts: the climatology page uses window.labmimReferences. -->
 <script defer src="assets/js/references.js"></script>

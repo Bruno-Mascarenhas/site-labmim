@@ -1,6 +1,5 @@
 :root {
-  /* Shared structural contract. The visual identity comes from the generated
-     assets/css/site-theme.css of the selected publication. */
+  /* The --brand-* tokens come from the publication's generated site-theme.css. */
   --primary-color: var(--brand-primary);
   --secondary-color: var(--brand-secondary);
   --danger-color: #e74c3c;
@@ -17,16 +16,14 @@
   --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.15);
   --map-accent-gradient: linear-gradient(135deg, var(--map-accent), var(--map-accent-2));
   --navbar-height: 76px;
+  --wcag-min-target: 24px;
   --bg-primary: #fff;
   --bg-secondary: #f5f5f5;
   --text-primary: #333;
   --text-secondary: #666;
 
-  /* Optional theme-contract tokens, read at runtime by
-     assets/js/charts-manager.js (_getThemeColors). These are the shared
-     defaults; a publication may override them in its own site-theme.css, which
-     comes after this file in the cascade. The matching fallbacks in the JS only
-     cover the case where the CSS never loaded. */
+  /* Read at runtime by charts-manager.js (_getThemeColors); a publication may
+     override them in its site-theme.css, later in the cascade. */
   --chart-grid-color: #f0f0f0;
   --chart-legend-color: #666;
   --tooltip-bg: rgba(18, 18, 18, 0.96);

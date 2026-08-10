@@ -11,16 +11,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, stdio: "inherit" });
   if (result.error) throw result.error;
-  // Death by signal is not a configuration failure, and the orchestrators branch on
-  // the difference: build-all.mjs and check-publications.mjs tell "was terminated by"
-  // apart from "failed", and the restore in site-builder/cli.js retries only when the
-  // previous build died from a signal. This is the process they all actually spawn, so
-  // it re-raises the signal to the parent rather than collapsing it into `exit 1`.
+  // Re-raise rather than collapse into `exit 1`: this is the process the orchestrators
+  // spawn, and site-builder/cli.js retries a restore only when the build died by signal.
   if (result.signal) {
     process.kill(process.pid, result.signal);
-    // Signal ignored by the current disposition (SIGPIPE, say): the kill above returns
-    // and execution would fall through to the Prettier step over half-written output.
-    // Exiting with 128+n at least keeps the signal readable in the exit code.
+    // Signal ignored by the current disposition (SIGPIPE, say): the kill returns and
+    // execution would fall through to Prettier over half-written output.
     process.exit(128 + (constants.signals[result.signal] ?? 0));
   }
   if (result.status !== 0) process.exit(result.status || 1);

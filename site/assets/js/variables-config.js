@@ -1,43 +1,16 @@
 /**
- * VARIABLES_CONFIG.js
- *
- * Centralized configuration of meteorological variables.
- * Add new variables here to expand system functionality.
- *
- * Each variable contains:
- * - id: File identifier (e.g., SWDOWN, POT_EOLICO_100M)
- * - label: Name displayed in the UI
- * - unit: Measurement unit
- * - colors: Array of hex colors for the gradient
- * - relatedVariables: Companion variables this variable's specificInfo reads
- *   from allValues (omit when none). The map only fetches these on a cell
- *   click, instead of every visible variable.
- * - hideBelow: Values strictly below this threshold are left unpainted
- *   (transparent) instead of colored — for fields like precipitation, whose
- *   "no rain" cells would otherwise flood the map with the palette's first
- *   color (omit when every value should be painted).
- * - accumulation: Selectable accumulation window for per-timestep totals.
- *   The pipeline only publishes one file per timestep, so windows longer than
- *   one step are summed in the frontend over the N steps ending at the
- *   selected time. Each option carries the scale and label that window needs.
- * - chartCompanions: Companion SERIES the time-series modal loads alongside
- *   the variable (omit when none) — e.g. temperature drives the solar/eolico
- *   energy-production chart.
- * - specificInfo: Function returning variable-specific details
- *   * Signature: (value, allValues = {})
- *   * value: Current variable value
- *   * allValues: Object with the current variable plus its relatedVariables
- *     Example: { temperature: { value: 25, label: '...', unit: '°C' }, ... }
- *   * Enables multivariate calculations (e.g., solar production with temp adjustments)
+ * Fields beyond the self-evident ones (id, label, unit, colors, scaleMin/Max):
+ * - relatedVariables: companions fetched only on a cell click, never per frame.
+ * - chartCompanions: extra SERIES the time-series modal loads with the variable.
+ * - hideBelow: values strictly below stay unpainted instead of taking the
+ *   palette's first color.
+ * - accumulation: the pipeline publishes one file per timestep, so windows
+ *   longer than a step are summed in the frontend over the N steps ending at
+ *   the selected time.
+ * - specificInfo(value, allValues): allValues holds the variable plus its
+ *   relatedVariables, each as { value, label, unit }.
  */
 
-/**
- * Helper to retrieve custom parameters or fallback to default
- * @param {string} variableType - Variable type (e.g., solar, eolico)
- * @param {string} paramName - Parameter name
- * @param {number} defaultValue - Default value if not customized
- * @returns {number} Custom or default value
- */
 function getParameter(variableType, paramName, defaultValue) {
   if (typeof app === "undefined" || !app || !app.getCustomParameter) {
     return defaultValue;
@@ -56,17 +29,9 @@ function getParameter(variableType, paramName, defaultValue) {
 }
 
 /**
- * Accumulation window (in hours) behind the field currently painted for
- * `variableType`, so specificInfo can describe the value it was actually
- * handed — a 3h total must not be classified with hourly-rain thresholds.
- *
- * This is the EFFECTIVE window, not the selected one: the first steps of a run
- * have no earlier steps to close the window with and the sum falls short, so
- * dividing that total by 3h would overstate the intensity and the label would
- * promise a three-hour accumulation nobody summed.
- * @param {string} variableType - Variable type (e.g., rain)
- * @param {number} defaultHours - Fallback when no map manager is available
- * @returns {number} Accumulation window in hours behind the painted value
+ * The EFFECTIVE window behind the painted field, not the selected one: the
+ * first steps of a run have no earlier steps to close the window with, so the
+ * sum falls short and dividing it by the selected 3h would overstate intensity.
  */
 function getAccumulationHours(variableType, defaultHours = 1) {
   if (typeof app === "undefined" || !app || !app.getAccumulatedSteps) {
@@ -83,9 +48,8 @@ function getAccumulationHours(variableType, defaultHours = 1) {
 
 const TEMPERATURE_COLORS = ["#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000"];
 const HUMIDITY_COLORS = ["#f7fbff", "#deebf7", "#c6dbef", "#6baed6", "#2171b5", "#08306b"];
-// Matplotlib `jet` sampled at 11 evenly spaced stops and reversed (`jet_r`):
-// dark red for the driest air through to navy for the moistest, matching the
-// colormap used in the group's Python figures for specific humidity.
+// Matplotlib `jet_r` at 11 evenly spaced stops: the colormap the group's Python
+// figures use for specific humidity.
 const JET_R_COLORS = [
   "#800000",
   "#f30900",
@@ -117,12 +81,9 @@ const VARIABLE_CONTEXTS = {
   forecast: {
     optionGroupLabel: "Variáveis meteorológicas e radiativas",
     defaultVariable: "temperature",
-    // The radiative block follows the energy balance itself: shortwave
-    // (incoming, reflected, net), longwave (incoming, emitted, net), the net
-    // radiation that sums them and finally the turbulent fluxes that consume
-    // it — Rn = H + LE + G, so netRadiation sits right before hfx/lh. The two
-    // dimensionless indices close the list because they are sky diagnostics,
-    // not terms of the balance.
+    // Ordered by the energy balance, not by name: shortwave, longwave, the net
+    // radiation that sums them (Rn = H + LE + G, hence right before hfx/lh),
+    // then the two dimensionless sky diagnostics, which are not balance terms.
     variables: [
       "temperature",
       "skinTemperature",
@@ -222,7 +183,7 @@ const VARIABLES_CONFIG = {
             value: (energyGen * 1000).toFixed(2),
             unit: "Wh/m²",
             icon: "fa-solar-panel",
-            // Unformatted number for charts/CSV; `value` above is display-only.
+            // Raw number for charts/CSV; `value` above is display-only.
             energyValue: energyGen * 1000,
           },
         ],
@@ -280,7 +241,7 @@ const VARIABLES_CONFIG = {
             value: ((0.5 * airDensityAtTemp * Math.pow(value, 3) * rotorArea * Cp) / 1000).toFixed(1),
             unit: "kWh",
             icon: "fa-wind",
-            // Unformatted number for charts/CSV; `value` above is display-only.
+            // Raw number for charts/CSV; `value` above is display-only.
             energyValue: (0.5 * airDensityAtTemp * Math.pow(value, 3) * rotorArea * Cp) / 1000,
           },
         ],
@@ -290,8 +251,7 @@ const VARIABLES_CONFIG = {
 
   temperature: {
     id: "TEMP",
-    // Feels-like only knows how to use RELATIVE humidity, and every related
-    // variable costs one more JSON fetched on each cell click.
+    // Feels-like only knows how to use RELATIVE humidity.
     relatedVariables: ["relativeHumidity", "wind"],
     label: "Temperatura (2m)",
     optionLabel: "Temperatura",
@@ -313,7 +273,6 @@ const VARIABLES_CONFIG = {
         : null;
       const windValue = Number.isFinite(allValues.wind?.value) ? allValues.wind.value : 2;
 
-      // Without RH2 there is no feels-like to compute: the air temperature stands alone.
       const feelsLike = humidityValue === null ? value : getTemperatureFeelsLike(value, humidityValue, windValue);
 
       return {
@@ -390,23 +349,19 @@ const VARIABLES_CONFIG = {
     unit: "hPa",
     sourceId: "PRES",
     summary: "Pressão atmosférica na superfície, exibida em hectopascal para leitura operacional.",
-    // No scaleMin/scaleMax on purpose: the published field is PSFC (surface
-    // pressure, over the terrain), not pressure reduced to sea level, and over
-    // the Bahia plateau it drops to ~860 hPa. Any fixed floor would flatten a
-    // quarter of the domain into a single color, so the scale comes from the
-    // per-domain `metadata.scale_values` the pipeline publishes — constant
-    // across steps, so the color bar does not wobble during playback.
+    // No scaleMin/scaleMax on purpose: the field is PSFC, over the terrain and
+    // not reduced to sea level, so it drops to ~860 hPa on the Bahia plateau.
+    // The scale comes from the per-domain `metadata.scale_values` the pipeline
+    // publishes, constant across steps so the color bar does not wobble.
     colors: PRESSURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.pressure?.ausente) {
         return unavailableInfo("Condições Atmosféricas");
       }
 
-      // Nothing here compares against 1013.25 hPa: that is the standard
-      // atmosphere AT SEA LEVEL, while the published field is PSFC, the
-      // pressure at terrain height. At a 1300 m point the "departure" would be
-      // -130 hPa of altimetry with no synoptic anomaly at all, and a high/low
-      // classification would just be a terrain detector.
+      // Nothing compares against 1013.25 hPa: that is sea level, so at a 1300 m
+      // point the "departure" would be -130 hPa of altimetry and a high/low
+      // classification would be a terrain detector.
       return {
         title: "Condições Atmosféricas",
         items: [
@@ -419,10 +374,8 @@ const VARIABLES_CONFIG = {
           {
             label: "Referência",
             value: "Nível do terreno (PSFC)",
-            // A ruler, not a mountain: the panel states the reference HEIGHT of
-            // the reading, not that the terrain is rugged. It also avoids
-            // growing the font subset for a single glyph — see
-            // scripts/subset-fontawesome.md.
+            // A ruler, not a mountain: the reference HEIGHT of the reading, and
+            // no new glyph in the font subset (scripts/subset-fontawesome.md).
             icon: "fa-ruler-vertical",
           },
         ],
@@ -525,9 +478,7 @@ const VARIABLES_CONFIG = {
       "Precipitação acumulada no timestep do modelo, somada na janela escolhida (1h ou 3h). Células sem chuva (< 0,01 mm) não são pintadas.",
     scaleMin: 0,
     scaleMax: 30,
-    // Below 0.01 mm WRF writes zeros over almost the whole grid: painting them
-    // would cover the map in the palette's first color and hide where it
-    // actually rains.
+    // Below 0.01 mm WRF writes zeros over almost the whole grid.
     hideBelow: 0.01,
     accumulation: {
       title: "Acumulado:",
@@ -553,8 +504,7 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Previsão de Precipitação");
       }
 
-      // The intensity bands are hourly; with the 3h window selected the shown
-      // value is a total, so the classification uses the mean rate.
+      // The intensity bands are hourly, but the painted value is a window total.
       const hours = getAccumulationHours("rain", 1);
       const hourlyRate = value / hours;
 
@@ -573,9 +523,7 @@ const VARIABLES_CONFIG = {
             icon: "fa-water",
           },
           {
-            // The 5 mm threshold is on VOLUME, not on rate: unlike the
-            // intensity above, this item reads the raw accumulation, which is
-            // why the window belongs in the label.
+            // 5 mm is a VOLUME threshold, not a rate: hence the window in the label.
             label: `Impacto Agrícola (${hours}h)`,
             value: value > 5 ? "Benéfico" : "Insuficiente",
             icon: "fa-leaf",
@@ -720,11 +668,9 @@ const VARIABLES_CONFIG = {
     },
   },
 
-  // Derived terms of the radiative balance. The wrfout carries the incoming
-  // fluxes (SWDOWN, GLW) directly, but the upwelling ones only when RRTMG's
-  // bottom-of-atmosphere diagnostics are on — LWUPB exists in no grid of the
-  // operational run. The pipeline rebuilds them from EMISS, TSK, ALBEDO and
-  // COSZEN, so they publish the same way in any run.
+  // The upwelling fluxes are derived: LWUPB exists in no grid of the operational
+  // run (RRTMG's bottom-of-atmosphere diagnostics are off), so the pipeline
+  // rebuilds them from EMISS, TSK, ALBEDO and COSZEN.
 
   shortwaveUp: {
     id: "SWUP",
@@ -908,8 +854,7 @@ const VARIABLES_CONFIG = {
         },
       ];
 
-      // Rn = H + LE + G: with the turbulent fluxes alongside, the share left
-      // for the soil and for storage is readable in the box itself.
+      // Rn = H + LE + G: with H and LE shown, the soil/storage share is readable.
       const sensible = allValues.hfx?.value;
       const latent = allValues.lh?.value;
       if (typeof sensible === "number" && typeof latent === "number" && Math.abs(value) > 1) {
@@ -1143,8 +1088,7 @@ function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
     const RH = humidity;
 
     // The NWS pretest, not a fixed °C threshold, decides whether the Rothfusz
-    // regression applies: the regression is only valid above ~80 °F, and the
-    // pretest puts the switchover exactly where it starts to hold.
+    // regression applies: it is only valid above ~80 °F.
     const simpleHI_F = 0.5 * (T + 61 + (T - 68) * 1.2 + RH * 0.094);
 
     if ((simpleHI_F + T) / 2 >= 80) {

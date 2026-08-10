@@ -47,7 +47,6 @@ function consumesCssToken(css, property) {
 }
 
 /**
- * Matches only `var(--token, <fallback>)` carrying at least one fallback character.
  * The `[^)\s]` after the comma accepts function values (rgba(...), gradients) without
  * trying to match the whole value — proving a fallback exists is enough.
  */
@@ -55,7 +54,6 @@ function consumesCssTokenWithFallback(css, property) {
   return new RegExp(`var\\(\\s*--${property}\\s*,\\s*[^)\\s]`).test(css);
 }
 
-/** Matches the token being read from JS (getPropertyValue("--token")). */
 function consumesJsToken(js, property) {
   return new RegExp(`--${property}(?![\\w-])`).test(js);
 }
@@ -95,9 +93,8 @@ for (const marker of cascadeMarkers) {
   const markerIndex = headTemplate.indexOf(marker);
   if (markerIndex < 0) {
     errors.push(`head template is missing CSS cascade marker ${marker}`);
-    // Leave previousIndex on the last marker that WAS found: a missing marker
-    // (index -1) would otherwise reset the baseline and hide an ordering error
-    // in the markers that follow it.
+    // Leave previousIndex on the last marker that WAS found: index -1 would reset the
+    // baseline and hide an ordering error in the markers that follow.
     continue;
   }
   if (markerIndex <= previousIndex) {
@@ -119,8 +116,8 @@ for (const property of REQUIRED_THEME_PROPERTIES) {
     errors.push(`required theme token --${property} is not consumed by shared CSS; use var(--${property}) or drop it`);
   }
 
-  // A required token has no fallback: were the shared CSS to assign it a literal, the
-  // publication's own identity would stop deciding that colour.
+  // A required token has no fallback: a literal assigned in shared CSS would take the
+  // colour away from the publication's own identity.
   const declarations = sharedCss.matchAll(new RegExp(`--${property}\\s*:\\s*([^;}]+)[;}]`, "g"));
   for (const declaration of declarations) {
     if (!declaration[1].trim().startsWith("var(")) {
@@ -129,10 +126,8 @@ for (const property of REQUIRED_THEME_PROPERTIES) {
   }
 }
 
-// An optional token may (and should) carry its fallback where it is read: a literal
-// inside `var(--token, literal)` in CSS, or a literal in the JS that calls
-// getComputedStyle. All that is checked here is that the token really is read
-// somewhere — otherwise declaring it in a theme.css would have no effect at all.
+// An optional token carries its fallback where it is read, so all that is checked here
+// is that it IS read somewhere — otherwise declaring it in a theme.css does nothing.
 for (const { property, consumedBy } of OPTIONAL_THEME_PROPERTIES) {
   if (consumedBy === "js") {
     if (!consumesJsToken(sharedJs, property)) {

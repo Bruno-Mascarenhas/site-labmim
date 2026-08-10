@@ -17,13 +17,8 @@ function normalizeOrigin(origin) {
   }
 }
 
-/**
- * Discover publication manifests in src/sites/<id>/site.js.
- *
- * The filesystem is the registry: adding a valid directory is enough for the
- * build and CI to see it. Manifests are returned in stable id order and carry
- * their absolute source directory in `directory`.
- */
+// The filesystem is the registry: dropping a valid src/sites/<id>/site.js is enough for
+// the build and CI to see a publication. Each manifest gains an absolute `directory`.
 function discoverPublications(root) {
   const workspaceRoot = path.resolve(root || process.cwd());
   const sitesRoot = path.join(workspaceRoot, "src", "sites");

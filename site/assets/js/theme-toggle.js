@@ -1,9 +1,3 @@
-/**
- * theme-toggle.js
- * Every theme button on the page (navbar and footer) is wired through the
- * [data-theme-toggle]/[data-theme-icon] attributes, so they all stay in sync.
- */
-
 document.addEventListener("DOMContentLoaded", () => {
   const themeToggleBtns = document.querySelectorAll("[data-theme-toggle]");
   const themeIcons = document.querySelectorAll("[data-theme-icon]");
@@ -34,10 +28,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // theme-boot.js in the <head> has already applied the initial state.
   updateIcon(document.documentElement.classList.contains("dark-theme"));
 
-  // Where site storage is blocked (cookies off, storage partitioned inside an
-  // iframe) any access to `localStorage` throws. Reading the theme through here
-  // keeps the exception contained: no storage means no saved preference, which
-  // is exactly what `null` stands for.
+  // Any access to `localStorage` throws where site storage is blocked (cookies
+  // off, partitioned iframe); no storage means no saved preference, i.e. `null`.
   function readTheme() {
     try {
       return localStorage.getItem("labmim-theme");
@@ -50,29 +42,25 @@ document.addEventListener("DOMContentLoaded", () => {
     themeToggleBtn.addEventListener("click", (e) => {
       e.preventDefault();
       const newDark = !document.documentElement.classList.contains("dark-theme");
-      // Apply first, persist after: the write is the only part that can throw,
-      // and the button must still toggle when it does.
+      // Apply first, persist after: only the write can throw, and the button
+      // must still toggle when it does.
       applyTheme(newDark);
       try {
         localStorage.setItem("labmim-theme", newDark ? "dark" : "light");
       } catch {
-        // Storage unavailable: the theme holds for this tab only.
+        // No storage: the theme holds for this tab only.
       }
     });
   });
 
-  // Follow the OS only while the user has set no manual preference.
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
     if (!readTheme()) applyTheme(e.matches);
   });
 
-  // The preference is one for the whole site, but navigation is multi-page and
-  // usually leaves several tabs open. The `storage` event fires precisely in
-  // the OTHER tabs of the same origin, so it is what lets them follow the
-  // switch instead of waiting for a reload.
+  // The `storage` event fires only in the OTHER tabs of this origin, which is
+  // what lets a multi-page site switch them all without a reload.
   window.addEventListener("storage", (e) => {
     if (e.key !== "labmim-theme") return;
-    // A null value is the erased preference: what the OS asks for rules again.
     const isDark = e.newValue ? e.newValue === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
     applyTheme(isDark);
   });

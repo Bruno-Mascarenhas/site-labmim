@@ -1,23 +1,13 @@
 "use strict";
 
-/**
- * Theme contract for publications.
- *
- * REQUIRED: every publication MUST declare these. They are the tokens without which
- * the shared CSS cannot paint itself — no literal fallback exists for them.
- *
- * OPTIONAL: any publication MAY declare them; none has to. When a token is left out,
- * the shared CSS (or JS) uses the value documented in `fallback`, which is exactly the
- * literal in force today. That is why adding an optional token never changes the look
- * of a publication that ignores it, and never couples one publication to another.
- *
- * `consumedBy` says where the token is read, and therefore where the checker looks for
- * consumption:
- *   "css" -> must appear as var(--token) / var(--token, fallback) in the shared CSS
- *            under site/assets/css/**;
- *   "js"  -> read at runtime through getComputedStyle in site/assets/js/**, where
- *            `var()` does not exist and the fallback lives in the JS itself.
- */
+// REQUIRED tokens have no literal fallback: without them the shared CSS cannot paint.
+// An OPTIONAL token left out falls back to the `fallback` value, which is the literal in
+// force today — adding one never changes a publication that ignores it.
+//
+// `consumedBy` tells the checker where to look for consumption:
+//   "css" -> must appear as var(--token) in the shared CSS under site/assets/css/**;
+//   "js"  -> read through getComputedStyle in site/assets/js/**, where `var()` does not
+//            exist and the fallback lives in the JS itself.
 
 const REQUIRED_THEME_PROPERTIES = Object.freeze([
   "accent-color",
@@ -43,7 +33,6 @@ const REQUIRED_THEME_PROPERTIES = Object.freeze([
 
 const OPTIONAL_THEME_PROPERTIES = Object.freeze(
   [
-    // Ink ramp (text) over the light surfaces of the map and documentation panels.
     {
       property: "ink-strong",
       consumedBy: "css",
@@ -74,7 +63,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#506176",
       describes: "kickers, legendas e rótulos secundários dos painéis",
     },
-    // Light inks used ON TOP of brand surfaces (footer, dark navbar).
     {
       property: "ink-on-brand",
       consumedBy: "css",
@@ -93,7 +81,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#d8dee9",
       describes: "parágrafos secundários de cards/explicações no tema escuro",
     },
-    // Ramp of tinted light surfaces.
     {
       property: "surface-raised",
       consumedBy: "css",
@@ -124,7 +111,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#ebebf5",
       describes: "fundo do hover das abas de documentação (vizinho da aba ativa)",
     },
-    // Panel hairlines.
     {
       property: "hairline-rgb",
       consumedBy: "css",
@@ -137,7 +123,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#d8e2ef",
       describes: "borda sólida dos blocos de fórmula da documentação",
     },
-    // Dark counterpart of the chart tokens (mirrors --lab-header-dark-bg).
     {
       property: "chart-legend-dark-color",
       consumedBy: "css",
@@ -150,7 +135,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "rgba(255, 255, 255, 0.12)",
       describes: "cor da grade dos gráficos no tema escuro",
     },
-    // Read at runtime by site/assets/js/charts-manager.js (_getThemeColors).
     {
       property: "chart-legend-color",
       consumedBy: "js",
@@ -207,9 +191,8 @@ function parseRgbChannels(value) {
 function inspectPublicationThemeCss(content) {
   const errors = [];
   const withoutComments = content.replace(/\/\*[\s\S]*?\*\//g, "").trim();
-  // `[^{}]` stops the block from swallowing the next rule when the last declaration
-  // comes without a ';'; `@` rejects brace-less at-rules (@import, @charset), which
-  // would otherwise slip past the contract.
+  // `[^{}]` stops the match from swallowing the next rule when the last declaration has
+  // no ';'; `@` rejects brace-less at-rules (@import, @charset) that would slip past.
   const root = withoutComments.match(/^:root\s*\{([^{}@]*)\}\s*$/);
 
   if (!root) {

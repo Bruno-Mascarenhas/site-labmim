@@ -50,11 +50,9 @@
     <h3 class="section-eyebrow mb-3">Parceiros</h3>
     <div class="partners-grid">
       <!--
-        The http:// scheme is deliberate. www.lapo.ufba.br (an alias of
-        iis.ufba.br) accepts TCP on 443 but resets every TLS handshake — tried on
-        TLS 1.0-1.3, with and without SNI, and with verification off. Only HTTP
-        answers, as of 2026-08-03. Switching to https:// would kill the link
-        silently: scripts/check-links.mjs skips external URLs, so CI never sees it.
+        The http:// scheme is deliberate: www.lapo.ufba.br accepts TCP on 443 but
+        resets every TLS handshake (as of 2026-08-03). Switching to https:// kills
+        the link silently — check-links.mjs skips external URLs.
       -->
       <a href="http://www.lapo.ufba.br/" class="partner-logo" title="LAPO" target="_blank" rel="noopener">
         <picture>
@@ -67,10 +65,9 @@
       </a>
       <!--
         Same address the ufes publication declares as its origin. Do not point this
-        back at www.leal.ufes.br: the certificate's SAN covers leal.ufes.br only, and
-        under that SNI the server answers with a TLS unrecognized_name alert — the
-        handshake dies before any redirect, as of 2026-08-09. check-links.mjs skips
-        external URLs, so CI never sees it.
+        back at www.leal.ufes.br: the certificate's SAN covers leal.ufes.br only, so
+        that SNI dies on a TLS unrecognized_name alert before any redirect (as of
+        2026-08-09), and check-links.mjs skips external URLs.
       -->
       <a href="https://www.lealufes.org/" class="partner-logo" title="LEAL" target="_blank" rel="noopener">
         <img loading="lazy" src="assets/img/logo_leal.png" alt="LEAL" class="partner-logo-sm" />

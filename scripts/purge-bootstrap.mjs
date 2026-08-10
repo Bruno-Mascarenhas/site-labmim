@@ -3,16 +3,10 @@
 /**
  * Regenerates assets/vendor/bootstrap/bootstrap.purged.min.css.
  *
- * This exists as a script because the equivalent manual command is destructive:
- * PurgeCSS names its output after the basename of the input, so pointing --output at
- * the vendor directory overwrites the very full bootstrap.min.css that serves as its
- * source. Here the output lands in a temporary directory and only the purged file is
- * moved into place.
- *
- * It runs build:all first: the purged file is a SINGLE file shared by every
- * publication, but site/ holds one publication at a time. The analysed corpus
- * includes dist/<id>/*.html precisely so classes used only by another publication
- * are not stripped.
+ * Exists because the equivalent manual command is destructive: PurgeCSS names its
+ * output after the basename of the input, so pointing --output at the vendor directory
+ * overwrites the full bootstrap.min.css that serves as its source. Here it lands in a
+ * scratch directory and only the purged file is moved into place.
  */
 
 import { spawnSync } from "node:child_process";

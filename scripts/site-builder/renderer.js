@@ -9,38 +9,26 @@ const { SITE_REFERENCES } = require("../../src/template/references");
 const read = (filePath) => fs.readFileSync(filePath, "utf8");
 const replaceAll = (text, token, value) => text.split(token).join(value);
 
-// Overwriting a file keeps its existing mode, and a delete+recreate lands at the
-// umask default; pin every generated file to 0644 so a publication with a smaller
-// page set (which deletes then recreates a page) can never surface as a spurious
-// mode-only diff in the committed site/ tree.
+// A page that gets deleted and recreated lands at the umask default, which would show
+// up as a mode-only diff in the committed site/ tree.
+const GENERATED_FILE_MODE = 0o644;
 const writeOutput = (filePath, content) => {
   fs.writeFileSync(filePath, content);
-  fs.chmodSync(filePath, 0o644);
+  fs.chmodSync(filePath, GENERATED_FILE_MODE);
 };
 const escapeAttribute = (value) =>
   String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/**
- * Escape hatch for pages that need to *document* the template syntax itself.
- * These two tokens are ignored by the unresolved-token check and expanded into
- * literal braces right after it, so `{{LITERAL_OPEN}}FOO{{LITERAL_CLOSE}}`
- * renders as a literal `{{FOO}}` without failing the build.
- */
+// Ignored by assertResolved, then expanded right after it, so a page can document the
+// template syntax itself without failing the unresolved-token check.
 const LITERAL_BRACES = Object.freeze({ "{{LITERAL_OPEN}}": "{{", "{{LITERAL_CLOSE}}": "}}" });
 
 const DEFAULT_FAVICON_EMOJI = "🌦️";
 
-/**
- * WRF namelist defaults. They describe the simulation that produced the data,
- * so a dataset may override any of them through an optional `model` block.
- *
- * The `[[key]]` markers are citations, expanded in the browser by
- * assets/js/references.js into a link carrying the full paper. They live HERE,
- * beside the scheme name, rather than in the template, because the scheme is
- * what a publication overrides: a laboratory that runs MYNN instead of YSU
- * changes one string and its citation travels with it, instead of the page
- * quietly crediting the wrong paper.
- */
+// WRF namelist defaults, overridable per dataset through an optional `model` block.
+// The `[[key]]` markers are citations, expanded in the browser by assets/js/references.js.
+// They sit beside the scheme name so a laboratory that runs MYNN instead of YSU changes
+// one string and its paper travels with it, instead of the page crediting the wrong one.
 const DEFAULT_MODEL = Object.freeze({
   initialConditions: "GFS (Global Forecast System) da NOAA [[gfs]], resolução 0.25°, atualizações a cada 6h.",
   verticalLevels: "~40 níveis sigma, com maior concentração na camada limite planetária (CLP).",
@@ -51,34 +39,21 @@ const DEFAULT_MODEL = Object.freeze({
   cumulus: "Kain-Fritsch [[kainfritsch]]",
 });
 
-/**
- * The fields an optional block really declares. Unlike `??`, a spread COPIES an
- * explicitly `undefined` value and wipes the default underneath it — the token would
- * then render as the word "undefined" in the documentation body, crediting a scheme
- * that does not exist. A missing field and a field written as `undefined` mean the
- * same thing here: use the default.
- */
+// A spread COPIES an explicitly `undefined` value and wipes the default underneath it;
+// the token would then render the word "undefined", crediting a scheme that does not exist.
 const declaredFields = (block) =>
   Object.fromEntries(Object.entries(block || {}).filter(([, value]) => value !== undefined));
 
-/** Name of the CLI that turns the raw WRF NetCDF output into the served JSON/GeoJSON. */
 const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";
 
 const OBSERVATION_CHART_WIDTH = 800;
 const OBSERVATION_CHART_HEIGHT = 400;
 
-/**
- * Inline SVG favicon built from a single glyph. Only the glyph varies and it is
- * escaped (the same `&<>"` -> entity substitutions used for HTML attributes), so
- * the result can never contain a raw `"` and stays safe inside the double-quoted
- * `href` attribute (the surrounding `<svg>` markup is ours).
- */
 function faviconHref(emoji) {
   const glyph = escapeAttribute(emoji);
   return `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${glyph}</text></svg>`;
 }
 
-/** `radiacao_difusa` -> `modalRadiacaoDifusa`. */
 function observationModalId(chartId) {
   const suffix = String(chartId)
     .split(/[^A-Za-z0-9]+/)
@@ -146,15 +121,8 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     return `<picture><source srcset="${escapeAttribute(logo.webp)}" type="image/webp" />${image}</picture>`;
   }
 
-  /**
-   * `imageClass` mirrors what `brandPicture` already does for the brand logo:
-   * the nav keeps the compact `brand-logo-sm`, while the footer sits on a dark
-   * background and needs the taller, brightened treatment.
-   *
-   * The `kind: "text"` variant deliberately takes no per-slot class: its footer
-   * treatment is a contextual CSS rule (`.modern-footer .site-affiliation-text`
-   * in site/assets/css/base.css), so the markup stays slot-agnostic.
-   */
+  // The `kind: "text"` variant takes no per-slot class on purpose: its footer treatment
+  // is a contextual rule (`.modern-footer .site-affiliation-text` in assets/css/base.css).
   function affiliationMarkup(affiliation, extraClass = "", { imageClass = "brand-logo-sm" } = {}) {
     const classes = ["site-affiliation", extraClass].filter(Boolean).join(" ");
     if (affiliation.kind === "image") {
@@ -272,8 +240,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
       className: "brand-logo brand-logo-bright site-brand-logo",
     }),
     BRAND_SIDEBAR_PICTURE: brandPicture(brand.logos.sidebar),
-    // Raw (not attribute-escaped): faviconHref() already produces a value with
-    // no `"` and the surrounding `<svg>` is intentionally literal markup.
+    // Raw on purpose: faviconHref escapes the glyph, and its `<svg>` is literal markup.
     FAVICON: faviconHref(brand.favicon ?? DEFAULT_FAVICON_EMOJI),
     AFFILIATIONS_NAV: affiliationsMarkup("me-3"),
     AFFILIATIONS_FOOTER: affiliationsMarkup("", { imageClass: "brand-logo brand-logo-bright" }),
@@ -315,18 +282,13 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     MODEL_CUMULUS: escapeAttribute(model.cumulus),
     OBSERVATION_CHART_CARDS: observationChartCards(),
     OBSERVATION_CHART_MODALS: observationChartModals(),
-    // Base of the climatology artifacts, published as a `data-` attribute instead of
-    // an href/src: the directory is operational (it arrives with the deploy and is
-    // absent from a checkout and from CI), so a reference the link and bundle checkers
-    // could see would fail the build on every machine without the data.
+    // CLIMATOLOGY_BASE and MONITORING_BASE ship as `data-`, never href/src: their
+    // directories arrive only with the deploy, so a reference the link and bundle
+    // checkers could see would fail the build on every machine without the data.
     CLIMATOLOGY_BASE: escapeAttribute(dataset.paths.climatology ?? ""),
-    // Site bibliography, embedded in a <script type="application/json">. `<` is escaped
-    // because the only sequence able to close that block early is `</script`, and it
-    // can appear inside a paper title.
+    // `<` is escaped because `</script` is the only sequence able to close the embedding
+    // <script type="application/json"> early, and it can appear inside a paper title.
     SITE_REFERENCES: JSON.stringify(SITE_REFERENCES).replace(/</g, "\\u003c"),
-    // Same nature as CLIMATOLOGY_BASE: an operational directory delivered by the
-    // deploy, published as `data-` precisely so it stays invisible to the link and
-    // bundle checkers, which run where the data does not exist.
     MONITORING_BASE: escapeAttribute(dataset.paths.monitoring ?? ""),
   };
 
@@ -346,10 +308,8 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     const { title, description } = page.seo;
     const url = absoluteUrl(page.file);
     return [
-      // `indexable: false` drops the page from the sitemap, and a sitemap only
-      // suggests: a single inbound link elsewhere would be enough to index it. The
-      // noindex is what actually keeps it out of the index, the way the static 404
-      // already does. "follow" preserves the value of the internal links it hands out.
+      // Leaving the page out of the sitemap only withdraws a suggestion; one inbound link
+      // elsewhere still indexes it. "follow" keeps the value of the links it hands out.
       ...(page.indexable === false ? ['    <meta name="robots" content="noindex, follow" />', ""] : []),
       `    <link rel="canonical" href="${escapeAttribute(url)}" />`,
       "",
@@ -438,29 +398,17 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
       .join("\n");
   }
 
-  /**
-   * Tags for the `{{pageScripts}}` slot, always `defer` and always with the vendored
-   * ones ahead of the first-party ones: `defer` scripts run in document order, so that
-   * order is what guarantees `Chart` is defined when the page module runs.
-   *
-   * The slot sits AFTER `{{> scripts}}` in the layout for the same reason — the
-   * Bootstrap bundle must exist before the page JS.
-   */
+  // `defer` scripts run in document order, so vendor-first is what guarantees `Chart` is
+  // defined when the page module runs. The `{{pageScripts}}` slot sits after `{{> scripts}}`
+  // in the layout for the same reason: the Bootstrap bundle must exist before the page JS.
   function scriptTags(page) {
     return [...page.vendorScripts, ...page.scripts]
       .map((source) => `    <script defer src="${escapeAttribute(source)}"></script>`)
       .join("\n");
   }
 
-  /**
-   * The slot regex swallows the newline before `{{pageScripts}}` so a page without
-   * scripts leaves no blank line before `</body>` — site/ is committed, and the empty
-   * line would be diff churn on every publication that declares no page script.
-   *
-   * A page that declares scripts against a layout without the slot is refused:
-   * otherwise the JS would vanish silently and the page would ship with dead controls,
-   * exactly the failure mode validate.js already guards against for CSS.
-   */
+  // The slot regex swallows the preceding newline so a page without scripts leaves no
+  // blank line before `</body>`: site/ is committed and that line would be diff churn.
   function applyPageScripts(page, html) {
     const tags = scriptTags(page);
     const slot = /\n[ \t]*\{\{pageScripts\}\}/;
@@ -477,13 +425,9 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     return html.replace(slot, tags ? `\n${tags}` : "");
   }
 
-  /**
-   * Same discipline as `applyPageScripts`, for the raw slots. `replaceAll` is
-   * split/join: in a layout without the token the substitution is a no-op and the
-   * declared value evaporates without an error — the page ships with a bare `<body>`
-   * (the map silently falls back to the "forecast" context) or with an untitled
-   * documentation modal, and the only symptom is a page that looks finished.
-   */
+  // `replaceAll` is split/join: in a layout without the token the substitution is a silent
+  // no-op and the declared value evaporates — the page ships with a bare `<body>` (the map
+  // falls back to the "forecast" context) or an untitled modal, and still looks finished.
   function applyRawSlot(page, html, token, value) {
     if (value !== "" && !html.includes(token)) {
       throw new Error(
@@ -541,8 +485,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     return page.file;
   }
 
-  // mod_alias takes whitespace-delimited arguments; quoting both operands keeps
-  // the directive valid even if a path ever contains a space.
+  // mod_alias splits its arguments on whitespace; quoting survives a path with a space.
   function legacyRedirects() {
     return publication.redirects
       .map(
@@ -579,10 +522,8 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     );
     writeOutput(
       path.join(outputDir, "robots.txt"),
-      // robots.txt describes the HOST of THIS publication, so the list is the one it
-      // declares, not the union across the tree. `assets/graphs` is left out on
-      // purpose: the station PNGs are figure landing pages with SEO value. See
-      // site-builder/operational-paths.js.
+      // This host's own declared paths, not the union across the tree. `assets/graphs` is
+      // left out on purpose: the station PNGs are figure landing pages with SEO value.
       `User-agent: *\nAllow: /\n\nSitemap: ${productionOrigin}/sitemap.xml\n\n# Dados gerados pelo pipeline externo — sem valor de SEO e potencialmente grandes.\n${publicationOperationalPaths(
         publication,
         { includeGraphs: false }
@@ -605,8 +546,6 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   return { pagesWritten, staticWritten, themeWritten: "assets/css/site-theme.css" };
 }
 
-// observationModalId is exported so validate.js can dedupe chart ids on the exact
-// DOM id the renderer will emit, instead of a divergent approximation. DEFAULT_MODEL
-// travels for the same reason: the validator refuses an unknown `dataset.model` key
-// against the exact field list the tokens in this file read.
+// observationModalId and DEFAULT_MODEL travel to validate.js so it checks chart-id
+// collisions and unknown `dataset.model` keys against exactly what this file emits.
 module.exports = { renderPublication, observationModalId, DEFAULT_MODEL };
