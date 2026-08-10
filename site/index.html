@@ -9,7 +9,6 @@
     />
     <title>LabMiM — Laboratório de Micrometeorologia e Modelagem · UFBA</title>
 
-    <!-- SEO: canonical + Open Graph + Twitter (gerado por build.js a partir de PROD) -->
     <link rel="canonical" href="https://labmim.if.ufba.br/" />
 
     <!-- Open Graph -->
@@ -53,16 +52,15 @@
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>"
     />
 
-    <!-- Bootstrap 5.3.8 (vendorizado localmente — sem CDN no caminho crítico).
-     Versão PURGADA: só os seletores usados pelo site (~27KB em vez de 232KB);
-     o bootstrap.min.css completo permanece ao lado e `npm run lint:purge`
-     acusa quando uma classe nova exigir regenerar (scripts/purgecss.config.cjs). -->
-    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.purged.min.css?v=b6ca8446" />
+    <!-- PURGED build, ~27KB instead of 232KB. The full bootstrap.min.css stays next
+     to it, and `npm run lint:purge` reports when a new class needs a
+     regeneration (scripts/purgecss.config.cjs). -->
+    <link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.purged.min.css?v=9d6bce91" />
 
-    <!-- Font Awesome 6.4.0 (vendorizado localmente). O preload quebra a cadeia
-     HTML -> CSS -> fonte: todas as páginas usam ícones solid e a fonte tem
-     font-display:block (ícones invisíveis até carregar). crossorigin é
-     obrigatório em preload de fonte, mesmo same-origin, senão baixa 2x. -->
+    <!-- The preload breaks the HTML -> CSS -> font chain: the font is
+     font-display:block, so solid icons stay invisible until it loads.
+     crossorigin is mandatory on a font preload, even same-origin, or it
+     downloads twice. -->
     <link
       rel="preload"
       href="assets/vendor/fontawesome/webfonts/fa-solid-900.woff2"
@@ -72,23 +70,21 @@
     />
     <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
 
-    <!-- CSS modular compartilhado pelas publicações -->
-    <link rel="stylesheet" href="assets/css/base.css?v=7733cbd6" />
+    <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
-    <link rel="stylesheet" href="assets/css/layout.css?v=1052434d" />
-    <link rel="stylesheet" href="assets/css/components.css?v=1399937a" />
+    <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
+    <link rel="stylesheet" href="assets/css/components.css?v=19e7d957" />
 
-    <link rel="stylesheet" href="assets/css/theme.css?v=da53232b" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=33083143" />
 
-    <script src="assets/js/theme-boot.js?v=6fe47826"></script>
-    <script src="assets/js/theme-toggle.js?v=5d8061cc" defer></script>
+    <script src="assets/js/theme-boot.js?v=fef91866"></script>
+    <script src="assets/js/theme-toggle.js?v=396a40c7" defer></script>
     <script src="assets/js/ui-shell.js?v=482aa431" defer></script>
   </head>
 
   <body>
     <a class="skip-link" href="#main">Pular para o conteúdo</a>
     <header>
-      <!-- Navigation -->
       <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
         <a class="navbar-brand ms-4" href="index.html">
           <picture
@@ -141,7 +137,7 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation me-3"
+          <a href="https://cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation me-3"
             ><picture
               ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
               <img
@@ -173,7 +169,7 @@
               <h3 class="mt-3">Sobre o LabMiM</h3>
               <p>
                 O LabMiM faz parte do
-                <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener">CIEnAm</a>
+                <a href="https://cienam.ufba.br" target="_blank" rel="noopener">CIEnAm</a>
                 da
                 <a href="https://www.ufba.br" target="_blank" rel="noopener">UFBA</a>. Investigamos os processos de
                 interação superfície-oceano-atmosfera na Região Metropolitana de Salvador (RMS), por meio de previsão
@@ -211,11 +207,9 @@
           <h3 class="section-eyebrow mb-3">Parceiros</h3>
           <div class="partners-grid">
             <!--
-        http:// aqui e intencional, nao esquecimento. www.lapo.ufba.br (alias de
-        iis.ufba.br) aceita TCP na 443 mas reseta todo handshake TLS — testado em
-        TLS 1.0-1.3, com e sem SNI, e tambem com a verificacao desligada. So HTTP
-        responde. Verificado em 2026-08-03. Nao trocar para https://: o link
-        morreria e scripts/check-links.mjs pula URLs externas, entao o CI nao pega.
+        The http:// scheme is deliberate: www.lapo.ufba.br accepts TCP on 443 but
+        resets every TLS handshake (as of 2026-08-03). Switching to https:// kills
+        the link silently — check-links.mjs skips external URLs.
       -->
             <a href="http://www.lapo.ufba.br/" class="partner-logo" title="LAPO" target="_blank" rel="noopener">
               <picture>
@@ -233,7 +227,13 @@
             <a href="https://lasa.ufrj.br/" class="partner-logo" title="LASA" target="_blank" rel="noopener">
               <img loading="lazy" src="assets/img/logo_LASA.svg" alt="LASA" class="partner-logo-sm" />
             </a>
-            <a href="https://www.leal.ufes.br/" class="partner-logo" title="LEAL" target="_blank" rel="noopener">
+            <!--
+        Same address the ufes publication declares as its origin. Do not point this
+        back at www.leal.ufes.br: the certificate's SAN covers leal.ufes.br only, so
+        that SNI dies on a TLS unrecognized_name alert before any redirect (as of
+        2026-08-09), and check-links.mjs skips external URLs.
+      -->
+            <a href="https://www.lealufes.org/" class="partner-logo" title="LEAL" target="_blank" rel="noopener">
               <img loading="lazy" src="assets/img/logo_leal.png" alt="LEAL" class="partner-logo-sm" />
             </a>
             <a
@@ -281,7 +281,7 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://www.cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation"
+          <a href="https://cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation"
             ><picture
               ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
               <img
@@ -301,10 +301,8 @@
           <p class="copyright mb-0">
             &copy; 2026 LabMiM - Todos os direitos reservados
             <!--
-          Marca do GitHub embutida como SVG (Octicons, MIT) em vez do ícone equivalente do Font
-          Awesome: o glifo mora na família *brands* (fa-brands-400.woff2, 108 KB), fonte que hoje
-          nenhuma página chega a baixar porque o site só usa ícones solid. Um link de rodapé não
-          paga esse download nem a requisição extra que um subset da fonte de brands ainda custaria.
+          Inlined SVG (Octicons, MIT) rather than the Font Awesome icon: that glyph lives in the
+          *brands* family (fa-brands-400.woff2, 108 KB), a font no page downloads today.
         -->
             <a
               class="footer-repo-link"
@@ -325,9 +323,65 @@
       </div>
     </footer>
 
-    <!-- Scripts ao final do body — não bloqueiam o rendering -->
-    <!-- Scripts compartilhados por todas as publicações. -->
-    <!-- Bootstrap 5.3.8 (vendorizado localmente) -->
     <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
+    <!-- Inlined by the build from src/template/references.js. It goes out as JSON
+ rather than JavaScript so the CSP needs no exception. -->
+    <script type="application/json" id="siteReferences">
+      {
+        "wrf": {
+          "short": "Skamarock et al., 2019",
+          "citation": "Skamarock, W. C. et al. (2019). A Description of the Advanced Research WRF Model Version 4. NCAR Technical Note NCAR/TN-556+STR. Documentação oficial do modelo usado nestas previsões.",
+          "url": "https://www2.mmm.ucar.edu/wrf/users/docs/user_guide_v4/v4.0/contents.html"
+        },
+        "gfs": {
+          "short": "GFS/NCEP",
+          "citation": "Global Forecast System (GFS), National Centers for Environmental Prediction, NOAA. Modelo global que fornece as condições iniciais e de contorno destas simulações.",
+          "url": "https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast"
+        },
+        "rrtmg": {
+          "short": "Iacono et al., 2008",
+          "citation": "Iacono, M. J., Delamere, J. S., Mlawer, E. J., Shephard, M. W., Clough, S. A. & Collins, W. D. (2008). Radiative forcing by long-lived greenhouse gases: calculations with the AER radiative transfer models. Journal of Geophysical Research 113, D13103. O esquema RRTMG.",
+          "url": "https://search.crossref.org/search/works?q=Radiative%20forcing%20by%20long-lived%20greenhouse%20gases%20AER%20radiative%20transfer%20models&from_ui=yes"
+        },
+        "thompson": {
+          "short": "Thompson et al., 2008",
+          "citation": "Thompson, G., Field, P. R., Rasmussen, R. M. & Hall, W. D. (2008). Explicit forecasts of winter precipitation using an improved bulk microphysics scheme. Part II: implementation of a new snow parameterization. Monthly Weather Review 136(12), 5095-5115.",
+          "url": "https://search.crossref.org/search/works?q=Explicit%20forecasts%20of%20winter%20precipitation%20improved%20bulk%20microphysics%20scheme%20Part%20II&from_ui=yes"
+        },
+        "wsm6": {
+          "short": "Hong e Lim, 2006",
+          "citation": "Hong, S.-Y. & Lim, J.-O. J. (2006). The WRF single-moment 6-class microphysics scheme (WSM6). Journal of the Korean Meteorological Society 42(2), 129-151.",
+          "url": "https://www.semanticscholar.org/paper/f6014c7853ea15270114b4f1bfec2e64559e63dd"
+        },
+        "ysu": {
+          "short": "Hong, Noh e Dudhia, 2006",
+          "citation": "Hong, S.-Y., Noh, Y. & Dudhia, J. (2006). A new vertical diffusion package with an explicit treatment of entrainment processes. Monthly Weather Review 134(9), 2318-2341. O esquema YSU.",
+          "url": "https://search.crossref.org/search/works?q=A%20new%20vertical%20diffusion%20package%20with%20an%20explicit%20treatment%20of%20entrainment%20processes&from_ui=yes"
+        },
+        "myj": {
+          "short": "Janjic, 1994",
+          "citation": "Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), 927-945. O esquema MYJ de camada limite.",
+          "url": "https://search.crossref.org/search/works?q=step-mountain%20eta%20coordinate%20model%20further%20developments%20convection%20viscous%20sublayer&from_ui=yes"
+        },
+        "noahmp": {
+          "short": "Niu et al., 2011",
+          "citation": "Niu, G.-Y. et al. (2011). The community Noah land surface model with multiparameterization options (Noah-MP): 1. Model description and evaluation with local-scale measurements. Journal of Geophysical Research 116, D12109.",
+          "url": "https://doi.org/10.1029/2010JD015139"
+        },
+        "kainfritsch": {
+          "short": "Kain, 2004",
+          "citation": "Kain, J. S. (2004). The Kain-Fritsch convective parameterization: an update. Journal of Applied Meteorology 43(1), 170-181.",
+          "url": "https://search.crossref.org/search/works?q=The%20Kain-Fritsch%20convective%20parameterization%20an%20update&from_ui=yes"
+        },
+        "codata2018": {
+          "short": "CODATA 2018",
+          "citation": "CODATA Internationally Recommended Values of the Fundamental Physical Constants (ajuste de 2018), NIST. Fonte da constante de Stefan-Boltzmann usada nas derivações desta página.",
+          "url": "https://physics.nist.gov/cuu/Constants/"
+        }
+      }
+    </script>
+    <!-- Replaces the [[key]] markers with links. Must come before each page's own
+ scripts: the climatology page uses window.labmimReferences. -->
+    <script defer src="assets/js/references.js?v=1c5edf4a"></script>
   </body>
 </html>

@@ -12,18 +12,25 @@ const { defaultPublication, discoverPublications } = require("./site-builder/pub
 const { publicationAssetSources } = require("./site-builder/assets.js");
 const { htmlReferences, cssReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
 const { finishWithFailure, makeRestore, installSignalRestore } = require("./site-builder/cli.js");
+const { allOperationalPaths, isOperationalPath } = require("./site-builder/operational-paths.js");
 const publications = discoverPublications(root);
 const providedAssets = new Set(publicationAssetSources(publications).keys());
 const defaultSite = defaultPublication(publications);
 const siteDir = path.join(root, "site");
 const distDir = path.join(root, "dist");
 
-// Station plots are rewritten in place by each laboratory's own weather station
-// (same file names, served with no-cache). They are committed for the default
-// publication only, so shipping them inside another publication's bundle would
-// silently deploy the wrong laboratory's watermarked images. Treated as
-// operational data so a missing plot is a visibly broken image instead.
-const DEFAULT_GRAPHS_DIRECTORY = "assets/graphs";
+// site/ is rebuilt in place and the data directories survive from one build to the
+// next, so the exclusion list must be the union across publications rather than what
+// the currently rendered one declares.
+const operationalPaths = allOperationalPaths(publications);
+
+// Sources the repository needs to regenerate the derived vendor files (purgecss reads
+// the full Bootstrap, pyftsubset the complete Font Awesome face) but no page links.
+// ~376 KB per bundle on a host that serves uncompressed and deploys over FTP.
+const buildInputAssets = new Set([
+  "assets/vendor/bootstrap/bootstrap.min.css",
+  "assets/vendor/fontawesome/webfonts/fa-solid-900.full.woff2",
+]);
 
 function buildOnce(id) {
   const result = spawnSync(process.execPath, [path.join(root, "scripts", "build-site.mjs"), `--site=${id}`], {
@@ -57,21 +64,8 @@ function bundleTarget(id) {
   return target;
 }
 
-function operationalDataPaths(publication) {
-  const { manifest, values, grids, graphs = DEFAULT_GRAPHS_DIRECTORY } = publication.dataset.paths;
-  return {
-    files: new Set([manifest]),
-    directories: [...new Set([values, grids, graphs])],
-  };
-}
-
-function isOperationalData(relativePath, publication) {
-  const normalized = relativePath.split(path.sep).join("/");
-  const { files, directories } = operationalDataPaths(publication);
-  return (
-    files.has(normalized) ||
-    directories.some((directory) => normalized === directory || normalized.startsWith(`${directory}/`))
-  );
+function isOperationalData(relativePath) {
+  return isOperationalPath(relativePath.split(path.sep).join("/"), operationalPaths);
 }
 
 function declaredIdentityAssets(publication) {
@@ -93,12 +87,8 @@ function collectFiles(directory, predicate) {
   });
 }
 
-/**
- * Files that a bundle may legitimately be narrowed down to. Publication modules
- * provide their own assets, and territory outlines are shared source files that
- * still belong to exactly one publication's map — the Bahia outline is 170 KB of
- * dead weight in the Espírito Santo bundle.
- */
+// Territory outlines live outside the publication modules but still belong to exactly
+// one publication's map: the Bahia outline is 170 KB of dead weight in the ES bundle.
 function narrowableAssets(allPublications, provided) {
   return new Set([
     ...provided,
@@ -109,32 +99,29 @@ function narrowableAssets(allPublications, provided) {
 }
 
 /**
- * A bundle is narrowed by REACHABILITY rather than by who provides a file: the two
- * labs display each other's mark as a partner, so "provided by ufba" and "needed by
- * ufes" are both true of the same PNG. Whatever a publication's own pages never
- * reference — through HTML attributes OR the CSS the bundle ships — is another
- * publication's identity and stays out of its bundle. Called while site/ still
- * holds this publication's freshly built output.
+ * Narrowed by REACHABILITY, not by who provides a file: the two labs display each
+ * other's mark as a partner, so "provided by ufba" and "needed by ufes" are both true
+ * of the same PNG. Call only while site/ still holds this publication's fresh output.
  */
-function reachablePublicationAssets(publication, providedAssets) {
+function reachablePublicationAssets(publication, candidateAssets) {
   const originPrefix = `${publication.origin}/`;
   const reachable = new Set();
   const consider = (reference) => {
     const key = assetKey(reference, originPrefix);
-    if (providedAssets.has(key)) reachable.add(key);
+    if (candidateAssets.has(key)) reachable.add(key);
   };
 
-  // brand.ogImage only ever appears as an absolute same-origin URL, in og:image,
-  // twitter:image and the JSON-LD logo — none of which the scans below look at.
+  // brand.ogImage only ever appears as an absolute same-origin URL (og:image,
+  // twitter:image, JSON-LD logo), which the scans below do not look at.
   for (const asset of declaredIdentityAssets(publication)) {
-    if (providedAssets.has(asset)) reachable.add(asset);
+    if (candidateAssets.has(asset)) reachable.add(asset);
   }
 
   for (const pageFile of [...publication.pages.map((page) => page.file), "404.html"]) {
     const pagePath = path.join(siteDir, pageFile);
     if (fs.existsSync(pagePath)) htmlReferences(fs.readFileSync(pagePath, "utf8")).forEach(consider);
   }
-  // A page can reach an asset only through its stylesheet (background: url(...)),
+  // A page can reach an asset through its stylesheet alone (background: url(...)),
   // which the HTML scan never sees; drop those and the bundle ships a 404.
   for (const cssFile of collectFiles(path.join(siteDir, "assets", "css"), (name) => name.endsWith(".css"))) {
     cssReferences(fs.readFileSync(cssFile, "utf8")).forEach(consider);
@@ -142,12 +129,8 @@ function reachablePublicationAssets(publication, providedAssets) {
   return reachable;
 }
 
-/**
- * Fail if the bundle references a first-party asset it does not contain. The
- * bundle is the artifact CI publishes and reviewers download, so the reachability
- * narrowing above must be verifiable, not trusted. Operational data (values,
- * grids, manifest, station plots) is intentionally deploy-supplied and exempt.
- */
+// Operational data (values, grids, manifest, station plots) is exempt: the deploy,
+// not the bundle, supplies it.
 function assertBundleIntegrity(publication, target) {
   const originPrefix = `${publication.origin}/`;
   const missing = new Set();
@@ -155,7 +138,7 @@ function assertBundleIntegrity(publication, target) {
   const check = (reference, fromFile) => {
     if (isExternalReference(reference, originPrefix)) return;
     const key = assetKey(reference, originPrefix);
-    if (!key || isOperationalData(key, publication)) return;
+    if (!key || isOperationalData(key)) return;
     if (!fs.existsSync(path.join(target, ...key.split("/")))) missing.add(`${key} (referenced by ${fromFile})`);
   };
 
@@ -179,10 +162,10 @@ function assertBundleIntegrity(publication, target) {
   }
 }
 
-function copyBundle(publication, providedAssets) {
+function copyBundle(publication, candidateAssets) {
   const target = bundleTarget(publication.id);
-  const reachable = reachablePublicationAssets(publication, providedAssets);
-  const foreign = new Set([...providedAssets].filter((asset) => !reachable.has(asset)));
+  const reachable = reachablePublicationAssets(publication, candidateAssets);
+  const foreign = new Set([...candidateAssets].filter((asset) => !reachable.has(asset)));
 
   fs.rmSync(target, { recursive: true, force: true });
   fs.mkdirSync(target, { recursive: true });
@@ -192,12 +175,13 @@ function copyBundle(publication, providedAssets) {
       const relative = path.relative(siteDir, source);
       if (!relative) return true;
       const normalized = relative.split(path.sep).join("/");
-      if (isOperationalData(relative, publication)) return false;
+      if (isOperationalData(relative)) return false;
+      if (buildInputAssets.has(normalized)) return false;
       return !foreign.has(normalized);
     },
   });
   assertBundleIntegrity(publication, target);
-  const excluded = operationalDataPaths(publication).directories.join(", ");
+  const excluded = operationalPaths.directories.join(", ");
   console.log(
     `build-all: bundled ${publication.id} -> ${path.relative(root, target)}/ ` +
       `(without ${excluded}; ${foreign.size} unreferenced publication assets dropped)`
@@ -208,9 +192,8 @@ installSignalRestore(restoreDefault, { label: "build-all", defaultId: defaultSit
 
 let failure;
 try {
-  // Rebuild dist/ from scratch: copyBundle only clears its own target, so a bundle
-  // left behind by a publication that has since been removed would keep feeding the
-  // corpus that scripts/purgecss.config.cjs and the asset-subset checks read.
+  // copyBundle only clears its own target, so a bundle left by a publication that has
+  // since been removed would keep feeding the corpus purgecss and the subset checks read.
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.mkdirSync(distDir, { recursive: true });
   for (const publication of publications) {

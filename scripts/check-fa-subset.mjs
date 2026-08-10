@@ -1,13 +1,7 @@
 #!/usr/bin/env node
 /**
- * Verifica que todo glifo Font Awesome usado no site está presente no subset
- * de fa-solid-900.woff2 (ver assets/vendor/fontawesome/subset-glyphs.json).
- *
- * A fonte vendorizada foi reduzida de ~150KB para ~6KB mantendo apenas os
- * glifos usados. Se este check falhar, um ícone novo foi adicionado e o
- * subset precisa ser regenerado — instruções em scripts/subset-fontawesome.md.
- *
- * Apenas stdlib do Node, como o build.js.
+ * The vendored fa-solid-900.woff2 carries only the glyphs the site uses, so a failure
+ * here means a new icon arrived and the subset has to be regenerated.
  */
 
 import { readFileSync } from "node:fs";
@@ -19,9 +13,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { collectFiles, htmlFilesIn, bundleDirs } = require("./site-builder/corpus.js");
 
-// site/ only ever holds one publication at a time. dist/<id>/ (npm run
-// build:all) holds all of them, so the check covers every publication whenever
-// the bundles are around; when they are not, this falls back to site/ + src/.
+// site/ holds one publication at a time; dist/<id>/ (npm run build:all) holds all of
+// them, so the check covers every publication whenever the bundles are around.
 const bundles = bundleDirs(root);
 
 const sources = [
@@ -39,21 +32,26 @@ for (const file of sources) {
   }
 }
 
-// CSS próprio pode consumir glifos por codepoint direto
-// (ex.: maps.css content: "\f078" com font-family "Font Awesome 6 Free").
-// Inclui o CSS por publicação em src/ (temas e estilos que só entram no site
-// gerado da publicação não-padrão) e os bundles em dist/, quando existirem.
+// First-party CSS can consume a glyph by raw codepoint (maps.css uses content: "\f078"
+// with font-family "Font Awesome 6 Free"). src/ covers the per-publication CSS that
+// only ever reaches the generated site of a non-default publication.
 const cssDirs = ["site/assets/css", "src", ...bundles.map((dir) => join(dir, "assets/css"))];
 const usedCodepoints = new Set();
+// Every escape of the whole declaration, rather than one expected spelling: an escape
+// may be terminated by a space (Font Awesome's own idiom, `content: "\f078 "`), the
+// value may use single quotes, and one declaration may carry two glyphs. Miss any and
+// the browser renders an empty box.
 for (const file of cssDirs.flatMap((dir) => collectFiles(root, dir, [".css"]))) {
   const text = readFileSync(join(root, file), "utf8");
-  for (const match of text.matchAll(/content:\s*"\\([0-9a-fA-F]{4,6})"/g)) {
-    usedCodepoints.add(match[1].toLowerCase());
+  for (const declaration of text.matchAll(/(?:^|[\s;{}])content\s*:\s*([^;}]+)/g)) {
+    for (const escaped of declaration[1].matchAll(/\\([0-9a-fA-F]{4,6})/g)) {
+      usedCodepoints.add(escaped[1].toLowerCase());
+    }
   }
 }
 
-// Só nomes que são glifos de verdade (têm regra :before{content:"\f..."} no
-// CSS do Font Awesome); classes utilitárias (fa-2x, fa-fw, ...) não têm.
+// A real glyph has a :before{content:"\f..."} rule; utility classes (fa-2x, fa-fw)
+// match the fa- scan above but have none.
 const faCss = readFileSync(join(root, "site/assets/vendor/fontawesome/css/all.min.css"), "utf8");
 const glyphNames = new Set();
 for (const match of faCss.matchAll(/((?:\.fa-[a-z0-9-]+:before,?)+)\{content:"\\[0-9a-f]+"\}/g)) {

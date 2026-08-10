@@ -1,29 +1,37 @@
 "use strict";
 
-const { LABMIM_STATION_CHARTS } = require("./labmim-station-charts");
-
 module.exports = {
   id: "labmim-wrf",
   attribution: "LabMiM-UFBA",
-  // Nome real da CLI Python que converte o NetCDF do WRF no JSON/GeoJSON servido.
+  // Name of the Python CLI, not derived from the dataset id.
   generator: "labmim-wrf-geojson",
-  // O namelist WRF vem de DEFAULT_MODEL (renderer); só declare `model` aqui para
-  // sobrescrever campos quando esta simulação divergir da configuração padrão.
-  observations: {
-    charts: LABMIM_STATION_CHARTS,
-  },
+  // No `model` block: the WRF namelist comes from DEFAULT_MODEL (renderer), and
+  // this simulation diverges from it in no field.
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",
     grids: "GeoJSON",
+    // Rolling 7-day window rewritten hourly by `labmim-monitoring`, over the
+    // laboratory's non-public sensor archive: it reaches the site through the
+    // deploy and stays out of git.
+    monitoring: "Monitoramento",
+    // Observed distributions from `labmim-climatology`; same archive, same
+    // deploy-only route.
+    climatology: "Climatologia",
   },
   timeline: {
-    defaultMaxLayer: 73,
+    // Used only when the manifest does not arrive; mirrors the `index_max` the
+    // published run declares (files `_000`..`_075`).
+    defaultMaxLayer: 75,
     initialIndex: 7,
     stepHours: 1,
     label: "Horário local (UTC−03)",
   },
   defaultDomain: "D01",
+  // The extent in each `description` is `shape × metadata.resolucao_m` from
+  // `GeoJSON/*.grid.json` (1863, 891, 297, 84 km). Those files are deploy data
+  // and never live here, so review this by hand whenever the namelist changes
+  // the grid.
   domains: [
     {
       id: "D01",
@@ -33,7 +41,7 @@ module.exports = {
       zoom: 5.5,
       resolution: "27 km",
       description:
-        "Escala sinótica/regional. Cobre o Sul-Nordeste do Brasil (~2500×2500 km). Captura frentes, ciclones e massas de ar.",
+        "Escala sinótica/regional. Cobre o Sul-Nordeste do Brasil (~1860×1860 km). Captura frentes, ciclones e massas de ar.",
       cumulusParameterized: true,
     },
     {
@@ -44,7 +52,7 @@ module.exports = {
       zoom: 7,
       resolution: "9 km",
       description:
-        "Escala intermediária. Cobre o Nordeste (~800×800 km). Resolve convecção organizada e brisas de escala meso-α.",
+        "Escala intermediária. Cobre a Bahia (~890×890 km). Resolve convecção organizada e brisas de escala meso-α.",
       cumulusParameterized: true,
     },
     {
@@ -55,7 +63,7 @@ module.exports = {
       zoom: 9,
       resolution: "3 km",
       description:
-        "Escala local. Cobre a Bahia (~270×270 km). Resolução suficiente para resolver convecção profunda explicitamente (sem parametrização de cumulus).",
+        "Escala local. Cobre a Região Metropolitana de Salvador e o Recôncavo (~300×300 km). Resolução suficiente para resolver convecção profunda explicitamente (sem parametrização de cumulus).",
       cumulusParameterized: false,
     },
     {
@@ -66,7 +74,7 @@ module.exports = {
       zoom: 12,
       resolution: "1 km",
       description:
-        "Alta resolução. Cobre Salvador e Região Metropolitana (~90×90 km). Captura efeitos topográficos, brisa marítima e ilha de calor urbana.",
+        "Alta resolução. Cobre Salvador e Região Metropolitana (~85×85 km). Captura efeitos topográficos, brisa marítima e ilha de calor urbana.",
       cumulusParameterized: false,
     },
   ],

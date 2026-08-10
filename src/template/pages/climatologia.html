@@ -1,9 +1,176 @@
-<!-- Página compartilhada: pode ser habilitada por qualquer publicação. -->
-<div class="modern-section construction-section">
-  <div class="hero-title mb-5">
-    <h2 class="text-center mb-4">Climatologia</h2>
-    <p class="text-center text-muted">
-      <strong>Página em construção</strong>
-    </p>
+<!-- Shared page: any publication declaring `dataset.paths.climatology` enables
+ it, and everything below is filled at runtime by assets/js/climatologia.js from
+ the JSON in that directory. Nothing here is specific to LabMiM. -->
+  <div class="modern-section" id="climatologia" data-climatology-base="{{CLIMATOLOGY_BASE}}">
+    <div class="modern-header mb-4">
+      <h2><i class="fas fa-cloud-sun me-2"></i>Climatologia</h2>
+      <p id="climaPeriodo">Distribuições estatísticas do registro observado</p>
+    </div>
+
+    <div class="text-center mb-3">
+      <button
+        class="btn btn-sm btn-outline-secondary"
+        type="button"
+        data-ui-toggle="explanationContentClima"
+        data-label-open="Ocultar Explicação"
+        data-label-closed="Mostrar Explicação"
+        aria-controls="explanationContentClima"
+        aria-expanded="false"
+      >
+        <i class="fas fa-chevron-down"></i> <span data-toggle-label>Mostrar Explicação</span>
+      </button>
+    </div>
+
+    <div id="explanationContentClima" hidden>
+      <div class="explanation-box explanation-box-narrow mx-auto">
+        <div class="explanation-content text-start">
+          <p>
+            Cada gráfico mostra a <strong>distribuição de frequência</strong> de uma variável em todo o registro
+            disponível, com a <strong>densidade teórica que a literatura associa àquela grandeza</strong> desenhada
+            por cima. A pergunta que a página responde é: <em>o comportamento medido segue a lei esperada?</em>
+          </p>
+          <ul class="explanation-list-center">
+            <li><strong>Velocidade do vento</strong> — distribuição de Weibull;</li>
+            <li><strong>Temperatura e pressão</strong> — gaussiana;</li>
+            <li><strong>Umidade relativa</strong> — distribuição beta;</li>
+            <li><strong>Precipitação</strong> — gama, ajustada só sobre as horas chuvosas;</li>
+            <li><strong>Índice de claridade</strong> — densidade de Hollands e Huget;</li>
+            <li><strong>Direção do vento</strong> — rosa dos ventos com mistura de von Mises.</li>
+          </ul>
+          <p>
+            As barras são a frequência medida; a linha é a densidade ajustada por máxima verossimilhança aos mesmos
+            dados. As bordas dos intervalos são <strong>fixas</strong>, iguais em todos os recortes, para que verão,
+            inverno e modelo possam ser comparados no mesmo eixo.
+          </p>
+          <p class="compact-note">
+            <small
+              >Sobre a aderência: com dezenas de milhares de observações horárias, qualquer teste clássico de
+              aderência rejeita qualquer modelo teórico, e as horas consecutivas não são independentes. Por isso a
+              página informa <strong>distâncias</strong> — o quanto o ajuste erra — e não valores-p. O
+              <em>n</em> efetivo ao lado do <em>n</em> bruto é o tamanho de amostra corrigido pela
+              autocorrelação.</small
+            >
+          </p>
+        </div>
+      </div>
+      <hr class="mb-4 max-w-1000" />
+    </div>
+
+    <div class="clima-empty" id="climaEmpty" hidden>
+      <p id="climaEmptyMessage">Carregando distribuições…</p>
+    </div>
+
+    <div id="climaApp" hidden>
+      <div class="clima-controls" role="group" aria-label="Seleção de variável e recorte">
+        <div class="clima-control">
+          <label class="clima-control-label" for="climaVariavel">Variável</label>
+          <select id="climaVariavel" class="clima-select"></select>
+        </div>
+        <div class="clima-control">
+          <span class="clima-control-label" id="climaRecorteLabel">Recorte</span>
+          <div class="clima-segmented" id="climaRecorte" role="group" aria-labelledby="climaRecorteLabel"></div>
+        </div>
+        <div class="clima-control clima-control-actions">
+          <button type="button" class="btn btn-sm btn-outline-lab" id="climaExport">Baixar CSV</button>
+        </div>
+      </div>
+
+      <div class="theme-surface clima-panel">
+        <div class="clima-panel-head">
+          <h3 class="clima-panel-title" id="climaTitulo">—</h3>
+          <p class="clima-legend" id="climaLegenda"></p>
+        </div>
+
+        <div class="chart-container clima-chart" id="climaChartWrap">
+          <canvas id="climaCanvas" role="img" aria-label="Histograma da variável selecionada"></canvas>
+        </div>
+
+        <div class="clima-rose-wrap" id="climaRoseWrap" hidden>
+          <!-- Drawn in SVG by climatologia.js: no Chart.js type overlays the
+         theoretical curve on a radial scale. -->
+          <svg
+            id="climaRose"
+            class="clima-rose"
+            viewBox="0 0 400 400"
+            role="img"
+            aria-label="Rosa dos ventos da direção do vento"
+          ></svg>
+        </div>
+
+        <p class="clima-status" id="climaStatus" aria-live="polite"></p>
+      </div>
+
+      <div class="clima-stats" id="climaStats"></div>
+
+      <div class="theme-surface clima-panel clima-fit" id="climaFitPanel">
+        <h3 class="clima-panel-title" id="climaFitTitulo">Ajuste teórico</h3>
+        <div class="clima-fit-grid" id="climaFit"></div>
+        <p class="clima-atoms" id="climaAtoms"></p>
+      </div>
+
+      <ul class="clima-caveats" id="climaCaveats"></ul>
+
+      <!-- Repeats in full the sources the inline citations link to, for a reader
+       who wants to read them rather than check provenance. Filled by
+       climatologia.js from the bibliography published in the manifest. -->
+      <div class="theme-surface clima-panel clima-refs-panel" id="climaRefsPanel" hidden>
+        <h3 class="clima-panel-title">Referências desta variável</h3>
+        <ol class="clima-refs" id="climaRefs"></ol>
+      </div>
+
+      <div class="text-center mb-3">
+        <button
+          class="btn btn-sm btn-outline-secondary"
+          type="button"
+          data-ui-toggle="climaTabelaWrap"
+          data-label-open="Ocultar tabela"
+          data-label-closed="Ver tabela de dados"
+          aria-controls="climaTabelaWrap"
+          aria-expanded="false"
+        >
+          <i class="fas fa-chevron-down"></i> <span data-toggle-label>Ver tabela de dados</span>
+        </button>
+      </div>
+      <div id="climaTabelaWrap" hidden>
+        <div class="clima-table-scroll">
+          <table class="clima-table" id="climaTabela">
+            <caption id="climaTabelaCaption">
+              Valores do gráfico acima
+            </caption>
+            <!-- Headers stay static, only their text is filled at runtime:
+           emitting `scope="col"` from JavaScript makes check-bootstrap-purge.mjs
+           read "col" as a Bootstrap class in use. -->
+            <thead>
+              <tr id="climaTabelaHead">
+                <th scope="col"></th>
+                <th scope="col"></th>
+                <th scope="col"></th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody id="climaTabelaBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="theme-surface clima-panel">
+        <h3 class="clima-panel-title">Cobertura do registro</h3>
+        <p class="clima-panel-note">
+          Horas válidas por ano após controle de qualidade. Um ano sem barra não tem observação: o painel existe
+          para que a extensão real do registro fique visível junto das distribuições.
+        </p>
+        <div class="clima-coverage" id="climaCoverage"></div>
+        <p class="clima-panel-note" id="climaSeasons"></p>
+      </div>
+    </div>
+
+    <div class="footer-notice mt-4">
+      <p>
+        <i class="fas fa-exclamation-triangle"></i>
+        ATENÇÃO: Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos
+        laboratórios associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os
+        pesquisadores participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados
+        pela utilização indevida e não autorizada por parte de terceiros.
+      </p>
+    </div>
   </div>
-</div>

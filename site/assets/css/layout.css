@@ -102,6 +102,12 @@
   text-decoration: none;
 }
 
+.footer-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--wcag-min-target);
+}
+
 .footer-nav a:hover,
 .modern-footer a:hover {
   color: var(--accent-color) !important;
@@ -113,22 +119,32 @@
   text-align: center;
 }
 
+/* --warning-color is meant for light surfaces and reaches only 4.05:1 over the
+   footer blue; lightened here, so the token keeps its canonical value. */
 .footer-disclaimer {
-  color: var(--warning-color);
+  color: #f7dc6f;
   font-size: 0.85rem;
   margin-bottom: 5px;
 }
 
+/* Faded through the ink alpha, not `opacity`: `opacity` would also dim the ink
+   the dark theme swaps in, dropping the line below 4.5:1 over the footer. */
 .copyright {
-  color: rgba(255, 255, 255, 0.7) !important;
+  color: rgba(255, 255, 255, 0.86) !important;
   font-size: 0.8rem !important;
-  opacity: 0.7;
 }
 
 .footer-repo-link {
   display: inline-flex;
-  margin-left: 0.4rem;
-  vertical-align: -0.25em;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--wcag-min-target);
+  min-height: var(--wcag-min-target);
+
+  /* Gives the 16px icon's extra target height back to the surrounding line. */
+  margin-block: -4px;
+  margin-left: 0.15rem;
+  vertical-align: -0.45em;
 }
 
 .footer-repo-link svg {

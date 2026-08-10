@@ -1,17 +1,7 @@
 #!/usr/bin/env node
 /**
- * Static publication builder.
- *
- * Discovers src/sites/<id>/site.js, validates the selected publication and
- * renders plain HTML/CSS plus Apache metadata into site/. Nothing from this
- * build system is required by the deployed site at runtime.
- *
- * Usage:
- *   node build.js --site=ufba
- *   node build.js --site=ufes
- *   SITE_ID=ufes node build.js
- *   node build.js --list-sites
- *   BUILD_YEAR=2026 node build.js   # builds without a git checkout
+ * Renders src/sites/<id>/site.js into plain HTML/CSS plus Apache metadata under site/.
+ * Nothing from this build system is required by the deployed site at runtime.
  */
 "use strict";
 
@@ -73,14 +63,11 @@ function yearFromGeneratedOutput() {
 }
 
 /**
- * Copyright year stamped into the generated pages.
- *
- * Resolved from repository content only, never from the wall clock: an
- * explicit BUILD_YEAR wins, then the date of the checked out commit, then the
- * year already present in the committed site/index.html (tarballs without
- * .git). Guessing `new Date().getFullYear()` used to make the same source tree
- * render differently depending on when it was built, which is exactly what the
- * generated-output drift check exists to catch.
+ * Resolved from repository content, never from the clock, and the order matters: a
+ * HEAD commit date is wall-clock time in disguise, so an empty commit at the turn of
+ * the year makes a rebuild diverge from the committed site/, and on a `pull_request`
+ * event HEAD is the merge ref GitHub recreates on every push. Reading the committed
+ * output first pins the year to a point the drift gate can enforce.
  */
 function buildYear() {
   const override = (process.env.BUILD_YEAR ?? "").trim();
@@ -90,7 +77,7 @@ function buildYear() {
     }
     return override;
   }
-  const year = yearFromGit() ?? yearFromGeneratedOutput();
+  const year = yearFromGeneratedOutput() ?? yearFromGit();
   if (year) return year;
   throw new Error(
     "could not resolve the copyright year: this is not a git checkout and site/index.html carries no © year.\n" +
@@ -113,9 +100,8 @@ function main() {
   const requestedId = cliSite ?? process.env.SITE_ID ?? process.env.SITE_VARIANT;
   const publication = requestedId ? selectPublication(publications, requestedId) : defaultPublication(publications);
 
-  // Publish every publication's own assets before validating: a publication keeps
-  // its logos inside its module, and validatePublication resolves brand.logos and
-  // brand.ogImage against the output directory they land in.
+  // Must precede validatePublication, which resolves brand.logos and brand.ogImage
+  // against the output directory these land in.
   const assetSources = writePublicationAssets(publications, OUTPUT_DIR);
 
   const validation = validatePublication({

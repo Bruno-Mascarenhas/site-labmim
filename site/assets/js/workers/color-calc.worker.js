@@ -1,19 +1,6 @@
-/**
- * Web Worker: Color Computation
- *
- * Offloads the CPU-intensive color interpolation from the main thread.
- * Receives an array of values + scale configuration, returns an array
- * of computed CSS color strings.
- *
- * Message protocol:
- *   Input:  { requestId: number, values: number[], scaleValues: number[],
- *             colors: string[], hideBelow?: number }
- *   Output: { requestId: number, colors: (string|null)[] }
- *
- * Output entries are the CSS color of each cell, `null` for a value the
- * variable asks not to paint (below `hideBelow`) and `undefined` where there
- * is no value at all — the caller renders those three cases differently.
- */
+// Each output entry is a cell's CSS color, `null` for a value the variable asks
+// not to paint (below `hideBelow`) and `undefined` where there is no value at
+// all — the caller renders those three cases differently.
 
 function hexToRgb(hex) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -59,13 +46,9 @@ self.onmessage = function (e) {
   const result = new Array(values.length);
   const threshold = typeof hideBelow === "number" && isFinite(hideBelow) ? hideBelow : -Infinity;
 
-  // Parse the palette hex strings ONCE per message instead of running the
-  // regex twice per interpolated cell (~20k regex executions per frame for
-  // a 9801-cell domain — measured ~5x slower). Values are quantized to 2
-  // decimals, so memoizing per distinct value skips most interpolations
-  // too. Both caches are per-message: palette and scale change with the
-  // selected variable. Probed with `has`, since `null` (below the display
-  // threshold) is itself a memoizable outcome.
+  // The caller quantizes values to 2 decimals, so memoizing per distinct value
+  // skips most interpolations. Probed with `has`, since `null` is itself a
+  // memoizable outcome.
   const paletteRgb = palette.map(hexToRgb);
   const memo = new Map();
 
@@ -77,7 +60,6 @@ self.onmessage = function (e) {
       }
       result[i] = memo.get(v);
     }
-    // else result[i] remains undefined
   }
 
   self.postMessage({ requestId, colors: result });

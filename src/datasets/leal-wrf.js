@@ -1,20 +1,18 @@
 "use strict";
 
-const { LABMIM_STATION_CHARTS } = require("./labmim-station-charts");
-
 module.exports = {
   id: "leal-wrf",
   attribution: "LEAL-UFES",
-  // Nome real da CLI Python que gera os dados das duas publicações; não é
-  // derivado do id do dataset porque "leal-wrf-geojson" não existe.
+  // One CLI generates the data for both publications; no "leal-wrf-geojson"
+  // exists, so this is not derived from the dataset id.
   generator: "labmim-wrf-geojson",
-  // Namelist WRF: herda DEFAULT_MODEL (renderer); declare `model` só para divergir.
-  // PROVISÓRIO: reaproveita os gráficos da estação do LabMiM (marca d'água
-  // "LabMiM ... UFBA" gravada nos PNG) apenas para preservar a saída atual.
-  // O LEAL precisa declarar a própria lista de gráficos.
-  observations: {
-    charts: LABMIM_STATION_CHARTS,
-  },
+  // No `model` block: the WRF namelist comes from DEFAULT_MODEL (renderer), and
+  // this simulation diverges from it in no field.
+
+  // No `observations`: LEAL has no station of its own, and the LabMiM PNGs are
+  // not reusable (they measure Salvador, under a burned-in "LabMiM ... UFBA"
+  // watermark). When LEAL publishes one, declare `paths.graphs` here too, so the
+  // build keeps the two graph directories in separate bundles.
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",

@@ -33,7 +33,9 @@ module.exports = {
     affiliations: [
       {
         kind: "image",
-        href: "https://www.cienam.ufba.br",
+        // No `www`: the certificate's *.ufba.br wildcard covers a single label, so
+        // www.cienam.ufba.br never validates and the browser refuses the handshake.
+        href: "https://cienam.ufba.br",
         name: "CIEnAm",
         src: "assets/img/logo_cienam-nav.png",
         webp: "assets/img/logo_cienam-nav.webp",

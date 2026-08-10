@@ -1,6 +1,6 @@
 "use strict";
 
-const { page, siteSource } = require("../../template/page-types");
+const { page, siteSource, templateSource } = require("../../template/page-types");
 
 module.exports = [
   page("home", {
@@ -13,6 +13,13 @@ module.exports = [
     },
   }),
   page("monitoring", {
+    // Interactive variant, reading the hourly payload from
+    // `dataset.paths.monitoring`; pages/monitoring.html is the static one.
+    source: templateSource("pages/monitoring-live.html"),
+    // Chart.js is declared per page: loading it from the institutional layout
+    // would cost 200 KB on the routes that draw nothing.
+    vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+    scripts: ["assets/js/monitoramento.js"],
     append: [siteSource("fragments/funding.html")],
     seo: {
       title: "LabMiM — Monitoramento Ambiental · UFBA",
@@ -29,10 +36,12 @@ module.exports = [
     },
   }),
   page("climatology", {
+    vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+    scripts: ["assets/js/climatologia.js"],
     seo: {
       title: "LabMiM — Climatologia · UFBA",
       description:
-        "LabMiM — Climatologia: análise climática da Região Metropolitana de Salvador e Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA.",
+        "LabMiM — Climatologia: distribuições estatísticas do registro observado da estação micrometeorológica do LabMiM em Salvador, com as densidades teóricas da literatura. Laboratório de Micrometeorologia e Modelagem, UFBA.",
     },
   }),
   page("forecast", {

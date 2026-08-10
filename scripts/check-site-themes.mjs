@@ -41,21 +41,19 @@ function collectScripts(directory) {
     .sort();
 }
 
-/** Casa `var(--token)` e `var(--token, fallback)` sem casar `var(--token-suffix)`. */
+/** Matches `var(--token)` and `var(--token, fallback)` but never `var(--token-suffix)`. */
 function consumesCssToken(css, property) {
   return new RegExp(`var\\(\\s*--${property}\\s*[,)]`).test(css);
 }
 
 /**
- * Casa apenas `var(--token, <fallback>)` com pelo menos um caractere de fallback.
- * O `[^)\s]` após a vírgula aceita valores de função (rgba(...), gradientes) sem
- * tentar casar o valor inteiro — basta provar que o fallback existe.
+ * The `[^)\s]` after the comma accepts function values (rgba(...), gradients) without
+ * trying to match the whole value — proving a fallback exists is enough.
  */
 function consumesCssTokenWithFallback(css, property) {
   return new RegExp(`var\\(\\s*--${property}\\s*,\\s*[^)\\s]`).test(css);
 }
 
-/** Casa a leitura do token pelo JS (getPropertyValue("--token")). */
 function consumesJsToken(js, property) {
   return new RegExp(`--${property}(?![\\w-])`).test(js);
 }
@@ -95,9 +93,8 @@ for (const marker of cascadeMarkers) {
   const markerIndex = headTemplate.indexOf(marker);
   if (markerIndex < 0) {
     errors.push(`head template is missing CSS cascade marker ${marker}`);
-    // Leave previousIndex on the last marker that WAS found: a missing marker
-    // (index -1) would otherwise reset the baseline and hide an ordering error
-    // in the markers that follow it.
+    // Leave previousIndex on the last marker that WAS found: index -1 would reset the
+    // baseline and hide an ordering error in the markers that follow.
     continue;
   }
   if (markerIndex <= previousIndex) {
@@ -119,8 +116,8 @@ for (const property of REQUIRED_THEME_PROPERTIES) {
     errors.push(`required theme token --${property} is not consumed by shared CSS; use var(--${property}) or drop it`);
   }
 
-  // Um token obrigatório não tem fallback: se o CSS compartilhado o definisse
-  // com um literal, a identidade da publicação deixaria de valer.
+  // A required token has no fallback: a literal assigned in shared CSS would take the
+  // colour away from the publication's own identity.
   const declarations = sharedCss.matchAll(new RegExp(`--${property}\\s*:\\s*([^;}]+)[;}]`, "g"));
   for (const declaration of declarations) {
     if (!declaration[1].trim().startsWith("var(")) {
@@ -129,10 +126,8 @@ for (const property of REQUIRED_THEME_PROPERTIES) {
   }
 }
 
-// Tokens opcionais podem (e devem) ter fallback no lugar onde são lidos: um
-// literal em `var(--token, literal)` no CSS, ou um literal no JS que faz o
-// getComputedStyle. Aqui só verificamos que o token realmente é lido em algum
-// lugar — caso contrário declará-lo num theme.css não teria efeito nenhum.
+// An optional token carries its fallback where it is read, so all that is checked here
+// is that it IS read somewhere — otherwise declaring it in a theme.css does nothing.
 for (const { property, consumedBy } of OPTIONAL_THEME_PROPERTIES) {
   if (consumedBy === "js") {
     if (!consumesJsToken(sharedJs, property)) {

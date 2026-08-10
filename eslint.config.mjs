@@ -18,7 +18,9 @@ export default defineConfig([
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: "latest",
-      sourceType: "module",
+      // Classic `<script src>` everywhere, workers included. Parsed as modules, a
+      // top-level `import`/`export`/`await` would lint clean and break the browser.
+      sourceType: "script",
       globals: {
         ...globals.browser,
         L: "readonly",
@@ -37,6 +39,9 @@ export default defineConfig([
       "no-console": ["warn", { allow: ["warn", "error", "info", "debug"] }],
       "no-useless-escape": "warn",
       "no-empty": "warn",
+      // In script scope top-level declarations land in the global scope and clash with
+      // the names under `globals`, listed there precisely because they share it.
+      "no-redeclare": ["error", { builtinGlobals: false }],
     },
   },
   {

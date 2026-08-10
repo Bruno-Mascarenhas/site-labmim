@@ -6,15 +6,13 @@ const path = require("path");
 
 const HASHED_VENDOR_ASSETS = new Set(["assets/vendor/bootstrap/bootstrap.purged.min.css"]);
 
-// Directory inside a publication module whose tree is published verbatim under
-// site/assets/. Keeping the layout identical on both sides means the URL a page
-// writes is the path the file already has, so nothing has to be rewritten.
+// Published verbatim under site/assets/: the layout is identical on both sides, so a
+// page's URL is the path the file already has and nothing gets rewritten.
 const PUBLICATION_ASSETS_DIR = "assets";
 
-// Top-level roots under site/assets/ that the build or the data pipeline owns.
-// A publication module may not publish into them, so the per-run prune below can
-// safely wipe the roots publications DO own without touching shared/committed data
-// (territory outlines under assets/data, station plots under assets/graphs, ...).
+// Roots the build or the data pipeline owns. Publications may not publish into them, so
+// the prune below can wipe the roots they DO own without touching committed data
+// (territory outlines under assets/data, station plots under assets/graphs).
 const RESERVED_ASSET_ROOTS = new Set(["css", "js", "vendor", "data", "graphs"]);
 
 function collectFiles(directory, prefix = "") {
@@ -28,12 +26,8 @@ function collectFiles(directory, prefix = "") {
     });
 }
 
-/**
- * Map every file a publication publishes under site/assets/ to the publication
- * that provides it. Two publications may reference the same asset — the labs
- * show each other's mark as a partner — but only one may provide it, otherwise
- * the build order would decide which bytes win.
- */
+// Two publications may reference the same asset — the labs show each other's mark as a
+// partner — but only one may provide it, or build order decides which bytes win.
 function publicationAssetSources(publications) {
   const sources = new Map();
   const collisions = [];
@@ -70,24 +64,17 @@ function publicationAssetSources(publications) {
   return sources;
 }
 
-/** Top-level dirs under site/assets/ that publications publish into (never reserved roots). */
 function publicationAssetRoots(sources) {
   const roots = new Set();
   for (const output of sources.keys()) roots.add(output.split("/")[1]);
   return roots;
 }
 
-/**
- * Publish the assets of EVERY publication, not just the one being built. The
- * output directory is committed, so copying only the selected publication would
- * add and delete binaries on each `--site` switch, and a publication that shows
- * a partner's logo needs that file present regardless of which site is current.
- * The published union is identical for every `--site`, so it stays drift-free in
- * git; scripts/build-all.mjs is what narrows each bundle down again.
- *
- * The owned roots are wiped first so a source asset that was renamed or removed
- * cannot linger in site/assets/ and get shipped in every bundle.
- */
+// EVERY publication's assets, not just the one being built: the output directory is
+// committed, so copying only the selected one would add and delete binaries on each
+// `--site` switch. The union is identical for every `--site` and therefore drift-free;
+// scripts/build-all.mjs narrows each bundle down again. Owned roots are wiped first so a
+// renamed or removed source asset cannot linger and ship in every bundle.
 function writePublicationAssets(publications, outputDir) {
   const sources = publicationAssetSources(publications);
   for (const root of publicationAssetRoots(sources)) {

@@ -1,0 +1,87 @@
+<!-- Interactive variant of the `monitoring.html` route, for publications that
+ declare `dataset.paths.monitoring`; the static PNG variant stays in
+ pages/monitoring.html. Pick one with `source:` on the page declaration.
+ Filled at runtime by assets/js/monitoramento.js from the
+ `labmim-monitoring-v1` payload. -->
+<div class="modern-section" id="monitoramento" data-monitoring-base="{{MONITORING_BASE}}">
+  <div class="modern-header mb-4">
+    <h2><i class="fas fa-satellite-dish me-2"></i>Monitoramento Ambiental</h2>
+    <p id="monitorPeriodo">Janela móvel de 7 dias — atualização a cada 1h</p>
+  </div>
+
+  <div class="text-center mb-3">
+    <button
+      class="btn btn-sm btn-outline-secondary"
+      type="button"
+      data-ui-toggle="explanationContentMonitor"
+      data-label-open="Ocultar Explicação"
+      data-label-closed="Mostrar Explicação"
+      aria-controls="explanationContentMonitor"
+      aria-expanded="false"
+    >
+      <i class="fas fa-chevron-down"></i> <span data-toggle-label>Mostrar Explicação</span>
+    </button>
+  </div>
+
+  <div id="explanationContentMonitor" hidden>
+    <div class="explanation-box explanation-box-narrow mx-auto">
+      <div class="explanation-content text-start">
+        <p>
+          Esta seção exibe o <strong>monitoramento ambiental contínuo</strong> da estação micrometeorológica, em
+          <strong>três camadas sobrepostas</strong> para cada variável:
+        </p>
+        <ul class="explanation-list-center">
+          <li><strong>Bruto</strong> — cada amostra do datalogger, no intervalo original de 5 minutos;</li>
+          <li><strong>Média horária</strong> — a agregação desenhada por cima do dado que a originou;</li>
+          <li><strong>WRF</strong> — a série do modelo para o mesmo período, quando existe para aquela variável.</li>
+        </ul>
+        <p>
+          Ver as três juntas é o ponto: a média horária sozinha esconde a variabilidade dentro da hora e não deixa
+          julgar a qualidade do dado que a produziu, e a curva do modelo ao lado da medida mostra onde os dois
+          concordam sem que um seja correção do outro.
+        </p>
+        <p class="compact-note">
+          <small
+            >As informações são recebidas em tempo quase real e processadas diretamente para visualização. Os dados
+            são resultados de aquisições de pesquisa, não havendo garantia total para utilização irrestrita. Clique
+            em um item da legenda para ocultar aquela camada; passe o cursor sobre o gráfico para ler os valores
+            instantâneos das camadas visíveis.</small
+          >
+        </p>
+      </div>
+    </div>
+    <hr class="mb-4 max-w-1000" />
+  </div>
+
+  <div class="clima-empty" id="monitorEmpty" hidden>
+    <p id="monitorEmptyMessage">Carregando observações…</p>
+  </div>
+
+  <div id="monitorApp" hidden>
+    <div class="monitor-controls" role="group" aria-label="Camadas e período">
+      <div class="monitor-control">
+        <span class="clima-control-label" id="monitorCamadasLabel">Camadas</span>
+        <div class="monitor-layer-toggles" id="monitorCamadas" role="group" aria-labelledby="monitorCamadasLabel"></div>
+      </div>
+      <div class="monitor-control">
+        <span class="clima-control-label" id="monitorJanelaLabel">Período</span>
+        <div class="clima-segmented" id="monitorJanela" role="group" aria-labelledby="monitorJanelaLabel"></div>
+      </div>
+      <div class="monitor-control monitor-control-meta">
+        <span class="monitor-updated" id="monitorAtualizado"></span>
+      </div>
+    </div>
+
+    <div class="monitor-grid" id="monitorGrid"></div>
+  </div>
+
+  <div class="footer-notice mt-4">
+    <p>
+      <i class="fas fa-exclamation-triangle"></i>
+      ATENÇÃO: Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
+      associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os pesquisadores
+      participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados pela utilização
+      indevida e não autorizada por parte de terceiros.
+    </p>
+  </div>
+</div>

@@ -1,18 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * Regenera assets/vendor/bootstrap/bootstrap.purged.min.css.
+ * Regenerates assets/vendor/bootstrap/bootstrap.purged.min.css.
  *
- * Existe como script porque o comando manual equivalente é destrutivo: o
- * PurgeCSS nomeia a saída com o basename da entrada, então apontar --output
- * para o diretório do vendor sobrescreve o próprio bootstrap.min.css completo
- * que serve de fonte. Aqui a saída vai para um diretório temporário e só o
- * arquivo purgado é movido para o lugar.
- *
- * Roda build:all antes: o arquivo purgado é UM só, compartilhado por todas as
- * publicações, mas site/ contém uma publicação por vez. O corpus analisado
- * inclui dist/<id>/*.html justamente para não remover classes usadas apenas
- * por outra publicação.
+ * Exists because the equivalent manual command is destructive: PurgeCSS names its
+ * output after the basename of the input, so pointing --output at the vendor directory
+ * overwrites the full bootstrap.min.css that serves as its source. Here it lands in a
+ * scratch directory and only the purged file is moved into place.
  */
 
 import { spawnSync } from "node:child_process";

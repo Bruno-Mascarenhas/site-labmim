@@ -11,6 +11,7 @@ const require = createRequire(import.meta.url);
 const { defaultPublication, discoverPublications } = require("./site-builder/publications.js");
 const { htmlReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
 const { finishWithFailure, makeRestore, installSignalRestore } = require("./site-builder/cli.js");
+const { publicationOperationalPaths, isOperationalPath } = require("./site-builder/operational-paths.js");
 const publications = discoverPublications(root);
 const defaultSite = defaultPublication(publications);
 const buildScript = path.join(root, "scripts", "build-site.mjs");
@@ -27,42 +28,30 @@ function run(command, args, label) {
   if (result.status !== 0) throw new Error(`${label} failed`);
 }
 
-/**
- * Model output only. Station plots (assets/graphs) are deliberately NOT listed here:
- * they are committed, so both this check and scripts/check-links.mjs must verify that
- * every referenced plot exists. scripts/build-all.mjs keeps them out of dist/ bundles
- * instead, which is a packaging concern rather than a validation one — exempting them
- * here as well would let a typo in dataset.observations reach production unnoticed.
- */
+// Model output only. Station plots (assets/graphs) are committed, so this check and
+// check-links.mjs must verify every referenced plot exists; exempting them here too
+// would let a typo in dataset.observations reach production unnoticed. build-all.mjs
+// still keeps them out of dist/, which is packaging rather than validation.
+const OPERATIONAL_OPTIONS = Object.freeze({ includeGraphs: false });
+
 function operationalDirectories(publication) {
-  const { values, grids } = publication.dataset.paths;
-  return [...new Set([values, grids])];
+  return publicationOperationalPaths(publication, OPERATIONAL_OPTIONS).directories;
 }
 
 function isOperationalDataPath(publication, relativePath) {
-  const normalized = relativePath.split(path.sep).join("/");
-  return (
-    normalized === publication.dataset.paths.manifest ||
-    operationalDirectories(publication).some(
-      (directory) => normalized === directory || normalized.startsWith(`${directory}/`)
-    )
-  );
+  const declared = publicationOperationalPaths(publication, OPERATIONAL_OPTIONS);
+  return isOperationalPath(relativePath.split(path.sep).join("/"), declared);
 }
 
-// Placeholders that legitimately keep an otherwise-ignored directory in git.
 const OPERATIONAL_PLACEHOLDERS = new Set([".keep", ".gitkeep"]);
 
-/**
- * Pipeline output must stay out of git. Rather than reason about .gitignore glob
- * coverage — where `site/JSON/*.json` looks like it covers the directory while a
- * `.csv` or `.bin` sibling slips through — assert the actual tracked state: no file
- * under a declared operational directory may be committed, except a bare placeholder.
- */
+// Asserts the tracked state rather than reasoning about .gitignore glob coverage,
+// where `site/JSON/*.json` looks like it covers the directory while a `.csv` or `.bin`
+// sibling slips through.
 function assertOperationalDataIgnored() {
   const leaked = [];
   for (const publication of publications) {
-    const { values, grids } = publication.dataset.paths;
-    for (const directory of new Set([values, grids])) {
+    for (const directory of operationalDirectories(publication)) {
       const result = spawnSync("git", ["ls-files", "-z", "--", `site/${directory}`], { cwd: root, encoding: "utf8" });
       if (result.error) throw result.error;
       if (result.status !== 0) throw new Error(`could not inspect tracked files under site/${directory}`);
@@ -91,8 +80,8 @@ function assertLocalReferences(publication) {
   for (const pageFile of pages) {
     const html = fs.readFileSync(path.join(siteRoot, pageFile), "utf8");
     for (const rawValue of htmlReferences(html)) {
-      // No originPrefix: a same-origin absolute URL to this publication's own host is
-      // external here (the reference check only resolves root- and page-relative paths).
+      // Empty originPrefix: only root- and page-relative paths resolve here, so a
+      // same-origin absolute URL to this publication's own host counts as external.
       if (isExternalReference(rawValue, "")) continue;
       const cleanValue = rawValue.split(/[?#]/, 1)[0];
       if (!cleanValue) continue;
@@ -169,9 +158,8 @@ function buildAndValidate(publication) {
   run(process.execPath, [htmlValidate, ...htmlFiles], `HTML validation ${publication.id}`);
   run(process.execPath, [purgeCheck], `Bootstrap/PurgeCSS validation ${publication.id}`);
   // Both vendor subsets are shared by every publication while site/ holds one at a
-  // time, so a page that introduces a new icon only fails while its own publication
-  // is rendered. Running the check here means `npm run build:check` — the command the
-  // guide points a new maintainer at — catches it instead of the CI three steps later.
+  // time, so a page introducing a new icon only fails while its own publication is
+  // rendered — hence per publication, inside build:check, not once later in CI.
   run(process.execPath, [iconCheck], `Font Awesome subset validation ${publication.id}`);
 
   const index = fs.readFileSync(path.join(root, "site", "index.html"), "utf8");

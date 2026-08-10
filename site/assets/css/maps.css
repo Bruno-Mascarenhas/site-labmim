@@ -1,8 +1,5 @@
-/* Z-INDEX LADDER
-   Named stacking layers whose values EXACTLY equal the raw z-index numbers
-   previously used inline. Substituting var() below is computed-identical.
-   Small local z-indexes used only inside mobile flex-stacks (10, 20, 21)
-   are intentionally NOT part of this global ladder. */
+/* The small z-indexes local to the mobile flex stacks (10, 20, 21) are
+   deliberately outside this ladder. */
 :root {
   --z-map: 1;
   --z-wind-canvas: 400;
@@ -16,15 +13,10 @@
   --z-modal-overlay: 9999;
 }
 
-/* LEFT RAIL CLEARANCE
-   A colorbar e os botões de domínio formam uma coluna encostada na borda
-   esquerda do mapa que cresce para baixo: em telas baixas (ex.: 1024x768) ela
-   chega à barra de controles. Os controles flutuantes do canto inferior
-   esquerdo (vetores de vento, seletor de altura, janela de acumulado) partem
-   daqui para nunca ficarem por baixo dela. O valor cobre o rótulo de domínio
-   mais largo entre as publicações — "Grande Vitória" (ufes), cuja coluna
-   termina em 178px — com folga. Abaixo de 900px esses controles entram na
-   pilha estática e o deslocamento deixa de valer. */
+/* Where the lower-left floating controls start, so they never slide under the
+   colorbar + domain column. Clears the widest domain label across publications,
+   "Grande Vitória" (ufes), whose column ends at 178px. Below 900px those
+   controls join the static stack and the offset stops applying. */
 :root {
   --map-left-rail-clear: 190px;
 }
@@ -55,11 +47,8 @@ header.maps-header {
   flex-direction: row;
   position: relative;
   height: calc(100vh - var(--navbar-height));
-
-  /* Approximate navbar height */
 }
 
-/* MAP CONTAINER */
 #map {
   flex: 1;
   z-index: var(--z-map);
@@ -67,13 +56,10 @@ header.maps-header {
   width: 100%;
 }
 
-/* SIDEBAR - Flutuante e Retrátil */
 .sidebar {
   position: fixed;
   right: 0;
   top: var(--navbar-height);
-
-  /* Below navbar */
   width: 380px;
   height: calc(100vh - var(--navbar-height));
   background: white;
@@ -81,16 +67,25 @@ header.maps-header {
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* `transform` alone would leave the closed panel in the tab order and in the
+     accessibility tree; the delay lets the slide-out finish first. */
+  visibility: hidden;
+  transition:
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s 0.35s;
   z-index: var(--z-sidebar);
   overflow-y: auto;
 }
 
 .sidebar.active {
   transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s 0s;
 }
 
-/* SIDEBAR LOGO HEADER */
 .sidebar-logo-header {
   padding: 0;
   background: var(--map-accent-gradient);
@@ -133,7 +128,7 @@ header.maps-header {
   color: #333;
 }
 
-.sidebar-header h3 {
+.sidebar-header h2 {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
@@ -161,7 +156,6 @@ header.maps-header {
   color: var(--map-accent-2);
 }
 
-/* FLOATING CLOSE BUTTON (Botão flutuante no canto) */
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
@@ -207,19 +201,23 @@ header.maps-header {
   color: #555;
 }
 
+/* --map-accent is the map's identity color, not a text ink: it lands at 3.47:1
+   over #f8f9fa, 2.56:1 in the LEAL publication. Every read value, label and
+   clock on the map therefore takes the theme contract's ink ramp instead, and
+   the accent is left on borders, where the 3:1 non-text floor applies. */
 .info-value {
   font-weight: 600;
-  color: var(--map-accent);
+  color: var(--ink-strong, #172033);
   font-family: "Courier New", monospace;
 }
 
+/* Over the #f8f9fa of .info-item; theme.css carries the dark counterpart. */
 .info-unit {
   font-size: 0.85rem;
-  color: #888;
+  color: #6b6b6b;
   margin-left: 4px;
 }
 
-/* VARIABLE SPECIFIC INFO */
 .variable-specific {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
@@ -254,7 +252,6 @@ header.maps-header {
   color: #888;
 }
 
-/* CONTROLS */
 .controls-container {
   position: absolute;
   bottom: 0;
@@ -298,6 +295,13 @@ header.maps-header {
   appearance: none;
 }
 
+/* The `outline: none` above carries id specificity and beats the house ring
+   that theme.css gives every field, so the ring is repeated here. */
+#layerSlider:focus-visible {
+  outline: 3px solid rgba(var(--brand-secondary-rgb), 0.35);
+  outline-offset: 3px;
+}
+
 #layerSlider::-webkit-slider-thumb {
   appearance: none;
   width: 18px;
@@ -321,7 +325,7 @@ header.maps-header {
 
 .slider-time {
   font-weight: 600;
-  color: var(--map-accent);
+  color: var(--ink-deep, #0d2b4d);
   min-width: 200px;
   font-size: 0.95rem;
 }
@@ -377,7 +381,6 @@ header.maps-header {
   border-color: var(--map-accent);
 }
 
-/* TOGGLE SWITCH */
 .variable-selector-wrapper {
   display: flex;
   align-items: center;
@@ -426,9 +429,8 @@ header.maps-header {
   box-shadow: 0 0 0 3px rgba(var(--map-accent-rgb), 0.1);
 }
 
-/* SEGMENTED SELECTOR — altura do hub (eólico) e janela de acumulado (chuva).
-   Só uma delas fica ativa por vez, pois cada uma pertence a uma variável
-   diferente; por isso ambas ocupam o mesmo canto do mapa. */
+/* Hub height (wind) and accumulation window (rain) share this corner of the
+   map: each belongs to a different variable, so only one is ever active. */
 .segmented-selector {
   display: none;
   position: absolute;
@@ -444,8 +446,7 @@ header.maps-header {
   white-space: nowrap;
 }
 
-/* O eólico exibe o botão de vetores de vento na mesma faixa: o seletor de
-   altura fica encostado nele. */
+/* Offset because wind also shows the wind-vector button in this strip. */
 #heightSelector {
   left: calc(var(--map-left-rail-clear) + 60px);
 }
@@ -490,7 +491,6 @@ header.maps-header {
   border-color: var(--map-accent);
 }
 
-/* WIND VECTOR LAYER TOGGLE */
 .wind-layer-toggle {
   display: none;
   position: absolute;
@@ -539,7 +539,6 @@ header.maps-header {
   box-shadow: 0 4px 16px rgba(var(--map-accent-rgb), 0.6);
 }
 
-/* Foco visivel via teclado no toggle de vento (checkbox visualmente oculto). */
 .wind-layer-toggle:has(input[type="checkbox"]:focus-visible) label {
   outline: 3px solid rgba(var(--brand-secondary-rgb), 0.35);
   outline-offset: 3px;
@@ -549,7 +548,6 @@ header.maps-header {
   display: none;
 }
 
-/* WIND VECTORS CANVAS */
 #windVectorCanvas {
   position: absolute;
   top: 0;
@@ -558,7 +556,6 @@ header.maps-header {
   pointer-events: none;
 }
 
-/* COLORBAR */
 .colorbar-container {
   position: absolute;
   top: 80px;
@@ -610,9 +607,6 @@ header.maps-header {
   padding-top: 8px;
 }
 
-/* DOMAIN INDICATOR */
-
-/* DOMAIN INDICATORS CONTAINER */
 .domain-indicators-container {
   position: absolute;
   top: 360px;
@@ -667,9 +661,7 @@ header.maps-header {
   box-shadow: 0 4px 12px rgba(var(--map-accent-rgb), 0.3);
 }
 
-/* RESPONSIVE - TABLET E MOBILE */
 @media (width <= 1024px) {
-  /* Ajustes gerais para telas < 1024px */
   .sidebar {
     max-width: 95vw;
   }
@@ -690,9 +682,6 @@ header.maps-header {
 }
 
 @media (width <= 768px) {
-  /* MOBILE: Até 768px */
-
-  /* Layout Base */
   .container-main {
     flex-direction: column;
   }
@@ -702,7 +691,6 @@ header.maps-header {
     width: 100%;
   }
 
-  /* Sidebar em Mobile - Slide-up do fundo */
   .sidebar {
     position: fixed;
     inset: auto auto 200px 2.5vw;
@@ -724,7 +712,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Ocultar logo da sidebar em mobile */
   .sidebar-logo-header {
     display: none;
     height: 0;
@@ -744,7 +731,6 @@ header.maps-header {
     padding: 0;
   }
 
-  /* Controls Container - Mais compacto */
   .controls-container {
     height: 130px;
     min-height: 130px;
@@ -757,7 +743,6 @@ header.maps-header {
     pointer-events: none;
   }
 
-  /* Slider - Ocupa linha cheia */
   .slider-wrapper {
     width: 100%;
     min-width: unset;
@@ -779,8 +764,19 @@ header.maps-header {
     pointer-events: auto;
   }
 
+  /* Flex items start at min-width: auto, so without this the long "model not
+     published yet" notice that replaces the clock stretches the slider row and
+     the page scrolls sideways. Mobile only: on desktop the row has slack, and
+     letting the notice wrap beats truncating it. */
+  .slider-time-container {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* 12px is the legibility floor the rest of the site holds to, and the clock
+     is a datum, not a decorative label: it truncates rather than shrink past it. */
   .slider-time {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     min-width: 100px;
     white-space: nowrap;
     overflow: hidden;
@@ -788,7 +784,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Botões - Layout horizontal compacto */
   .buttons-group {
     width: 100%;
     flex-basis: 100%;
@@ -813,7 +808,6 @@ header.maps-header {
     display: none;
   }
 
-  /* Seletor de Variáveis */
   .variable-selector-wrapper {
     width: 100%;
     flex-basis: 100%;
@@ -839,7 +833,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Colorbar - Repositionado */
   .colorbar-container {
     position: absolute;
     inset: 12px auto auto 8px;
@@ -866,7 +859,7 @@ header.maps-header {
     padding-top: 4px;
   }
 
-  /* Domain Indicators - Mais alto em mobile, mas sem sobrepor colorbar */
+  /* Pushed down far enough to clear the colorbar above it. */
   .domain-indicators-container {
     top: 165px;
     left: 8px;
@@ -894,7 +887,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Documentation Button - Canto inferior direito em mobile */
   .documentation-btn-container {
     position: fixed !important;
     inset: auto 8px 140px auto !important;
@@ -918,7 +910,6 @@ header.maps-header {
     box-shadow: 0 2px 8px rgba(var(--map-accent-rgb), 0.4) !important;
   }
 
-  /* Segmented Selector - Reposicionado em mobile e compacto */
   .segmented-selector {
     position: fixed !important;
     inset: auto auto 140px 8px !important;
@@ -928,7 +919,7 @@ header.maps-header {
   }
 
   #heightSelector {
-    left: 56px !important; /* Ao lado do botão de vento */
+    left: 56px !important;
   }
 
   .segmented-selector .segmented-selector-title {
@@ -941,7 +932,6 @@ header.maps-header {
     min-width: 40px !important;
   }
 
-  /* Wind Layer Toggle - Móvel: botão flutuante inferior esquerdo */
   .wind-layer-toggle {
     position: fixed !important;
     inset: auto auto 140px 8px !important;
@@ -956,7 +946,6 @@ header.maps-header {
     font-size: 1rem !important;
   }
 
-  /* Info Sections */
   .info-section {
     padding: 12px;
     margin-bottom: 8px;
@@ -993,7 +982,6 @@ header.maps-header {
     margin: 4px 0;
   }
 
-  /* Chart - Menor em mobile */
   .chart-container {
     padding: 8px;
     margin: 8px 0;
@@ -1005,7 +993,6 @@ header.maps-header {
   }
 }
 
-/* RESPONSIVE - ULTRA-MOBILE (< 480px) */
 @media (width <= 480px) {
   #map {
     height: calc(100vh - 200px);
@@ -1020,11 +1007,10 @@ header.maps-header {
     max-height: 50vh;
   }
 
-  .sidebar-header h3 {
+  .sidebar-header h2 {
     font-size: 0.9rem;
   }
 
-  /* Documentação no topo/canto */
   .documentation-btn-container {
     position: fixed !important;
     inset: auto 8px 115px auto !important;
@@ -1048,7 +1034,7 @@ header.maps-header {
     box-shadow: 0 2px 8px rgba(var(--map-accent-rgb), 0.4) !important;
   }
 
-  /* Domain indicators mais alto */
+  /* Pushed down far enough to clear the colorbar above it. */
   .domain-indicators-container {
     top: 180px;
     left: 4px;
@@ -1070,7 +1056,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Colorbar - Pequeno no ultra-mobile */
   .colorbar-container {
     top: 8px;
     left: 4px;
@@ -1091,7 +1076,6 @@ header.maps-header {
     min-width: 28px;
   }
 
-  /* Controles ainda mais compactos */
   .controls-container {
     height: auto;
     min-height: 0;
@@ -1119,7 +1103,7 @@ header.maps-header {
 
   .slider-time {
     min-width: 80px;
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     white-space: nowrap;
     pointer-events: auto;
   }
@@ -1177,7 +1161,6 @@ header.maps-header {
     pointer-events: auto;
   }
 
-  /* Info Sections */
   .info-section {
     padding: 8px;
     margin-bottom: 6px;
@@ -1199,7 +1182,6 @@ header.maps-header {
     font-size: 0.9rem;
   }
 
-  /* Segmented Selector - Ajuste ultra-mobile */
   .segmented-selector {
     position: fixed !important;
     inset: auto auto 115px 8px !important;
@@ -1209,20 +1191,21 @@ header.maps-header {
   }
 
   #heightSelector {
-    left: 50px !important; /* Ao lado do botão de vento */
+    left: 50px !important;
   }
 
   .segmented-selector .segmented-selector-title {
     font-size: 0.65rem !important;
   }
 
+  /* The font and the width shrink here; the touch target may not. */
   .segmented-btn {
     padding: 2px 6px !important;
     font-size: 0.65rem !important;
     min-width: 32px !important;
+    min-height: var(--wcag-min-target) !important;
   }
 
-  /* Wind Layer Toggle - Ultra-mobile: botão flutuante inferior esquerdo */
   .wind-layer-toggle {
     position: fixed !important;
     inset: auto auto 115px 8px !important;
@@ -1238,7 +1221,20 @@ header.maps-header {
   }
 }
 
-/* ANIMATIONS */
+/* Grows the drag target on touch without fattening the 6px track: the
+   transparent borders keep the background painted on the track alone. Must stay
+   AFTER the width media queries — they redeclare `height: 4px` at the same
+   specificity, and 4px minus the 13px borders collapses the padding box to zero
+   and erases the gradient. */
+@media (pointer: coarse) {
+  #layerSlider {
+    height: 32px;
+    border-top: 13px solid transparent;
+    border-bottom: 13px solid transparent;
+    background-clip: padding-box;
+  }
+}
+
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -1352,7 +1348,6 @@ header.maps-header {
   animation: slideIn 0.3s ease;
 }
 
-/* PARAMETERS EDITOR */
 .parameters-editor {
   background: linear-gradient(135deg, #f5f7fa 0%, #e8f0ff 100%);
   border: 1px solid #d0dce6;
@@ -1436,8 +1431,10 @@ header.maps-header {
   box-shadow: 0 0 0 3px rgba(var(--map-accent-rgb), 0.1);
 }
 
+/* Not decorative: the placeholder carries the parameter's default value
+   ("18 (padrão)"), so it stays legible — just lighter than a typed value. */
 .parameter-input::placeholder {
-  color: #ccc;
+  color: #6b6b6b;
 }
 
 .parameter-unit {
@@ -1447,9 +1444,11 @@ header.maps-header {
   display: block;
 }
 
+/* Instruction, not decoration — it says how to get the default value back, so
+   the italics carry the hint role instead of low contrast. */
 .parameter-hint {
   font-size: 0.7rem;
-  color: #aaa;
+  color: #6b6b6b;
   margin-top: 2px;
   display: block;
   font-style: italic;
@@ -1461,7 +1460,7 @@ header.maps-header {
   border: 1px solid #ddd;
   border-radius: 4px;
   background: white;
-  color: var(--map-accent);
+  color: var(--ink-deep, #0d2b4d);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
@@ -1474,7 +1473,6 @@ header.maps-header {
   border-color: var(--map-accent);
 }
 
-/* DOCUMENTATION BUTTON */
 .documentation-btn-container {
   position: absolute;
   top: 12px;
@@ -1511,7 +1509,6 @@ header.maps-header {
   transform: scale(0.95);
 }
 
-/* DOCUMENTATION MODAL */
 .documentation-modal {
   display: none;
   position: fixed;
@@ -1601,7 +1598,6 @@ header.maps-header {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* DOCUMENTATION TABS */
 .documentation-tabs {
   display: flex;
   gap: 0;
@@ -1636,7 +1632,7 @@ header.maps-header {
 }
 
 .doc-tab.active {
-  color: var(--map-accent);
+  color: var(--ink-deep, #0d2b4d);
   border-bottom-color: var(--map-accent);
   background: white;
 }
@@ -1645,7 +1641,6 @@ header.maps-header {
   font-size: 1.1rem;
 }
 
-/* DOCUMENTATION BODY */
 .documentation-body {
   flex: 1;
   overflow-y: auto;
@@ -1663,7 +1658,7 @@ header.maps-header {
 }
 
 .doc-tab-content h3 {
-  color: var(--map-accent);
+  color: var(--ink-strong, #172033);
   font-size: 1.4rem;
   margin-bottom: 16px;
   margin-top: 0;
@@ -1721,7 +1716,7 @@ header.maps-header {
 }
 
 .doc-tab-content a {
-  color: var(--map-accent);
+  color: var(--ink-deep, #0d2b4d);
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s;
@@ -1732,7 +1727,6 @@ header.maps-header {
   text-decoration: underline;
 }
 
-/* DOCUMENTATION CUSTOM CARDS */
 .doc-var-card {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
@@ -1744,7 +1738,7 @@ header.maps-header {
 
 .doc-var-card h4 {
   margin-top: 0;
-  color: var(--map-accent);
+  color: var(--ink-strong, #172033);
   border-bottom: 2px solid #e9ecef;
   padding-bottom: 8px;
   display: flex;
@@ -1786,7 +1780,6 @@ header.maps-header {
   color: var(--text-primary);
 }
 
-/* VARIABLE OVERVIEW */
 .variable-overview-panel {
   position: absolute;
   top: 78px;
@@ -2179,7 +2172,6 @@ header.maps-header {
   }
 }
 
-/* RESPONSIVE */
 @media (width <= 768px) {
   .documentation-content {
     max-width: 95%;
@@ -2212,7 +2204,6 @@ header.maps-header {
   }
 }
 
-/* GRÁFICOS TEMPORAIS */
 .chart-container {
   background: white;
   border-radius: 8px;
@@ -2244,7 +2235,6 @@ header.maps-header {
   color: var(--map-accent-2);
 }
 
-/* MODAL DE GRÁFICO EXPANDIDO */
 .chart-modal-overlay {
   position: fixed;
   inset: 0;
@@ -2321,7 +2311,7 @@ header.maps-header {
   color: var(--text-primary) !important;
 }
 
-.dark-theme .sidebar-header h3,
+.dark-theme .sidebar-header h2,
 .dark-theme .doc-tab-content h3,
 .dark-theme .chart-modal-header h2 {
   color: var(--text-primary) !important;
@@ -2355,12 +2345,9 @@ header.maps-header {
   }
 }
 
-/* Painéis flutuantes do mapa recolhidos para os cantos superiores. Este
-   breakpoint acompanha o da MOBILE MAP CONTROLS STACK abaixo de propósito:
-   assim que os controles inferiores viram pilha estática, a coluna esquerda
-   (colorbar + domínios) precisa sair do caminho — enquanto ela ficava até
-   768px, a faixa de 769-900px deixava os domínios por cima da barra de
-   controles e do botão de vetores de vento. */
+/* Must stay in step with the 900px query below that turns the bottom controls
+   into a static stack: the moment it does, the left column (colorbar + domains)
+   has to fold into the top corners or it lands on top of them. */
 @media (width <= 900px) {
   .colorbar-container {
     top: 8px;
@@ -2440,7 +2427,6 @@ header.maps-header {
   }
 }
 
-/* MOBILE MAP CONTROLS STACK */
 @media (width <= 900px) {
   .controls-container {
     order: 30;

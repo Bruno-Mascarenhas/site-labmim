@@ -1,9 +1,9 @@
-/**
- * CHARTS_MANAGER.js
- *
- * Time series charts manager for the interactive map
- *
- */
+// The interactive timeline is 1-based: index 1 is the slider minimum.
+const CHART_TIMELINE_FIRST_INDEX = 1;
+// Forecast timestamps carry the metadata's wall-clock digits in UTC fields
+// (see app.parseDateTime) and the map label prints those digits, so charts and
+// CSV must format in UTC too — local time would shift them off the map.
+const CHART_FORECAST_TIME_ZONE = "UTC";
 
 class ChartsManager {
   constructor(app) {
@@ -42,8 +42,6 @@ class ChartsManager {
       modal.addEventListener("click", (e) => {
         if (e.target === modal) this.closeModal();
       });
-    // Fecha o modal (role=dialog) com Escape e prende Tab dentro dele
-    // enquanto aberto (focus trap).
     document.addEventListener("keydown", (e) => {
       if (!modal || modal.style.display !== "flex") return;
       if (e.key === "Escape") {
@@ -55,10 +53,7 @@ class ChartsManager {
     window.addEventListener("labmim-theme-change", () => this.refreshChartTheme());
   }
 
-  // ─── Data Loading ─────────────────────────────────────────────────────────
-
   async loadTimeSeriesData(selectedCell, domain, variableType) {
-    // Abort previous request if it exists
     if (this.abortController) {
       this.abortController.abort();
     }
@@ -88,12 +83,57 @@ class ChartsManager {
       if (signal.aborted) return {};
 
       this.timeSeriesData = timeSeriesData;
+      // The caller only redraws when some series came back, so the previous
+      // cell's charts must be torn down here.
+      if (!timeSeriesData[variableType]?.data?.length) {
+        this._showModalEmptyState("Sem dados para esta célula nesta variável.");
+      }
       return timeSeriesData;
     } catch (error) {
       if (error.name !== "AbortError") {
         console.error("[Charts] Error loading time series:", error);
+        // Without this the CSV button exports the previous cell's values under
+        // the newly selected coordinates.
+        this.timeSeriesData = {};
+        this._showModalEmptyState("Não foi possível carregar a série temporal desta célula.");
       }
       return {};
+    }
+  }
+
+  _showModalEmptyState(message) {
+    this.charts.forEach((chart) => chart.destroy());
+    this.charts.clear();
+    if (this.ui.chartEnergyContainer) this.ui.chartEnergyContainer.style.display = "none";
+    if (this.ui.exportBtn) {
+      this.ui.exportBtn.disabled = true;
+      this.ui.exportBtn.setAttribute("aria-disabled", "true");
+    }
+
+    const body = this.ui.modal?.querySelector(".chart-modal-body");
+    if (!body) return;
+    let box = body.querySelector(".chart-empty-state");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "chart-empty-state";
+      // Announces the state change without stealing focus from the close button.
+      box.setAttribute("role", "status");
+      // Inline: the build-generated modal markup carries no class for this state.
+      box.style.cssText =
+        "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;" +
+        "text-align:center;padding:1.5rem;color:var(--text-secondary,#666);background:var(--bg-card,#fff);";
+      body.appendChild(box);
+    }
+    box.textContent = message;
+    box.style.display = "flex";
+  }
+
+  _clearModalEmptyState() {
+    const box = this.ui.modal?.querySelector(".chart-empty-state");
+    if (box) box.style.display = "none";
+    if (this.ui.exportBtn) {
+      this.ui.exportBtn.disabled = false;
+      this.ui.exportBtn.removeAttribute("aria-disabled");
     }
   }
 
@@ -101,9 +141,8 @@ class ChartsManager {
     try {
       let gridLayer = this.app?.gridLayers?.[domain];
 
-      // Not cached yet: load through the app's shared grid loader (compact
-      // format aware, worker parsing, in-flight dedup) instead of a raw
-      // multi-MB legacy GeoJSON fetch of our own.
+      // The shared loader is compact-format aware and dedups in flight; a fetch
+      // of our own would pull the multi-MB legacy GeoJSON instead.
       if (!gridLayer && this.app?.loadGridLayer) {
         gridLayer = await this.app.loadGridLayer(domain);
         if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -116,18 +155,16 @@ class ChartsManager {
         layers.forEach((layer, i) => {
           const bounds = layer.getBounds?.();
           if (!bounds) return;
-          const c = bounds.getCenter();
-          const d = this._quickDist(lat, lng, c.lat, c.lng);
-          if (d < minDist) {
-            minDist = d;
+          const center = bounds.getCenter();
+          const distance = this._squaredDistance(lat, lng, center.lat, center.lng);
+          if (distance < minDist) {
+            minDist = distance;
             closestIndex = this.app?.getCellIndexForLayer?.(layer, i) ?? i;
           }
         });
         return closestIndex;
       }
 
-      // Last resort: use the selected dataset path without assuming a
-      // publication, territory, or storage directory.
       if (!this.app?.gridGeoJsonPath) return null;
       const res = await fetch(this.app.gridGeoJsonPath(domain), { signal });
       if (!res.ok) return null;
@@ -137,10 +174,10 @@ class ChartsManager {
         minDist = Infinity;
       (geoJson.features || []).forEach((feature, i) => {
         if (feature.geometry?.type === "Polygon") {
-          const c = this._centroid(feature.geometry.coordinates[0]);
-          const d = this._quickDist(lat, lng, c.lat, c.lng);
-          if (d < minDist) {
-            minDist = d;
+          const center = this._centroid(feature.geometry.coordinates[0]);
+          const distance = this._squaredDistance(lat, lng, center.lat, center.lng);
+          if (distance < minDist) {
+            minDist = distance;
             closestIndex = Number.isInteger(feature.properties?.linear_index) ? feature.properties.linear_index : i;
           }
         }
@@ -152,19 +189,14 @@ class ChartsManager {
     }
   }
 
-  // ─── Modal Rendering ──────────────────────────────────────────────────────
-
   openModal() {
     if (this.ui.modal) {
-      // Guarda a origem do foco para devolvê-lo no fechamento.
       this._returnFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       this.ui.modal.style.display = "flex";
-      // Move o foco para o botão de fechar para acessibilidade por teclado.
       if (this.ui.closeBtn) this.ui.closeBtn.focus();
     }
   }
 
-  // Prende Tab/Shift+Tab dentro do modal aberto (focus trap do role=dialog).
   _trapModalFocus(event) {
     const modal = this.ui.modal;
     const focusables = [
@@ -196,7 +228,6 @@ class ChartsManager {
       this.abortController.abort();
       this.abortController = null;
     }
-    // Devolve o foco ao elemento de origem (par do focus trap).
     if (this._returnFocusEl && document.contains(this._returnFocusEl)) {
       this._returnFocusEl.focus();
     }
@@ -207,7 +238,18 @@ class ChartsManager {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
 
-    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}"></i> Série Temporal: ${config.label}`;
+    // Before the no-data return: the header must name the REQUESTED variable
+    // even when the answer is "no data".
+    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}"></i> Série Temporal: ${this._stepLabel(config)}`;
+
+    // The requested variable can be missing while a companion series loaded,
+    // and the caller only checks whether the payload has any key at all.
+    if (!this.timeSeriesData?.[variableType]?.data?.length) {
+      this._showModalEmptyState("Sem dados para esta célula nesta variável.");
+      return;
+    }
+
+    this._clearModalEmptyState();
 
     const isSolarOrWind = variableType === "solar" || variableType === "eolico";
 
@@ -230,7 +272,6 @@ class ChartsManager {
   }
 
   /**
-   * Invalidates every cached series (cell series and domain summaries).
    * Called when a new pipeline run replaces the data files in place, so
    * nothing computed from the previous run's bytes survives.
    */
@@ -238,8 +279,6 @@ class ChartsManager {
     this.timeSeriesCache.clear();
     this.domainSummaryCache.clear();
   }
-
-  // ─── Internal Methods ─────────────────────────────────────────────────────
 
   async renderDomainSummary(variableType, domain, elements = {}) {
     const config = VARIABLES_CONFIG[variableType];
@@ -254,7 +293,13 @@ class ChartsManager {
     const { canvasId = "variablePreviewCanvas", statsContainer, titleElement, labelElement, domainElement } = elements;
 
     if (titleElement) titleElement.textContent = config.optionLabel || config.label;
-    if (labelElement) labelElement.textContent = `${config.sourceId || config.id} · ${config.unit}`;
+    if (labelElement) {
+      // Same node `updateVariablePreviewShell` (map-manager.js) writes to, and
+      // this one writes last. Dimensionless variables (EPS_SKY, KT) carry no
+      // unit, so the separator has to go with it.
+      const source = config.sourceId || config.id;
+      labelElement.textContent = config.unit ? `${source} · ${config.unit}` : source;
+    }
     if (domainElement) {
       domainElement.textContent = this.app?.getDomainLabel ? this.app.getDomainLabel(domain) : domain;
       domainElement.title = `Domínio técnico: ${domain}`;
@@ -298,8 +343,8 @@ class ChartsManager {
     const cached = this.domainSummaryCache.get(cacheKey);
     if (cached) return this._withCurrentStats(cached, currentHour);
 
-    // Preferred path: ONE consolidated summary artifact instead of fetching
-    // every hour's full-domain JSON to average it client-side.
+    // One consolidated artifact instead of averaging every hour's full-domain
+    // JSON client-side.
     const artifactSeries = await this._loadSummaryArtifactSeries(variableId, domain, maxHour, signal);
     if (artifactSeries) {
       const baseResult = { series: artifactSeries };
@@ -327,8 +372,8 @@ class ChartsManager {
     );
 
     const baseResult = { series };
-    // Cache unless a transient failure truncated the series: a series missing
-    // only structurally-absent hours (404) is complete and safe to cache.
+    // A series missing only structurally-absent hours (404) is complete; one
+    // truncated by a transient failure is not, and must not be cached.
     if (transientFailures === 0) {
       this.domainSummaryCache.set(cacheKey, baseResult);
     }
@@ -336,10 +381,9 @@ class ChartsManager {
   }
 
   /**
-   * Loads the pipeline's {D}_{VAR}.summary.json (domain-summary-v1): the
-   * per-step domain mean/min/max in one request. Returns null when the
-   * manifest doesn't advertise the artifact, or on any fetch/shape problem —
-   * callers then fall back to the legacy one-fetch-per-hour sweep.
+   * Reads {D}_{VAR}.summary.json (domain-summary-v1): per-step domain
+   * mean/min/max in one request. Null on any missing/malformed artifact —
+   * callers fall back to the legacy one-fetch-per-hour sweep.
    */
   async _loadSummaryArtifactSeries(variableId, domain, maxHour, signal) {
     const feature = this.app?.timeline?.features?.domain_summary;
@@ -355,8 +399,7 @@ class ChartsManager {
       const series = [];
       for (let i = 0; i < data.indices.length; i++) {
         const hour = data.indices[i];
-        // The interactive timeline starts at index 1 (slider min).
-        if (!Number.isInteger(hour) || hour < 1 || hour > maxHour) continue;
+        if (!Number.isInteger(hour) || hour < CHART_TIMELINE_FIRST_INDEX || hour > maxHour) continue;
         const value = data.mean?.[i];
         if (!Number.isFinite(value)) continue;
         series.push({
@@ -375,11 +418,9 @@ class ChartsManager {
   }
 
   /**
-   * Fetches hours 1..maxHour in batches and maps each successfully fetched
-   * JSON through mapHourData(hour, data). Only TRANSIENT failures (network
-   * errors, 5xx) are counted in transientFailures; a deterministic 404 (a
-   * file the pipeline never exports, e.g. SWDOWN night hours) is treated as
-   * an expected gap, so a complete-but-sparse series can still be cached.
+   * `transientFailures` counts only network errors and 5xx. A deterministic
+   * 404 (a file the pipeline never exports, e.g. SWDOWN night hours) is an
+   * expected gap, so a complete-but-sparse series stays cacheable.
    */
   async _collectHourlySeries(variableId, domain, maxHour, batchSize, signal, mapHourData) {
     const series = [];
@@ -441,8 +482,8 @@ class ChartsManager {
     if (!series?.length) return null;
 
     // No entry for the current timestep (e.g. SWDOWN night hours) means
-    // "Atual" is genuinely unavailable — substituting another hour's value
-    // would present a wrong reading next to a map that says "sem dados".
+    // "Atual" is genuinely unavailable; another hour's value would read as a
+    // measurement next to a map that says "sem dados".
     const current = series.find((entry) => entry.hour === currentHour) || null;
     const mean = series.reduce((sum, entry) => sum + entry.value, 0) / series.length;
     const min = Math.min(...series.map((entry) => entry.min));
@@ -477,13 +518,9 @@ class ChartsManager {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
 
-    // timeZone UTC: forecast timestamps store the metadata's wall-clock
-    // digits in UTC fields (see app.parseDateTime), and the map label prints
-    // those same digits — local-time formatting would shift charts/CSV by
-    // the viewer's UTC offset relative to the map.
     const labels = series.map((entry) =>
       new Date(entry.timestamp).toLocaleString("pt-BR", {
-        timeZone: "UTC",
+        timeZone: CHART_FORECAST_TIME_ZONE,
         day: "2-digit",
         month: "2-digit",
         hour: "2-digit",
@@ -491,8 +528,19 @@ class ChartsManager {
     );
     const chartData = series.map((entry) => entry.value);
     const chartColor = config.colors?.[config.colors.length - 1] || "#0d6efd";
-    const chartLabel = `Média do domínio · ${config.label}`;
+    const chartLabel = `Média do domínio · ${this._stepLabel(config)}`;
     const tooltipLabel = (ctx) => this._formatPreviewValue(ctx.parsed.y, config.unit);
+
+    // A <canvas> exposes no content to the accessibility tree (WCAG 1.1.1).
+    if (labels.length) {
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute(
+        "aria-label",
+        `Média do domínio para ${this._stepLabel(config)}${config.unit ? ` em ${config.unit}` : ""}, ` +
+          `de ${labels[0]} a ${labels[labels.length - 1]}. ` +
+          "As estatísticas do período estão no resumo desta prévia."
+      );
+    }
 
     let chartInstance = this.previewCharts.get(canvasId);
 
@@ -529,11 +577,15 @@ class ChartsManager {
   }
 
   _formatPreviewValue(value, unit) {
-    // Explicit null/undefined check: Number(null) is 0, which would render
-    // a fake "0 <unit>" instead of N/D.
+    // Number(null) is 0, which would render a fake "0 <unit>" instead of N/D.
     if (value === null || value === undefined || !Number.isFinite(Number(value))) return "N/D";
     const numericValue = Number(value);
-    const precision = unit === "%" || unit === "W/m²" || unit === "hPa" || unit === "mm" ? 0 : 1;
+    // Outside the hundreds-scale units the decimals follow MAGNITUDE, not unit:
+    // a whole-domain precipitation mean lives in the hundredths, because WRF
+    // writes zero over most of the grid.
+    const isCoarseUnit = unit === "%" || unit === "W/m²" || unit === "hPa";
+    const abs = Math.abs(numericValue);
+    const precision = isCoarseUnit || abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
     return `${numericValue.toFixed(precision)} ${unit}`;
   }
 
@@ -541,7 +593,7 @@ class ChartsManager {
     if (!this.timeSeriesData?.[variableType]) return;
 
     const config = VARIABLES_CONFIG[variableType];
-    const timeData = this.timeSeriesData[variableType].data;
+    const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
     const {
       data: chartData,
       label: chartLabel,
@@ -549,20 +601,30 @@ class ChartsManager {
       color: chartColor,
     } = this._prepareChartData(variableType, chartType, config, timeData);
 
-    const labels = timeData.map((d) => {
-      if (!d._formattedLabel) {
-        // timeZone UTC keeps chart labels on the forecast's wall-clock
-        // digits, consistent with the map's time label (see _renderPreviewChart).
-        d._formattedLabel = new Date(d.timestamp).toLocaleString("pt-BR", {
-          timeZone: "UTC",
+    const labels = timeData.map((entry) => {
+      if (!entry._formattedLabel) {
+        entry._formattedLabel = new Date(entry.timestamp).toLocaleString("pt-BR", {
+          timeZone: CHART_FORECAST_TIME_ZONE,
           day: "2-digit",
           month: "2-digit",
           hour: "2-digit",
           minute: "2-digit",
         });
       }
-      return d._formattedLabel;
+      return entry._formattedLabel;
     });
+
+    const canvas = this._getChartCanvas(canvasId);
+    // A <canvas> exposes no content to the accessibility tree (WCAG 1.1.1).
+    if (canvas && labels.length) {
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute(
+        "aria-label",
+        `Série temporal de ${chartLabel}${chartUnit ? ` em ${chartUnit}` : ""}, ` +
+          `de ${labels[0]} a ${labels[labels.length - 1]}. ` +
+          "Use o botão CSV para a versão textual dos dados."
+      );
+    }
 
     let chartInstance = this.charts.get(canvasId);
 
@@ -575,11 +637,32 @@ class ChartsManager {
       this._applyChartTheme(chartInstance, chartColor);
       chartInstance.update("none");
     } else {
-      const ctx = this._getChartCanvas(canvasId)?.getContext("2d");
+      const ctx = canvas?.getContext("2d");
       if (!ctx) return;
       chartInstance = new Chart(ctx, this._buildChartConfig(chartData, labels, chartLabel, chartColor, chartUnit));
       this.charts.set(canvasId, chartInstance);
     }
+  }
+
+  /**
+   * Windowed variables (SWDOWN, KT) export only daylight hours, and Chart.js
+   * spaces category-axis points equidistantly: 18:00 would join 06:00 in a
+   * smooth curve with no night in it. A null in the hole breaks the line. The
+   * CSV reads the original series, so no fabricated rows reach the export.
+   */
+  _seriesWithHourGaps(data) {
+    if (!Array.isArray(data) || data.length < 2) return data;
+    const first = data[0].hour;
+    const last = data[data.length - 1].hour;
+    if (!Number.isInteger(first) || !Number.isInteger(last)) return data;
+    if (last - first + 1 === data.length) return data;
+
+    const byHour = new Map(data.map((entry) => [entry.hour, entry]));
+    const filled = [];
+    for (let hour = first; hour <= last; hour++) {
+      filled.push(byHour.get(hour) || { hour, value: null, timestamp: this._timestampForHour(hour, null) });
+    }
+    return filled;
   }
 
   _getChartCanvas(canvasId) {
@@ -614,13 +697,11 @@ class ChartsManager {
     chart.options.scales.y.title.color = theme.textSecondary;
   }
 
-  /** Fills a manifest artifact path template and routes it through the app's versioned data URLs. */
   _artifactUrl(template, domain, variableId) {
     const path = template.replace("{domain}", domain).replace("{variable}", variableId);
     return this.app?.dataUrl ? this.app.dataUrl(path) : path;
   }
 
-  /** Applies a new series (labels + primary dataset line styling) to an existing chart instance. */
   _applySeriesToChart(chartInstance, labels, data, label, color) {
     chartInstance.data.labels = labels;
     chartInstance.data.datasets[0].data = data;
@@ -697,7 +778,14 @@ class ChartsManager {
             ticks: {
               color: theme.textSecondary,
               font: { size: 13 },
-              callback: (v) => v.toFixed(1),
+              // Over a range narrower than 1 (the domain precipitation mean
+              // runs 0.02-0.23 mm) a fixed single decimal would collapse
+              // distinct ticks into one label.
+              callback: (value, index, ticks) => {
+                const step = ticks?.length > 1 ? Math.abs(ticks[1].value - ticks[0].value) : 0;
+                const decimals = step > 0 && step < 1 ? Math.min(4, Math.ceil(-Math.log10(step))) : 1;
+                return value.toFixed(decimals);
+              },
             },
             grid: { color: theme.grid, drawBorder: false },
             title: {
@@ -716,11 +804,23 @@ class ChartsManager {
     };
   }
 
+  /**
+   * Label of the variable PER MODEL STEP. Modal, preview and CSV series are
+   * always hourly — the "Acumulado" selector only changes what the map sums —
+   * so they need the 1h label, never the selected window's label that
+   * `app.getVariableConfig` returns.
+   */
+  _stepLabel(config) {
+    const options = config?.accumulation?.options;
+    if (!Array.isArray(options)) return config?.label;
+    return options.find((option) => option.hours === 1)?.variableLabel || `${config?.label} (1h)`;
+  }
+
   _prepareChartData(variableType, chartType, config, timeData) {
     if (chartType === "value") {
       return {
-        data: timeData.map((d) => d.value),
-        label: config.label,
+        data: timeData.map((entry) => entry.value),
+        label: this._stepLabel(config),
         unit: config.unit,
         color: config.colors[config.colors.length - 1],
       };
@@ -730,14 +830,17 @@ class ChartsManager {
     const color = variableType === "solar" ? "#FDB462" : "#80B1D3";
     const temperatureSeries = this.timeSeriesData?.temperature?.data || [];
     const temperatureByHour = new Map(temperatureSeries.map((entry) => [entry.hour, entry.value]));
-    const data = timeData.map((d) => {
+    const data = timeData.map((entry) => {
+      // Hour with no exported radiation/wind: the catch below would turn
+      // `specificInfo`'s unavailable payload into a 0 — invented production
+      // where the line should have a hole.
+      if (entry.value === null || entry.value === undefined) return null;
       try {
-        const info = config.specificInfo(d.value, {
-          [variableType]: { value: d.value },
-          temperature: { value: temperatureByHour.get(d.hour) },
+        const info = config.specificInfo(entry.value, {
+          [variableType]: { value: entry.value },
+          temperature: { value: temperatureByHour.get(entry.hour) },
         });
-        // Read the raw numeric production from the structured `energyValue`
-        // field (see VARIABLES_CONFIG), never from the formatted display text.
+        // `energyValue` is the raw number; the sibling fields are display text.
         const item = info?.items?.find((it) => Number.isFinite(it.energyValue));
         return item ? item.energyValue : 0;
       } catch {
@@ -752,9 +855,7 @@ class ChartsManager {
     const keys = new Set();
     const config = VARIABLES_CONFIG[variableType];
     if (config?.id) keys.add(variableType);
-    // Companion SERIES the charts need (declared next to the variable, like
-    // relatedVariables for the sidebar) — e.g. temperature drives the
-    // solar/eolico energy-production chart.
+    // e.g. temperature drives the solar/eolico energy-production chart.
     (config?.chartCompanions || []).forEach((key) => {
       if (VARIABLES_CONFIG[key]?.id) keys.add(key);
     });
@@ -772,9 +873,8 @@ class ChartsManager {
     const cached = this.timeSeriesCache.get(cacheKey);
     if (cached) return cached;
 
-    // Preferred path: one ~300-byte Range request into the cell-series
-    // binary instead of downloading every hour's full-domain JSON (dozens of
-    // requests, megabytes on the wire) to read a single cell per file.
+    // One ~300-byte Range request instead of dozens of full-domain JSONs read
+    // for a single cell each.
     const binarySeries = await this._loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal);
     if (binarySeries) {
       const result = { config, data: binarySeries };
@@ -800,8 +900,6 @@ class ChartsManager {
     );
 
     const result = { config, data: series };
-    // Cache unless a transient failure truncated the series; structurally
-    // absent hours (404) are an expected gap and do not block caching.
     if (transientFailures === 0) {
       this.timeSeriesCache.set(cacheKey, result);
     }
@@ -809,12 +907,10 @@ class ChartsManager {
   }
 
   /**
-   * Reads ONE cell's full time-series from {D}_{VAR}.series.bin
-   * (cell-series-int32-le-v1: row-major cells x steps int32 LE matrix,
-   * value = raw * scale, `missing` sentinel for absent steps) via an HTTP
-   * Range request. A server without Range support answers 200 with the full
-   * body, which is sliced locally. Returns null when the manifest doesn't
-   * advertise the artifact or on any error — callers fall back to the
+   * Reads one cell's series from {D}_{VAR}.series.bin (cell-series-int32-le-v1:
+   * row-major cells x steps int32 LE, value = raw * scale, `missing` sentinel)
+   * via a Range request. A server without Range support answers 200 with the
+   * full body, sliced locally. Null on any error — callers fall back to the
    * legacy per-hour path.
    */
   async _loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal) {
@@ -834,10 +930,9 @@ class ChartsManager {
     if (steps <= 0) return null;
     const bytesPerCell = steps * 4;
     const offset = cellIndex * bytesPerCell;
-    // Integrity check against a stale artifact from a previous run (in-place
-    // regeneration can leave last run's file with a different step count —
-    // reading it with this run's stride would return other cells' values):
-    // the file must be exactly cells x steps x 4 bytes.
+    // A stale file left by a previous run can have a different step count, and
+    // reading it with this run's stride returns other cells' values — so the
+    // size must be exactly cells x steps x 4 bytes.
     const gridCellCount = this.app?.gridLayers?.[domain]?.getLayers?.().length || null;
     const expectedTotal = gridCellCount ? gridCellCount * bytesPerCell : null;
 
@@ -875,8 +970,7 @@ class ChartsManager {
       const series = [];
       for (let step = 0; step < steps; step++) {
         const hour = feature.index_min + step;
-        // The interactive timeline starts at index 1 (slider min).
-        if (hour < 1 || hour > maxHour) continue;
+        if (hour < CHART_TIMELINE_FIRST_INDEX || hour > maxHour) continue;
         const raw = view.getInt32(step * 4, true);
         if (raw === missing) continue;
         series.push({
@@ -893,8 +987,7 @@ class ChartsManager {
   }
 
   _getVariableId(variableKey, config) {
-    // Same resolution as the map (including the eolico hub-height variants);
-    // the config fallback only matters in app-less unit contexts.
+    // Same resolution as the map, including the eolico hub-height variants.
     return this.app?.getVariableId?.(variableKey) ?? config.id;
   }
 
@@ -926,21 +1019,17 @@ class ChartsManager {
     }
     csv += "\n";
 
-    timeData.forEach((d, i) => {
-      const date = new Date(d.timestamp);
-      // timeZone UTC: export the forecast's wall-clock digits (same as the
-      // map label), not the viewer's local time.
-      const dateStr = date.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+    timeData.forEach((entry, i) => {
+      const date = new Date(entry.timestamp);
+      const dateStr = date.toLocaleDateString("pt-BR", { timeZone: CHART_FORECAST_TIME_ZONE });
       const timeStr = date.toLocaleTimeString("pt-BR", {
-        timeZone: "UTC",
+        timeZone: CHART_FORECAST_TIME_ZONE,
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
       });
 
-      // Chart series are numeric throughout (_prepareChartData never emits
-      // formatted strings anymore).
-      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${config.label}",${this._formatCsvValue(Number(chartDataValue[i]))}`;
+      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${this._stepLabel(config)}",${this._formatCsvValue(Number(chartDataValue[i]))}`;
 
       if (isEnergy && chartDataEnergy) {
         csv += `,${this._formatCsvValue(Number(chartDataEnergy[i]))}`;
@@ -965,10 +1054,9 @@ class ChartsManager {
   }
 
   /**
-   * Resolves the hour's JSON, or null for a deterministically absent file
-   * (404). Transient failures (network/5xx) are rethrown so the caller can
-   * count them and decline to cache an incomplete series. AbortError always
-   * propagates.
+   * Null for a deterministically absent file (404); transient failures are
+   * rethrown so the caller can count them and decline to cache a truncated
+   * series.
    */
   async _fetchHourJson(variableId, domain, hour, signal) {
     if (!this.app?.valuesJsonPath) throw new Error("Dataset path resolver is unavailable");
@@ -1001,12 +1089,11 @@ class ChartsManager {
         return new Date(start.getTime() + (hour - 1) * 3600000).toISOString();
       }
     }
-    // Prefer the forecast's initial datetime over any wall-clock guess
     const forecastDate = this.app?.calculateTargetDateFromIndex?.(hour);
     if (forecastDate instanceof Date && !isNaN(forecastDate)) {
       return forecastDate.toISOString();
     }
-    // True last resort: current wall clock offset by the hour index
+    // Last resort: current wall clock offset by the hour index.
     const base = new Date();
     base.setMinutes(0, 0, 0);
     base.setHours(base.getHours() + (hour - 1));
@@ -1015,8 +1102,8 @@ class ChartsManager {
 
   /**
    * Parses "DD/MM/YYYY HH:MM[:SS]" or "YYYY-MM-DD HH:MM[:SS]" into a UTC Date.
-   * Never uses new Date(string): WebKit/Safari returns Invalid Date for the
-   * space-separated, non-ISO formats used in the metadata.
+   * Never via new Date(string): WebKit returns Invalid Date for the
+   * space-separated, non-ISO formats the metadata uses.
    */
   _parseMetadataDate(value) {
     if (value instanceof Date) return value;
@@ -1027,7 +1114,7 @@ class ChartsManager {
         const parsed = this.app.parseDateTime(dateStr);
         if (parsed instanceof Date && !isNaN(parsed)) return parsed;
       } catch {
-        // Fall through to the standalone parser below
+        /* fall through to the standalone parser */
       }
     }
 
@@ -1046,7 +1133,7 @@ class ChartsManager {
     return new Date(Date.UTC(year, month - 1, day, hour, minute, Number.isFinite(second) ? second : 0));
   }
 
-  _quickDist(lat1, lng1, lat2, lng2) {
+  _squaredDistance(lat1, lng1, lat2, lng2) {
     const dlat = lat1 - lat2;
     const dlng = lng1 - lng2;
     return dlat * dlat + dlng * dlng;

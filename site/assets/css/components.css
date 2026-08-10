@@ -128,8 +128,9 @@
   border-radius: var(--radius-lg);
 }
 
+/* Light theme only: the label is an h3, so `.dark-theme h1..h6` repaints it. */
 .sponsor-title {
-  color: #888;
+  color: #6b6b6b;
   font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -422,5 +423,567 @@
 
   .feature-card {
     padding: 1.5rem;
+  }
+}
+
+/* No climatology series color lives here: assets/js/climatologia.js reads the
+   validated palette at runtime. */
+.clima-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.clima-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.clima-control-actions {
+  justify-content: flex-end;
+}
+
+.clima-control-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.clima-select {
+  min-width: 16rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.clima-segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.clima-segmented-btn {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.clima-segmented-btn:hover {
+  color: var(--text-primary);
+  background: rgba(var(--brand-secondary-rgb), 0.12);
+}
+
+.clima-segmented-btn.is-active {
+  color: #fff;
+  background: var(--brand-secondary);
+}
+
+.clima-segmented-btn:focus-visible {
+  outline: 3px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+.clima-panel {
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+}
+
+.clima-panel-head {
+  margin-bottom: 0.75rem;
+}
+
+.clima-panel-title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+.clima-panel-note,
+.clima-legend {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.clima-chart {
+  height: 380px;
+  margin-bottom: 0;
+}
+
+.clima-status {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.clima-rose-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.clima-rose {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+}
+
+.clima-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.clima-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.clima-stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.clima-stat-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.clima-fit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.4rem 1.5rem;
+  margin: 0.75rem 0 0;
+}
+
+.clima-fit-row {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.clima-fit-row dt {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.clima-fit-row dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.clima-atoms {
+  margin: 0.9rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.clima-caveats {
+  max-width: 1000px;
+  padding: 0 0 0 1.1rem;
+  margin: 0 auto 1.5rem;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.clima-caveats li {
+  margin-bottom: 0.35rem;
+}
+
+/* Dotted, not solid: it signals "hover, the full record is in the `title`"
+   without reading as a navigation link mid-sentence. The padding stays under the
+   WCAG floor on purpose — inline targets are exempt, and more would break the
+   paragraph flow. */
+.site-ref {
+  padding: 2px 0;
+  color: var(--text-primary);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
+.site-ref:hover,
+.site-ref:focus-visible {
+  color: var(--brand-secondary);
+  text-decoration: underline solid;
+}
+
+.clima-refs-panel {
+  margin-top: -0.5rem;
+}
+
+.clima-refs {
+  padding-left: 1.2rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.clima-refs li {
+  margin-bottom: 0.5rem;
+}
+
+.clima-refs a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.clima-refs a:hover {
+  color: var(--brand-secondary);
+  text-decoration: underline;
+}
+
+.clima-table-scroll {
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.clima-table {
+  width: 100%;
+  font-size: 0.85rem;
+  border-collapse: collapse;
+}
+
+.clima-table caption {
+  padding-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  caption-side: top;
+  text-align: left;
+}
+
+.clima-table th,
+.clima-table td {
+  padding: 0.35rem 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.clima-table th {
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.clima-table th:first-child,
+.clima-table td:first-child {
+  text-align: left;
+}
+
+.clima-table td {
+  color: var(--text-primary);
+}
+
+.clima-coverage {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-end;
+  margin-top: 0.75rem;
+  overflow-x: auto;
+}
+
+.clima-coverage-year {
+  display: flex;
+  flex: 1 1 2.5rem;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: center;
+  min-width: 2.5rem;
+}
+
+.clima-coverage-track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 72px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.clima-coverage-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--brand-secondary);
+  border-radius: 3px 3px 0 0;
+}
+
+.clima-coverage-year.is-empty .clima-coverage-bar {
+  background: transparent;
+}
+
+.clima-coverage-year.is-empty .clima-coverage-track {
+  border-style: dashed;
+}
+
+.clima-coverage-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.clima-empty {
+  max-width: 640px;
+  padding: 2rem 1.5rem;
+  margin: 0 auto 2rem;
+  color: var(--text-secondary);
+  text-align: center;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+}
+
+.clima-empty p {
+  margin: 0;
+}
+
+@media (width <= 768px) {
+  .clima-controls {
+    align-items: stretch;
+  }
+
+  /* A <select> is intrinsically as wide as its longest option, and `min-width:
+     0` alone does not hold it: without the explicit width it overflows and the
+     page scrolls sideways. */
+  .clima-control {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .clima-select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .clima-chart {
+    height: 300px;
+  }
+}
+
+/* Monitoring borrows the climatology's .clima-segmented-btn, .clima-empty and
+   .clima-caveats; only the grid and the card are declared here. Series colors,
+   again, come from assets/js/monitoramento.js at runtime. */
+.monitor-controls {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0.85rem 0;
+  margin-bottom: 1.5rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.monitor-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.monitor-control-meta {
+  justify-content: flex-end;
+}
+
+.monitor-layer-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.monitor-updated {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* A seven-day window is ~2000 raw samples: narrower than this and the series
+   smear into a smudge. */
+.monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(560px, 1fr));
+  gap: 1.25rem;
+}
+
+.monitor-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 1.25rem 1.25rem;
+  border-radius: 12px;
+
+  /* .is-visible comes from the IntersectionObserver in monitoramento.js, on the
+     same event that creates the chart: the entrance follows the drawing. */
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+}
+
+.monitor-card.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.monitor-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.monitor-card-title {
+  margin: 0;
+  font-size: 1.08rem;
+  color: var(--text-primary);
+}
+
+.monitor-unit {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.monitor-card-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.monitor-layers {
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.monitor-chart {
+  height: 380px;
+  margin-bottom: 0;
+}
+
+/* `color` is explicit because the UA sheet gives `<dialog>` CanvasText, which ignores the theme. */
+.monitor-zoom {
+  width: min(96vw, 1400px);
+  max-width: 96vw;
+  height: min(88vh, 820px);
+  padding: 1rem 1.25rem 1.25rem;
+  border-radius: 12px;
+  color: var(--text-primary);
+}
+
+.monitor-zoom::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+
+.monitor-zoom-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.monitor-zoom-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* The canvas runs with `maintainAspectRatio: false`, so the container sizes it. */
+.monitor-zoom-chart {
+  height: calc(100% - 3.25rem);
+  min-height: 240px;
+  margin-bottom: 0;
+}
+
+.monitor-pending {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.monitor-card .clima-caveats {
+  max-width: none;
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monitor-card {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+@media (width <= 768px) {
+  .monitor-controls {
+    align-items: stretch;
+  }
+
+  .monitor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* An undrawn <canvas> keeps its intrinsic 300x150, and grid and flex items
+     start at min-width: auto: those 300px would become the card's floor and the
+     page would scroll sideways. */
+  .monitor-card,
+  .monitor-card-head,
+  .monitor-chart {
+    min-width: 0;
+  }
+
+  .monitor-chart canvas {
+    max-width: 100%;
+  }
+
+  .monitor-chart {
+    height: 260px;
   }
 }

@@ -29,12 +29,14 @@ O diretório `src/sites/` é o registro. A descoberta ordena os diretórios que 
 | Arquivo                            | Função                                                                |
 | ---------------------------------- | --------------------------------------------------------------------- |
 | `site/index.html`                  | Página inicial institucional                                          |
-| `site/monitoring.html`             | Monitoramento ambiental com gráficos PNG e modais Bootstrap           |
+| `site/monitoring.html`             | Monitoramento ambiental: gráficos interativos ou PNGs (ver abaixo)    |
 | `site/team.html`                   | Equipe, links e localização incorporada (iframe Google My Maps)       |
-| `site/climatologia.html`           | Página de climatologia em construção                                  |
+| `site/climatologia.html`           | Distribuições observadas da estação, lidas de `Climatologia/`         |
 | `site/mapas_interativos.html`      | WebGIS de previsões meteorológicas                                    |
 | `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
 | `site/404.html`                    | Página de erro standalone (caminhos absolutos, `ErrorDocument 404`)   |
+
+A rota `monitoring.html` tem duas fontes possíveis, escolhidas por `source:` na declaração da página: a variante viva (`src/template/pages/monitoring-live.html` + `assets/js/monitoramento.js`), para publicações que declaram `dataset.paths.monitoring`, e a variante estática (`src/template/pages/monitoring.html`), que desenha os PNGs de `dataset.observations` e é a que o LEAL usa. O mesmo vale para `climatologia.html`, que só faz sentido com `dataset.paths.climatology` declarado.
 
 Todas são declaradas no array de `src/sites/<id>/pages.js` e geradas por `build.js`. A fonte de `404.html` fica em `src/template/static/404.html` e mantém caminhos absolutos `/assets/...` para resolver em qualquer profundidade.
 
@@ -51,7 +53,12 @@ scripts/
 │   ├── publications.js              # descoberta/seleção automática
 │   ├── validate.js                  # valida configuração, arquivos e GeoJSON do estado
 │   ├── renderer.js                  # HTML, SEO, runtime config e estáticos
-│   └── assets.js                    # tema da publicação e hashes de conteúdo
+│   ├── assets.js                    # tema da publicação e hashes de conteúdo
+│   ├── operational-paths.js         # o que é dado de deploy: por publicação x na árvore
+│   ├── corpus.js                    # corpus de HTML/CSS/JS que os checks de asset varrem
+│   ├── references.js                # extração de href/src/url() usada pelos checks
+│   ├── theme-contract.js            # tokens obrigatórios e limites do tema por publicação
+│   └── cli.js                       # restauração da publicação padrão e saída de erro
 ├── build-site.mjs                   # build individual + formatação
 ├── build-all.mjs                    # bundles dist/<id>/
 └── check-publications.mjs           # build/lints de todas + restauração da padrão
@@ -90,6 +97,9 @@ site/                                 # saída compatível; uma publicação por
 │   │   ├── theme-boot.js
 │   │   ├── theme-toggle.js
 │   │   ├── ui-shell.js
+│   │   ├── references.js
+│   │   ├── monitoramento.js
+│   │   ├── climatologia.js
 │   │   ├── variables-config.js
 │   │   ├── data-service.js
 │   │   ├── charts-manager.js
@@ -175,6 +185,16 @@ O build muda somente o frontend. Os diretórios configurados em `dataset.paths` 
 | `theme-boot.js`   | Aplica `.dark-theme` cedo com base em `localStorage` ou preferência do sistema         |
 | `theme-toggle.js` | Controla botões de tema, ícones, `aria-*`, persistência e evento `labmim-theme-change` |
 | `ui-shell.js`     | Toggle genérico `[data-ui-toggle]` (hidden + aria-expanded + chevron + label)          |
+| `references.js`   | Expande os marcadores `[[chave]]` das páginas em links com o registro bibliográfico    |
+
+### Módulos De Página
+
+Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](#adicionar-página)); nenhum deles calcula ciência — o número desenhado é o que o exportador Python publicou.
+
+| Arquivo            | Responsabilidade                                                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `monitoramento.js` | Página de monitoramento viva: lê `labmim-monitoring-v1` de `dataset.paths.monitoring` e desenha bruto + horário + WRF |
+| `climatologia.js`  | Página de climatologia: lê `labmim-climatology-v1` de `dataset.paths.climatology`, distribuição medida + teórica      |
 
 ### Módulos Do WebGIS
 
@@ -562,6 +582,8 @@ Rodada 2026-07-22 (publicações modulares):
 ### Adicionar Página
 
 Para uma página baseada no catálogo, use `page("<tipo>", { seo: ... })` em `src/sites/<id>/pages.js`; os tipos atuais e seus layouts/fontes padrão ficam em `src/template/page-types.js`.
+
+Uma página carrega JS/CSS próprios pelos slots `scripts`, `vendorScripts`, `styles` e `vendorStyles` da declaração — o que o layout já traz é somado sem duplicar, então declare apenas o que é daquela página (`scripts: ["assets/js/climatologia.js"]`). É por isso que o Chart.js e os controladores de página só entram onde alguém desenha.
 
 Para conteúdo compartilhado novo:
 

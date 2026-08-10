@@ -128,6 +128,10 @@ module.exports = {
     manifest: "JSON/manifest.json",
     values: "JSON",
     grids: "GeoJSON",
+    // Opcional: distribuições observadas pré-calculadas da página de
+    // climatologia. Como as saídas do WRF, é dado operacional — fica fora do
+    // git e chega pelo deploy. Declarar exige oferecer a página, e vice-versa.
+    climatology: "Climatologia",
   },
   timeline: {
     defaultMaxLayer: 73,
@@ -161,7 +165,7 @@ observations: {
 },
 ```
 
-Sem `observations`, a página `monitoring` renderiza sem cards de estação — declare o bloco ou não ofereça essa página. Os PNGs são reescritos no lugar pela estação de cada laboratório e ficam fora dos bundles: associe-os no deploy, como os diretórios de `dataset.paths`.
+Sem `observations`, a página `monitoring` renderiza sem cards de estação — declare o bloco ou não ofereça essa página. Do mesmo modo, `paths.climatology` e a página `climatology` andam juntas: o build recusa uma sem a outra, porque a página sozinha só produziria um 404 no console. Os PNGs são reescritos no lugar pela estação de cada laboratório e ficam fora dos bundles: associe-os no deploy, como os diretórios de `dataset.paths`.
 
 ### 4. Páginas
 
@@ -283,6 +287,16 @@ customPage({
 Use `siteSource("pages/projeto.html")` no lugar de `templateSource()` quando a página for exclusiva ou tiver redação diferente. Se o mesmo formato estrutural passar a ser usado por muitas publicações, adicione um tipo ao catálogo `PAGE_TYPES`; para uma rota isolada, prefira `customPage()`.
 
 `styles` é opcional. Use `siteSource("styles/arquivo.css")` para CSS pertencente apenas à publicação, `templateSource("styles/arquivo.css")` para uma fonte compartilhada, ou um caminho existente sob `site/assets/css/` para um módulo estático comum. Fontes de `src/` são copiadas para `assets/css/generated/` somente quando a página selecionada as usa; assim, CSS da UFES não vaza para o bundle UFBA. Componentes reutilizáveis continuam em `components.css`. O renderer insere esses arquivos antes de `theme.css`, preservando os overrides de light/dark mode. O layout `webgis` já declara o Leaflet e o `maps.css` por conta própria, então uma `customPage()` com esse layout não nasce sem o CSS de mapa.
+
+`scripts` e `vendorScripts` declaram o JavaScript exclusivo da página. Ao contrário de `styles`, os dois aceitam **apenas caminhos já publicados** sob `site/assets/js/` e `site/assets/vendor/`: `site/assets/js/` é fonte versionada, não saída do build, então não há o que copiar para um diretório gerado. O build carimba `?v=<hash de conteúdo>` nos próprios e deixa o vendor em paz, então um `?v=` escrito à mão é aceito só no vendor. As tags saem com `defer`, os vendorizados antes dos próprios, e o slot `{{pageScripts}}` fica **depois** de `{{> scripts}}` no layout — scripts `defer` executam na ordem do documento, e é isso que garante o Bootstrap e o Chart.js definidos quando o módulo da página roda. Uma página que declara scripts sob um layout sem o slot é **recusada** no build em vez de ir ao ar com os controles mortos.
+
+```js
+page("climatology", {
+  vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+  scripts: ["assets/js/climatologia.js"],
+  seo: { title: "…", description: "…" },
+});
+```
 
 ## Saídas
 

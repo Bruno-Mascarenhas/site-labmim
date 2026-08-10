@@ -1,24 +1,13 @@
 "use strict";
 
-/**
- * Contrato de tema das publicações.
- *
- * REQUIRED: toda publicação DEVE declarar. São os tokens sem os quais o CSS
- * compartilhado não consegue se pintar (não há fallback literal para eles).
- *
- * OPTIONAL: qualquer publicação PODE declarar; nenhuma é obrigada. Quando o
- * token não é declarado, o CSS compartilhado (ou o JS) usa o valor de fallback
- * documentado em `fallback` — que é exatamente o literal em vigor hoje. Por
- * isso adicionar um token opcional nunca muda a aparência de quem não o declara
- * e nunca acopla uma publicação à outra.
- *
- * `consumedBy` diz onde o token é lido, e portanto onde o checador procura por
- * consumo:
- *   "css" -> precisa aparecer como var(--token) / var(--token, fallback) no CSS
- *            compartilhado de site/assets/css/**;
- *   "js"  -> é lido em runtime via getComputedStyle em site/assets/js/**, onde
- *            `var()` não existe e o fallback mora no próprio JS.
- */
+// REQUIRED tokens have no literal fallback: without them the shared CSS cannot paint.
+// An OPTIONAL token left out falls back to the `fallback` value, which is the literal in
+// force today — adding one never changes a publication that ignores it.
+//
+// `consumedBy` tells the checker where to look for consumption:
+//   "css" -> must appear as var(--token) in the shared CSS under site/assets/css/**;
+//   "js"  -> read through getComputedStyle in site/assets/js/**, where `var()` does not
+//            exist and the fallback lives in the JS itself.
 
 const REQUIRED_THEME_PROPERTIES = Object.freeze([
   "accent-color",
@@ -44,7 +33,6 @@ const REQUIRED_THEME_PROPERTIES = Object.freeze([
 
 const OPTIONAL_THEME_PROPERTIES = Object.freeze(
   [
-    // Rampa de tinta (texto) sobre superfícies claras dos painéis de mapa/doc.
     {
       property: "ink-strong",
       consumedBy: "css",
@@ -75,7 +63,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#506176",
       describes: "kickers, legendas e rótulos secundários dos painéis",
     },
-    // Tintas claras usadas SOBRE superfícies de marca (rodapé, navbar escura).
     {
       property: "ink-on-brand",
       consumedBy: "css",
@@ -94,7 +81,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#d8dee9",
       describes: "parágrafos secundários de cards/explicações no tema escuro",
     },
-    // Rampa de superfícies claras tingidas.
     {
       property: "surface-raised",
       consumedBy: "css",
@@ -125,7 +111,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#ebebf5",
       describes: "fundo do hover das abas de documentação (vizinho da aba ativa)",
     },
-    // Traços/hairlines dos painéis.
     {
       property: "hairline-rgb",
       consumedBy: "css",
@@ -138,7 +123,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "#d8e2ef",
       describes: "borda sólida dos blocos de fórmula da documentação",
     },
-    // Contraparte escura dos tokens de gráfico (espelha --lab-header-dark-bg).
     {
       property: "chart-legend-dark-color",
       consumedBy: "css",
@@ -151,7 +135,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       fallback: "rgba(255, 255, 255, 0.12)",
       describes: "cor da grade dos gráficos no tema escuro",
     },
-    // Lidos em runtime por site/assets/js/charts-manager.js (_getThemeColors).
     {
       property: "chart-legend-color",
       consumedBy: "js",
@@ -181,9 +164,6 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
 
 const OPTIONAL_THEME_PROPERTY_NAMES = Object.freeze(OPTIONAL_THEME_PROPERTIES.map((entry) => entry.property));
 
-/** Retrocompatibilidade: o nome antigo sempre significou "obrigatórios". */
-const PUBLICATION_THEME_PROPERTIES = REQUIRED_THEME_PROPERTIES;
-
 const COLOR_RGB_PAIRS = Object.freeze([
   ["brand-primary", "brand-primary-rgb"],
   ["brand-secondary", "brand-secondary-rgb"],
@@ -211,9 +191,8 @@ function parseRgbChannels(value) {
 function inspectPublicationThemeCss(content) {
   const errors = [];
   const withoutComments = content.replace(/\/\*[\s\S]*?\*\//g, "").trim();
-  // `[^{}]` impede que o bloco engula a regra seguinte quando a última
-  // declaração vem sem ';'; `@` barra at-rules que não usam chaves (@import,
-  // @charset) e que também escapariam do contrato.
+  // `[^{}]` stops the match from swallowing the next rule when the last declaration has
+  // no ';'; `@` rejects brace-less at-rules (@import, @charset) that would slip past.
   const root = withoutComments.match(/^:root\s*\{([^{}@]*)\}\s*$/);
 
   if (!root) {
@@ -280,7 +259,6 @@ function inspectPublicationThemeCss(content) {
 }
 
 module.exports = {
-  PUBLICATION_THEME_PROPERTIES,
   REQUIRED_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTY_NAMES,

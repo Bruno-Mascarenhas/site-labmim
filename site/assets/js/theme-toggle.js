@@ -1,9 +1,3 @@
-/**
- * theme-toggle.js
- * Gerencia o tema escuro/claro do sistema. Todos os botões de tema (navbar e
- * rodapé) usam os atributos [data-theme-toggle]/[data-theme-icon].
- */
-
 document.addEventListener("DOMContentLoaded", () => {
   const themeToggleBtns = document.querySelectorAll("[data-theme-toggle]");
   const themeIcons = document.querySelectorAll("[data-theme-icon]");
@@ -31,20 +25,43 @@ document.addEventListener("DOMContentLoaded", () => {
     window.dispatchEvent(new CustomEvent("labmim-theme-change", { detail: { isDark } }));
   }
 
-  // Estado inicial já aplicado pelo theme-boot.js no <head>.
+  // theme-boot.js in the <head> has already applied the initial state.
   updateIcon(document.documentElement.classList.contains("dark-theme"));
+
+  // Any access to `localStorage` throws where site storage is blocked (cookies
+  // off, partitioned iframe); no storage means no saved preference, i.e. `null`.
+  function readTheme() {
+    try {
+      return localStorage.getItem("labmim-theme");
+    } catch {
+      return null;
+    }
+  }
 
   themeToggleBtns.forEach((themeToggleBtn) => {
     themeToggleBtn.addEventListener("click", (e) => {
       e.preventDefault();
       const newDark = !document.documentElement.classList.contains("dark-theme");
-      localStorage.setItem("labmim-theme", newDark ? "dark" : "light");
+      // Apply first, persist after: only the write can throw, and the button
+      // must still toggle when it does.
       applyTheme(newDark);
+      try {
+        localStorage.setItem("labmim-theme", newDark ? "dark" : "light");
+      } catch {
+        // No storage: the theme holds for this tab only.
+      }
     });
   });
 
-  // Segue o SO apenas enquanto o usuário não definiu preferência manual.
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-    if (!localStorage.getItem("labmim-theme")) applyTheme(e.matches);
+    if (!readTheme()) applyTheme(e.matches);
+  });
+
+  // The `storage` event fires only in the OTHER tabs of this origin, which is
+  // what lets a multi-page site switch them all without a reload.
+  window.addEventListener("storage", (e) => {
+    if (e.key !== "labmim-theme") return;
+    const isDark = e.newValue ? e.newValue === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    applyTheme(isDark);
   });
 });
