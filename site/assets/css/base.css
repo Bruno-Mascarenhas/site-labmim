@@ -24,7 +24,7 @@
 
   /* Read at runtime by charts-manager.js (_getThemeColors); a publication may
      override them in its site-theme.css, later in the cascade. */
-  --chart-grid-color: #f0f0f0;
+  --chart-grid-color: rgb(0 0 0 / 12%);
   --chart-legend-color: #666;
   --tooltip-bg: rgba(18, 18, 18, 0.96);
   --tooltip-text: #fff;

@@ -905,9 +905,7 @@
   margin-bottom: 0;
 }
 
-/* Carrega `theme-surface` no markup para herdar o mesmo par de regras claro/escuro
-   dos cartões; só o tamanho é próprio. O `<dialog>` precisa da cor explícita porque
-   a folha do navegador lhe dá `color: CanvasText`, que não acompanha o tema. */
+/* `color` is explicit because the UA sheet gives `<dialog>` CanvasText, which ignores the theme. */
 .monitor-zoom {
   width: min(96vw, 1400px);
   max-width: 96vw;
