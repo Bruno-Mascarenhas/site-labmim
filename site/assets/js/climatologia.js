@@ -459,9 +459,8 @@
     tiles.appendChild(statTile("Assimetria", decimal(stats.skewness, 2)));
   }
 
-  // Finite samples outside the histogram edges: the exporter counts them in `below`/`above` instead of discarding
-  // them, and they sit outside the published `n` that denominates the density — so the announced total would
-  // otherwise hide the extreme samples. Rose subsets carry neither field.
+  // Finite samples outside the histogram edges. They are counted in `n` but have no bar, so the bars sum to less
+  // than the announced total and the gap has to be named. Rose subsets carry neither field.
   function overflowNote(subset) {
     const below = subset.below || 0;
     const above = subset.above || 0;
@@ -469,7 +468,7 @@
     const parts = [];
     if (below) parts.push(`${integer(below)} abaixo`);
     if (above) parts.push(`${integer(above)} acima`);
-    return ` Fora das bordas do histograma, sem entrar nas barras nem neste total: ${parts.join(" e ")}.`;
+    return ` Incluídas neste total, fora das bordas do histograma e sem barra: ${parts.join(" e ")}.`;
   }
 
   function fitRow(label, value) {
@@ -728,8 +727,11 @@
       }
       body.appendChild(line);
     }
+    // The caption counts the BARS, not the subset: samples outside the histogram edges are in `subset.n` but have
+    // no row here, so announcing `n` over this table would promise rows it does not have.
+    const binned = (subset.counts || []).reduce((total, count) => total + count, 0);
     el("climaTabelaCaption").textContent =
-      `${state.variable.label} — ${subsetLabel(state.subsetId)} (${integer(subset.n)} observações)`;
+      `${state.variable.label} — ${subsetLabel(state.subsetId)} (${integer(binned)} observações nas barras)`;
   }
 
   function exportCsv() {
