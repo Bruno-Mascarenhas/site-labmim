@@ -1057,9 +1057,12 @@
   color: var(--text-secondary);
 }
 
+/* The intrinsic height is the thumb's, ~16px, under the 24px minimum for a
+   touch target; the track stays thin and the extra height is hit area. */
 .sky-range {
   width: 12rem;
   max-width: 100%;
+  height: 1.75rem;
   accent-color: var(--brand-secondary);
 }
 
@@ -1106,9 +1109,6 @@
   outline: 1px solid rgb(0 0 0 / 35%);
 }
 
-/* The swatch shape says how the model is drawn: a bar for the one that is a
-   function of Kt alone and comes out as a curve, a square for those that arrive
-   evaluated point by point and come out as a cloud of marks. */
 .sky-swatch-curve {
   height: 0.25rem;
   border-radius: 2px;
