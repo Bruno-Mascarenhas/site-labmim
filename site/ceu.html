@@ -57,7 +57,7 @@
     <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
-    <link rel="stylesheet" href="assets/css/components.css?v=81f486a1" />
+    <link rel="stylesheet" href="assets/css/components.css?v=84834ba9" />
 
     <link rel="stylesheet" href="assets/css/theme.css?v=33083143" />
 
@@ -275,7 +275,17 @@
 
           <div class="theme-surface clima-panel">
             <div class="clima-panel-head">
-              <h3 class="clima-panel-title">Índice de claridade × fração difusa</h3>
+              <div class="sky-panel-title">
+                <h3 class="clima-panel-title">Índice de claridade × fração difusa</h3>
+                <button
+                  class="sky-guide-open"
+                  type="button"
+                  id="ceuGuia"
+                  aria-label="O que significa cada elemento deste gráfico"
+                >
+                  <i class="fas fa-circle-info" aria-hidden="true"></i>
+                </button>
+              </div>
               <p class="clima-legend" id="ceuGraficoNota"></p>
               <p class="clima-legend sky-metrics" id="ceuMetricas" hidden></p>
             </div>
@@ -488,6 +498,6 @@
     <script defer src="assets/js/references.js?v=1c5edf4a"></script>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
-    <script defer src="assets/js/ceu.js?v=ecf4f957"></script>
+    <script defer src="assets/js/ceu.js?v=43953c90"></script>
   </body>
 </html>

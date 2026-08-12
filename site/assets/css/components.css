@@ -1057,6 +1057,97 @@
   color: var(--text-secondary);
 }
 
+.sky-panel-title {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.sky-guide-open {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: var(--brand-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.sky-guide-open:hover {
+  background: rgba(var(--brand-secondary-rgb), 0.12);
+}
+
+.sky-guide-open:focus-visible {
+  outline: 3px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* `color` is explicit because the UA sheet gives <dialog> CanvasText, which
+   ignores the theme. */
+.sky-guide {
+  width: min(92vw, 580px);
+  max-height: 84vh;
+  padding: 1.1rem 1.4rem 1.4rem;
+  overflow-y: auto;
+  color: var(--text-primary);
+  border-radius: 12px;
+}
+
+.sky-guide::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.sky-guide-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.sky-guide-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.sky-guide-list {
+  margin: 0;
+}
+
+.sky-guide-list dt {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sky-guide-list dt:first-of-type {
+  margin-top: 0;
+}
+
+.sky-guide-list dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.sky-guide-condition {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-top: 0.35rem;
+}
+
 /* Kt and Kd both run 0-1, so a panel-wide box would stretch the density cells
    into stripes and misreport the shape of the cloud. */
 .sky-chart {

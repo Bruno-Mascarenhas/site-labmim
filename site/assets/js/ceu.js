@@ -974,6 +974,102 @@
     });
   }
 
+  function guideDefinition(list, term, description) {
+    list.appendChild(node("dt", null, term));
+    const detail = node("dd");
+    if (typeof description === "string") detail.textContent = description;
+    else description(detail);
+    list.appendChild(detail);
+  }
+
+  /**
+   * A glossary at the point of use. The four conditions and the model kinds are
+   * read from the payload rather than restated, so the panel cannot drift from
+   * what the figure is actually drawing.
+   */
+  function openGuide() {
+    const theme = themeColors();
+    const dialog = document.createElement("dialog");
+    dialog.className = "theme-surface sky-guide";
+    dialog.setAttribute("closedby", "any");
+    dialog.setAttribute("aria-label", "Como ler o gráfico de Kt × Kd");
+
+    const head = node("div", "sky-guide-head");
+    head.appendChild(node("h2", "sky-guide-title", "Como ler este gráfico"));
+    const form = document.createElement("form");
+    form.method = "dialog";
+    form.appendChild(node("button", "btn btn-sm btn-outline-lab", "Fechar"));
+    head.appendChild(form);
+    dialog.appendChild(head);
+
+    const list = node("dl", "sky-guide-list");
+    guideDefinition(
+      list,
+      "Kt — índice de claridade",
+      "A irradiação global medida na horizontal dividida pela irradiação no topo da atmosfera, no mesmo plano e no mesmo intervalo. Perto de 0 o céu está fechado; perto de 1 a atmosfera deixa passar quase tudo."
+    );
+    guideDefinition(
+      list,
+      "Kd — fração difusa",
+      "A irradiação difusa dividida pela global. Perto de 1 quase toda a luz chega espalhada pelo céu; perto de 0 quase toda chega direto do disco solar. É difusa sobre global, não sobre a extraterrestre."
+    );
+    if (state.density) {
+      guideDefinition(
+        list,
+        "Camada Densidade",
+        "O plano é cortado em células e cada uma é pintada pelo número de horas do acervo que caíram nela: quanto mais escura, mais horas. A escala é logarítmica porque o miolo concentra dezenas de horas e as bordas têm uma ou duas."
+      );
+    }
+    if (state.points.length) {
+      guideDefinition(
+        list,
+        "Camada Pontos",
+        "Uma marca por hora medida, colorida pela condição de céu daquele Kt. É a mesma amostra da densidade, hora a hora em vez de contada."
+      );
+    }
+    guideDefinition(list, "Condições de céu", (detail) => {
+      detail.appendChild(
+        document.createTextNode("Faixas do índice de claridade, e não da fração difusa, que é consequência delas:")
+      );
+      for (const entry of state.classes) {
+        const line = node("span", "sky-guide-condition");
+        const swatch = node("span", "sky-swatch");
+        swatch.style.background = theme.classes[entry.id];
+        line.appendChild(swatch);
+        line.appendChild(node("span", null, `${entry.roman} · ${entry.label} — ${entry.range}`));
+        detail.appendChild(line);
+      }
+    });
+    const bands = state.models.filter((model) => model.kind === "band");
+    if (state.models.length) {
+      guideDefinition(
+        list,
+        "Curva e banda",
+        bands.length
+          ? "Um modelo que depende só de Kt vira curva. Os que dependem também da hora solar, da elevação, do Kt diário e da persistência assumem uma faixa de valores num mesmo Kt: aparecem como banda, com a mediana dentro do envelope entre os percentis 10 e 90. Onde a faixa tem amostras de menos para resumir, a banda não é desenhada."
+          : "Um modelo que depende só de Kt é desenhado como curva sobre a amostra."
+      );
+      guideDefinition(
+        list,
+        "RMSE e MBE",
+        "O erro de cada modelo contra o Kd medido neste mesmo período. O RMSE mede o tamanho do erro; o MBE tem sinal e diz para que lado o modelo erra — positivo, ele fica acima da medida."
+      );
+    }
+    guideDefinition(
+      list,
+      "As linhas tracejadas",
+      "As verticais são os limites entre as condições de céu. A horizontal marca Kd = 0,5, onde a componente difusa iguala a direta — o mesmo ponto que define o limite em Kt = 0,55, e por isso as duas se encontram."
+    );
+    dialog.appendChild(list);
+
+    document.body.appendChild(dialog);
+    dialog.addEventListener("close", () => dialog.remove());
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    dialog.showModal();
+  }
+
   function openZoom() {
     const dialog = document.createElement("dialog");
     dialog.className = "theme-surface monitor-zoom";
@@ -1123,6 +1219,7 @@
     buildClassToggles();
     buildModelToggles();
     el("ceuOpacidade").addEventListener("input", applyMaskOpacity);
+    el("ceuGuia").addEventListener("click", openGuide);
     el("ceuAmpliar").addEventListener("click", openZoom);
     el("ceuExport").addEventListener("click", exportCsv);
 
