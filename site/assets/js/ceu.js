@@ -824,7 +824,7 @@
       },
       (layer) =>
         layer.id === "density"
-          ? "Histograma das horas em células de Kt × Kd"
+          ? "Contagem de horas por célula do plano Kt × Kd: quanto mais escura, mais horas caíram ali"
           : "Uma marca por hora medida, colorida pela condição de céu"
     );
   }

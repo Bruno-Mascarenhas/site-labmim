@@ -47,16 +47,25 @@
           </li>
         </ul>
         <p>
-          As cores dos pontos são as <strong>quatro condições de céu</strong> definidas por faixas de
-          K<sub>t</sub> [[escobedo]], na nomenclatura em português de [[teramoto]]: nebuloso (K<sub>t</sub> ≤
-          0,35), parcialmente nebuloso com dominância para o difuso (0,35 &lt; K<sub>t</sub> ≤ 0,55),
-          parcialmente nebuloso com dominância para o claro (0,55 &lt; K<sub>t</sub> ≤ 0,65) e claro
-          (K<sub>t</sub> &gt; 0,65). A classificação é feita sobre K<sub>t</sub> apenas — a fração difusa é
-          consequência dela, não um segundo critério.
+          O gráfico tem duas leituras da mesma amostra, e a que aparece por padrão é a
+          <strong>densidade</strong>: o plano é cortado numa grade e cada célula é pintada pelo
+          <strong>número de horas do acervo que caíram nela</strong> — quanto mais escura, mais horas. Não é
+          uma nuvem de pontos desbotada; é uma contagem. A escala é logarítmica porque a célula mais cheia
+          concentra dezenas de horas enquanto as bordas têm uma ou duas, e numa escala linear tudo fora do
+          miolo viraria um tom só. Ligando a camada <strong>Pontos</strong>, cada hora medida aparece
+          individualmente, colorida pela condição de céu.
+        </p>
+        <p>
+          As <strong>quatro condições de céu</strong> são definidas por faixas de K<sub>t</sub> [[escobedo]],
+          na nomenclatura em português de [[teramoto]]: nebuloso (K<sub>t</sub> ≤ 0,35), parcialmente nebuloso
+          com dominância para o difuso (0,35 &lt; K<sub>t</sub> ≤ 0,55), parcialmente nebuloso com dominância
+          para o claro (0,55 &lt; K<sub>t</sub> ≤ 0,65) e claro (K<sub>t</sub> &gt; 0,65). A classificação é
+          feita sobre K<sub>t</sub> apenas — a fração difusa é consequência dela, não um segundo critério. As
+          verticais tracejadas marcam esses limites, e valem para as duas camadas.
         </p>
         <p>
           K<sub>t</sub> é uma razão entre irradiações do hemisfério inteiro, então descreve o céu de um
-          <em>instante</em>, não de um ponto da imagem: a legenda abaixo do gráfico é a chave da dispersão, e
+          <em>instante</em>, não de um ponto da imagem: a legenda abaixo do gráfico é a chave das condições, e
           não das cores da máscara, que são as do modelo de segmentação. A condição que ele prevê para o
           quadro vem escrita na legenda da própria imagem.
         </p>
@@ -64,18 +73,21 @@
           Três modelos empíricos podem ser sobrepostos, e eles não se desenham do mesmo jeito. O de
           [[marquesfilho]] é função <strong>apenas</strong> de K<sub>t</sub>, então é uma curva. Os de
           [[lemos]] e [[ridley]] — o BRL — são logísticas em mais cinco preditores (hora solar aparente,
-          elevação solar, índice de claridade diário e persistência), que a página não tem: chegam já
-          avaliados, um valor por observação, e por isso aparecem como <strong>nuvem</strong>, e não como
-          linha — num mesmo K<sub>t</sub> assumem uma faixa de valores.
+          elevação solar, índice de claridade diário e persistência), então num mesmo K<sub>t</sub> assumem
+          uma faixa de valores: aparecem como <strong>banda</strong>, a mediana por faixa de K<sub>t</sub>
+          dentro do envelope entre os percentis 10 e 90. Desenhá-los como uma linha só afirmaria uma
+          determinação que eles não têm. Onde uma faixa tem amostras de menos para resumir, a banda
+          simplesmente não é desenhada ali. O erro de cada modelo neste período aparece ao lado do título.
         </p>
         <p class="compact-note">
           <small
             >A linha horizontal em K<sub>d</sub> = 0,5 não é decorativa: o limite entre a segunda e a terceira
             condição é definido justamente onde a componente difusa iguala a direta, o que na superfície
-            corresponde a metade da global. Os três modelos foram ajustados a médias <strong>horárias</strong>;
-            sobre dados de cadência mais fina a nuvem de pontos se desloca para cima nos K<sub>t</sub> altos,
-            por realce por nuvens, e a curva de Marques Filho vale só até K<sub>t</sub> = 1, que é o domínio
-            publicado do ajuste. A máscara é o produto do modelo deste laboratório, não um esquema padronizado
+            corresponde a metade da global. Os três modelos foram ajustados a médias <strong>horárias</strong>, e é
+            por isso que o exportador integra o registro de 5 minutos à grade horária antes de comparar. As
+            horas com chuva e as de sol baixo ficam de fora, assim como as de K<sub>d</sub> fora do intervalo
+            aberto (0, 1) — a convenção dos ajustes publicados, que remove o realce por nuvens e o artefato da
+            correção de banda de sombreamento. A máscara é o produto do modelo deste laboratório, não um esquema padronizado
             de segmentação. As informações são resultados de aquisições de pesquisa, sem garantia para
             utilização irrestrita.</small
           >
