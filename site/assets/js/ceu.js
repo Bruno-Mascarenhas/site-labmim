@@ -152,6 +152,7 @@
       tooltipBg: root.getPropertyValue("--tooltip-bg").trim() || "rgba(18, 18, 18, 0.96)",
       tooltipText: root.getPropertyValue("--tooltip-text").trim() || "#fff",
       guide: isDark() ? "rgba(255, 255, 255, 0.34)" : "rgba(0, 0, 0, 0.26)",
+      crosshair: isDark() ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
     };
   }
 
@@ -190,16 +191,18 @@
         continue;
       }
       const models = !positional && entry.models && typeof entry.models === "object" ? entry.models : null;
-      points.push({ x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", models });
+      points.push({ x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", models, observed: true });
     }
     return { points, rejected };
   }
 
+  // `source` back-references the observation: matching by Kt on hover would not
+  // do, since the payload rounds it and several observations share a value.
   function modelPoints(key) {
     const data = [];
     for (const point of state.points) {
       const value = point.models ? point.models[key] : undefined;
-      if (Number.isFinite(value)) data.push({ x: point.x, y: value });
+      if (Number.isFinite(value)) data.push({ x: point.x, y: value, source: point });
     }
     return data;
   }
@@ -450,6 +453,66 @@
     },
   };
 
+  const crosshair = {
+    id: "labmimSkyCrosshair",
+    afterDatasetsDraw(instance, _args, options) {
+      const active = instance.tooltip && instance.tooltip.getActiveElements();
+      if (!active || !active.length) return;
+      const { ctx, chartArea } = instance;
+      const x = active[0].element.x;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = options.color;
+      ctx.stroke();
+      ctx.restore();
+    },
+  };
+
+  function nearestObservation(kt) {
+    let best = null;
+    let distance = Infinity;
+    for (const point of visiblePoints()) {
+      const gap = Math.abs(point.x - kt);
+      if (gap < distance) {
+        distance = gap;
+        best = point;
+      }
+    }
+    return best;
+  }
+
+  // The reference curve carries no observation, so a hover nearest it still has
+  // to resolve to a measurement or the residuals below are against nothing.
+  function observationOf(item) {
+    const raw = item && item.raw;
+    if (!raw) return null;
+    if (raw.observed) return raw;
+    return raw.source || nearestObservation(raw.x);
+  }
+
+  // Residual is signed model − measured: positive means the model sits above.
+  function modelComparison(observation) {
+    const lines = [];
+    for (const model of activeModels()) {
+      // Not quoted past the domain where it is not drawn.
+      const value = model.fn
+        ? observation.x <= MARQUES_FILHO_MAX_KT
+          ? model.fn(observation.x)
+          : undefined
+        : observation.models
+          ? observation.models[model.key]
+          : undefined;
+      if (!Number.isFinite(value)) continue;
+      const residual = value - observation.y;
+      const sign = residual >= 0 ? "+" : "−";
+      lines.push(`${model.label}: ${decimal(value, 3)} (${sign}${decimal(Math.abs(residual), 3)})`);
+    }
+    return lines;
+  }
+
   // No inline legend: the chips and the toggles already name the conditions
   // twice. The zoom dialog carries neither, so there it comes back.
   function chartConfig(theme, { radius = 2.4, legend = false } = {}) {
@@ -463,11 +526,12 @@
         maintainAspectRatio: false,
         animation: false,
         parsing: false,
-        // The cloud is dense and the marks small: requiring the cursor to land
-        // ON a dot makes the tooltip unreachable.
-        interaction: { mode: "nearest", intersect: false },
+        // Hit tested on Kt alone: in a cloud this dense, needing the cursor
+        // nearest a mark in two dimensions puts the comparison out of reach.
+        interaction: { mode: "nearest", axis: "x", intersect: false },
         plugins: {
           labmimSkyGuides: { color: theme.guide },
+          labmimSkyCrosshair: { color: theme.crosshair },
           legend: {
             display: legend,
             position: "top",
@@ -481,10 +545,27 @@
             borderWidth: 1,
             callbacks: {
               title: (items) => {
-                const stamp = parseStationTime(items[0].raw.t || "");
-                return Number.isFinite(stamp) ? formatStamp(stamp) : items[0].dataset.label;
+                const observation = observationOf(items[0]);
+                const stamp = observation ? parseStationTime(observation.t || "") : NaN;
+                const kt = `Kt ${decimal(items[0].parsed.x, 3)}`;
+                return Number.isFinite(stamp) ? `${formatStamp(stamp)} · ${kt}` : kt;
               },
-              label: (item) => `Kt ${decimal(item.parsed.x, 3)} · Kd ${decimal(item.parsed.y, 3)}`,
+              label: (item) => {
+                const observation = observationOf(item);
+                if (!observation) return "";
+                const entry = classOf(observation.x);
+                return `Kd medido: ${decimal(observation.y, 3)} — ${entry.roman} · ${entry.label}`;
+              },
+              // Follows the resolved measurement, not the nearest dataset.
+              labelColor: (item) => {
+                const observation = observationOf(item);
+                const color = theme.classes[classOf(observation ? observation.x : 0).id];
+                return { borderColor: color, backgroundColor: color };
+              },
+              afterBody: (items) => {
+                const observation = observationOf(items[0]);
+                return observation ? modelComparison(observation) : [];
+              },
             },
           },
         },
@@ -561,7 +642,11 @@
     el("ceuStatus").textContent =
       "A linha horizontal marca Kd = 0,5, onde a componente difusa iguala a direta; as verticais são os limites entre as condições de céu.";
     const config = chartConfig(themeColors());
-    state.chart = new Chart(el("ceuCanvas").getContext("2d"), { type: "line", ...config, plugins: [guides] });
+    state.chart = new Chart(el("ceuCanvas").getContext("2d"), {
+      type: "line",
+      ...config,
+      plugins: [guides, crosshair],
+    });
   }
 
   function openZoom() {
@@ -600,7 +685,7 @@
     // so counting it would open a modal on a lone curve over an empty plane.
     if (visiblePoints().length) {
       const config = chartConfig(themeColors(), { radius: 3.4, legend: true });
-      instance = new Chart(canvas.getContext("2d"), { type: "line", ...config, plugins: [guides] });
+      instance = new Chart(canvas.getContext("2d"), { type: "line", ...config, plugins: [guides, crosshair] });
     } else {
       wrap.appendChild(node("p", "monitor-pending", nothingToDrawMessage()));
     }
