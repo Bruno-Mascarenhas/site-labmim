@@ -988,10 +988,9 @@
   }
 }
 
-/* Sky condition borrows the climatology's .clima-panel, .clima-segmented-btn and
-   .clima-empty; only the two frames and the class chips are declared here. The
-   four sky-condition colours come from assets/js/ceu.js at runtime, like the
-   series colours of the other two chart pages. */
+/* Sky condition borrows the climatology's .clima-panel, .clima-segmented-btn
+   and .clima-empty; only the frames and the chips are declared here. The class
+   and model colours come from assets/js/ceu.js at runtime. */
 .sky-frames {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -1008,8 +1007,8 @@
   border-radius: 12px;
 }
 
-/* A fixed square box holds the layout still while the frames load, and stacks
-   the mask over the raw pixels it was predicted from. */
+/* Holds the layout still while the frames load; ceu.js replaces the square with
+   the frame's own ratio so the stacked mask registers with it. */
 .sky-frame-media {
   position: relative;
   display: grid;
@@ -1095,10 +1094,9 @@
   color: var(--text-secondary);
 }
 
-/* The hairline is not decoration: the active chip paints --brand-secondary, and
-   on the UFBA palette that is the exact hex of the second class, so without a
-   ring the swatch dissolves into the button. It also lifts the warm class off
-   --bg-secondary, which alone falls under the 3:1 minimum for non-text marks. */
+/* The active chip paints --brand-secondary, which on the UFBA palette is the
+   exact hex of the second class: without a ring the swatch dissolves into the
+   button. It also lifts the warm class to the 3:1 minimum over --bg-secondary. */
 .sky-swatch {
   flex: 0 0 auto;
   width: 0.8rem;

@@ -1,20 +1,10 @@
 /**
- * Sky-condition page: reads `labmim-sky-v1` from `data-sky-base` and draws the
- * all-sky frame, the segmentation mask predicted over it, and the clearness
- * index against the diffuse fraction.
+ * Sky-condition page: reads `labmim-sky-v1` from `data-sky-base`.
  *
- * Contracts:
- *
- * - Nothing is computed here. Kt and Kd arrive already paired from the Python
- *   exporter; the only derivation is the sky class, which is a threshold lookup
- *   on Kt and exists to colour the cloud.
- * - The two frames keep FIXED names and are rewritten in place, so freshness
- *   travels in the query string rather than in the file name.
- * - The payload format is still provisional: `readPoints` accepts both the
- *   object and the positional shape so a change in the exporter does not blank
- *   the chart.
- * - The directory holds operational data: empty in a dev checkout and in CI,
- *   where the page has to say so instead of breaking.
+ * Kt and Kd arrive paired from the Python exporter and nothing is recomputed
+ * here. The payload format is still provisional, hence the tolerant reader. The
+ * two frames keep FIXED names and are rewritten in place. The directory is
+ * deploy-only: empty in a dev checkout and in CI, where the page says so.
  */
 
 "use strict";
@@ -25,13 +15,10 @@
   const PAYLOAD = "ceu.json";
 
   /**
-   * Escobedo, J. F., Gomes, E. N., Oliveira, A. P. & Soares, J. (2009), Applied
-   * Energy 86(3), 299-309, section 3.1: four sky conditions as intervals of the
-   * clearness index, upper bound inclusive. Portuguese wording from Teramoto,
-   * E. T. & Escobedo, J. F. (2012), RBEAA 16(9), 985-992.
-   *
-   * The asymmetry in III is the literature's own: the English names the direct
-   * component, the Portuguese names the clear sky it produces.
+   * Escobedo et al. (2009), Applied Energy 86(3), 299-309, §3.1: four sky
+   * conditions as intervals of the clearness index, upper bound inclusive.
+   * Portuguese wording from Teramoto & Escobedo (2012), RBEAA 16(9), 985-992,
+   * where III names the clear sky the direct component produces.
    */
   const SKY_CLASSES = [
     {
@@ -68,16 +55,11 @@
     },
   ];
 
-  // The same hues the monitoring and climatology pages use, so a reader moving
-  // between the three pages does not have to relearn the palette. Ordering is
-  // carried by the Kt axis, not by the colours.
   const PALETTE = {
     light: { i: "#64748b", ii: "#3761b4", iii: "#1a7f5a", iv: "#e07a1f" },
     dark: { i: "#94a3b8", ii: "#5589e6", iii: "#31a37a", iv: "#cb8030" },
   };
 
-  // Hues none of the four conditions uses, so a model stays legible wherever it
-  // lands on the measured cloud — and so two of them overlaid stay apart.
   const MODEL_PALETTE = {
     light: { marquesfh: "#7c3aa8", lemos: "#c2185b", ridley: "#0e7490" },
     dark: { marquesfh: "#c08ae0", lemos: "#f06292", ridley: "#4dd0e1" },
@@ -92,36 +74,27 @@
     return 0.13 + 0.86 / (1 + Math.exp(-6.29 + 12.26 * kt));
   }
 
-  // Published domain of the fit. Cloud enhancement pushes measurements past
-  // Kt = 1, and the curve there would be extrapolation the paper does not back.
+  // Published domain of the fit; past it the curve would be extrapolation.
   const MARQUES_FILHO_MAX_KT = 1;
 
   /**
-   * Three models, and only the first is a function of Kt alone. Lemos et al.
-   * (2017), Renewable Energy 108, 569-580, and the BRL of Ridley, Boland &
-   * Lauret (2010), Renewable Energy 35(2), 478-483, are logistics in five
-   * further predictors — apparent solar time, solar elevation, the daily
-   * clearness index and persistence — which only the exporter holds. So they
-   * arrive already evaluated, one value per observation, and are drawn as a
-   * cloud rather than a curve: at a fixed Kt they take a range of values.
+   * Lemos et al. (2017), Renewable Energy 108, 569-580, and the BRL of Ridley,
+   * Boland & Lauret (2010), Renewable Energy 35(2), 478-483, are logistics in
+   * five predictors the page does not hold, so they arrive evaluated per
+   * observation and are drawn as a cloud: at a fixed Kt they take a range.
    */
   const MODELS = [
     { id: "marquesfh", label: "Marques Filho", fn: marquesFilho, credit: "Marques Filho et al. (2016)" },
-    // Distinct mark shapes as well as distinct hues: two clouds overlaid on the
-    // measurements need to be told apart where they cross, and colour alone
-    // fails there for a reader who cannot separate the two.
     { id: "lemos", label: "Lemos", key: "lemos", mark: "crossRot", credit: "Lemos et al. (2017)" },
     { id: "ridley", label: "BRL", key: "ridley", mark: "cross", credit: "Ridley, Boland e Lauret (2010)" },
   ];
 
-  // The boundary between conditions II and III is DEFINED where the diffuse
-  // component equals the direct one, which on the surface is half the global:
-  // the horizontal line and the vertical one meet by construction.
+  // Condition II ends where the diffuse component equals the direct one, which
+  // on the surface is half the global: this line and Kt = 0,55 meet by definition.
   const DIFFUSE_PARITY = 0.5;
 
-  // Frames are rewritten under the same name, so without a stamp the browser
-  // would serve the copy it already holds. Five minutes is finer than any
-  // plausible capture interval and coarse enough not to defeat the cache.
+  // Same file name every capture, so without a stamp the browser serves the copy
+  // it holds. Finer than any plausible capture interval, coarse enough to cache.
   const FRAME_BUCKET_MS = 300000;
 
   const state = {
@@ -193,8 +166,7 @@
     return SKY_CLASSES.find((entry) => kt <= entry.max) || SKY_CLASSES[SKY_CLASSES.length - 1];
   }
 
-  // The exporter may name the predicted class as an id, a Roman numeral or a
-  // 1-based index; none of the three is wrong, and the page reads all of them.
+  // Id, Roman numeral or 1-based index: none is wrong, so all three are read.
   function declaredClass(value) {
     if (value === null || value === undefined) return null;
     const text = String(value).trim().toLowerCase();
@@ -203,9 +175,6 @@
     return SKY_CLASSES.find((entry) => entry.id === text || entry.roman.toLowerCase() === text) || null;
   }
 
-  // The rejected count is kept because "no pairs" has two very different causes:
-  // a payload that declares none, and one whose pairs all arrived unreadable —
-  // numbers serialised as strings, say. Only the second is a pipeline bug.
   function readPoints(payload) {
     const raw = (payload && payload.ktkd && payload.ktkd.points) || (payload && payload.points);
     if (!Array.isArray(raw)) return { points: [], rejected: 0 };
@@ -267,9 +236,8 @@
     return image;
   }
 
-  // Both frames absent AND no payload is the state of every dev checkout and of
-  // CI: showing two placeholders and an empty chart there would read as a broken
-  // page rather than as data that simply has not been deployed.
+  // The state of every dev checkout and of CI, where two placeholders and an
+  // empty chart would read as a broken page rather than as undeployed data.
   function settleEmptyState() {
     if (state.framesMissing < 2 || state.payload) return;
     showEmpty(
@@ -278,16 +246,12 @@
     );
   }
 
-  // The mask panel carries the raw frame underneath it, so lowering the opacity
-  // reads the segmentation against the pixels it was predicted from.
   function applyMaskOpacity() {
     const mask = el("ceuMediaMascara").querySelector(".sky-frame-mask");
     if (!mask) return;
     mask.style.opacity = String(Number(el("ceuOpacidade").value) / 100);
   }
 
-  // Several models at once, not one: comparing two against the same measured
-  // cloud is what shows where each of them fails.
   function buildModelToggles() {
     const colors = themeColors().models;
     const container = el("ceuCurva");
@@ -364,14 +328,10 @@
     return state.points.filter((point) => !state.hidden.has(classOf(point.x).id));
   }
 
-  // Neither axis is pinned to [0, 1]. Cloud enhancement puts real Kt past 1, and
-  // Kd is a ratio between two instruments, so it lands outside the interval at
-  // low sun and under broken cloud. A fixed scale would hide exactly those
-  // points while the caption and the CSV went on counting them.
-  // The Kd floor is 1.1 rather than 1: the overcast class piles up against
-  // Kd = 1, and a ceiling there presses the densest part of the cloud into the
-  // top edge. The legacy exporter keeps observations up to Kd = 1.2, so the
-  // headroom is also where real points land.
+  // Neither axis is pinned to [0, 1]: cloud enhancement puts real Kt past 1 and
+  // Kd, a ratio between two instruments, leaves the interval at low sun — a fixed
+  // scale would hide those while the caption and the CSV counted them. The Kd
+  // floor is 1.1 because the overcast class piles up against 1.
   function axisBounds() {
     let ktMax = 1;
     let kdMin = 0;
@@ -419,9 +379,6 @@
       }
       const data = modelPoints(model.key);
       if (!data.length) continue;
-      // An open mark rather than a filled dot: the modelled cloud overlaps the
-      // measured one everywhere, and a second solid mark of the same shape reads
-      // as more data instead of as the model drawn over it.
       datasets.push({
         type: "line",
         label: model.credit,
@@ -467,8 +424,7 @@
     return datasets;
   }
 
-  // The class boundaries and the diffuse-parity line are the plot's reference
-  // frame, not data: drawn under the cloud so no point is hidden by them.
+  // Reference frame, not data: drawn under the cloud so no point is hidden.
   const guides = {
     id: "labmimSkyGuides",
     beforeDatasetsDraw(instance, _args, options) {
@@ -494,9 +450,8 @@
     },
   };
 
-  // The inline chart draws no legend of its own: the chips under the frames name
-  // the four conditions and the buttons beside the canvas repeat them a second
-  // time. The zoom dialog carries neither, so there the legend comes back.
+  // No inline legend: the chips and the toggles already name the conditions
+  // twice. The zoom dialog carries neither, so there it comes back.
   function chartConfig(theme, { radius = 2.4, legend = false } = {}) {
     const bounds = axisBounds();
     const datasets = classDatasets(theme, radius);
@@ -508,8 +463,8 @@
         maintainAspectRatio: false,
         animation: false,
         parsing: false,
-        // `intersect: false` because the cloud is dense and the marks are small:
-        // requiring the cursor to land ON a dot makes the tooltip unreachable.
+        // The cloud is dense and the marks small: requiring the cursor to land
+        // ON a dot makes the tooltip unreachable.
         interaction: { mode: "nearest", intersect: false },
         plugins: {
           labmimSkyGuides: { color: theme.guide },
@@ -539,8 +494,7 @@
             min: 0,
             max: bounds.ktMax,
             title: { display: true, text: "Índice de claridade Kt = H/H₀", color: theme.textSecondary },
-            // Fixed step rather than a tick budget: on a 0-1,1 range Chart.js
-            // picks 0 / 0,5 / 1 / 1,1 and crowds the last two together.
+            // A tick budget over 0-1,1 picks 0 / 0,5 / 1 / 1,1 and crowds the end.
             ticks: { color: theme.textSecondary, stepSize: 0.2 },
             grid: { color: theme.grid },
           },
@@ -569,8 +523,6 @@
         continue;
       }
       const modelled = modelPoints(model.key).length;
-      // Naming the absence: a model the exporter does not publish yet would
-      // otherwise look like a model that happens to agree with no point.
       parts.push(
         modelled ? `${decimal(modelled, 0)} valores de ${model.credit}` : `${model.credit} ainda não vem no payload`
       );
@@ -580,15 +532,10 @@
       "aria-label",
       `Dispersão de ${decimal(shown, 0)} pares de índice de claridade e fração difusa, coloridos pelas quatro condições de céu. Use o botão CSV para a versão textual.`
     );
-    // Both actions go with the drawing: zooming an empty plane and downloading
-    // an empty file are the same non-event, and a click that does nothing is
-    // indistinguishable from one the browser blocked.
     el("ceuExport").disabled = shown === 0;
     el("ceuAmpliar").disabled = shown === 0;
   }
 
-  // Four ways to have nothing to draw, and the operator needs to know which:
-  // only the third names a defect in the published document.
   function nothingToDrawMessage() {
     if (state.points.length) return "Nenhuma condição de céu selecionada — ative pelo menos uma acima.";
     if (state.payloadStatus === "unreadable") {
@@ -649,9 +596,8 @@
     });
 
     dialog.showModal();
-    // Keyed on the points, not on `datasets.length`: the reference curve is a
-    // dataset too, so counting it would open a modal showing a lone curve over
-    // an empty plane and never reach the message written for this case.
+    // Keyed on the points, not on `datasets.length`: a model is a dataset too,
+    // so counting it would open a modal on a lone curve over an empty plane.
     if (visiblePoints().length) {
       const config = chartConfig(themeColors(), { radius: 3.4, legend: true });
       instance = new Chart(canvas.getContext("2d"), { type: "line", ...config, plugins: [guides] });
@@ -694,9 +640,7 @@
   }
 
   // `object-fit: contain` letterboxes each layer by its OWN ratio, so a square
-  // box under a 4:3 frame would put the mask and the pixels it was predicted
-  // from at different scales — and the fade would compare misregistered images
-  // without saying so. The CSS square is only the pre-load placeholder.
+  // box under a 4:3 frame would fade the mask over misregistered pixels.
   function fitFrameBoxes(image) {
     if (!image.naturalWidth || !image.naturalHeight) return;
     const ratio = `${image.naturalWidth} / ${image.naturalHeight}`;
@@ -748,19 +692,14 @@
   }
 
   /**
-   * A missing payload is not a missing page: the frames are published
-   * independently of it, and the chart says so on its own line.
-   *
-   * Absence and unreadability stay apart, as in monitoramento.js: a 404 means
-   * the file was never deployed, while a 200 cut in half is the normal state
-   * during an upload — and telling the operator to go publish a file that is
-   * already on the server sends them hunting for nothing.
+   * A missing payload is not a missing page: the frames publish independently.
+   * Absence and unreadability stay apart, as in monitoramento.js — a 200 cut in
+   * half is the normal state during an upload, not a file yet to be deployed.
    */
   async function loadPayload() {
     let response;
     try {
-      // No `?v=`: the file is rewritten under the same name, so freshness is
-      // decided by the request header, not by the URL.
+      // Same name every run, so freshness is the request header's job.
       response = await fetch(`${state.base}/${PAYLOAD}`, { cache: "no-cache" });
       if (!response.ok) return { status: "absent", payload: null };
     } catch {
