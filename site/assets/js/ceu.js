@@ -510,19 +510,30 @@
     return best;
   }
 
-  function nearestFilledIndex(data, kt) {
+  /**
+   * The bin that CONTAINS this Kt, never merely the nearest filled one: past the
+   * end of a band the nearest summarised bin can be far away, and quoting its
+   * value would attribute the model a number at a Kt where it was suppressed.
+   */
+  function modelBinAt(model, kt) {
+    const spacing = model.kt.length > 1 ? Math.abs(model.kt[1] - model.kt[0]) : Infinity;
     let best = -1;
     let distance = Infinity;
-    for (let index = 0; index < data.length; index += 1) {
-      const point = data[index];
-      if (!point || point.y === null || point.y === undefined) continue;
-      const gap = Math.abs(point.x - kt);
+    for (let index = 0; index < model.kt.length; index += 1) {
+      const gap = Math.abs(model.kt[index] - kt);
       if (gap < distance) {
         distance = gap;
         best = index;
       }
     }
-    return best;
+    return distance <= spacing ? best : -1;
+  }
+
+  function modelValueAt(model, kt) {
+    const bin = modelBinAt(model, kt);
+    if (bin < 0) return null;
+    const value = model.kind === "band" ? model.median[bin] : model.kd[bin];
+    return value === null || value === undefined ? null : { bin, value };
   }
 
   /**
@@ -539,11 +550,14 @@
     const items = [];
     chart.data.datasets.forEach((dataset, datasetIndex) => {
       if (dataset.labmimEnvelope || !chart.isDatasetVisible(datasetIndex)) return;
-      const index = dataset.labmimModel
-        ? nearestFilledIndex(dataset.data, observation ? observation.x : kt)
-        : observation
-          ? dataset.data.indexOf(observation)
-          : -1;
+      let index = -1;
+      if (dataset.labmimModel) {
+        const model = state.models.find((entry) => entry.id === dataset.labmimModel);
+        const found = model ? modelValueAt(model, observation ? observation.x : kt) : null;
+        index = found ? found.bin : -1;
+      } else if (observation) {
+        index = dataset.data.indexOf(observation);
+      }
       if (index < 0) return;
       const element = chart.getDatasetMeta(datasetIndex).data[index];
       if (element) items.push({ element, datasetIndex, index });
@@ -722,6 +736,27 @@
             usePointStyle: true,
             callbacks: {
               title: tooltipTitle,
+              // A suppressed bin has no mark to hang a coloured line on, and its
+              // absence is worth naming: `n_per_bin` counts the hours that were
+              // there, `min_samples_per_bin` the ones the summary needed.
+              afterBody: (items) => {
+                const observation = hoveredObservation(items);
+                const kt = observation ? observation.x : items[0].parsed.x;
+                const lines = [];
+                for (const model of activeModels()) {
+                  if (model.kind !== "band" || modelValueAt(model, kt)) continue;
+                  const bin = modelBinAt(model, kt);
+                  if (bin < 0) continue;
+                  const hours = model.n_per_bin ? model.n_per_bin[bin] : 0;
+                  const needed = model.min_samples_per_bin;
+                  lines.push(
+                    Number.isFinite(needed)
+                      ? `${model.short}: ${decimal(hours, 0)} h nesta faixa, menos que as ${decimal(needed, 0)} do resumo`
+                      : `${model.short}: faixa sem resumo`
+                  );
+                }
+                return lines;
+              },
               label: (item) => {
                 if (item.dataset.labmimModel) return modelLine(item, hoveredObservation(item.chart.tooltip.dataPoints));
                 const entry = classOf(item.parsed.x);

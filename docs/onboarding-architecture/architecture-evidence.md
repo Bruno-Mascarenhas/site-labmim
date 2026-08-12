@@ -626,7 +626,8 @@ contrato deve ser aditiva.
 - modelos: `kind: "curve"` vira linha (Marques Filho et al., 2016, Renewable Energy 91, 64-74, função só
   de `Kt`); `kind: "band"` vira envelope p10-p90 com mediana (Lemos et al., 2017, Renewable Energy 108,
   569-580, e o BRL de Ridley, Boland e Lauret, 2010, Renewable Energy 35(2), 478-483), porque dependem
-  de hora solar aparente, altitude solar, `Kt` diário e persistência;
+  de hora solar aparente, altitude solar, `Kt` diário e persistência; a faixa com menos amostras que
+  `min_samples_per_bin` vem com `median` nula e não é desenhada nem atribuída à faixa vizinha;
 - cada modelo traz `rmse`, `mbe`, `mae` e `n` medidos no período, exibidos junto da legenda;
 - ao lado do gráfico, o quadro bruto da câmera all-sky e a máscara de segmentação prevista sobre ele,
   cujo metadado vem de um segundo arquivo, `labmim-allsky-frame-v1`, com cadência própria.
