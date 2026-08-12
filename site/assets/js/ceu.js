@@ -586,14 +586,10 @@
     return `${model.short}: ${value} · p10 ${decimal(model.p10[bin], 3)} · p90 ${decimal(model.p90[bin], 3)}`;
   }
 
+  // No timestamp: on the Kt x Kd plane the instant is not what is being read.
   function tooltipTitle(items) {
     const observation = hoveredObservation(items);
-    if (observation) {
-      const stamp = parseStationTime(observation.t || "");
-      return Number.isFinite(stamp)
-        ? `Kt ${decimal(observation.x, 3)} · ${formatStamp(stamp)}`
-        : `Kt ${decimal(observation.x, 3)}`;
-    }
+    if (observation) return `Kt ${decimal(observation.x, 3)}`;
     const cell = state.hoverCell;
     if (!cell) return `Kt ${decimal(items[0].parsed.x, 3)}`;
     const hours = `${decimal(cell.count, 0)} ${cell.count === 1 ? "hora" : "horas"}`;
