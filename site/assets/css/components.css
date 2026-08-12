@@ -1057,6 +1057,14 @@
   color: var(--text-secondary);
 }
 
+/* Kt and Kd both run 0-1, so a panel-wide box would stretch the density cells
+   into stripes and misreport the shape of the cloud. */
+.sky-chart {
+  height: 460px;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
 /* The intrinsic height is the thumb's, ~16px, under the 24px minimum for a
    touch target; the track stays thin and the extra height is hit area. */
 .sky-range {
@@ -1133,5 +1141,9 @@
 
   .sky-legend {
     justify-content: flex-start;
+  }
+
+  .sky-chart {
+    height: 340px;
   }
 }

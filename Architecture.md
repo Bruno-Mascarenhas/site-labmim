@@ -414,33 +414,32 @@ JSON/manifest.json
 
 Ver [Manifest De Dados](#manifest-de-dados-e-ciclo-de-vida-da-rodada). Exemplo real: `{"version": "20260719T013159Z", "generated_utc": "...", "domains": ["D01".."D04"], "files": 4844, "format": "labmim-data-manifest-v2", "timezone": "America/Bahia", "index_min": 0, "index_max": 75, "start_local": "02/05/2026 21:00:00", "availability": {"SWDOWN": [[9,21],[33,45],[57,69]]}, "features": {...}}`. Sempre buscado com `cache: "no-cache"` e nunca versionado com `?v=` (ele **é** a fonte da versão).
 
-### Condição Do Céu (provisório)
+### Condição Do Céu
 
 ```text
-Ceu/allsky.jpg
-Ceu/mask.png
-Ceu/ceu.json
+Ceu/allsky.jpg     quadro bruto da câmera, nome fixo
+Ceu/mask.png       máscara de segmentação prevista, nome fixo
+Ceu/ktkd.json      labmim-ktkd-v1  — densidade, modelos e pontos horários
+Ceu/frame.json     labmim-allsky-frame-v1 — metadado do quadro atual
 ```
 
-Este é o contrato que **não** vem do pipeline WRF: os quadros são da câmera all-sky, a máscara é a previsão do modelo de segmentação do laboratório e o payload traz os pares medidos. Ele é **provisório** — trate o formato abaixo como o que `ceu.js` sabe ler hoje, não como uma interface estável, e mantenha o leitor tolerante enquanto o exportador amadurece.
+Este é o contrato que **não** vem do pipeline WRF. São dois documentos porque as cadências são diferentes: `frame.json` é reescrito a cada captura, `ktkd.json` a cada reconstrução do acervo. A página busca os dois em paralelo e qualquer um pode faltar sem derrubar o outro.
 
-```json
-{
-  "generated_utc": "2026-08-11T12:05:00Z",
-  "frame": { "captured_at": "2026-08-11 12:00", "class": 3, "cloud_fraction": 0.42 },
-  "ktkd": {
-    "timescale": "Médias horárias",
-    "points": [
-      { "t": "2026-08-11 12:00", "kt": 0.612, "kd": 0.471, "models": { "lemos": 0.44, "ridley": 0.46 } }
-    ]
-  }
-}
-```
+`ktkd.json` traz, além de `station`, `period`, `timescale`, `sources` e `filters`:
 
-- `points` é aceito nesse formato de objeto **ou** como triplas posicionais `[kt, kd, t]` (e também na raiz do payload, fora de `ktkd`); pares sem `kt`/`kd` finitos são descartados em silêncio. `frame.class` aceita o índice 1–4, o algarismo romano ou o id (`i`..`iv`), e `frame.cloud_fraction` é uma fração de 0 a 1.
-- `kt` é o índice de claridade (global medida na horizontal sobre a irradiação no topo da atmosfera) e `kd` é a **fração difusa** `Hd/H` — difusa sobre global, não sobre a extraterrestre. As quatro condições de céu, por faixas de Kt [Escobedo et al., 2009; nomenclatura de Teramoto e Escobedo, 2012]: I nebuloso (Kt ≤ 0,35); II parcialmente nebuloso com dominância para o difuso (0,35 < Kt ≤ 0,55); III parcialmente nebuloso com dominância para o claro (0,55 < Kt ≤ 0,65); IV claro (Kt > 0,65). Os três modelos sobreponíveis são ajustados a médias **horárias**. Só o de Marques Filho et al. (2016) é função de `Kt` sozinho, e a página o avalia no navegador como curva, limitada a `Kt` ≤ 1, o domínio publicado do ajuste. Lemos et al. (2017) e o BRL de Ridley, Boland e Lauret (2010) são logísticas em mais cinco preditores que a página não tem, então chegam avaliados em `points[].models.{lemos,ridley}` e são desenhados como nuvem — num mesmo `Kt` assumem uma faixa de valores.
-- Os dois quadros mantêm nomes **fixos** e são reescritos no lugar, como os PNGs de `assets/graphs/`. A página anexa `?t=` derivado de `frame.captured_at` (na falta dele, um balde de 5 min), que é o que vence a regra de cache de 7 dias aplicada a imagens no `.htaccess`.
-- `ceu.json` é buscado direto com `cache: "no-cache"`, fora do `LabmimDataService` (que atende ao WebGIS). Sem payload **e** com os dois quadros ausentes — o estado de um checkout de desenvolvimento e do CI — a página avisa que os dados chegam pelo deploy, em vez de exibir gráfico vazio.
+- `density` — o histograma bidimensional: `kt_edges` e `kd_edges` (arestas, `n+1` valores) e `counts`, **linhas = faixas de Kd, colunas = faixas de Kt**, de modo que `counts[i][j]` cobre `kd_edges[i]..kd_edges[i+1]` por `kt_edges[j]..kt_edges[j+1]`. `max_count` evita varrer a matriz para escalar a cor, e `color_scale_hint` (`"log"` ou `"linear"`) diz qual escala o exportador pretende — a página assume log na falta dele. O renderizador recusa uma matriz cuja altura não case com `kd_edges`: transposta, ela ainda desenharia, espelhando a figura na diagonal em silêncio.
+- `models[]` — cada um com `kind`, `rmse`, `mbe`, `mae` e `n` medidos contra o Kd observado nesse mesmo período. `kind: "curve"` traz `kt`/`kd` e vira linha; `kind: "band"` traz `kt`, `median`, `p10`, `p90` e `n_per_bin`, e vira envelope sombreado com a mediana por cima. **Nunca desenhe uma banda como linha única**: ela afirmaria um determinismo que o modelo não tem. Faixas sem amostra suficiente trazem `null` em `median`/`p10`/`p90` e são puladas, sem interpolar por cima do buraco.
+- `sky_conditions` — `kt_upper_bounds`, a citação e as quatro classes com `condition` (1–4), `id` (`i`..`iv`), `name`, `name_pt` e `kt_range`. A página lê os limites daqui; a cópia embutida em `ceu.js` é só o retorno seguro quando o bloco falta.
+- `points[]` — opcional, `{t, kt, kd}` por hora. É a camada de sobreposição, desligada por padrão, e o que sustenta a coloração por condição de céu, o tooltip por observação e a exportação CSV. Sem ela a página desenha só a densidade e o tooltip passa a descrever a célula sob o cursor.
+- `caveats[]` — renderizados sob o gráfico como estão.
+
+`frame.json` traz `captured_at`, `image`, `mask`, `sky_condition` e `cloud_fraction`. Leia a condição por `sky_condition.condition` (1–4) ou por `.id`, **nunca** por um inteiro solto: a classe interna do exportador é 0-based e a literatura numera de I a IV, então um índice cru atravessando essa fronteira é um erro de um a cada vez esperando para acontecer. `cloud_fraction` é `null` até um modelo produzi-la.
+
+Os dois quadros mantêm nomes **fixos** e são reescritos no lugar, como os PNGs de `assets/graphs/`. A página anexa `?t=` derivado de `frame.captured_at` (na falta dele, um balde de 5 min), que é o que vence a regra de cache aplicada a imagens no `.htaccess` — e `captured_at` é lido do carimbo que a câmera grava no quadro, não do `Last-Modified` do host, que é balanceado e já reportou hora local rotulada como GMT.
+
+Os dois JSON são buscados direto com `cache: "no-cache"`, fora do `LabmimDataService` (que atende ao WebGIS). Sem nenhum dos dois **e** com os dois quadros ausentes — o estado de um checkout de desenvolvimento e do CI — a página avisa que os dados chegam pelo deploy, em vez de exibir gráfico vazio.
+
+Sobre o conteúdo: `kt` é o índice de claridade (global medida na horizontal sobre a irradiação no topo da atmosfera) e `kd` é a **fração difusa** `Hd/H` — difusa sobre global, não sobre a extraterrestre. As quatro condições de céu, por faixas de Kt [Escobedo et al., 2009; nomenclatura de Teramoto e Escobedo, 2012]: I nebuloso (Kt ≤ 0,35); II parcialmente nebuloso com dominância para o difuso (0,35 < Kt ≤ 0,55); III parcialmente nebuloso com dominância para o claro (0,55 < Kt ≤ 0,65); IV claro (Kt > 0,65). Os três modelos são ajustados a médias **horárias**, e só o de Marques Filho et al. (2016) é função de `Kt` sozinho; Lemos et al. (2017) e o BRL de Ridley, Boland e Lauret (2010) dependem também da hora solar aparente, da altitude solar, do Kt diário e da persistência, o que é exatamente a razão de chegarem resumidos em banda.
 
 ## Variáveis E Palhetas
 

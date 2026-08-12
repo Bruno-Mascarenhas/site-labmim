@@ -122,11 +122,16 @@
       <div class="clima-panel-head">
         <h3 class="clima-panel-title">Índice de claridade × fração difusa</h3>
         <p class="clima-legend" id="ceuGraficoNota"></p>
+        <p class="clima-legend sky-metrics" id="ceuMetricas" hidden></p>
       </div>
 
       <ul class="sky-legend" id="ceuLegenda"></ul>
 
       <div class="clima-controls">
+        <div class="clima-control">
+          <span class="clima-control-label" id="ceuCamadasLabel">Camadas</span>
+          <div class="clima-segmented" id="ceuCamadas" role="group" aria-labelledby="ceuCamadasLabel"></div>
+        </div>
         <div class="clima-control">
           <span class="clima-control-label" id="ceuClassesLabel">Condições de céu</span>
           <div class="clima-segmented" id="ceuClasses" role="group" aria-labelledby="ceuClassesLabel"></div>
@@ -141,11 +146,13 @@
         </div>
       </div>
 
-      <div class="chart-container clima-chart" id="ceuChartWrap">
+      <div class="chart-container clima-chart sky-chart" id="ceuChartWrap">
         <canvas id="ceuCanvas" role="img" aria-label="Dispersão do índice de claridade contra a fração difusa"></canvas>
       </div>
 
       <p class="clima-status" id="ceuStatus" aria-live="polite"></p>
+
+      <ul class="clima-caveats" id="ceuCaveats" hidden></ul>
     </div>
   </div>
 
