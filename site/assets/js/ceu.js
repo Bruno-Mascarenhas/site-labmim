@@ -76,28 +76,42 @@
     dark: { i: "#94a3b8", ii: "#5589e6", iii: "#31a37a", iv: "#cb8030" },
   };
 
+  // Hues none of the four conditions uses, so a model stays legible wherever it
+  // lands on the measured cloud — and so two of them overlaid stay apart.
+  const MODEL_PALETTE = {
+    light: { marquesfh: "#7c3aa8", lemos: "#c2185b", ridley: "#0e7490" },
+    dark: { marquesfh: "#c08ae0", lemos: "#f06292", ridley: "#4dd0e1" },
+  };
+
   /**
-   * Erbs, D. G., Klein, S. A. & Duffie, J. A. (1982), Solar Energy 28(4),
-   * 293-302, eqn. (1), in Horner form. Above Kt = 0.80 the value is a constant
-   * the authors CHOSE rather than fitted, following Orgill and Hollands.
+   * Marques Filho, E. P. et al. (2016), Renewable Energy 91, 64-74, Table 3:
+   * Kd = 0,13 + 0,86 / (1 + exp(-6,29 + 12,26 Kt)), fitted to hourly averages
+   * over 0 ≤ Kt ≤ 1 in Rio de Janeiro.
    */
-  function erbs(kt) {
-    if (kt <= 0.22) return 1 - 0.09 * kt;
-    if (kt <= 0.8) return 0.9511 + kt * (-0.1604 + kt * (4.388 + kt * (-16.638 + kt * 12.336)));
-    return 0.165;
+  function marquesFilho(kt) {
+    return 0.13 + 0.86 / (1 + Math.exp(-6.29 + 12.26 * kt));
   }
 
-  /** Orgill, J. F. & Hollands, K. G. T. (1977), Solar Energy 19(4), 357-359. */
-  function orgillHollands(kt) {
-    if (kt < 0.35) return 1 - 0.249 * kt;
-    if (kt <= 0.75) return 1.557 - 1.84 * kt;
-    return 0.177;
-  }
+  // Published domain of the fit. Cloud enhancement pushes measurements past
+  // Kt = 1, and the curve there would be extrapolation the paper does not back.
+  const MARQUES_FILHO_MAX_KT = 1;
 
-  const CURVES = [
-    { id: "none", label: "Nenhuma", fn: null },
-    { id: "erbs", label: "Erbs", fn: erbs, credit: "Erbs, Klein e Duffie (1982)" },
-    { id: "orgill", label: "Orgill e Hollands", fn: orgillHollands, credit: "Orgill e Hollands (1977)" },
+  /**
+   * Three models, and only the first is a function of Kt alone. Lemos et al.
+   * (2017), Renewable Energy 108, 569-580, and the BRL of Ridley, Boland &
+   * Lauret (2010), Renewable Energy 35(2), 478-483, are logistics in five
+   * further predictors — apparent solar time, solar elevation, the daily
+   * clearness index and persistence — which only the exporter holds. So they
+   * arrive already evaluated, one value per observation, and are drawn as a
+   * cloud rather than a curve: at a fixed Kt they take a range of values.
+   */
+  const MODELS = [
+    { id: "marquesfh", label: "Marques Filho", fn: marquesFilho, credit: "Marques Filho et al. (2016)" },
+    // Distinct mark shapes as well as distinct hues: two clouds overlaid on the
+    // measurements need to be told apart where they cross, and colour alone
+    // fails there for a reader who cannot separate the two.
+    { id: "lemos", label: "Lemos", key: "lemos", mark: "crossRot", credit: "Lemos et al. (2017)" },
+    { id: "ridley", label: "BRL", key: "ridley", mark: "cross", credit: "Ridley, Boland e Lauret (2010)" },
   ];
 
   // The boundary between conditions II and III is DEFINED where the diffuse
@@ -115,7 +129,7 @@
     payload: null,
     points: [],
     hidden: new Set(),
-    curveId: "erbs",
+    models: new Set(["marquesfh"]),
     chart: null,
     framesMissing: 0,
     payloadStatus: "absent",
@@ -158,6 +172,7 @@
     const root = getComputedStyle(document.documentElement);
     return {
       classes: isDark() ? PALETTE.dark : PALETTE.light,
+      models: isDark() ? MODEL_PALETTE.dark : MODEL_PALETTE.light,
       textSecondary: root.getPropertyValue("--text-secondary").trim() || "#888",
       legendText: root.getPropertyValue("--chart-legend-color").trim() || "#666",
       grid: root.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
@@ -205,9 +220,19 @@
         rejected += 1;
         continue;
       }
-      points.push({ x: kt, y: kd, t: typeof stamp === "string" ? stamp : "" });
+      const models = !positional && entry.models && typeof entry.models === "object" ? entry.models : null;
+      points.push({ x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", models });
     }
     return { points, rejected };
+  }
+
+  function modelPoints(key) {
+    const data = [];
+    for (const point of state.points) {
+      const value = point.models ? point.models[key] : undefined;
+      if (Number.isFinite(value)) data.push({ x: point.x, y: value });
+    }
+    return data;
   }
 
   function frameToken() {
@@ -261,22 +286,32 @@
     mask.style.opacity = String(Number(el("ceuOpacidade").value) / 100);
   }
 
-  function buildSegmented(container, entries, isActive, onPick) {
+  // Several models at once, not one: comparing two against the same measured
+  // cloud is what shows where each of them fails.
+  function buildModelToggles() {
+    const colors = themeColors().models;
+    const container = el("ceuCurva");
     container.replaceChildren();
-    for (const entry of entries) {
-      const button = node("button", "clima-segmented-btn", entry.label);
+    for (const model of MODELS) {
+      const button = node("button", "clima-segmented-btn sky-class-btn");
       button.type = "button";
-      const active = isActive(entry);
+      button.title = model.fn
+        ? `${model.credit} — curva, função apenas de Kt`
+        : `${model.credit} — um valor por observação, vindo do payload`;
+      const swatch = node("span", model.fn ? "sky-swatch sky-swatch-curve" : "sky-swatch");
+      swatch.style.background = colors[model.id];
+      button.appendChild(swatch);
+      button.appendChild(node("span", null, model.label));
+      const active = state.models.has(model.id);
       button.setAttribute("aria-pressed", String(active));
       button.classList.toggle("is-active", active);
       button.addEventListener("click", () => {
-        onPick(entry);
-        for (let index = 0; index < container.children.length; index += 1) {
-          const sibling = container.children[index];
-          const on = isActive(entries[index]);
-          sibling.setAttribute("aria-pressed", String(on));
-          sibling.classList.toggle("is-active", on);
-        }
+        if (state.models.has(model.id)) state.models.delete(model.id);
+        else state.models.add(model.id);
+        const on = state.models.has(model.id);
+        button.setAttribute("aria-pressed", String(on));
+        button.classList.toggle("is-active", on);
+        drawChart();
       });
       container.appendChild(button);
     }
@@ -353,27 +388,58 @@
     };
   }
 
-  function curveDataset(theme, bounds) {
-    const curve = CURVES.find((entry) => entry.id === state.curveId);
-    if (!curve || !curve.fn) return null;
-    const data = [];
-    for (let step = 0; step <= 100; step += 1) {
-      const kt = (step / 100) * bounds.ktMax;
-      data.push({ x: kt, y: curve.fn(kt) });
+  function activeModels() {
+    return MODELS.filter((entry) => state.models.has(entry.id));
+  }
+
+  function modelDatasets(theme, radius) {
+    const datasets = [];
+    for (const model of activeModels()) {
+      const color = theme.models[model.id];
+      if (model.fn) {
+        const data = [];
+        for (let step = 0; step <= 100; step += 1) {
+          const kt = (step / 100) * MARQUES_FILHO_MAX_KT;
+          data.push({ x: kt, y: model.fn(kt) });
+        }
+        datasets.push({
+          type: "line",
+          label: model.credit,
+          data,
+          borderColor: color,
+          backgroundColor: color,
+          borderWidth: 2.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0,
+          order: 1,
+        });
+        continue;
+      }
+      const data = modelPoints(model.key);
+      if (!data.length) continue;
+      // An open mark rather than a filled dot: the modelled cloud overlaps the
+      // measured one everywhere, and a second solid mark of the same shape reads
+      // as more data instead of as the model drawn over it.
+      datasets.push({
+        type: "line",
+        label: model.credit,
+        data,
+        borderColor: "transparent",
+        backgroundColor: color,
+        borderWidth: 0,
+        showLine: false,
+        pointStyle: model.mark,
+        pointBorderColor: color,
+        pointBorderWidth: 1,
+        pointRadius: radius + 0.6,
+        pointHoverRadius: radius + 3,
+        normalized: true,
+        order: 1,
+      });
     }
-    return {
-      type: "line",
-      label: curve.label,
-      data,
-      borderColor: theme.textSecondary,
-      backgroundColor: theme.textSecondary,
-      borderWidth: 2,
-      borderDash: [6, 4],
-      pointRadius: 0,
-      pointHoverRadius: 0,
-      tension: 0,
-      order: 1,
-    };
+    return datasets;
   }
 
   function classDatasets(theme, radius) {
@@ -434,8 +500,7 @@
   function chartConfig(theme, { radius = 2.4, legend = false } = {}) {
     const bounds = axisBounds();
     const datasets = classDatasets(theme, radius);
-    const curve = curveDataset(theme, bounds);
-    if (curve) datasets.push(curve);
+    datasets.push(...modelDatasets(theme, radius));
     return {
       data: { datasets },
       options: {
@@ -494,12 +559,22 @@
 
   function syncChartText() {
     const shown = visiblePoints().length;
-    const curve = CURVES.find((entry) => entry.id === state.curveId);
     const timescale = state.payload && state.payload.ktkd ? state.payload.ktkd.timescale : null;
     const parts = [];
     if (timescale) parts.push(timescale);
     parts.push(`${decimal(shown, 0)} de ${decimal(state.points.length, 0)} pares visíveis`);
-    if (curve && curve.fn) parts.push(`curva de ${curve.credit}`);
+    for (const model of activeModels()) {
+      if (model.fn) {
+        parts.push(`curva de ${model.credit}`);
+        continue;
+      }
+      const modelled = modelPoints(model.key).length;
+      // Naming the absence: a model the exporter does not publish yet would
+      // otherwise look like a model that happens to agree with no point.
+      parts.push(
+        modelled ? `${decimal(modelled, 0)} valores de ${model.credit}` : `${model.credit} ainda não vem no payload`
+      );
+    }
     el("ceuGraficoNota").textContent = parts.join(" · ");
     el("ceuCanvas").setAttribute(
       "aria-label",
@@ -708,6 +783,7 @@
 
   function onThemeChange() {
     buildClassToggles();
+    buildModelToggles();
     buildLegend();
     drawChart();
   }
@@ -737,16 +813,7 @@
     renderFrames();
     buildLegend();
     buildClassToggles();
-    buildSegmented(
-      el("ceuCurva"),
-      CURVES,
-      (entry) => entry.id === state.curveId,
-      (entry) => {
-        state.curveId = entry.id;
-        drawChart();
-      }
-    );
-
+    buildModelToggles();
     el("ceuOpacidade").addEventListener("input", applyMaskOpacity);
     el("ceuAmpliar").addEventListener("click", openZoom);
     el("ceuExport").addEventListener("click", exportCsv);

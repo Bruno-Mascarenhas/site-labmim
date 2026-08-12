@@ -428,12 +428,17 @@ Este é o contrato que **não** vem do pipeline WRF: os quadros são da câmera 
 {
   "generated_utc": "2026-08-11T12:05:00Z",
   "frame": { "captured_at": "2026-08-11 12:00", "class": 3, "cloud_fraction": 0.42 },
-  "ktkd": { "timescale": "1 min", "points": [{ "t": "2026-08-11 12:00", "kt": 0.612, "kd": 0.471 }] }
+  "ktkd": {
+    "timescale": "Médias horárias",
+    "points": [
+      { "t": "2026-08-11 12:00", "kt": 0.612, "kd": 0.471, "models": { "lemos": 0.44, "ridley": 0.46 } }
+    ]
+  }
 }
 ```
 
 - `points` é aceito nesse formato de objeto **ou** como triplas posicionais `[kt, kd, t]` (e também na raiz do payload, fora de `ktkd`); pares sem `kt`/`kd` finitos são descartados em silêncio. `frame.class` aceita o índice 1–4, o algarismo romano ou o id (`i`..`iv`), e `frame.cloud_fraction` é uma fração de 0 a 1.
-- `kt` é o índice de claridade (global medida na horizontal sobre a irradiação no topo da atmosfera) e `kd` é a **fração difusa** `Hd/H` — difusa sobre global, não sobre a extraterrestre. As quatro condições de céu, por faixas de Kt [Escobedo et al., 2009; nomenclatura de Teramoto e Escobedo, 2012]: I nebuloso (Kt ≤ 0,35); II parcialmente nebuloso com dominância para o difuso (0,35 < Kt ≤ 0,55); III parcialmente nebuloso com dominância para o claro (0,55 < Kt ≤ 0,65); IV claro (Kt > 0,65). As curvas de referência opcionais (Erbs, Klein e Duffie, 1982; Orgill e Hollands, 1977) são ajustadas a médias **horárias**.
+- `kt` é o índice de claridade (global medida na horizontal sobre a irradiação no topo da atmosfera) e `kd` é a **fração difusa** `Hd/H` — difusa sobre global, não sobre a extraterrestre. As quatro condições de céu, por faixas de Kt [Escobedo et al., 2009; nomenclatura de Teramoto e Escobedo, 2012]: I nebuloso (Kt ≤ 0,35); II parcialmente nebuloso com dominância para o difuso (0,35 < Kt ≤ 0,55); III parcialmente nebuloso com dominância para o claro (0,55 < Kt ≤ 0,65); IV claro (Kt > 0,65). Os três modelos sobreponíveis são ajustados a médias **horárias**. Só o de Marques Filho et al. (2016) é função de `Kt` sozinho, e a página o avalia no navegador como curva, limitada a `Kt` ≤ 1, o domínio publicado do ajuste. Lemos et al. (2017) e o BRL de Ridley, Boland e Lauret (2010) são logísticas em mais cinco preditores que a página não tem, então chegam avaliados em `points[].models.{lemos,ridley}` e são desenhados como nuvem — num mesmo `Kt` assumem uma faixa de valores.
 - Os dois quadros mantêm nomes **fixos** e são reescritos no lugar, como os PNGs de `assets/graphs/`. A página anexa `?t=` derivado de `frame.captured_at` (na falta dele, um balde de 5 min), que é o que vence a regra de cache de 7 dias aplicada a imagens no `.htaccess`.
 - `ceu.json` é buscado direto com `cache: "no-cache"`, fora do `LabmimDataService` (que atende ao WebGIS). Sem payload **e** com os dois quadros ausentes — o estado de um checkout de desenvolvimento e do CI — a página avisa que os dados chegam pelo deploy, em vez de exibir gráfico vazio.
 

@@ -60,16 +60,24 @@
           não das cores da máscara, que são as do modelo de segmentação. A condição que ele prevê para o
           quadro vem escrita na legenda da própria imagem.
         </p>
+        <p>
+          Três modelos empíricos podem ser sobrepostos, e eles não se desenham do mesmo jeito. O de
+          [[marquesfilho]] é função <strong>apenas</strong> de K<sub>t</sub>, então é uma curva. Os de
+          [[lemos]] e [[ridley]] — o BRL — são logísticas em mais cinco preditores (hora solar aparente,
+          elevação solar, índice de claridade diário e persistência), que a página não tem: chegam já
+          avaliados, um valor por observação, e por isso aparecem como <strong>nuvem</strong>, e não como
+          linha — num mesmo K<sub>t</sub> assumem uma faixa de valores.
+        </p>
         <p class="compact-note">
           <small
             >A linha horizontal em K<sub>d</sub> = 0,5 não é decorativa: o limite entre a segunda e a terceira
             condição é definido justamente onde a componente difusa iguala a direta, o que na superfície
-            corresponde a metade da global. As curvas de referência que podem ser sobrepostas são correlações
-            ajustadas a médias <strong>horárias</strong> — [[erbs]] e [[orgill]]; sobre dados de cadência mais
-            fina a nuvem de pontos se desloca para cima nos K<sub>t</sub> altos, por realce por nuvens. A
-            máscara é o
-            produto do modelo deste laboratório, não um esquema padronizado de segmentação. As informações são
-            resultados de aquisições de pesquisa, sem garantia para utilização irrestrita.</small
+            corresponde a metade da global. Os três modelos foram ajustados a médias <strong>horárias</strong>;
+            sobre dados de cadência mais fina a nuvem de pontos se desloca para cima nos K<sub>t</sub> altos,
+            por realce por nuvens, e a curva de Marques Filho vale só até K<sub>t</sub> = 1, que é o domínio
+            publicado do ajuste. A máscara é o produto do modelo deste laboratório, não um esquema padronizado
+            de segmentação. As informações são resultados de aquisições de pesquisa, sem garantia para
+            utilização irrestrita.</small
           >
         </p>
       </div>
@@ -124,7 +132,7 @@
           <div class="clima-segmented" id="ceuClasses" role="group" aria-labelledby="ceuClassesLabel"></div>
         </div>
         <div class="clima-control">
-          <span class="clima-control-label" id="ceuCurvaLabel">Correlação</span>
+          <span class="clima-control-label" id="ceuCurvaLabel">Modelos</span>
           <div class="clima-segmented" id="ceuCurva" role="group" aria-labelledby="ceuCurvaLabel"></div>
         </div>
         <div class="clima-control clima-control-actions sky-actions">

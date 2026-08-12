@@ -1108,6 +1108,14 @@
   outline: 1px solid rgb(0 0 0 / 35%);
 }
 
+/* The swatch shape says how the model is drawn: a bar for the one that is a
+   function of Kt alone and comes out as a curve, a square for those that arrive
+   evaluated point by point and come out as a cloud of marks. */
+.sky-swatch-curve {
+  height: 0.25rem;
+  border-radius: 2px;
+}
+
 .sky-class-btn {
   display: inline-flex;
   gap: 0.4rem;

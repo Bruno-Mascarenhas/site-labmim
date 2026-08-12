@@ -57,7 +57,7 @@
     <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
-    <link rel="stylesheet" href="assets/css/components.css?v=3af50f2b" />
+    <link rel="stylesheet" href="assets/css/components.css?v=1ec58cc1" />
 
     <link rel="stylesheet" href="assets/css/theme.css?v=33083143" />
 
@@ -205,15 +205,24 @@
                 das cores da máscara, que são as do modelo de segmentação. A condição que ele prevê para o quadro vem
                 escrita na legenda da própria imagem.
               </p>
+              <p>
+                Três modelos empíricos podem ser sobrepostos, e eles não se desenham do mesmo jeito. O de
+                [[marquesfilho]] é função <strong>apenas</strong> de K<sub>t</sub>, então é uma curva. Os de [[lemos]] e
+                [[ridley]] — o BRL — são logísticas em mais cinco preditores (hora solar aparente, elevação solar,
+                índice de claridade diário e persistência), que a página não tem: chegam já avaliados, um valor por
+                observação, e por isso aparecem como <strong>nuvem</strong>, e não como linha — num mesmo K<sub>t</sub>
+                assumem uma faixa de valores.
+              </p>
               <p class="compact-note">
                 <small
                   >A linha horizontal em K<sub>d</sub> = 0,5 não é decorativa: o limite entre a segunda e a terceira
                   condição é definido justamente onde a componente difusa iguala a direta, o que na superfície
-                  corresponde a metade da global. As curvas de referência que podem ser sobrepostas são correlações
-                  ajustadas a médias <strong>horárias</strong> — [[erbs]] e [[orgill]]; sobre dados de cadência mais
-                  fina a nuvem de pontos se desloca para cima nos K<sub>t</sub> altos, por realce por nuvens. A máscara
-                  é o produto do modelo deste laboratório, não um esquema padronizado de segmentação. As informações são
-                  resultados de aquisições de pesquisa, sem garantia para utilização irrestrita.</small
+                  corresponde a metade da global. Os três modelos foram ajustados a médias <strong>horárias</strong>;
+                  sobre dados de cadência mais fina a nuvem de pontos se desloca para cima nos K<sub>t</sub> altos, por
+                  realce por nuvens, e a curva de Marques Filho vale só até K<sub>t</sub> = 1, que é o domínio publicado
+                  do ajuste. A máscara é o produto do modelo deste laboratório, não um esquema padronizado de
+                  segmentação. As informações são resultados de aquisições de pesquisa, sem garantia para utilização
+                  irrestrita.</small
                 >
               </p>
             </div>
@@ -268,7 +277,7 @@
                 <div class="clima-segmented" id="ceuClasses" role="group" aria-labelledby="ceuClassesLabel"></div>
               </div>
               <div class="clima-control">
-                <span class="clima-control-label" id="ceuCurvaLabel">Correlação</span>
+                <span class="clima-control-label" id="ceuCurvaLabel">Modelos</span>
                 <div class="clima-segmented" id="ceuCurva" role="group" aria-labelledby="ceuCurvaLabel"></div>
               </div>
               <div class="clima-control clima-control-actions sky-actions">
@@ -435,15 +444,20 @@
           "citation": "Teramoto, E. T. & Escobedo, J. F. (2012). Análise da frequência anual das condições de céu em Botucatu, São Paulo. Revista Brasileira de Engenharia Agrícola e Ambiental 16(9), 985-992. Fonte da nomenclatura em português das quatro condições de céu.",
           "url": "https://doi.org/10.1590/S1415-43662012000900009"
         },
-        "erbs": {
-          "short": "Erbs, Klein e Duffie, 1982",
-          "citation": "Erbs, D. G., Klein, S. A. & Duffie, J. A. (1982). Estimation of the diffuse radiation fraction for hourly, daily and monthly-average global radiation. Solar Energy 28(4), 293-302. A correlação horária entre fração difusa e índice de claridade.",
-          "url": "https://doi.org/10.1016/0038-092X(82)90302-4"
+        "marquesfilho": {
+          "short": "Marques Filho et al., 2016",
+          "citation": "Marques Filho, E. P., Oliveira, A. P., Vita, W. A., Mesquita, F. L. L., Codato, G., Escobedo, J. F., Cassol, M. & França, J. R. A. (2016). Global, diffuse and direct solar radiation at the surface in the city of Rio de Janeiro: observational characterization and empirical modeling. Renewable Energy 91, 64-74. A sigmoide ajustada a médias horárias no Rio de Janeiro, função apenas do índice de claridade.",
+          "url": "https://doi.org/10.1016/j.renene.2016.01.040"
         },
-        "orgill": {
-          "short": "Orgill e Hollands, 1977",
-          "citation": "Orgill, J. F. & Hollands, K. G. T. (1977). Correlation equation for hourly diffuse radiation on a horizontal surface. Solar Energy 19(4), 357-359. A correlação que antecede Erbs, ajustada em Toronto.",
-          "url": "https://doi.org/10.1016/0038-092X(77)90006-8"
+        "lemos": {
+          "short": "Lemos et al., 2017",
+          "citation": "Lemos, L. F. L., Starke, A. R., Boland, J., Cardemil, J. M., Machado, R. D. & Colle, S. (2017). Assessment of solar radiation components in Brazil using the BRL model. Renewable Energy 108, 569-580. O reajuste brasileiro do modelo BRL sobre nove estações do SONDA/INPE; a página usa os coeficientes horários da Tabela 4.",
+          "url": "https://doi.org/10.1016/j.renene.2017.02.077"
+        },
+        "ridley": {
+          "short": "Ridley, Boland e Lauret, 2010",
+          "citation": "Ridley, B., Boland, J. & Lauret, P. (2010). Modelling of diffuse solar fraction with multiple predictors. Renewable Energy 35(2), 478-483. O modelo BRL original: logística no índice de claridade horário, hora solar aparente, elevação solar, índice de claridade diário e persistência.",
+          "url": "https://doi.org/10.1016/j.renene.2009.07.018"
         },
         "codata2018": {
           "short": "CODATA 2018",
@@ -457,6 +471,6 @@
     <script defer src="assets/js/references.js?v=1c5edf4a"></script>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
-    <script defer src="assets/js/ceu.js?v=1d766322"></script>
+    <script defer src="assets/js/ceu.js?v=70a9cb9e"></script>
   </body>
 </html>

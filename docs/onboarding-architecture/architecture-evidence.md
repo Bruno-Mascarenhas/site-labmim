@@ -621,8 +621,11 @@ contrato deve ser aditiva.
   299-309, na nomenclatura em português de Teramoto e Escobedo (2012), RBEAA 16(9), 985-992: I nebuloso
   (`Kt ≤ 0,35`); II parcialmente nebuloso com dominância para o difuso (`0,35 < Kt ≤ 0,55`); III
   parcialmente nebuloso com dominância para o claro (`0,55 < Kt ≤ 0,65`); IV claro (`Kt > 0,65`);
-- curvas de referência opcionais de Erbs, Klein e Duffie (1982) e Orgill e Hollands (1977), ambas
-  ajustadas a médias horárias;
+- três modelos empíricos opcionais, todos ajustados a médias horárias: Marques Filho et al. (2016),
+  Renewable Energy 91, 64-74, que é função só de `Kt` e a página avalia no navegador como curva; Lemos et al.
+  (2017), Renewable Energy 108, 569-580, e o BRL de Ridley, Boland e Lauret (2010), Renewable Energy 35(2),
+  478-483, logísticas em mais cinco preditores (hora solar aparente, elevação, `Kt` diário e persistência) que
+  o exportador avalia e publica ponto a ponto em `points[].models`, desenhadas como nuvem;
 - ao lado do gráfico, o quadro bruto da câmera all-sky e a máscara de segmentação prevista sobre ele.
 
 Confiança: **Confirmado**
