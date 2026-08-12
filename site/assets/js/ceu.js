@@ -360,19 +360,23 @@
     for (const model of activeModels()) {
       const color = theme.models[model.id];
       if (model.fn) {
-        const data = [];
-        for (let step = 0; step <= 100; step += 1) {
-          const kt = (step / 100) * MARQUES_FILHO_MAX_KT;
-          data.push({ x: kt, y: model.fn(kt) });
-        }
+        // Evaluated on the observations rather than on a regular grid, so every
+        // point of the curve carries the measurement under it for the tooltip.
+        const data = visiblePoints()
+          .filter((point) => point.x <= MARQUES_FILHO_MAX_KT)
+          .sort((left, right) => left.x - right.x)
+          .map((point) => ({ x: point.x, y: model.fn(point.x), source: point }));
+        if (!data.length) continue;
         datasets.push({
           type: "line",
           label: model.credit,
+          labmimModel: model.id,
           data,
           borderColor: color,
           backgroundColor: color,
           borderWidth: 2.5,
           borderDash: [6, 4],
+          pointStyle: "line",
           pointRadius: 0,
           pointHoverRadius: 0,
           tension: 0,
@@ -385,6 +389,7 @@
       datasets.push({
         type: "line",
         label: model.credit,
+        labmimModel: model.id,
         data,
         borderColor: "transparent",
         backgroundColor: color,
@@ -484,33 +489,38 @@
     return best;
   }
 
-  // The reference curve carries no observation, so a hover nearest it still has
-  // to resolve to a measurement or the residuals below are against nothing.
   function observationOf(item) {
     const raw = item && item.raw;
     if (!raw) return null;
-    if (raw.observed) return raw;
-    return raw.source || nearestObservation(raw.x);
+    return raw.observed ? raw : raw.source || null;
   }
 
+  // One item per dataset holding this observation, so every line carries its own
+  // colour and mark — which `afterBody`, being plain text, cannot. It is a mode
+  // because Chart.js settles the item set before any callback runs.
+  Chart.Interaction.modes.labmimSkyColumn = (chart, event) => {
+    const position = Chart.helpers.getRelativePosition(event, chart);
+    const observation = nearestObservation(chart.scales.x.getValueForPixel(position.x));
+    if (!observation) return [];
+    const items = [];
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      if (!chart.isDatasetVisible(datasetIndex)) return;
+      const index = dataset.data.findIndex((point) => point === observation || point.source === observation);
+      if (index < 0) return;
+      const element = chart.getDatasetMeta(datasetIndex).data[index];
+      if (element) items.push({ element, datasetIndex, index });
+    });
+    return items;
+  };
+
   // Residual is signed model − measured: positive means the model sits above.
-  function modelComparison(observation) {
-    const lines = [];
-    for (const model of activeModels()) {
-      // Not quoted past the domain where it is not drawn.
-      const value = model.fn
-        ? observation.x <= MARQUES_FILHO_MAX_KT
-          ? model.fn(observation.x)
-          : undefined
-        : observation.models
-          ? observation.models[model.key]
-          : undefined;
-      if (!Number.isFinite(value)) continue;
-      const residual = value - observation.y;
-      const sign = residual >= 0 ? "+" : "−";
-      lines.push(`${model.label}: ${decimal(value, 3)} (${sign}${decimal(Math.abs(residual), 3)})`);
-    }
-    return lines;
+  function modelLine(item) {
+    const model = MODELS.find((entry) => entry.id === item.dataset.labmimModel);
+    const observation = observationOf(item);
+    if (!model || !observation) return "";
+    const residual = item.parsed.y - observation.y;
+    const sign = residual >= 0 ? "+" : "−";
+    return `${model.label}: ${decimal(item.parsed.y, 3)} (${sign}${decimal(Math.abs(residual), 3)})`;
   }
 
   // No inline legend: the chips and the toggles already name the conditions
@@ -526,9 +536,7 @@
         maintainAspectRatio: false,
         animation: false,
         parsing: false,
-        // Hit tested on Kt alone: in a cloud this dense, needing the cursor
-        // nearest a mark in two dimensions puts the comparison out of reach.
-        interaction: { mode: "nearest", axis: "x", intersect: false },
+        interaction: { mode: "labmimSkyColumn", intersect: false },
         plugins: {
           labmimSkyGuides: { color: theme.guide },
           labmimSkyCrosshair: { color: theme.crosshair },
@@ -543,28 +551,13 @@
             bodyColor: theme.tooltipText,
             borderColor: theme.classes.ii,
             borderWidth: 1,
+            usePointStyle: true,
             callbacks: {
-              title: (items) => {
-                const observation = observationOf(items[0]);
-                const stamp = observation ? parseStationTime(observation.t || "") : NaN;
-                const kt = `Kt ${decimal(items[0].parsed.x, 3)}`;
-                return Number.isFinite(stamp) ? `${formatStamp(stamp)} · ${kt}` : kt;
-              },
+              title: (items) => `Kt ${decimal(items[0].parsed.x, 3)}`,
               label: (item) => {
-                const observation = observationOf(item);
-                if (!observation) return "";
-                const entry = classOf(observation.x);
-                return `Kd medido: ${decimal(observation.y, 3)} — ${entry.roman} · ${entry.label}`;
-              },
-              // Follows the resolved measurement, not the nearest dataset.
-              labelColor: (item) => {
-                const observation = observationOf(item);
-                const color = theme.classes[classOf(observation ? observation.x : 0).id];
-                return { borderColor: color, backgroundColor: color };
-              },
-              afterBody: (items) => {
-                const observation = observationOf(items[0]);
-                return observation ? modelComparison(observation) : [];
+                if (item.dataset.labmimModel) return modelLine(item);
+                const entry = classOf(item.parsed.x);
+                return `Kd medido: ${decimal(item.parsed.y, 3)} — ${entry.roman} · ${entry.label}`;
               },
             },
           },
