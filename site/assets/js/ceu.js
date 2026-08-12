@@ -333,10 +333,14 @@
   // Kd is a ratio between two instruments, so it lands outside the interval at
   // low sun and under broken cloud. A fixed scale would hide exactly those
   // points while the caption and the CSV went on counting them.
+  // The Kd floor is 1.1 rather than 1: the overcast class piles up against
+  // Kd = 1, and a ceiling there presses the densest part of the cloud into the
+  // top edge. The legacy exporter keeps observations up to Kd = 1.2, so the
+  // headroom is also where real points land.
   function axisBounds() {
     let ktMax = 1;
     let kdMin = 0;
-    let kdMax = 1;
+    let kdMax = 1.1;
     for (const point of state.points) {
       ktMax = Math.max(ktMax, point.x);
       kdMin = Math.min(kdMin, point.y);
@@ -470,7 +474,9 @@
             min: 0,
             max: bounds.ktMax,
             title: { display: true, text: "Índice de claridade Kt = H/H₀", color: theme.textSecondary },
-            ticks: { color: theme.textSecondary, maxTicksLimit: 11 },
+            // Fixed step rather than a tick budget: on a 0-1,1 range Chart.js
+            // picks 0 / 0,5 / 1 / 1,1 and crowds the last two together.
+            ticks: { color: theme.textSecondary, stepSize: 0.2 },
             grid: { color: theme.grid },
           },
           y: {
@@ -478,7 +484,7 @@
             min: bounds.kdMin,
             max: bounds.kdMax,
             title: { display: true, text: "Fração difusa Kd = Hd/H", color: theme.textSecondary },
-            ticks: { color: theme.textSecondary, maxTicksLimit: 6 },
+            ticks: { color: theme.textSecondary, stepSize: 0.2 },
             grid: { color: theme.grid },
           },
         },
