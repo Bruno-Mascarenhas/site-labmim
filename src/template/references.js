@@ -92,6 +92,37 @@ const SITE_REFERENCES = Object.freeze({
       "Journal of Applied Meteorology 43(1), 170-181.",
     url: crossrefTitleSearch("The Kain-Fritsch convective parameterization an update"),
   },
+  escobedo: {
+    short: "Escobedo et al., 2009",
+    citation:
+      "Escobedo, J. F., Gomes, E. N., Oliveira, A. P. & Soares, J. (2009). Modeling hourly and daily fractions " +
+      "of UV, PAR and NIR to global solar radiation under various sky conditions at Botucatu, Brazil. " +
+      "Applied Energy 86(3), 299-309. Define as quatro condições de céu por faixas do índice de claridade.",
+    url: "https://doi.org/10.1016/j.apenergy.2008.04.013",
+  },
+  teramoto: {
+    short: "Teramoto e Escobedo, 2012",
+    citation:
+      "Teramoto, E. T. & Escobedo, J. F. (2012). Análise da frequência anual das condições de céu em Botucatu, " +
+      "São Paulo. Revista Brasileira de Engenharia Agrícola e Ambiental 16(9), 985-992. Fonte da nomenclatura " +
+      "em português das quatro condições de céu.",
+    url: "https://doi.org/10.1590/S1415-43662012000900009",
+  },
+  erbs: {
+    short: "Erbs, Klein e Duffie, 1982",
+    citation:
+      "Erbs, D. G., Klein, S. A. & Duffie, J. A. (1982). Estimation of the diffuse radiation fraction for hourly, " +
+      "daily and monthly-average global radiation. Solar Energy 28(4), 293-302. A correlação horária entre fração " +
+      "difusa e índice de claridade.",
+    url: "https://doi.org/10.1016/0038-092X(82)90302-4",
+  },
+  orgill: {
+    short: "Orgill e Hollands, 1977",
+    citation:
+      "Orgill, J. F. & Hollands, K. G. T. (1977). Correlation equation for hourly diffuse radiation on a " +
+      "horizontal surface. Solar Energy 19(4), 357-359. A correlação que antecede Erbs, ajustada em Toronto.",
+    url: "https://doi.org/10.1016/0038-092X(77)90006-8",
+  },
   codata2018: {
     short: "CODATA 2018",
     citation:

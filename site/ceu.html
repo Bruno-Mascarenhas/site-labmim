@@ -5,29 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores."
+      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
     />
-    <title>LabMiM — Equipe · UFBA</title>
+    <title>LabMiM — Condição do Céu · UFBA</title>
 
-    <link rel="canonical" href="https://labmim.if.ufba.br/team.html" />
+    <link rel="canonical" href="https://labmim.if.ufba.br/ceu.html" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="LabMiM" />
-    <meta property="og:title" content="LabMiM — Equipe · UFBA" />
+    <meta property="og:title" content="LabMiM — Condição do Céu · UFBA" />
     <meta
       property="og:description"
-      content="LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores."
+      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
     />
-    <meta property="og:url" content="https://labmim.if.ufba.br/team.html" />
+    <meta property="og:url" content="https://labmim.if.ufba.br/ceu.html" />
     <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LabMiM — Equipe · UFBA" />
+    <meta name="twitter:title" content="LabMiM — Condição do Céu · UFBA" />
     <meta
       name="twitter:description"
-      content="LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores."
+      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
     />
     <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
 
@@ -106,13 +106,13 @@
             <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
             </li>
-            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="ceu.html" id="nav-ceu">Céu</a></li>
+            <li class="nav-item me-2">
+              <a class="btn btn-outline-lab active" href="ceu.html" id="nav-ceu" aria-current="page">Céu</a>
+            </li>
             <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="climatologia.html" id="nav-climatologia">Climatologia</a>
             </li>
-            <li class="nav-item me-2">
-              <a class="btn btn-outline-lab active" href="team.html" id="nav-team" aria-current="page">Equipe</a>
-            </li>
+            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="team.html" id="nav-team">Equipe</a></li>
           </ul>
 
           <button
@@ -140,187 +140,163 @@
     </header>
 
     <main id="main">
-      <h1 class="visually-hidden">Equipe</h1>
-      <!--
-  `.team-group a` zeroes the underline, and colour alone cannot mark the Lattes
-  links: #06235e sits at roughly 1:1 luminance against #212529 (WCAG 1.4.1/G183).
-  Hence the underline in a style attribute — allowed by the CSP, whereas a new
-  utility class would not survive the Bootstrap purge.
--->
-      <div class="modern-section">
-        <div class="page-header">
-          <i class="fas fa-users"></i>
-          <h2>Equipe</h2>
+      <h1 class="visually-hidden">Condição do Céu</h1>
+      <!-- Shared page: any publication declaring `dataset.paths.sky` enables it.
+ Everything below is filled at runtime by assets/js/ceu.js — the two frames the
+ pipeline rewrites in place in that directory and the `labmim-sky-v1` payload
+ behind the Kt × Kd chart. Nothing here is specific to LabMiM. -->
+      <div class="modern-section" id="ceu" data-sky-base="Ceu">
+        <div class="modern-header mb-4">
+          <h2><i class="fas fa-cloud me-2"></i>Condição do Céu</h2>
+          <p id="ceuPeriodo">Câmera all-sky, máscara de segmentação e a dispersão do índice de claridade</p>
         </div>
 
-        <div class="row">
-          <div class="col-md-6 mb-4 d-flex">
-            <div class="team-group w-100 p-4 border rounded shadow-sm">
-              <h3 class="team-group-title"><i class="fas fa-user-tie me-2"></i>Pesquisador Responsável</h3>
-              <div class="d-flex align-items-center mb-2">
-                <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i>
-                <a
-                  href="https://lattes.cnpq.br/3112476528507003"
-                  target="_blank"
-                  rel="noopener"
-                  class="me-2"
-                  style="text-decoration: underline"
-                  >Edson P. Marques Filho</a
+        <div class="text-center mb-3">
+          <button
+            class="btn btn-sm btn-outline-secondary"
+            type="button"
+            data-ui-toggle="explanationContentCeu"
+            data-label-open="Ocultar Explicação"
+            data-label-closed="Mostrar Explicação"
+            aria-controls="explanationContentCeu"
+            aria-expanded="false"
+          >
+            <i class="fas fa-chevron-down"></i> <span data-toggle-label>Mostrar Explicação</span>
+          </button>
+        </div>
+
+        <div id="explanationContentCeu" hidden>
+          <div class="explanation-box explanation-box-narrow mx-auto">
+            <div class="explanation-content text-start">
+              <p>
+                A página junta <strong>duas leituras da mesma atmosfera</strong>: o que a câmera vê e o que o
+                piranômetro mede. Um dos quadros é a <strong>imagem bruta</strong> da câmera <em>all-sky</em>; o outro,
+                a <strong>máscara de segmentação</strong> que o modelo do laboratório prevê sobre esse mesmo quadro. O
+                controle de opacidade sobrepõe a máscara aos pixels de que ela saiu, para conferir o registro entre as
+                duas.
+              </p>
+              <p>
+                Abaixo, a dispersão do <strong>índice de claridade</strong> contra a <strong>fração difusa</strong> — o
+                plano em que a literatura de decomposição da radiação solar trabalha desde os anos 1960:
+              </p>
+              <ul class="explanation-list-center">
+                <li>
+                  <strong>K<sub>t</sub></strong> — índice de claridade, a razão entre a irradiação global medida na
+                  horizontal e a irradiação no topo da atmosfera no mesmo plano e no mesmo intervalo;
+                </li>
+                <li>
+                  <strong>K<sub>d</sub></strong> — fração difusa, a razão entre a irradiação difusa e a global
+                  (H<sub>d</sub>/H), e não a difusa sobre a extraterrestre.
+                </li>
+              </ul>
+              <p>
+                As cores dos pontos são as <strong>quatro condições de céu</strong> definidas por faixas de K<sub
+                  >t</sub
                 >
-                <span class="badge text-bg-info">IF-UFBA</span>
-              </div>
+                [[escobedo]], na nomenclatura em português de [[teramoto]]: nebuloso (K<sub>t</sub> ≤ 0,35),
+                parcialmente nebuloso com dominância para o difuso (0,35 &lt; K<sub>t</sub> ≤ 0,55), parcialmente
+                nebuloso com dominância para o claro (0,55 &lt; K<sub>t</sub> ≤ 0,65) e claro (K<sub>t</sub> &gt; 0,65).
+                A classificação é feita sobre K<sub>t</sub> apenas — a fração difusa é consequência dela, não um segundo
+                critério.
+              </p>
+              <p>
+                K<sub>t</sub> é uma razão entre irradiações do hemisfério inteiro, então descreve o céu de um
+                <em>instante</em>, não de um ponto da imagem: a legenda abaixo do gráfico é a chave da dispersão, e não
+                das cores da máscara, que são as do modelo de segmentação. A condição que ele prevê para o quadro vem
+                escrita na legenda da própria imagem.
+              </p>
+              <p class="compact-note">
+                <small
+                  >A linha horizontal em K<sub>d</sub> = 0,5 não é decorativa: o limite entre a segunda e a terceira
+                  condição é definido justamente onde a componente difusa iguala a direta, o que na superfície
+                  corresponde a metade da global. As curvas de referência que podem ser sobrepostas são correlações
+                  ajustadas a médias <strong>horárias</strong> — [[erbs]] e [[orgill]]; sobre dados de cadência mais
+                  fina a nuvem de pontos se desloca para cima nos K<sub>t</sub> altos, por realce por nuvens. A máscara
+                  é o produto do modelo deste laboratório, não um esquema padronizado de segmentação. As informações são
+                  resultados de aquisições de pesquisa, sem garantia para utilização irrestrita.</small
+                >
+              </p>
+            </div>
+          </div>
+          <hr class="mb-4 max-w-1000" />
+        </div>
+
+        <div class="clima-empty" id="ceuEmpty" hidden>
+          <p id="ceuEmptyMessage">Carregando a condição do céu…</p>
+        </div>
+
+        <div id="ceuApp" hidden>
+          <div class="monitor-controls" role="group" aria-label="Exibição dos quadros">
+            <div class="monitor-control">
+              <label class="clima-control-label" for="ceuOpacidade">Opacidade da máscara</label>
+              <input class="sky-range" type="range" id="ceuOpacidade" min="0" max="100" step="5" value="100" />
+            </div>
+            <div class="monitor-control monitor-control-meta">
+              <span class="monitor-updated" id="ceuAtualizado"></span>
             </div>
           </div>
 
-          <div class="col-md-6 mb-4 d-flex">
-            <div class="team-group w-100 p-4 border rounded shadow-sm">
-              <h3 class="team-group-title"><i class="fas fa-user-friends me-2"></i>Pesquisadores Colaboradores</h3>
-              <div class="stack-sm">
-                <div>
-                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a
-                    href="https://lattes.cnpq.br/8212836406462666"
-                    target="_blank"
-                    rel="noopener"
-                    style="text-decoration: underline"
-                    >Maxsuel M. Rocha Pereira</a
-                  >
-                  <span class="badge text-bg-secondary float-end">CT-UFES</span>
-                </div>
-                <div>
-                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a
-                    href="https://lattes.cnpq.br/1778866012464923"
-                    target="_blank"
-                    rel="noopener"
-                    style="text-decoration: underline"
-                    >José Ricardo A. França</a
-                  >
-                  <span class="badge text-bg-secondary float-end">IGEO-UFRJ</span>
-                </div>
-                <div>
-                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a
-                    href="https://lattes.cnpq.br/1364246301366731"
-                    target="_blank"
-                    rel="noopener"
-                    style="text-decoration: underline"
-                    >Amauri Pereira de Oliveira</a
-                  >
-                  <span class="badge text-bg-secondary float-end">IAG-USP</span>
-                </div>
-                <div>
-                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a
-                    href="https://lattes.cnpq.br/6401622195719726"
-                    target="_blank"
-                    rel="noopener"
-                    style="text-decoration: underline"
-                    >Iuri Muniz Pepe</a
-                  >
-                  <span class="badge text-bg-secondary float-end">IF-UFBA</span>
-                </div>
-                <div>
-                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a
-                    href="https://lattes.cnpq.br/6553529534653449"
-                    target="_blank"
-                    rel="noopener"
-                    style="text-decoration: underline"
-                    >Umberto Rizza</a
-                  >
-                  <span class="badge text-bg-secondary float-end">ISAC-CNR</span>
-                </div>
-              </div>
-            </div>
+          <div class="sky-frames">
+            <figure class="theme-surface sky-frame">
+              <div class="sky-frame-media" id="ceuMediaBruto"></div>
+              <figcaption class="sky-frame-caption">
+                <span class="sky-frame-title">Imagem bruta</span>
+                <span class="sky-frame-note" id="ceuNotaBruto"></span>
+              </figcaption>
+            </figure>
+
+            <figure class="theme-surface sky-frame">
+              <div class="sky-frame-media" id="ceuMediaMascara"></div>
+              <figcaption class="sky-frame-caption">
+                <span class="sky-frame-title">Máscara segmentada</span>
+                <span class="sky-frame-note" id="ceuNotaMascara"></span>
+              </figcaption>
+            </figure>
           </div>
 
-          <div class="col-md-6 mb-4 d-flex">
-            <div class="team-group w-100 p-4 border rounded shadow-sm">
-              <h3 class="team-group-title"><i class="fas fa-graduation-cap me-2"></i>Alunos Doutorado</h3>
-              <div class="stack-sm">
-                <div>
-                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a
-                    href="https://lattes.cnpq.br/6895899768798180"
-                    target="_blank"
-                    rel="noopener"
-                    style="text-decoration: underline"
-                    >Ernando Ferreira</a
-                  >
-                  <span class="badge text-bg-light border float-end">PGEnAm-UFBA</span>
-                </div>
-              </div>
+          <div class="theme-surface clima-panel">
+            <div class="clima-panel-head">
+              <h3 class="clima-panel-title">Índice de claridade × fração difusa</h3>
+              <p class="clima-legend" id="ceuGraficoNota"></p>
             </div>
-          </div>
 
-          <div class="col-md-6 mb-4 d-flex">
-            <div class="team-group w-100 p-4 border rounded shadow-sm">
-              <h3 class="team-group-title"><i class="fas fa-user-graduate me-2"></i>Alunos Mestrado</h3>
-              <div class="stack-sm">
-                <div>
-                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i>
-                  <a
-                    href="https://lattes.cnpq.br/9111550721326814"
-                    target="_blank"
-                    rel="noopener"
-                    style="text-decoration: underline"
-                    >Diogo Santos de Jesus</a
-                  >
-                  <span class="badge text-bg-light border float-end">PPGM-UFBA</span>
-                </div>
-              </div>
-            </div>
-          </div>
+            <ul class="sky-legend" id="ceuLegenda"></ul>
 
-          <div class="col-md-6 mb-4 d-flex">
-            <div class="team-group w-100 p-4 border rounded shadow-sm">
-              <h3 class="team-group-title"><i class="fas fa-flask me-2"></i>Alunos Iniciação Científica</h3>
-              <div class="stack-sm">
-                <div>
-                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
-                  ><a
-                    href="https://lattes.cnpq.br/8164651360713654"
-                    target="_blank"
-                    rel="noopener"
-                    style="text-decoration: underline"
-                    >Bruno S. Mascarenhas</a
-                  >
-                  <span class="badge text-bg-light border float-end">EP-UFBA</span>
-                </div>
+            <div class="clima-controls">
+              <div class="clima-control">
+                <span class="clima-control-label" id="ceuClassesLabel">Condições de céu</span>
+                <div class="clima-segmented" id="ceuClasses" role="group" aria-labelledby="ceuClassesLabel"></div>
+              </div>
+              <div class="clima-control">
+                <span class="clima-control-label" id="ceuCurvaLabel">Correlação</span>
+                <div class="clima-segmented" id="ceuCurva" role="group" aria-labelledby="ceuCurvaLabel"></div>
+              </div>
+              <div class="clima-control clima-control-actions sky-actions">
+                <button type="button" class="btn btn-sm btn-outline-lab" id="ceuAmpliar">Ampliar</button>
+                <button type="button" class="btn btn-sm btn-outline-lab" id="ceuExport">Baixar CSV</button>
               </div>
             </div>
+
+            <div class="chart-container clima-chart" id="ceuChartWrap">
+              <canvas
+                id="ceuCanvas"
+                role="img"
+                aria-label="Dispersão do índice de claridade contra a fração difusa"
+              ></canvas>
+            </div>
+
+            <p class="clima-status" id="ceuStatus" aria-live="polite"></p>
           </div>
         </div>
 
-        <hr class="my-5 hr-soft" />
-
-        <div class="page-header mt-5" id="contato">
-          <i class="fas fa-map-marked-alt"></i>
-          <h2>Contato e Localização</h2>
-        </div>
-
-        <div class="row">
-          <div class="col-12 mt-3 mb-4">
-            <p class="text-secondary lead-copy">
-              <i class="fas fa-map-marker-alt text-lab me-2"></i>
-              <strong>Laboratório de Micrometeorologia e Modelagem (LabMiM)</strong>
-              <br />Rua Barão de Jeremoabo, s/n <br />Campus Universitário de Ondina <br />Salvador, BA, Brasil - CEP
-              40170-115
-            </p>
-          </div>
-        </div>
-
-        <div class="mt-2 mb-5">
-          <!-- Plain embed (?output=embed) rather than My Maps: same host under the CSP,
-         without the deprecation warnings My Maps logs from Google's own iframe. -->
-          <iframe
-            loading="lazy"
-            src="https://www.google.com/maps?q=-13.0007998,-38.507221&amp;z=16&amp;output=embed"
-            height="350"
-            class="embedded-map"
-            title="Localização do LabMiM"
-          ></iframe>
+        <div class="footer-notice mt-4">
+          <p>
+            <i class="fas fa-exclamation-triangle"></i>
+            ATENÇÃO: Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos
+            laboratórios associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os
+            pesquisadores participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados
+            pela utilização indevida e não autorizada por parte de terceiros.
+          </p>
         </div>
       </div>
     </main>
@@ -479,5 +455,8 @@
     <!-- Replaces the [[key]] markers with links. Must come before each page's own
  scripts: the climatology page uses window.labmimReferences. -->
     <script defer src="assets/js/references.js?v=1c5edf4a"></script>
+
+    <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
+    <script defer src="assets/js/ceu.js?v=cff1f68f"></script>
   </body>
 </html>

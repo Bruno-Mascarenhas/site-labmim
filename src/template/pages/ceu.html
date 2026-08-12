@@ -1,0 +1,153 @@
+<!-- Shared page: any publication declaring `dataset.paths.sky` enables it.
+ Everything below is filled at runtime by assets/js/ceu.js — the two frames the
+ pipeline rewrites in place in that directory and the `labmim-sky-v1` payload
+ behind the Kt × Kd chart. Nothing here is specific to LabMiM. -->
+<div class="modern-section" id="ceu" data-sky-base="{{SKY_BASE}}">
+  <div class="modern-header mb-4">
+    <h2><i class="fas fa-cloud me-2"></i>Condição do Céu</h2>
+    <p id="ceuPeriodo">Câmera all-sky, máscara de segmentação e a dispersão do índice de claridade</p>
+  </div>
+
+  <div class="text-center mb-3">
+    <button
+      class="btn btn-sm btn-outline-secondary"
+      type="button"
+      data-ui-toggle="explanationContentCeu"
+      data-label-open="Ocultar Explicação"
+      data-label-closed="Mostrar Explicação"
+      aria-controls="explanationContentCeu"
+      aria-expanded="false"
+    >
+      <i class="fas fa-chevron-down"></i> <span data-toggle-label>Mostrar Explicação</span>
+    </button>
+  </div>
+
+  <div id="explanationContentCeu" hidden>
+    <div class="explanation-box explanation-box-narrow mx-auto">
+      <div class="explanation-content text-start">
+        <p>
+          A página junta <strong>duas leituras da mesma atmosfera</strong>: o que a câmera vê e o que o
+          piranômetro mede. Um dos quadros é a <strong>imagem bruta</strong> da câmera <em>all-sky</em>; o
+          outro, a <strong>máscara de segmentação</strong> que o modelo do laboratório prevê sobre esse mesmo
+          quadro. O controle de opacidade sobrepõe a máscara aos pixels de que ela saiu, para conferir o
+          registro entre as duas.
+        </p>
+        <p>
+          Abaixo, a dispersão do <strong>índice de claridade</strong> contra a <strong>fração difusa</strong> —
+          o plano em que a literatura de decomposição da radiação solar trabalha desde os anos 1960:
+        </p>
+        <ul class="explanation-list-center">
+          <li>
+            <strong>K<sub>t</sub></strong> — índice de claridade, a razão entre a irradiação global medida na
+            horizontal e a irradiação no topo da atmosfera no mesmo plano e no mesmo intervalo;
+          </li>
+          <li>
+            <strong>K<sub>d</sub></strong> — fração difusa, a razão entre a irradiação difusa e a global
+            (H<sub>d</sub>/H), e não a difusa sobre a extraterrestre.
+          </li>
+        </ul>
+        <p>
+          As cores dos pontos são as <strong>quatro condições de céu</strong> definidas por faixas de
+          K<sub>t</sub> [[escobedo]], na nomenclatura em português de [[teramoto]]: nebuloso (K<sub>t</sub> ≤
+          0,35), parcialmente nebuloso com dominância para o difuso (0,35 &lt; K<sub>t</sub> ≤ 0,55),
+          parcialmente nebuloso com dominância para o claro (0,55 &lt; K<sub>t</sub> ≤ 0,65) e claro
+          (K<sub>t</sub> &gt; 0,65). A classificação é feita sobre K<sub>t</sub> apenas — a fração difusa é
+          consequência dela, não um segundo critério.
+        </p>
+        <p>
+          K<sub>t</sub> é uma razão entre irradiações do hemisfério inteiro, então descreve o céu de um
+          <em>instante</em>, não de um ponto da imagem: a legenda abaixo do gráfico é a chave da dispersão, e
+          não das cores da máscara, que são as do modelo de segmentação. A condição que ele prevê para o
+          quadro vem escrita na legenda da própria imagem.
+        </p>
+        <p class="compact-note">
+          <small
+            >A linha horizontal em K<sub>d</sub> = 0,5 não é decorativa: o limite entre a segunda e a terceira
+            condição é definido justamente onde a componente difusa iguala a direta, o que na superfície
+            corresponde a metade da global. As curvas de referência que podem ser sobrepostas são correlações
+            ajustadas a médias <strong>horárias</strong> — [[erbs]] e [[orgill]]; sobre dados de cadência mais
+            fina a nuvem de pontos se desloca para cima nos K<sub>t</sub> altos, por realce por nuvens. A
+            máscara é o
+            produto do modelo deste laboratório, não um esquema padronizado de segmentação. As informações são
+            resultados de aquisições de pesquisa, sem garantia para utilização irrestrita.</small
+          >
+        </p>
+      </div>
+    </div>
+    <hr class="mb-4 max-w-1000" />
+  </div>
+
+  <div class="clima-empty" id="ceuEmpty" hidden>
+    <p id="ceuEmptyMessage">Carregando a condição do céu…</p>
+  </div>
+
+  <div id="ceuApp" hidden>
+    <div class="monitor-controls" role="group" aria-label="Exibição dos quadros">
+      <div class="monitor-control">
+        <label class="clima-control-label" for="ceuOpacidade">Opacidade da máscara</label>
+        <input class="sky-range" type="range" id="ceuOpacidade" min="0" max="100" step="5" value="100" />
+      </div>
+      <div class="monitor-control monitor-control-meta">
+        <span class="monitor-updated" id="ceuAtualizado"></span>
+      </div>
+    </div>
+
+    <div class="sky-frames">
+      <figure class="theme-surface sky-frame">
+        <div class="sky-frame-media" id="ceuMediaBruto"></div>
+        <figcaption class="sky-frame-caption">
+          <span class="sky-frame-title">Imagem bruta</span>
+          <span class="sky-frame-note" id="ceuNotaBruto"></span>
+        </figcaption>
+      </figure>
+
+      <figure class="theme-surface sky-frame">
+        <div class="sky-frame-media" id="ceuMediaMascara"></div>
+        <figcaption class="sky-frame-caption">
+          <span class="sky-frame-title">Máscara segmentada</span>
+          <span class="sky-frame-note" id="ceuNotaMascara"></span>
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="theme-surface clima-panel">
+      <div class="clima-panel-head">
+        <h3 class="clima-panel-title">Índice de claridade × fração difusa</h3>
+        <p class="clima-legend" id="ceuGraficoNota"></p>
+      </div>
+
+      <ul class="sky-legend" id="ceuLegenda"></ul>
+
+      <div class="clima-controls">
+        <div class="clima-control">
+          <span class="clima-control-label" id="ceuClassesLabel">Condições de céu</span>
+          <div class="clima-segmented" id="ceuClasses" role="group" aria-labelledby="ceuClassesLabel"></div>
+        </div>
+        <div class="clima-control">
+          <span class="clima-control-label" id="ceuCurvaLabel">Correlação</span>
+          <div class="clima-segmented" id="ceuCurva" role="group" aria-labelledby="ceuCurvaLabel"></div>
+        </div>
+        <div class="clima-control clima-control-actions sky-actions">
+          <button type="button" class="btn btn-sm btn-outline-lab" id="ceuAmpliar">Ampliar</button>
+          <button type="button" class="btn btn-sm btn-outline-lab" id="ceuExport">Baixar CSV</button>
+        </div>
+      </div>
+
+      <div class="chart-container clima-chart" id="ceuChartWrap">
+        <canvas id="ceuCanvas" role="img" aria-label="Dispersão do índice de claridade contra a fração difusa"></canvas>
+      </div>
+
+      <p class="clima-status" id="ceuStatus" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <div class="footer-notice mt-4">
+    <p>
+      <i class="fas fa-exclamation-triangle"></i>
+      ATENÇÃO: Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos
+      laboratórios associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os
+      pesquisadores participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados
+      pela utilização indevida e não autorizada por parte de terceiros.
+    </p>
+  </div>
+</div>

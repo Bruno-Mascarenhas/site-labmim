@@ -42,6 +42,18 @@ const PAGE_TYPES = Object.freeze({
     seo: Object.freeze({ h1: "Monitoramento Ambiental" }),
     nav: Object.freeze({ label: "Monitoramento", icon: "fa-chart-line", order: 30, elementId: "nav-monitoring" }),
   }),
+  sky: Object.freeze({
+    id: "sky",
+    file: "ceu.html",
+    layout: "institutional",
+    source: templateSource("pages/ceu.html"),
+    append: Object.freeze([]),
+    // The nav says "Céu" and the page says "Condição do Céu": the label sits between
+    // "Monitoramento" and "Climatologia" in a bar that is already long, and the h1 is
+    // what a reader arriving from a search result reads.
+    seo: Object.freeze({ h1: "Condição do Céu" }),
+    nav: Object.freeze({ label: "Céu", icon: "fa-cloud", order: 35, elementId: "nav-ceu" }),
+  }),
   team: Object.freeze({
     id: "team",
     file: "team.html",
