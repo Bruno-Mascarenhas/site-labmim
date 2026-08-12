@@ -282,14 +282,15 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     MODEL_CUMULUS: escapeAttribute(model.cumulus),
     OBSERVATION_CHART_CARDS: observationChartCards(),
     OBSERVATION_CHART_MODALS: observationChartModals(),
-    // CLIMATOLOGY_BASE and MONITORING_BASE ship as `data-`, never href/src: their
-    // directories arrive only with the deploy, so a reference the link and bundle
+    // CLIMATOLOGY_BASE, MONITORING_BASE and SKY_BASE ship as `data-`, never href/src:
+    // their directories arrive only with the deploy, so a reference the link and bundle
     // checkers could see would fail the build on every machine without the data.
     CLIMATOLOGY_BASE: escapeAttribute(dataset.paths.climatology ?? ""),
     // `<` is escaped because `</script` is the only sequence able to close the embedding
     // <script type="application/json"> early, and it can appear inside a paper title.
     SITE_REFERENCES: JSON.stringify(SITE_REFERENCES).replace(/</g, "\\u003c"),
     MONITORING_BASE: escapeAttribute(dataset.paths.monitoring ?? ""),
+    SKY_BASE: escapeAttribute(dataset.paths.sky ?? ""),
   };
 
   function applySiteTokens(html) {

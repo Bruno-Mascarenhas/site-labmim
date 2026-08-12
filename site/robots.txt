@@ -8,3 +8,4 @@ Disallow: /JSON/
 Disallow: /GeoJSON/
 Disallow: /Climatologia/
 Disallow: /Monitoramento/
+Disallow: /Ceu/

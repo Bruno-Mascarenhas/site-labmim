@@ -95,6 +95,17 @@ ErrorDocument 404 /404.html
     Header set Cache-Control "no-cache"
   </If>
 
+  # All-sky frames, same situation: the camera and the segmentation model rewrite
+  # them in place. The page's ?t= tracks only frame.captured_at, so it does not
+  # cover a mask regenerated over an already-captured frame, nor the window in
+  # which the deploy has published the new ceu.json but not yet the new image —
+  # and under the 7-day image rule a client that caches those bytes is stuck
+  # with them. Literal like the rule above, so it tracks `dataset.paths.sky`: a
+  # publication naming that directory differently must add its own line.
+  <If "%{REQUEST_URI} =~ m#^/Ceu/#">
+    Header set Cache-Control "no-cache"
+  </If>
+
   # On our own assets ?v= is a content hash stamped by build.js, so the URL
   # changes whenever the content does. <If> blocks apply last when the
   # configuration is merged, which is what lets this override the short CSS/JS

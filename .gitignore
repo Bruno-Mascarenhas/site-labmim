@@ -44,6 +44,11 @@ site/Climatologia/*.json
 # Mesma origem e mesma restrição do diretório acima: é o registro bruto da
 # estação, não um produto publicável.
 site/Monitoramento/*.json
+# Quadros da câmera all-sky, a máscara segmentada prevista sobre eles e o payload
+# do gráfico Kt × Kd. Regra por diretório, e não por extensão: aqui chegam imagens
+# além de JSON. O .keep segue rastreado para o diretório existir sem os dados.
+site/Ceu/*
+!site/Ceu/.keep
 
 # Onboarding deck (docs/) — versiona a fonte e o PDF; ignora gerados/pesados.
 # node_modules/ e dist/ (assets/dist) já caem nas regras acima.
