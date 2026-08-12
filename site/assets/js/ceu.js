@@ -321,6 +321,11 @@
       "Máscara ainda não publicada."
     );
     mask.classList.add("sky-frame-mask");
+    // Nothing to fade without a mask, and a control over an absent image reads
+    // as a broken one.
+    mask.addEventListener("error", () => {
+      el("ceuOpacidadeControl").hidden = true;
+    });
     const underlay = frameImage(rawName, "", "sky-frame-image");
     underlay.setAttribute("aria-hidden", "true");
     underlay.addEventListener("error", () => underlay.remove());
