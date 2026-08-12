@@ -12,6 +12,7 @@ Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gera
 - Página de monitoramento em duas variantes, escolhidas por `source:` na declaração da página: a **viva**, que lê `labmim-monitoring-v1` do diretório `dataset.paths.monitoring` e desenha a janela de 7 dias em três camadas (amostras brutas, média horária e WRF), e a **estática**, que exibe os PNGs de `dataset.observations` em cards e modais Bootstrap (é a que o LEAL usa hoje).
 - Página de equipe com links de pesquisadores e localização incorporada.
 - Página de climatologia com as distribuições observadas da estação (`labmim-climatology-v1` em `dataset.paths.climatology`): histograma medido, densidade teórica ajustada e bibliografia vinda do próprio manifesto.
+- Página de condição do céu (`ceu.html`, hoje só na publicação da UFBA): o quadro bruto da câmera all-sky ao lado da máscara de segmentação que o modelo do laboratório prevê sobre esse mesmo quadro (com controle de opacidade sobre os pixels brutos) e a dispersão do índice de claridade `Kt` contra a fração difusa `Kd = Hd/H`, colorida pelas quatro condições de céu de Escobedo et al. (2009), com alternância de classes, curvas de referência opcionais ajustadas a médias horárias (Erbs, Klein e Duffie, 1982; Orgill e Hollands, 1977) e exportação CSV. Lê `labmim-sky-v1` de `dataset.paths.sky`, contrato ainda **provisório**; os dois quadros têm nome fixo e são reescritos no lugar, então a página invalida o cache por `?t=` derivado do horário da captura.
 - WebGIS de previsões em `mapas_interativos.html` com variáveis meteorológicas.
 - WebGIS de potenciais energéticos em `potenciais_energeticos.html` com potencial fotovoltaico, potencial eólico e densidade eólica.
 - Leaflet com renderização em Canvas, domínios WRF, palhetas por variável, animação temporal, recorte por estado, camada de vento e séries temporais em modal.
@@ -53,8 +54,11 @@ Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gera
 │   ├── *.html, .htaccess, robots.txt, sitemap.xml
 │   ├── assets/                     # CSS/JS/imagens/vendor compartilhados
 │   ├── JSON/                       # dados operacionais externos, não gerados no build
-│   └── GeoJSON/                    # grades operacionais externas, não geradas no build
-└── dist/<id>/                      # bundles estáticos de build:all, sem JSON/GeoJSON
+│   ├── GeoJSON/                    # grades operacionais externas, não geradas no build
+│   ├── Climatologia/               # distribuições observadas, entregues pelo deploy
+│   ├── Monitoramento/              # janela de 7 dias da estação, entregue pelo deploy
+│   └── Ceu/                        # quadros all-sky, máscara e payload Kt × Kd (deploy)
+└── dist/<id>/                      # bundles estáticos de build:all, sem dados operacionais
 ```
 
 As fronteiras são intencionais:
@@ -66,7 +70,7 @@ As fronteiras são intencionais:
 
 ## Dados Do WebGIS (Pipeline Externo)
 
-`site/JSON/` e `site/GeoJSON/` são os caminhos operacionais das publicações atuais e ficam fora do controle de versão (ver `.gitignore`). Novos datasets podem declarar outros caminhos em `dataset.paths`; nesse caso, inclua-os também no `.gitignore`. Quem gera os dados atuais é o repositório irmão **[micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology)**, pela CLI `labmim-wrf-geojson` (entry point `micrometeorology.cli.export_wrf_geojson`; escrita dos artefatos em `wrf/jobs.py` e `wrf/geojson.py`). Invocação típica a partir de saídas `wrfout_d0X_*` do WRF:
+`site/JSON/` e `site/GeoJSON/` são os caminhos operacionais das publicações atuais e ficam fora do controle de versão (ver `.gitignore`). Novos datasets podem declarar outros caminhos em `dataset.paths`; nesse caso, inclua-os também no `.gitignore`. As regras existentes ignoram por extensão (`site/JSON/*.json`, `site/Climatologia/*.json`, ...); a exceção é `site/Ceu/`, ignorado por diretório (`site/Ceu/*` com `!site/Ceu/.keep`), porque ali chegam imagens além de JSON. Quem gera os dados atuais é o repositório irmão **[micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology)**, pela CLI `labmim-wrf-geojson` (entry point `micrometeorology.cli.export_wrf_geojson`; escrita dos artefatos em `wrf/jobs.py` e `wrf/geojson.py`). Invocação típica a partir de saídas `wrfout_d0X_*` do WRF:
 
 ```bash
 labmim-wrf-geojson --wrf-dir <dir com wrfout> --date YYYYMMDD -D 1,2,3,4 \
@@ -134,6 +138,7 @@ Acesse:
 - `http://localhost:8000/`
 - `http://localhost:8000/mapas_interativos.html`
 - `http://localhost:8000/potenciais_energeticos.html`
+- `http://localhost:8000/ceu.html`
 
 Se a porta 8000 estiver ocupada, use outra (ex.: `python3 -m http.server 8100`).
 
@@ -224,6 +229,7 @@ As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, l
 - `site/index.html`: página inicial.
 - `site/monitoring.html`: monitoramento ambiental (gráficos vivos ou PNGs, conforme a variante) e financiadores.
 - `site/team.html`: equipe e localização.
+- `site/ceu.html`: quadro da câmera all-sky, máscara de segmentação prevista e dispersão Kt × Kd, lidos de `Ceu/`.
 - `site/climatologia.html`: distribuições observadas da estação, lidas de `Climatologia/`.
 - `site/mapas_interativos.html`: WebGIS de previsões meteorológicas.
 - `site/potenciais_energeticos.html`: WebGIS de potenciais fotovoltaico, eólico e densidade eólica.
@@ -233,7 +239,7 @@ As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, l
 
 O WebGIS é inicializado por `map-init.js`, que busca o manifest, cria `MeteoMapManager` e `ChartsManager`.
 
-Navbar principal: Previsões, Potenciais Energéticos, Monitoramento, Climatologia e Equipe.
+Navbar principal: Previsões, Potenciais Energéticos, Monitoramento, Céu, Climatologia e Equipe.
 
 Principais recursos:
 
@@ -309,7 +315,7 @@ O dark mode é dividido em dois passos:
 
 Antes de publicar:
 
-- Abrir `index.html`, `monitoring.html`, `team.html` e `climatologia.html` em light e dark mode.
+- Abrir `index.html`, `monitoring.html`, `team.html`, `ceu.html` e `climatologia.html` em light e dark mode.
 - Abrir `mapas_interativos.html` e verificar se o mapa renderiza apenas variáveis meteorológicas/radiativas, incluindo Radiação Global.
 - Abrir `potenciais_energeticos.html` e verificar se o mapa renderiza apenas Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Testar troca de variável (a grade não deve piscar/recarregar do zero).
@@ -334,6 +340,6 @@ Antes de publicar:
 
 O código deste repositório está sob a [Licença MIT](LICENSE): qualquer pessoa pode usar, copiar, modificar e redistribuir — inclusive em fork ou em uso comercial — sem pagar nada, desde que **mantenha o aviso de copyright e a licença** e cite este repositório como origem.
 
-A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados operacionais publicados em produção (`site/JSON/`, `site/GeoJSON/`, `site/assets/graphs/`), que pertencem às instituições correspondentes e vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology). Um fork deve substituí-los pela própria identidade e pelos próprios dados.
+A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados operacionais publicados em produção (`site/JSON/`, `site/GeoJSON/`, `site/Climatologia/`, `site/Monitoramento/`, `site/Ceu/`, `site/assets/graphs/`), que pertencem às instituições correspondentes — os do WebGIS vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), os demais do acervo de sensores e da câmera all-sky do laboratório. Um fork deve substituí-los pela própria identidade e pelos próprios dados.
 
 As bibliotecas vendorizadas em `site/assets/vendor/` mantêm suas licenças originais (Bootstrap, Leaflet, Chart.js e Font Awesome).

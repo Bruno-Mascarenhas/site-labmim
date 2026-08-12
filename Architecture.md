@@ -32,11 +32,12 @@ O diretório `src/sites/` é o registro. A descoberta ordena os diretórios que 
 | `site/monitoring.html`             | Monitoramento ambiental: gráficos interativos ou PNGs (ver abaixo)    |
 | `site/team.html`                   | Equipe, links e localização incorporada (iframe Google My Maps)       |
 | `site/climatologia.html`           | Distribuições observadas da estação, lidas de `Climatologia/`         |
+| `site/ceu.html`                    | Câmera all-sky, máscara prevista e dispersão Kt × Kd, de `Ceu/`       |
 | `site/mapas_interativos.html`      | WebGIS de previsões meteorológicas                                    |
 | `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
 | `site/404.html`                    | Página de erro standalone (caminhos absolutos, `ErrorDocument 404`)   |
 
-A rota `monitoring.html` tem duas fontes possíveis, escolhidas por `source:` na declaração da página: a variante viva (`src/template/pages/monitoring-live.html` + `assets/js/monitoramento.js`), para publicações que declaram `dataset.paths.monitoring`, e a variante estática (`src/template/pages/monitoring.html`), que desenha os PNGs de `dataset.observations` e é a que o LEAL usa. O mesmo vale para `climatologia.html`, que só faz sentido com `dataset.paths.climatology` declarado.
+A rota `monitoring.html` tem duas fontes possíveis, escolhidas por `source:` na declaração da página: a variante viva (`src/template/pages/monitoring-live.html` + `assets/js/monitoramento.js`), para publicações que declaram `dataset.paths.monitoring`, e a variante estática (`src/template/pages/monitoring.html`), que desenha os PNGs de `dataset.observations` e é a que o LEAL usa. O mesmo vale para `climatologia.html`, que só faz sentido com `dataset.paths.climatology` declarado. `ceu.html` tem fonte única e a mesma dependência: declará-la sem `dataset.paths.sky` falha o build (o diretório ainda ausente na árvore é só um aviso, o normal em CI), e hoje só o LabMiM a oferece, porque a câmera all-sky é dele.
 
 Todas são declaradas no array de `src/sites/<id>/pages.js` e geradas por `build.js`. A fonte de `404.html` fica em `src/template/static/404.html` e mantém caminhos absolutos `/assets/...` para resolver em qualquer profundidade.
 
@@ -100,6 +101,7 @@ site/                                 # saída compatível; uma publicação por
 │   │   ├── references.js
 │   │   ├── monitoramento.js
 │   │   ├── climatologia.js
+│   │   ├── ceu.js
 │   │   ├── variables-config.js
 │   │   ├── data-service.js
 │   │   ├── charts-manager.js
@@ -121,10 +123,13 @@ site/                                 # saída compatível; uma publicação por
 │   ├── graphs/                     # PNGs do monitoramento (regenerados pela estação)
 │   └── img/
 ├── GeoJSON/                        # grades geradas pelo pipeline (git-ignored)
-└── JSON/                           # valores, séries, resumos, manifest (git-ignored)
+├── JSON/                           # valores, séries, resumos, manifest (git-ignored)
+├── Climatologia/                   # distribuições observadas da estação (git-ignored)
+├── Monitoramento/                  # janela móvel de 7 dias da estação (git-ignored)
+└── Ceu/                            # câmera all-sky, máscara e ceu.json (git-ignored)
 
 dist/<id>/                           # bundles de frontend gerados em lote
-└── ...                              # não inclui JSON/ nem GeoJSON/ operacionais
+└── ...                              # não inclui os diretórios de dados de dataset.paths
 ```
 
 Observações:
@@ -134,7 +139,7 @@ Observações:
 - `assets/vendor/` contém bibliotecas de terceiros servidas localmente, evitando dependência de CDN no caminho crítico.
 - `assets/data/br_ba.json` e `br_es.json` são os contornos referenciados pelos módulos de território atuais.
 - O manifest real fica em `site/JSON/manifest.json` (gerado pelo pipeline).
-- `GeoJSON/` e `JSON/` contêm dados gerados e ficam fora do controle de versão (`.gitignore` cobre `site/JSON/*.json`, `site/JSON/*.series.bin`, `site/GeoJSON/*.geojson` e `site/GeoJSON/*.json`).
+- `GeoJSON/`, `JSON/`, `Climatologia/`, `Monitoramento/` e `Ceu/` contêm dados gerados e ficam fora do controle de versão (`.gitignore` cobre `site/JSON/*.json`, `site/JSON/*.series.bin`, `site/GeoJSON/*.geojson`, `site/GeoJSON/*.json`, `site/Climatologia/*.json` e `site/Monitoramento/*.json`). `Ceu/` é o único ignorado **por diretório** — `site/Ceu/*` com a exceção `!site/Ceu/.keep` —, e não por extensão, porque ali chegam imagens além de JSON.
 - Não abra, varra, formate ou reprocesse `/data`; evite ler conteúdo de `GeoJSON/` e `JSON/` fora de depuração estritamente necessária, porque esses diretórios contêm artefatos grandes do pipeline externo.
 
 ## Build, Validação E Cache Busting
@@ -157,14 +162,14 @@ O build muda somente o frontend. Os diretórios configurados em `dataset.paths` 
 
 ### Responsabilidades
 
-| Arquivo          | Responsabilidade                                                                    |
-| ---------------- | ----------------------------------------------------------------------------------- |
-| `base.css`       | Tokens estruturais neutros, reset, tipografia, utilitários pequenos e logos         |
-| `site-theme.css` | Paleta da publicação selecionada; arquivo gerado, não editar diretamente            |
-| `layout.css`     | Navbar, seções de página, footer e estrutura compartilhada                          |
-| `components.css` | Cards, parceiros, financiadores, blocos de explicação, monitoramento, modal helpers |
-| `theme.css`      | Dark mode, overrides de tema, estados de controles, ajustes globais de contraste    |
-| `maps.css`       | Layout e componentes exclusivos do WebGIS (inclui escada de z-index documentada)    |
+| Arquivo          | Responsabilidade                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| `base.css`       | Tokens estruturais neutros, reset, tipografia, utilitários pequenos e logos                            |
+| `site-theme.css` | Paleta da publicação selecionada; arquivo gerado, não editar diretamente                               |
+| `layout.css`     | Navbar, seções de página, footer e estrutura compartilhada                                             |
+| `components.css` | Cards, parceiros, financiadores, blocos de explicação, monitoramento, climatologia, céu, modal helpers |
+| `theme.css`      | Dark mode, overrides de tema, estados de controles, ajustes globais de contraste                       |
+| `maps.css`       | Layout e componentes exclusivos do WebGIS (inclui escada de z-index documentada)                       |
 
 ### Padrões
 
@@ -189,12 +194,13 @@ O build muda somente o frontend. Os diretórios configurados em `dataset.paths` 
 
 ### Módulos De Página
 
-Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](#adicionar-página)); nenhum deles calcula ciência — o número desenhado é o que o exportador Python publicou.
+Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](#adicionar-página)); nenhum deles calcula ciência — o número desenhado é o que o exportador Python publicou. As únicas derivações nesses módulos são a faixa de Kt que colore cada ponto em `ceu.js` e as curvas de referência que ele pode sobrepor, traçadas a partir das equações dos artigos, nunca ajustadas aos dados da página.
 
 | Arquivo            | Responsabilidade                                                                                                      |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | `monitoramento.js` | Página de monitoramento viva: lê `labmim-monitoring-v1` de `dataset.paths.monitoring` e desenha bruto + horário + WRF |
 | `climatologia.js`  | Página de climatologia: lê `labmim-climatology-v1` de `dataset.paths.climatology`, distribuição medida + teórica      |
+| `ceu.js`           | Página de condição do céu: lê `labmim-sky-v1` de `dataset.paths.sky`; quadro, máscara prevista e Kt × Kd              |
 
 ### Módulos Do WebGIS
 
@@ -340,7 +346,7 @@ Resultados de carga são descartados se a chave (`_loadKey` = versão:domínio:v
 
 ## Contratos De Dados
 
-Todos os arquivos abaixo são gerados pelo pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) e publicados em `site/JSON/` e `site/GeoJSON/` (gitignored). Com manifest presente, toda URL recebe `?v=<versão da rodada>`.
+Salvo indicação em contrário, os arquivos abaixo são gerados pelo pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) e publicados em `site/JSON/` e `site/GeoJSON/` (gitignored). Com manifest presente, toda URL recebe `?v=<versão da rodada>`.
 
 ### Grade Compacta (preferida)
 
@@ -407,6 +413,29 @@ JSON/manifest.json
 ```
 
 Ver [Manifest De Dados](#manifest-de-dados-e-ciclo-de-vida-da-rodada). Exemplo real: `{"version": "20260719T013159Z", "generated_utc": "...", "domains": ["D01".."D04"], "files": 4844, "format": "labmim-data-manifest-v2", "timezone": "America/Bahia", "index_min": 0, "index_max": 75, "start_local": "02/05/2026 21:00:00", "availability": {"SWDOWN": [[9,21],[33,45],[57,69]]}, "features": {...}}`. Sempre buscado com `cache: "no-cache"` e nunca versionado com `?v=` (ele **é** a fonte da versão).
+
+### Condição Do Céu (provisório)
+
+```text
+Ceu/allsky.jpg
+Ceu/mask.png
+Ceu/ceu.json
+```
+
+Este é o contrato que **não** vem do pipeline WRF: os quadros são da câmera all-sky, a máscara é a previsão do modelo de segmentação do laboratório e o payload traz os pares medidos. Ele é **provisório** — trate o formato abaixo como o que `ceu.js` sabe ler hoje, não como uma interface estável, e mantenha o leitor tolerante enquanto o exportador amadurece.
+
+```json
+{
+  "generated_utc": "2026-08-11T12:05:00Z",
+  "frame": { "captured_at": "2026-08-11 12:00", "class": 3, "cloud_fraction": 0.42 },
+  "ktkd": { "timescale": "1 min", "points": [{ "t": "2026-08-11 12:00", "kt": 0.612, "kd": 0.471 }] }
+}
+```
+
+- `points` é aceito nesse formato de objeto **ou** como triplas posicionais `[kt, kd, t]` (e também na raiz do payload, fora de `ktkd`); pares sem `kt`/`kd` finitos são descartados em silêncio. `frame.class` aceita o índice 1–4, o algarismo romano ou o id (`i`..`iv`), e `frame.cloud_fraction` é uma fração de 0 a 1.
+- `kt` é o índice de claridade (global medida na horizontal sobre a irradiação no topo da atmosfera) e `kd` é a **fração difusa** `Hd/H` — difusa sobre global, não sobre a extraterrestre. As quatro condições de céu, por faixas de Kt [Escobedo et al., 2009; nomenclatura de Teramoto e Escobedo, 2012]: I nebuloso (Kt ≤ 0,35); II parcialmente nebuloso com dominância para o difuso (0,35 < Kt ≤ 0,55); III parcialmente nebuloso com dominância para o claro (0,55 < Kt ≤ 0,65); IV claro (Kt > 0,65). As curvas de referência opcionais (Erbs, Klein e Duffie, 1982; Orgill e Hollands, 1977) são ajustadas a médias **horárias**.
+- Os dois quadros mantêm nomes **fixos** e são reescritos no lugar, como os PNGs de `assets/graphs/`. A página anexa `?t=` derivado de `frame.captured_at` (na falta dele, um balde de 5 min), que é o que vence a regra de cache de 7 dias aplicada a imagens no `.htaccess`.
+- `ceu.json` é buscado direto com `cache: "no-cache"`, fora do `LabmimDataService` (que atende ao WebGIS). Sem payload **e** com os dois quadros ausentes — o estado de um checkout de desenvolvimento e do CI — a página avisa que os dados chegam pelo deploy, em vez de exibir gráfico vazio.
 
 ## Variáveis E Palhetas
 
@@ -491,7 +520,7 @@ Para `solar` e `eolico`, o modal também exibe uma série derivada de energia (c
 - Navbar e footer: `layout.css`.
 - Cards e seções institucionais: `components.css`.
 - Parceiros e financiadores: classes `.partners-section`, `.partners-grid`, `.partner-logo`, `.sponsors-strip`.
-- Toggle de explicação em `monitoring.html`: `ui-shell.js` via atributos `data-ui-toggle`.
+- Toggle de explicação em `monitoring.html`, `climatologia.html` e `ceu.html`: `ui-shell.js` via atributos `data-ui-toggle`.
 
 ## `.htaccess`
 
@@ -635,6 +664,7 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 - Ao mexer em `maps.css`, valide light e dark mode.
 - Ao mexer em `map-manager.js`, valide play/pause (incl. autoplay e pulos por disponibilidade), troca de domínio, troca de variável, troca de rodada (regenerar o manifest local), clique em célula e wind layer.
 - Ao mexer em `charts-manager.js`, valide carregamento via `series.bin` E via fallback (sem manifest), cancelamento, troca de tema e exportação CSV.
+- Os quadros de `Ceu/` (`allsky.jpg` e `mask.png`) reusam os mesmos nomes a cada captura: não remova o `?t=` derivado de `frame.captured_at` nem troque os nomes fixos por nomes versionados sem coordenar o pipeline. Como `ceu.json` é provisório, ao evoluí-lo mantenha uma das duas formas de ponto que o leitor aceita.
 - Não documente dados ou endpoints que não existam no código. Se um novo pipeline mudar contratos de arquivo, atualize este documento junto.
 
 ## Checklist De Validação
@@ -644,6 +674,7 @@ Use antes de merge/publicação:
 - `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm audit`.
 - Servir `site/` por HTTP local (`make serve`).
 - Abrir páginas institucionais em desktop e mobile; alternar dark mode em cada página.
+- Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade da máscara, alternância das quatro condições, curva de referência, ampliação e CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
 - Abrir `mapas_interativos.html` e confirmar que Potencial Fotovoltaico não aparece como previsão; `SWDOWN` deve aparecer como Radiação Global.
 - Abrir `potenciais_energeticos.html` e confirmar que só aparecem Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Verificar se Leaflet renderiza (bundle local) e se não há erros no console.

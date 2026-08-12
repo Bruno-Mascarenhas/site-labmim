@@ -252,7 +252,7 @@ Símbolos:
 - `siteSource(path)`
 
 Tipos atuais:
-`home`, `monitoring`, `team`, `climatology`, `forecast` e `energy`.
+`home`, `monitoring`, `sky`, `team`, `climatology`, `forecast` e `energy`.
 
 Campos finais de página:
 
@@ -269,6 +269,7 @@ Observações:
 - Home e equipe exigem `siteSource()` por definição do catálogo.
 - Forecast e energy trazem `assets/css/maps.css` em `styles` e o CSS vendorizado do Leaflet em
   `vendorStyles` pelo tipo de página.
+- `sky` existe no catálogo mas só é declarado por `src/sites/ufba/pages.js`; a UFES não oferece a rota.
 - Cada `pages.js` é a fonte da verdade editorial do respectivo site.
 - Navbar, rodapé e sitemap são derivados do mesmo array.
 
@@ -593,7 +594,7 @@ contrato deve ser aditiva.
 
 ---
 
-## 19. Os dois tipos de gráfico
+## 19. Os tipos de gráfico
 
 ### Monitoramento
 
@@ -611,7 +612,37 @@ contrato deve ser aditiva.
 - prévia preferida em `summary.json`;
 - transformação, configuração e renderização separadas.
 
+### Condição do céu
+
+- fonte HTML comum: `src/template/pages/ceu.html`, runtime em `site/assets/js/ceu.js`;
+- Chart.js 3.9.1 declarado em `page.vendorScripts`, não no layout;
+- dispersão do índice de claridade `Kt` contra a fração difusa `Kd = Hd/H` (difusa sobre global);
+- classes por faixas de `Kt`, de Escobedo, Gomes, Oliveira e Soares (2009), Applied Energy 86(3),
+  299-309, na nomenclatura em português de Teramoto e Escobedo (2012), RBEAA 16(9), 985-992: I nebuloso
+  (`Kt ≤ 0,35`); II parcialmente nebuloso com dominância para o difuso (`0,35 < Kt ≤ 0,55`); III
+  parcialmente nebuloso com dominância para o claro (`0,55 < Kt ≤ 0,65`); IV claro (`Kt > 0,65`);
+- curvas de referência opcionais de Erbs, Klein e Duffie (1982) e Orgill e Hollands (1977), ambas
+  ajustadas a médias horárias;
+- ao lado do gráfico, o quadro bruto da câmera all-sky e a máscara de segmentação prevista sobre ele.
+
 Confiança: **Confirmado**
+
+Observação:
+O diretório de dados é `dataset.paths.sky` (`site/Ceu/` na UFBA) e chega só com o deploy. Ele traz
+`allsky.jpg`, `mask.png` e `ceu.json`; os dois quadros mantêm nome fixo e são reescritos no lugar, por
+isso a página desfaz o cache com um `?t=` derivado do horário do quadro. O payload é **provisório**:
+
+```js
+{
+  generated_utc,
+  frame: { captured_at, class, cloud_fraction },
+  ktkd: { timescale, points: [{ t, kt, kd }] }
+}
+```
+
+O leitor também aceita cada ponto como tripla posicional `[kt, kd, t]`. Declarar a página sem declarar
+`dataset.paths.sky` reprova o build, como em climatologia (`validateSkyHasData()`); o diretório ainda
+ausente na árvore é só um aviso, o normal em CI.
 
 ---
 
