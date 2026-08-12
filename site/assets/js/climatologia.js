@@ -1,6 +1,4 @@
 /**
- * CLIMATOLOGIA
- *
  * Controller for the climatology page: reads the `labmim-climatology-v1` artifacts from the directory named in the
  * `data-climatology-base` attribute.
  *

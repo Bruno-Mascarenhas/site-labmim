@@ -2530,7 +2530,6 @@ class MeteoMapManager {
         })
         .catch((err) => {
           console.warn("Wind vectors not available:", err.message);
-          // Only clear if this is still the current wind request.
           if (this._windRequestKey === requestKey) {
             this.clearWindVectors();
           }
