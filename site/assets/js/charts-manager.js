@@ -1093,7 +1093,6 @@ class ChartsManager {
     if (forecastDate instanceof Date && !isNaN(forecastDate)) {
       return forecastDate.toISOString();
     }
-    // Last resort: current wall clock offset by the hour index.
     const base = new Date();
     base.setMinutes(0, 0, 0);
     base.setHours(base.getHours() + (hour - 1));

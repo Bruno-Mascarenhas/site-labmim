@@ -52,7 +52,7 @@ npm ci
 | `site/*.html`, `site/.htaccess`, `site/sitemap.xml`, `robots.txt` | gerados pelo build a partir de `src/`                                         |
 | `site/assets/css/site-theme.css`                                  | tema da publicação selecionada, republicado a cada build                      |
 | `site/assets/img/`                                                | união dos assets declarados em `src/sites/<id>/assets/`                       |
-| `site/JSON/`, `site/GeoJSON/`, `site/assets/graphs/`              | dados operacionais do pipeline [micrometeorology][micro]; o deploy os fornece |
+| `site/JSON/`, `site/GeoJSON/`, `site/assets/graphs/`, `site/Ceu/` | dados operacionais do pipeline [micrometeorology][micro]; o deploy os fornece |
 
 `site/assets/css/` (exceto `site-theme.css`), `site/assets/js/` e `site/assets/vendor/` **são** fonte: edite-os normalmente.
 

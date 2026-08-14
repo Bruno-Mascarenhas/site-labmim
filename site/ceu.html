@@ -5,29 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LabMiM — Climatologia: distribuições estatísticas do registro observado da estação micrometeorológica do LabMiM em Salvador, com as densidades teóricas da literatura. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
     />
-    <title>LabMiM — Climatologia · UFBA</title>
+    <title>LabMiM — Condição do Céu · UFBA</title>
 
-    <link rel="canonical" href="https://labmim.if.ufba.br/climatologia.html" />
+    <link rel="canonical" href="https://labmim.if.ufba.br/ceu.html" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="LabMiM" />
-    <meta property="og:title" content="LabMiM — Climatologia · UFBA" />
+    <meta property="og:title" content="LabMiM — Condição do Céu · UFBA" />
     <meta
       property="og:description"
-      content="LabMiM — Climatologia: distribuições estatísticas do registro observado da estação micrometeorológica do LabMiM em Salvador, com as densidades teóricas da literatura. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
     />
-    <meta property="og:url" content="https://labmim.if.ufba.br/climatologia.html" />
+    <meta property="og:url" content="https://labmim.if.ufba.br/ceu.html" />
     <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LabMiM — Climatologia · UFBA" />
+    <meta name="twitter:title" content="LabMiM — Condição do Céu · UFBA" />
     <meta
       name="twitter:description"
-      content="LabMiM — Climatologia: distribuições estatísticas do registro observado da estação micrometeorológica do LabMiM em Salvador, com as densidades teóricas da literatura. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
     />
     <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
 
@@ -106,11 +106,11 @@
             <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
             </li>
-            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="ceu.html" id="nav-ceu">Céu</a></li>
             <li class="nav-item me-2">
-              <a class="btn btn-outline-lab active" href="climatologia.html" id="nav-climatologia" aria-current="page"
-                >Climatologia</a
-              >
+              <a class="btn btn-outline-lab active" href="ceu.html" id="nav-ceu" aria-current="page">Céu</a>
+            </li>
+            <li class="nav-item me-2">
+              <a class="btn btn-outline-lab" href="climatologia.html" id="nav-climatologia">Climatologia</a>
             </li>
             <li class="nav-item me-2"><a class="btn btn-outline-lab" href="team.html" id="nav-team">Equipe</a></li>
           </ul>
@@ -140,58 +140,99 @@
     </header>
 
     <main id="main">
-      <h1 class="visually-hidden">Climatologia</h1>
-      <!-- Shared page: any publication declaring `dataset.paths.climatology` enables
- it, and everything below is filled at runtime by assets/js/climatologia.js from
- the JSON in that directory. Nothing here is specific to LabMiM. -->
-      <div class="modern-section" id="climatologia" data-climatology-base="Climatologia">
+      <h1 class="visually-hidden">Condição do Céu</h1>
+      <!-- Shared page: any publication declaring `dataset.paths.sky` enables it.
+ Everything below is filled at runtime by assets/js/ceu.js — the two frames the
+ pipeline rewrites in place in that directory and the `labmim-sky-v1` payload
+ behind the Kt × Kd chart. Nothing here is specific to LabMiM. -->
+      <div class="modern-section" id="ceu" data-sky-base="Ceu">
         <div class="modern-header mb-4">
-          <h2><i class="fas fa-cloud-sun me-2"></i>Climatologia</h2>
-          <p id="climaPeriodo">Distribuições estatísticas do registro observado</p>
+          <h2><i class="fas fa-cloud me-2"></i>Condição do Céu</h2>
+          <p id="ceuPeriodo">Câmera all-sky, máscara de segmentação e a dispersão do índice de claridade</p>
         </div>
 
         <div class="text-center mb-3">
           <button
             class="btn btn-sm btn-outline-secondary"
             type="button"
-            data-ui-toggle="explanationContentClima"
+            data-ui-toggle="explanationContentCeu"
             data-label-open="Ocultar Explicação"
             data-label-closed="Mostrar Explicação"
-            aria-controls="explanationContentClima"
+            aria-controls="explanationContentCeu"
             aria-expanded="false"
           >
             <i class="fas fa-chevron-down"></i> <span data-toggle-label>Mostrar Explicação</span>
           </button>
         </div>
 
-        <div id="explanationContentClima" hidden>
+        <div id="explanationContentCeu" hidden>
           <div class="explanation-box explanation-box-narrow mx-auto">
             <div class="explanation-content text-start">
               <p>
-                Cada gráfico mostra a <strong>distribuição de frequência</strong> de uma variável em todo o registro
-                disponível, com a <strong>densidade teórica que a literatura associa àquela grandeza</strong> desenhada
-                por cima. A pergunta que a página responde é: <em>o comportamento medido segue a lei esperada?</em>
+                A página junta <strong>duas leituras da mesma atmosfera</strong>: o que a câmera vê e o que o
+                piranômetro mede. Um dos quadros é a <strong>imagem bruta</strong> da câmera <em>all-sky</em>; o outro,
+                a <strong>máscara de segmentação</strong> que o modelo do laboratório prevê sobre esse mesmo quadro. O
+                controle de opacidade sobrepõe a máscara aos pixels de que ela saiu, para conferir o registro entre as
+                duas.
+              </p>
+              <p>
+                Abaixo, a dispersão do <strong>índice de claridade</strong> contra a <strong>fração difusa</strong> — o
+                plano em que a literatura de decomposição da radiação solar trabalha desde os anos 1960:
               </p>
               <ul class="explanation-list-center">
-                <li><strong>Velocidade do vento</strong> — distribuição de Weibull;</li>
-                <li><strong>Temperatura e pressão</strong> — gaussiana;</li>
-                <li><strong>Umidade relativa</strong> — distribuição beta;</li>
-                <li><strong>Precipitação</strong> — gama, ajustada só sobre as horas chuvosas;</li>
-                <li><strong>Índice de claridade</strong> — densidade de Hollands e Huget;</li>
-                <li><strong>Direção do vento</strong> — rosa dos ventos com mistura de von Mises.</li>
+                <li>
+                  <strong>K<sub>t</sub></strong> — índice de claridade, a razão entre a irradiação global medida na
+                  horizontal e a irradiação no topo da atmosfera no mesmo plano e no mesmo intervalo;
+                </li>
+                <li>
+                  <strong>K<sub>d</sub></strong> — fração difusa, a razão entre a irradiação difusa e a global
+                  (H<sub>d</sub>/H), e não a difusa sobre a extraterrestre.
+                </li>
               </ul>
               <p>
-                As barras são a frequência medida; a linha é a densidade ajustada por máxima verossimilhança aos mesmos
-                dados. As bordas dos intervalos são <strong>fixas</strong>, iguais em todos os recortes, para que verão,
-                inverno e modelo possam ser comparados no mesmo eixo.
+                O gráfico tem duas leituras da mesma amostra, e a que aparece por padrão é a
+                <strong>densidade</strong>: o plano é cortado numa grade e cada célula é pintada pelo
+                <strong>número de horas do acervo que caíram nela</strong> — quanto mais escura, mais horas. Não é uma
+                nuvem de pontos desbotada; é uma contagem. A escala é logarítmica porque a célula mais cheia concentra
+                dezenas de horas enquanto as bordas têm uma ou duas, e numa escala linear tudo fora do miolo viraria um
+                tom só. Ligando a camada <strong>Pontos</strong>, cada hora medida aparece individualmente, colorida
+                pela condição de céu.
+              </p>
+              <p>
+                As <strong>quatro condições de céu</strong> são definidas por faixas de K<sub>t</sub> [[escobedo]], na
+                nomenclatura em português de [[teramoto]]: nebuloso (K<sub>t</sub> ≤ 0,35), parcialmente nebuloso com
+                dominância para o difuso (0,35 &lt; K<sub>t</sub> ≤ 0,55), parcialmente nebuloso com dominância para o
+                claro (0,55 &lt; K<sub>t</sub> ≤ 0,65) e claro (K<sub>t</sub> &gt; 0,65). A classificação é feita sobre
+                K<sub>t</sub> apenas — a fração difusa é consequência dela, não um segundo critério. As verticais
+                tracejadas marcam esses limites, e valem para as duas camadas.
+              </p>
+              <p>
+                K<sub>t</sub> é uma razão entre irradiações do hemisfério inteiro, então descreve o céu de um
+                <em>instante</em>, não de um ponto da imagem: a legenda abaixo do gráfico é a chave das condições, e não
+                das cores da máscara, que são as do modelo de segmentação. A condição que ele prevê para o quadro vem
+                escrita na legenda da própria imagem.
+              </p>
+              <p>
+                Três modelos empíricos podem ser sobrepostos, e eles não se desenham do mesmo jeito. O de
+                [[marquesfilho]] é função <strong>apenas</strong> de K<sub>t</sub>, então é uma curva. Os de [[lemos]] e
+                [[ridley]] — o BRL — são logísticas em mais cinco preditores (hora solar aparente, elevação solar,
+                índice de claridade diário e persistência), então num mesmo K<sub>t</sub> assumem uma faixa de valores:
+                aparecem como <strong>banda</strong>, a mediana por faixa de K<sub>t</sub>
+                dentro do envelope entre os percentis 10 e 90. Desenhá-los como uma linha só afirmaria uma determinação
+                que eles não têm. Onde uma faixa tem amostras de menos para resumir, a banda simplesmente não é
+                desenhada ali. O erro de cada modelo neste período aparece ao lado do título.
               </p>
               <p class="compact-note">
                 <small
-                  >Sobre a aderência: com dezenas de milhares de observações horárias, qualquer teste clássico de
-                  aderência rejeita qualquer modelo teórico, e as horas consecutivas não são independentes. Por isso a
-                  página informa <strong>distâncias</strong> — o quanto o ajuste erra — e não valores-p. O
-                  <em>n</em> efetivo ao lado do <em>n</em> bruto é o tamanho de amostra corrigido pela
-                  autocorrelação.</small
+                  >A linha horizontal em K<sub>d</sub> = 0,5 não é decorativa: o limite entre a segunda e a terceira
+                  condição é definido justamente onde a componente difusa iguala a direta, o que na superfície
+                  corresponde a metade da global. Os três modelos foram ajustados a médias <strong>horárias</strong>, e
+                  é por isso que o exportador integra o registro de 5 minutos à grade horária antes de comparar. As
+                  horas com chuva e as de sol baixo ficam de fora, assim como as de K<sub>d</sub> fora do intervalo
+                  aberto (0, 1) — a convenção dos ajustes publicados, que remove o realce por nuvens e o artefato da
+                  correção de banda de sombreamento. A máscara é o produto do modelo deste laboratório, não um esquema
+                  padronizado de segmentação. As informações são resultados de aquisições de pesquisa, sem garantia para
+                  utilização irrestrita.</small
                 >
               </p>
             </div>
@@ -199,111 +240,88 @@
           <hr class="mb-4 max-w-1000" />
         </div>
 
-        <div class="clima-empty" id="climaEmpty" hidden>
-          <p id="climaEmptyMessage">Carregando distribuições…</p>
+        <div class="clima-empty" id="ceuEmpty" hidden>
+          <p id="ceuEmptyMessage">Carregando a condição do céu…</p>
         </div>
 
-        <div id="climaApp" hidden>
-          <div class="clima-controls" role="group" aria-label="Seleção de variável e recorte">
-            <div class="clima-control">
-              <label class="clima-control-label" for="climaVariavel">Variável</label>
-              <select id="climaVariavel" class="clima-select"></select>
+        <div id="ceuApp" hidden>
+          <div class="monitor-controls" role="group" aria-label="Exibição dos quadros">
+            <div class="monitor-control" id="ceuOpacidadeControl">
+              <label class="clima-control-label" for="ceuOpacidade">Opacidade da máscara</label>
+              <input class="sky-range" type="range" id="ceuOpacidade" min="0" max="100" step="5" value="100" />
             </div>
-            <div class="clima-control">
-              <span class="clima-control-label" id="climaRecorteLabel">Recorte</span>
-              <div class="clima-segmented" id="climaRecorte" role="group" aria-labelledby="climaRecorteLabel"></div>
+            <div class="monitor-control monitor-control-meta">
+              <span class="monitor-updated" id="ceuAtualizado"></span>
             </div>
-            <div class="clima-control clima-control-actions">
-              <button type="button" class="btn btn-sm btn-outline-lab" id="climaExport">Baixar CSV</button>
-            </div>
+          </div>
+
+          <div class="sky-frames">
+            <figure class="theme-surface sky-frame">
+              <div class="sky-frame-media" id="ceuMediaBruto"></div>
+              <figcaption class="sky-frame-caption">
+                <span class="sky-frame-title">Imagem bruta</span>
+                <span class="sky-frame-note" id="ceuNotaBruto"></span>
+              </figcaption>
+            </figure>
+
+            <figure class="theme-surface sky-frame">
+              <div class="sky-frame-media" id="ceuMediaMascara"></div>
+              <figcaption class="sky-frame-caption">
+                <span class="sky-frame-title">Máscara segmentada</span>
+                <span class="sky-frame-note" id="ceuNotaMascara"></span>
+              </figcaption>
+            </figure>
           </div>
 
           <div class="theme-surface clima-panel">
             <div class="clima-panel-head">
-              <h3 class="clima-panel-title" id="climaTitulo">—</h3>
-              <p class="clima-legend" id="climaLegenda"></p>
+              <div class="sky-panel-title">
+                <h3 class="clima-panel-title">Índice de claridade × fração difusa</h3>
+                <button
+                  class="sky-guide-open"
+                  type="button"
+                  id="ceuGuia"
+                  aria-label="O que significa cada elemento deste gráfico"
+                >
+                  <i class="fas fa-circle-info" aria-hidden="true"></i>
+                </button>
+              </div>
+              <p class="clima-legend" id="ceuGraficoNota"></p>
+              <p class="clima-legend sky-metrics" id="ceuMetricas" hidden></p>
             </div>
 
-            <div class="chart-container clima-chart" id="climaChartWrap">
-              <canvas id="climaCanvas" role="img" aria-label="Histograma da variável selecionada"></canvas>
+            <ul class="sky-legend" id="ceuLegenda"></ul>
+
+            <div class="clima-controls">
+              <div class="clima-control">
+                <span class="clima-control-label" id="ceuCamadasLabel">Camadas</span>
+                <div class="clima-segmented" id="ceuCamadas" role="group" aria-labelledby="ceuCamadasLabel"></div>
+              </div>
+              <div class="clima-control">
+                <span class="clima-control-label" id="ceuClassesLabel">Condições de céu</span>
+                <div class="clima-segmented" id="ceuClasses" role="group" aria-labelledby="ceuClassesLabel"></div>
+              </div>
+              <div class="clima-control">
+                <span class="clima-control-label" id="ceuCurvaLabel">Modelos</span>
+                <div class="clima-segmented" id="ceuCurva" role="group" aria-labelledby="ceuCurvaLabel"></div>
+              </div>
+              <div class="clima-control clima-control-actions sky-actions">
+                <button type="button" class="btn btn-sm btn-outline-lab" id="ceuAmpliar">Ampliar</button>
+                <button type="button" class="btn btn-sm btn-outline-lab" id="ceuExport">Baixar CSV</button>
+              </div>
             </div>
 
-            <div class="clima-rose-wrap" id="climaRoseWrap" hidden>
-              <!-- Drawn in SVG by climatologia.js: no Chart.js type overlays the
-         theoretical curve on a radial scale. -->
-              <svg
-                id="climaRose"
-                class="clima-rose"
-                viewBox="0 0 400 400"
+            <div class="chart-container clima-chart sky-chart" id="ceuChartWrap">
+              <canvas
+                id="ceuCanvas"
                 role="img"
-                aria-label="Rosa dos ventos da direção do vento"
-              ></svg>
+                aria-label="Dispersão do índice de claridade contra a fração difusa"
+              ></canvas>
             </div>
 
-            <p class="clima-status" id="climaStatus" aria-live="polite"></p>
-          </div>
+            <p class="clima-status" id="ceuStatus" aria-live="polite"></p>
 
-          <div class="clima-stats" id="climaStats"></div>
-
-          <div class="theme-surface clima-panel clima-fit" id="climaFitPanel">
-            <h3 class="clima-panel-title" id="climaFitTitulo">Ajuste teórico</h3>
-            <div class="clima-fit-grid" id="climaFit"></div>
-            <p class="clima-atoms" id="climaAtoms"></p>
-          </div>
-
-          <ul class="clima-caveats" id="climaCaveats"></ul>
-
-          <!-- Repeats in full the sources the inline citations link to, for a reader
-       who wants to read them rather than check provenance. Filled by
-       climatologia.js from the bibliography published in the manifest. -->
-          <div class="theme-surface clima-panel clima-refs-panel" id="climaRefsPanel" hidden>
-            <h3 class="clima-panel-title">Referências desta variável</h3>
-            <ol class="clima-refs" id="climaRefs"></ol>
-          </div>
-
-          <div class="text-center mb-3">
-            <button
-              class="btn btn-sm btn-outline-secondary"
-              type="button"
-              data-ui-toggle="climaTabelaWrap"
-              data-label-open="Ocultar tabela"
-              data-label-closed="Ver tabela de dados"
-              aria-controls="climaTabelaWrap"
-              aria-expanded="false"
-            >
-              <i class="fas fa-chevron-down"></i> <span data-toggle-label>Ver tabela de dados</span>
-            </button>
-          </div>
-          <div id="climaTabelaWrap" hidden>
-            <div class="clima-table-scroll">
-              <table class="clima-table" id="climaTabela">
-                <caption id="climaTabelaCaption">
-                  Valores do gráfico acima
-                </caption>
-                <!-- Headers stay static, only their text is filled at runtime:
-           emitting `scope="col"` from JavaScript makes check-bootstrap-purge.mjs
-           read "col" as a Bootstrap class in use. -->
-                <thead>
-                  <tr id="climaTabelaHead">
-                    <th scope="col"></th>
-                    <th scope="col"></th>
-                    <th scope="col"></th>
-                    <th scope="col"></th>
-                  </tr>
-                </thead>
-                <tbody id="climaTabelaBody"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="theme-surface clima-panel">
-            <h3 class="clima-panel-title">Cobertura do registro</h3>
-            <p class="clima-panel-note">
-              Horas válidas por ano após controle de qualidade. Um ano sem barra não tem observação: o painel existe
-              para que a extensão real do registro fique visível junto das distribuições.
-            </p>
-            <div class="clima-coverage" id="climaCoverage"></div>
-            <p class="clima-panel-note" id="climaSeasons"></p>
+            <ul class="clima-caveats" id="ceuCaveats" hidden></ul>
           </div>
         </div>
 
@@ -480,6 +498,6 @@
     <script defer src="assets/js/references.js?v=1c5edf4a"></script>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
-    <script defer src="assets/js/climatologia.js?v=e2c9f4b2"></script>
+    <script defer src="assets/js/ceu.js?v=cda3b2d4"></script>
   </body>
 </html>

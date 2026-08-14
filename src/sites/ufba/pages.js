@@ -35,6 +35,15 @@ module.exports = [
         "LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores.",
     },
   }),
+  page("sky", {
+    vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+    scripts: ["assets/js/ceu.js"],
+    seo: {
+      title: "LabMiM — Condição do Céu · UFBA",
+      description:
+        "LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009).",
+    },
+  }),
   page("climatology", {
     vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
     scripts: ["assets/js/climatologia.js"],

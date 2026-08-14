@@ -252,7 +252,7 @@ Símbolos:
 - `siteSource(path)`
 
 Tipos atuais:
-`home`, `monitoring`, `team`, `climatology`, `forecast` e `energy`.
+`home`, `monitoring`, `sky`, `team`, `climatology`, `forecast` e `energy`.
 
 Campos finais de página:
 
@@ -269,6 +269,7 @@ Observações:
 - Home e equipe exigem `siteSource()` por definição do catálogo.
 - Forecast e energy trazem `assets/css/maps.css` em `styles` e o CSS vendorizado do Leaflet em
   `vendorStyles` pelo tipo de página.
+- `sky` existe no catálogo mas só é declarado por `src/sites/ufba/pages.js`; a UFES não oferece a rota.
 - Cada `pages.js` é a fonte da verdade editorial do respectivo site.
 - Navbar, rodapé e sitemap são derivados do mesmo array.
 
@@ -593,7 +594,7 @@ contrato deve ser aditiva.
 
 ---
 
-## 19. Os dois tipos de gráfico
+## 19. Os tipos de gráfico
 
 ### Monitoramento
 
@@ -611,7 +612,47 @@ contrato deve ser aditiva.
 - prévia preferida em `summary.json`;
 - transformação, configuração e renderização separadas.
 
+### Condição do céu
+
+- fonte HTML comum: `src/template/pages/ceu.html`, runtime em `site/assets/js/ceu.js`;
+- Chart.js 3.9.1 declarado em `page.vendorScripts`, não no layout;
+- o plano é o índice de claridade `Kt` contra a fração difusa `Kd = Hd/H` (difusa sobre global);
+- a camada padrão é a **densidade**: histograma 2D de `labmim-ktkd-v1`, desenhado por plugin próprio
+  (`labmimSkyDensity`) porque o Chart.js 3.9.1 não traz controlador de matriz; escala logarítmica por
+  indicação do próprio payload em `density.color_scale_hint`;
+- os pontos horários são sobreposição opcional, coloridos pelas quatro classes de Escobedo, Gomes,
+  Oliveira e Soares (2009), Applied Energy 86(3), 299-309, na nomenclatura em português de Teramoto e
+  Escobedo (2012), RBEAA 16(9), 985-992, cujos limites o payload carrega em `sky_conditions`;
+- modelos: `kind: "curve"` vira linha (Marques Filho et al., 2016, Renewable Energy 91, 64-74, função só
+  de `Kt`); `kind: "band"` vira envelope p10-p90 com mediana (Lemos et al., 2017, Renewable Energy 108,
+  569-580, e o BRL de Ridley, Boland e Lauret, 2010, Renewable Energy 35(2), 478-483), porque dependem
+  de hora solar aparente, altitude solar, `Kt` diário e persistência; a faixa com menos amostras que
+  `min_samples_per_bin` vem com `median` nula e não é desenhada nem atribuída à faixa vizinha;
+- cada modelo traz `rmse`, `mbe`, `mae` e `n` medidos no período, exibidos junto da legenda;
+- ao lado do gráfico, o quadro bruto da câmera all-sky e a máscara de segmentação prevista sobre ele,
+  cujo metadado vem de um segundo arquivo, `labmim-allsky-frame-v1`, com cadência própria.
+
 Confiança: **Confirmado**
+
+Observação:
+O diretório de dados é `dataset.paths.sky` (`site/Ceu/` na UFBA) e chega só com o deploy. Ele traz
+`allsky.jpg` e `mask.png`, de nome fixo e reescritos no lugar — por isso a página desfaz o cache com um
+`?t=` derivado do horário da captura —, mais dois JSON de cadências distintas:
+
+```js
+ktkd.json   // labmim-ktkd-v1: station, period, timescale, sources, filters,
+            // axes, sky_conditions, density{kt_edges,kd_edges,counts,max_count,
+            // color_scale_hint}, models[], points[] (opcional), caveats[]
+frame.json  // labmim-allsky-frame-v1: captured_at, image, mask,
+            // sky_condition{condition,id,name,name_pt}, cloud_fraction
+```
+
+Em `density.counts`, linhas são faixas de Kd e colunas faixas de Kt; o renderizador recusa uma matriz
+cuja altura não case com `kd_edges`, porque transposta ela desenharia espelhada em silêncio. A condição
+do quadro é lida por `sky_condition.condition` (1–4) ou por `.id`, nunca por um inteiro solto: a classe
+interna do exportador é 0-based. Declarar a página sem declarar `dataset.paths.sky` reprova o build,
+como em climatologia (`validateSkyHasData()`); o diretório ainda ausente na árvore é só um aviso, o
+normal em CI.
 
 ---
 

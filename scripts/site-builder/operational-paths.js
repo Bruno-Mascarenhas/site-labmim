@@ -21,10 +21,13 @@ function publicationOperationalPaths(publication, { includeGraphs = true } = {})
     grids,
     climatology,
     monitoring,
+    sky,
     graphs = DEFAULT_GRAPHS_DIRECTORY,
   } = publication.dataset.paths;
   return {
-    directories: [...new Set([values, grids, climatology, monitoring, includeGraphs ? graphs : null].filter(Boolean))],
+    directories: [
+      ...new Set([values, grids, climatology, monitoring, sky, includeGraphs ? graphs : null].filter(Boolean)),
+    ],
     files: new Set([manifest].filter(Boolean)),
   };
 }

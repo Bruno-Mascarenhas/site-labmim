@@ -18,6 +18,10 @@ module.exports = {
     // Observed distributions from `labmim-climatology`; same archive, same
     // deploy-only route.
     climatology: "Climatologia",
+    // All-sky camera frame, the segmentation mask the classifier predicts over it
+    // and the radiation payload behind the Kt × Kd chart. The frames are rewritten
+    // in place under fixed names, so the page cache-busts by query string.
+    sky: "Ceu",
   },
   timeline: {
     // Used only when the manifest does not arrive; mirrors the `index_max` the

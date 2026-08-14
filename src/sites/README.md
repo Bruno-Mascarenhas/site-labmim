@@ -132,6 +132,11 @@ module.exports = {
     // climatologia. Como as saídas do WRF, é dado operacional — fica fora do
     // git e chega pelo deploy. Declarar exige oferecer a página, e vice-versa.
     climatology: "Climatologia",
+    // Opcional: a imagem da câmera all-sky, a máscara de segmentação prevista
+    // sobre ela e o payload do gráfico Kt × Kd da página de condição do céu.
+    // Também é dado operacional, fora do git e entregue no deploy. Declarar
+    // exige oferecer a página, e vice-versa.
+    sky: "Ceu",
   },
   timeline: {
     defaultMaxLayer: 73,
@@ -169,7 +174,7 @@ Sem `observations`, a página `monitoring` renderiza sem cards de estação — 
 
 ### 4. Páginas
 
-O catálogo em `src/template/page-types.js` contém os tipos `home`, `monitoring`, `team`, `climatology`, `forecast` e `energy`. `page()` preenche arquivo, layout e fonte comum quando disponíveis. `home` e `team` exigem conteúdo próprio da publicação.
+O catálogo em `src/template/page-types.js` contém os tipos `home`, `monitoring`, `sky`, `team`, `climatology`, `forecast` e `energy`. `page()` preenche arquivo, layout e fonte comum quando disponíveis. `home` e `team` exigem conteúdo próprio da publicação.
 
 ```js
 "use strict";

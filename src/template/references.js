@@ -92,6 +92,48 @@ const SITE_REFERENCES = Object.freeze({
       "Journal of Applied Meteorology 43(1), 170-181.",
     url: crossrefTitleSearch("The Kain-Fritsch convective parameterization an update"),
   },
+  escobedo: {
+    short: "Escobedo et al., 2009",
+    citation:
+      "Escobedo, J. F., Gomes, E. N., Oliveira, A. P. & Soares, J. (2009). Modeling hourly and daily fractions " +
+      "of UV, PAR and NIR to global solar radiation under various sky conditions at Botucatu, Brazil. " +
+      "Applied Energy 86(3), 299-309. Define as quatro condições de céu por faixas do índice de claridade.",
+    url: "https://doi.org/10.1016/j.apenergy.2008.04.013",
+  },
+  teramoto: {
+    short: "Teramoto e Escobedo, 2012",
+    citation:
+      "Teramoto, E. T. & Escobedo, J. F. (2012). Análise da frequência anual das condições de céu em Botucatu, " +
+      "São Paulo. Revista Brasileira de Engenharia Agrícola e Ambiental 16(9), 985-992. Fonte da nomenclatura " +
+      "em português das quatro condições de céu.",
+    url: "https://doi.org/10.1590/S1415-43662012000900009",
+  },
+  marquesfilho: {
+    short: "Marques Filho et al., 2016",
+    citation:
+      "Marques Filho, E. P., Oliveira, A. P., Vita, W. A., Mesquita, F. L. L., Codato, G., Escobedo, J. F., " +
+      "Cassol, M. & França, J. R. A. (2016). Global, diffuse and direct solar radiation at the surface in the " +
+      "city of Rio de Janeiro: observational characterization and empirical modeling. Renewable Energy 91, 64-74. " +
+      "A sigmoide ajustada a médias horárias no Rio de Janeiro, função apenas do índice de claridade.",
+    url: "https://doi.org/10.1016/j.renene.2016.01.040",
+  },
+  lemos: {
+    short: "Lemos et al., 2017",
+    citation:
+      "Lemos, L. F. L., Starke, A. R., Boland, J., Cardemil, J. M., Machado, R. D. & Colle, S. (2017). " +
+      "Assessment of solar radiation components in Brazil using the BRL model. Renewable Energy 108, 569-580. " +
+      "O reajuste brasileiro do modelo BRL sobre nove estações do SONDA/INPE; a página usa os coeficientes " +
+      "horários da Tabela 4.",
+    url: "https://doi.org/10.1016/j.renene.2017.02.077",
+  },
+  ridley: {
+    short: "Ridley, Boland e Lauret, 2010",
+    citation:
+      "Ridley, B., Boland, J. & Lauret, P. (2010). Modelling of diffuse solar fraction with multiple predictors. " +
+      "Renewable Energy 35(2), 478-483. O modelo BRL original: logística no índice de claridade horário, hora " +
+      "solar aparente, elevação solar, índice de claridade diário e persistência.",
+    url: "https://doi.org/10.1016/j.renene.2009.07.018",
+  },
   codata2018: {
     short: "CODATA 2018",
     citation:

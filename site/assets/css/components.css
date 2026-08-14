@@ -987,3 +987,254 @@
     height: 260px;
   }
 }
+
+/* Sky condition borrows the climatology's .clima-panel, .clima-segmented-btn
+   and .clima-empty; only the frames and the chips are declared here. The class
+   and model colours come from assets/js/ceu.js at runtime. */
+.sky-frames {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.sky-frame {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 1rem 1rem 1.1rem;
+  margin: 0;
+  border-radius: 12px;
+}
+
+/* Holds the layout still while the frames load; ceu.js replaces the square with
+   the frame's own ratio so the stacked mask registers with it. */
+.sky-frame-media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.sky-frame-image {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sky-frame-mask {
+  transition: opacity 0.15s ease;
+}
+
+.sky-frame-missing {
+  grid-area: 1 / 1;
+  padding: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.sky-frame-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.75rem;
+}
+
+.sky-frame-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sky-frame-note {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.sky-panel-title {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.sky-guide-open {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: var(--brand-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.sky-guide-open:hover {
+  background: rgba(var(--brand-secondary-rgb), 0.12);
+}
+
+.sky-guide-open:focus-visible {
+  outline: 3px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* `color` is explicit because the UA sheet gives <dialog> CanvasText, which
+   ignores the theme. */
+.sky-guide {
+  width: min(92vw, 580px);
+  max-height: 84vh;
+  padding: 1.1rem 1.4rem 1.4rem;
+  overflow-y: auto;
+  color: var(--text-primary);
+  border-radius: 12px;
+}
+
+.sky-guide::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.sky-guide-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.sky-guide-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.sky-guide-list {
+  margin: 0;
+}
+
+.sky-guide-list dt {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sky-guide-list dt:first-of-type {
+  margin-top: 0;
+}
+
+.sky-guide-list dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.sky-guide-condition {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-top: 0.35rem;
+}
+
+/* Kt and Kd both run 0-1, so a panel-wide box would stretch the density cells
+   into stripes and misreport the shape of the cloud. */
+.sky-chart {
+  height: 460px;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+/* The intrinsic height is the thumb's, ~16px, under the 24px minimum for a
+   touch target; the track stays thin and the extra height is hit area. */
+.sky-range {
+  width: 12rem;
+  max-width: 100%;
+  height: 1.75rem;
+  accent-color: var(--brand-secondary);
+}
+
+.sky-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  list-style: none;
+}
+
+.sky-legend-item {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+}
+
+.sky-legend-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sky-legend-range {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* The active chip paints --brand-secondary, which on the UFBA palette is the
+   exact hex of the second class: without a ring the swatch dissolves into the
+   button. It also lifts the warm class to the 3:1 minimum over --bg-secondary. */
+.sky-swatch {
+  flex: 0 0 auto;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 65%);
+  outline: 1px solid rgb(0 0 0 / 35%);
+}
+
+.sky-swatch-curve {
+  height: 0.25rem;
+  border-radius: 2px;
+}
+
+.sky-class-btn {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.sky-actions {
+  flex-direction: row;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+@media (width <= 768px) {
+  .sky-frames {
+    grid-template-columns: 1fr;
+  }
+
+  .sky-legend {
+    justify-content: flex-start;
+  }
+
+  .sky-chart {
+    height: 340px;
+  }
+}

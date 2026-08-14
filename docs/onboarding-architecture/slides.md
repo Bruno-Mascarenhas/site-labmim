@@ -578,7 +578,7 @@ Componha tudo no pequeno `site.js`.
 </div>
 
 <!--
-O catálogo `page-types.js` traz os tipos home, monitoring, team, climatology, forecast e energy. Ele
+O catálogo `page-types.js` traz os tipos home, monitoring, sky, team, climatology, forecast e energy. Ele
 preenche arquivo, layout, fonte comum, navegação e estilos padrão quando cabível.
 
 Home e equipe exigem fonte própria da publicação. Os demais tipos já apontam para conteúdo comum, mas SEO
@@ -940,6 +940,10 @@ de estação. Já as séries do WebGIS são interativas e usam os artefatos WRF 
 O manifest anuncia versão, disponibilidade e formatos consolidados. Se `series.bin` estiver ausente, o
 cliente volta à coleta hora a hora; se a grade compacta não existir, cai no GeoJSON legado. Essa política
 permite publicar frontend e dados separadamente.
+
+A página de condição do céu, hoje só na UFBA, segue a mesma regra: os dois quadros de nome fixo — o bruto
+da câmera all-sky e a máscara de segmentação prevista sobre ele — e o `ceu.json` da dispersão Kt × Kd
+chegam apenas com o deploy, em `site/Ceu/`.
 
 Um bundle em `dist/<id>` não inclui esses dados. Antes do deploy, associe a rodada e os gráficos corretos
 da instituição aos caminhos declarados no dataset.

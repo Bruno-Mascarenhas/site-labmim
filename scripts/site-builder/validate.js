@@ -662,6 +662,15 @@ function validateClimatologyHasData(errors, publication) {
   }
 }
 
+function validateSkyHasData(errors, publication) {
+  if (!Array.isArray(publication.pages)) return;
+  const hasSky = publication.pages.some((page) => page && (page.id === "sky" || page.file === "ceu.html"));
+  if (!hasSky) return;
+  if (!isNonEmptyString(publication.dataset?.paths?.sky)) {
+    errors.push("dataset.paths.sky: the sky-condition page requires a data directory; declare it or drop the page");
+  }
+}
+
 // Optional WRF namelist block, layered by the renderer over DEFAULT_MODEL: an unknown key is inert
 // — the page keeps publishing the default scheme and crediting its paper — hence the closed key
 // list. An empty string publishes an empty parenthesis where the scheme belongs, and an explicit
@@ -724,8 +733,16 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
       });
     }
 
+    // Optional: the all-sky frames, the predicted segmentation mask and the radiation
+    // payload of the Kt × Kd chart. Same non-public archive, same deploy-only route.
+    if (dataset.paths.sky !== undefined && dataset.paths.sky !== null) {
+      validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.sky, "dataset.paths.sky", {
+        directory: true,
+      });
+    }
+
     const seen = new Map();
-    for (const key of ["manifest", "values", "grids", "graphs", "climatology", "monitoring"]) {
+    for (const key of ["manifest", "values", "grids", "graphs", "climatology", "monitoring", "sky"]) {
       const value = dataset.paths[key];
       if (!isNonEmptyString(value)) continue;
       const normalized = path.posix.normalize(value);
@@ -1219,6 +1236,7 @@ function validatePublication({ root, templateRoot, siteDir, publication } = {}) 
   validateDataset(errors, warnings, publication.dataset, siteDirectory, computedBoundaryBounds);
   validateMonitoringHasData(errors, publication, templateDirectory, publicationDirectory);
   validateClimatologyHasData(errors, publication);
+  validateSkyHasData(errors, publication);
   const pageOutputs = validatePages(errors, publication.pages, templateDirectory, publicationDirectory, siteDirectory);
   validateRedirects(errors, publication.redirects, pageOutputs);
 
