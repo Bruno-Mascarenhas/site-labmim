@@ -180,22 +180,21 @@
     });
   }
 
-  // "Marques Filho et al. (2016)" -> "Marques Filho"; "… — BRL" -> "BRL".
+  // "Marques Filho et al. (2016)" -> "Marques Filho"; "BRL — Ridley et al. (2010)" -> "Ridley". The dash separates
+  // a family name from a citation, and the citation is the half that distinguishes — two of the three models are
+  // BRL fits, so "BRL" alone would name neither. Both cuts apply, in order, whichever side of the dash survives:
+  // otherwise one chip carries a year the others do not and the row stops reading as one set.
   function shortModelLabel(label) {
     const text = String(label || "");
-    if (text.includes(" — ")) return text.split(" — ").pop().trim();
-    return text.split(/\s+et al\.|\s+\(/)[0].trim() || text;
+    const segment = text.includes(" — ") ? text.split(" — ").pop().trim() : text;
+    return segment.split(/\s+et al\.|\s+\(/)[0].trim() || segment;
   }
 
-  // `label` is not part of the contract — the producer publishes the full citation in `reference` — and a toggle
-  // with no text on it is unusable, so the name is derived instead of left blank. A citation opens with the first
-  // author's surname, which is what runs up to the first comma; the id is the last resort, ugly but legible.
+  // A toggle with no text on it is unusable, so a model that publishes no `label` still gets a name — but it gets
+  // it from the id, never from `reference`. Cutting the citation at its first comma would read as a nicer name and
+  // would turn editing the bibliography into silently relabelling the figure, a failure far from its cause.
   function modelDisplayName(model) {
     if (model.label) return shortModelLabel(model.label);
-    const surname = String(model.reference || "")
-      .split(",")[0]
-      .trim();
-    if (surname && surname.length <= 40) return shortModelLabel(surname);
     return String(model.id || "").replace(/_/g, " ");
   }
 
