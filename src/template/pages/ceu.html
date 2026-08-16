@@ -1,7 +1,8 @@
 <!-- Shared page: any publication declaring `dataset.paths.sky` enables it.
  Everything below is filled at runtime by assets/js/ceu.js — the two frames the
- pipeline rewrites in place in that directory and the `labmim-sky-v1` payload
- behind the Kt × Kd chart. Nothing here is specific to LabMiM. -->
+ pipeline rewrites in place in that directory, `labmim-ktkd-v1` behind the Kt × Kd
+ chart and `labmim-kt-cumulative-v1` behind the cumulative one. Nothing here is
+ specific to LabMiM. -->
 <div class="modern-section" id="ceu" data-sky-base="{{SKY_BASE}}">
   <div class="modern-header mb-4">
     <h2><i class="fas fa-cloud me-2"></i>Condição do Céu</h2>
@@ -175,6 +176,39 @@
       <p class="clima-status" id="ceuStatus" aria-live="polite"></p>
 
       <ul class="clima-caveats" id="ceuCaveats" hidden></ul>
+    </div>
+
+    <!-- Hidden until `labmim-kt-cumulative-v1` is published: the two panels have different cadences and either
+     may be absent, the same contract the frames and the Kt × Kd chart already follow. -->
+    <div class="theme-surface clima-panel" id="ceuAcumuladaPainel" hidden>
+      <div class="clima-panel-head">
+        <h3 class="clima-panel-title">Quanto tempo o céu passa em cada condição</h3>
+        <p class="clima-legend" id="ceuAcumuladaNota"></p>
+      </div>
+
+      <div class="clima-controls">
+        <div class="clima-control">
+          <span class="clima-control-label" id="ceuAcumuladaRecorteLabel">Recorte</span>
+          <div
+            class="clima-segmented"
+            id="ceuAcumuladaRecorte"
+            role="group"
+            aria-labelledby="ceuAcumuladaRecorteLabel"
+          ></div>
+        </div>
+      </div>
+
+      <div class="clima-stats" id="ceuAcumuladaClasses"></div>
+
+      <div class="chart-container clima-chart sky-chart" id="ceuAcumuladaChartWrap">
+        <canvas
+          id="ceuAcumuladaCanvas"
+          role="img"
+          aria-label="Distribuição acumulada do índice de claridade"
+        ></canvas>
+      </div>
+
+      <p class="clima-status" id="ceuAcumuladaStatus" aria-live="polite"></p>
     </div>
   </div>
 

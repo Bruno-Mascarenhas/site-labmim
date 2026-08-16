@@ -661,6 +661,39 @@ header.maps-header {
   box-shadow: 0 4px 12px rgba(var(--map-accent-rgb), 0.3);
 }
 
+/* The box is pinned to a fixed `top` and grows downward, while the control bar is pinned to the bottom: below
+   roughly 753px of viewport the two meet, and the bar — one step higher on z-index — then swallows every click
+   aimed at a domain but the first. A 1366x768 laptop leaves about 620px once the browser's own chrome is taken
+   out, so this is the ordinary case on a notebook, not an edge of the range. Anchoring the box above the bar
+   holds the gap at any height, and the row layout keeps it short enough to clear the colorbar above — the same
+   arrangement the narrow-width rules already switch to. */
+@media (width > 900px) and (height <= 820px) {
+  .domain-indicators-container {
+    top: auto;
+    bottom: 92px;
+  }
+
+  .domain-buttons-group {
+    flex-flow: row wrap;
+  }
+
+  /* In a row the box is far wider than the 190px left rail the floating controls clear, so it would reach under
+     them exactly as the control bar reached under it. Above the bottom edge everything therefore stacks instead
+     of sharing a line: bar, domains, then these. */
+  .segmented-selector,
+  .wind-layer-toggle {
+    bottom: 196px;
+  }
+
+  /* Freed from its fixed `top`, the box now rises with the viewport and meets the colorbar from below on the
+     shortest windows. The colorbar is the one that yields: it degrades to a scroll, while a domain button that
+     cannot be reached has no degraded form at all. */
+  .colorbar-container {
+    max-height: calc(100vh - 360px);
+    overflow-y: auto;
+  }
+}
+
 @media (width <= 1024px) {
   .sidebar {
     max-width: 95vw;
