@@ -278,6 +278,17 @@ header.maps-header {
   gap: 12px;
 }
 
+/* Leaflet parks its attribution in the map's bottom-right corner, which is exactly where
+   the 80px control bar sits, so "Leaflet | © OpenStreetMap" was painted over at every
+   desktop width — and OpenStreetMap's terms ask for it to be legible, not merely present
+   in the markup. Lifted clear of the bar. Below 900px the bar leaves the map and joins
+   the static stack, so the corner is free again and this offset must not apply. */
+@media (width > 900px) {
+  .leaflet-bottom.leaflet-right {
+    bottom: 84px;
+  }
+}
+
 .slider-wrapper label {
   font-weight: 500;
   font-size: 0.9rem;
