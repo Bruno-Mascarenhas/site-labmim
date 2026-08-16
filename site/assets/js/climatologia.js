@@ -214,7 +214,16 @@
           legend: {
             display: true,
             position: "top",
-            labels: { color: theme.legendText, usePointStyle: true, boxWidth: 10 },
+            labels: {
+              color: theme.legendText,
+              usePointStyle: true,
+              boxWidth: 10,
+              // The curve carries `order: 1` so it paints ON TOP of the bars, and Chart.js
+              // reads that same field for the legend — which listed the fitted model ahead
+              // of the measurement it is fitted to. Draw order is a depth question; legend
+              // order is a "what is this chart about" question, and the answer is the bars.
+              sort: (a, b) => (a.datasetIndex === b.datasetIndex ? 0 : a.datasetIndex - b.datasetIndex),
+            },
           },
           tooltip: {
             backgroundColor: theme.tooltipBg,

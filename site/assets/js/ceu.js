@@ -44,9 +44,31 @@
     iv: "Claro",
   };
 
+  /**
+   * Validated over ALL pairs against the card surface — #f8f9fa light, #2d2d2d dark —
+   * because on a scatter any two classes can end up touching.
+   *
+   * Condition I was a near-grey, which was the obvious choice for "overcast" and the
+   * wrong one twice over: at chroma 0.04 it read as grey rather than as a colour, and
+   * against the blue of condition II it sat at ΔE 11 under NORMAL vision — the two
+   * hardest classes to tell apart were the two the eye could not separate. Grey cannot
+   * be rescued here: adding enough chroma to clear the floor turns it into a muted
+   * blue, which is condition II. It gives up the metaphor and takes the separation.
+   *
+   * Colour-blind separation lands in the 6-8 band, which is legal only alongside a
+   * second encoding — and there is one that is not decorative: a point's class is
+   * fixed by its position against the dashed Kt boundaries, so the hue confirms the
+   * reading rather than carrying it.
+   *
+   * What this costs: condition I now sits ΔE 11.7 from the Lemos band, the one model
+   * drawn in crimson. It was accepted rather than solved — every hue that clears the
+   * model palette fails against the other three conditions, and the conditions are what
+   * the point cloud is read by. The residue is between a POINT and a LINE, which is a
+   * difference the eye already uses, and the models have their own toggles.
+   */
   const CLASS_PALETTE = {
-    light: { i: "#64748b", ii: "#3761b4", iii: "#1a7f5a", iv: "#d9741c" },
-    dark: { i: "#94a3b8", ii: "#5589e6", iii: "#31a37a", iv: "#cb8030" },
+    light: { i: "#a85a93", ii: "#3761b4", iii: "#1a7f5a", iv: "#d9741c" },
+    dark: { i: "#a8629a", ii: "#5589e6", iii: "#31a37a", iv: "#cb8030" },
   };
 
   // Keyed by the published model id. `ridley_brl_2010` is the one the exporter emits; `ridley_2010` is kept because
