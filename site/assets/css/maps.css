@@ -19,10 +19,6 @@
    controls join the static stack and the offset stops applying. */
 :root {
   --map-left-rail-clear: 190px;
-
-  /* The floating toggles stack from this line up, one row apart. Both the wind vectors
-     and the isobars are offered over the wind fields, so they are on screen together and
-     must not be given the same corner — declared once so the two never drift. */
   --map-toggle-row: 100px;
   --map-toggle-step: 56px;
 }
@@ -542,9 +538,6 @@ header.maps-header {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-
-  /* Same defence as the line: the halo is painted behind the glyphs, so the number stays
-     legible over any field without an opaque box hiding the data under it. */
   paint-order: stroke fill;
   text-shadow:
     0 0 3px rgba(255, 255, 255, 0.95),

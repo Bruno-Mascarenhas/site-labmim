@@ -68,6 +68,10 @@
     layerLabels: new Map(),
     notices: new Map(),
     downloads: new Map(),
+    zooms: new Map(),
+    plots: new Map(),
+    empties: new Map(),
+    caveats: new Map(),
     // `redrawAll` works from this recorded intent, not from `charts`: a chart leaves
     // `charts` whenever no selected layer has data, and the observer only fires again
     // when the card crosses the margin it watches.
@@ -720,21 +724,30 @@
       );
     }
 
+    const barren = !layersWithData(chart).length;
+    const plot = state.plots.get(chart.id);
+    if (plot) plot.hidden = barren;
+    const empty = state.empties.get(chart.id);
+    if (empty) empty.hidden = !barren;
+
+    const caveats = state.caveats.get(chart.id);
+    if (caveats) caveats.hidden = barren;
+
+    const zoom = state.zooms.get(chart.id);
+    if (zoom) {
+      zoom.disabled = barren;
+      zoom.setAttribute(
+        "aria-label",
+        barren ? `Sem dados de ${chart.title} nesta janela para ampliar` : `Ampliar o gráfico de ${chart.title}`
+      );
+    }
+
     const notice = state.notices.get(chart.id);
     if (notice) {
-      notice.hidden = drawnCount > 0;
-      // Three reasons for an empty canvas, and the reader needs to know which. The
-      // middle one is what a downed sensor produces: the exporter omits the series
-      // entirely, so blaming the reader's layer choice would name an absence no
-      // toggle can undo.
-      if (!state.layers.size) {
-        notice.textContent = "Nenhuma camada selecionada — ative pelo menos uma acima.";
-      } else if (!layersWithData(chart).length) {
-        // The title stays out: lowercasing it would ruin the acronyms ("Radiação PAR").
-        notice.textContent = "Sem registro nesta janela — nem a estação nem o modelo publicaram dados desta variável.";
-      } else {
-        notice.textContent = "Nenhuma das camadas selecionadas tem dados para esta variável.";
-      }
+      notice.hidden = drawnCount > 0 || barren;
+      notice.textContent = state.layers.size
+        ? "Nenhuma das camadas selecionadas tem dados para esta variável."
+        : "Nenhuma camada selecionada — ative pelo menos uma acima.";
     }
   }
 
@@ -812,6 +825,7 @@
     zoom.type = "button";
     zoom.setAttribute("aria-label", `Ampliar o gráfico de ${chart.title}`);
     zoom.addEventListener("click", () => openZoom(chart));
+    state.zooms.set(chart.id, zoom);
     actions.appendChild(zoom);
 
     const download = node("button", "btn btn-sm btn-outline-lab", "CSV");
@@ -829,13 +843,19 @@
     wrap.appendChild(canvas);
     card.appendChild(wrap);
     state.canvases.set(chart.id, canvas);
+    state.plots.set(chart.id, wrap);
+
+    const empty = node("div", "monitor-empty");
+    empty.hidden = true;
+    empty.appendChild(node("p", "monitor-empty-title", "Sem registro nesta janela"));
+    empty.appendChild(node("p", "monitor-empty-detail", "Nem a estação nem o modelo publicaram dados desta variável."));
+    card.appendChild(empty);
+    state.empties.set(chart.id, empty);
 
     const notice = node("p", "monitor-pending");
     notice.hidden = true;
     card.appendChild(notice);
     state.notices.set(chart.id, notice);
-
-    syncCardText(chart, drawnLayers(chart).length);
 
     // Naming what the model does not deliver yet: otherwise a missing layer is
     // indistinguishable from a loading error.
@@ -855,7 +875,10 @@
       const list = node("ul", "clima-caveats");
       for (const caveat of chart.caveats) list.appendChild(node("li", null, caveat));
       card.appendChild(list);
+      state.caveats.set(chart.id, list);
     }
+
+    syncCardText(chart, drawnLayers(chart).length);
 
     return card;
   }

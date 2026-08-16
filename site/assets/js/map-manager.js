@@ -288,9 +288,6 @@ class MeteoMapManager {
       manifest?.availability && typeof manifest.availability === "object" ? manifest.availability : null;
     this.timeline.features = manifest?.features && typeof manifest.features === "object" ? manifest.features : null;
 
-    // The wind toggle answers from a variable name and can be decided before any fetch;
-    // this one is only answerable once the manifest says which fields it covers, so it is
-    // re-decided here rather than left at the state it took during setup.
     this.updateIsobarToggleVisibility();
 
     // start_local is the local datetime of FILE INDEX 0, so it always pairs with
@@ -1547,12 +1544,6 @@ class MeteoMapManager {
     }
   }
 
-  /**
-   * Which fields the isobars may be drawn over is the PIPELINE's call, published in
-   * `features.isobar_overlay.draw_over`, and is not mirrored here: the pressure pattern
-   * says nothing about a field governed by land use and the diurnal cycle, and which
-   * fields those are is a question the producer answers.
-   */
   isobarOverlay() {
     const feature = this.timeline.features?.isobar_overlay;
     return feature && Array.isArray(feature.draw_over) ? feature : null;
@@ -1591,8 +1582,6 @@ class MeteoMapManager {
     const domain = this.state.domain;
     const overlay = this.isobarOverlay();
     const path = this.valuesJsonPath(domain, overlay.variable || "ISOBARS", this.state.index);
-    // Same guard the wind layer uses: a late response for a step the user has left must
-    // not paint its contours over the one now on screen.
     const requestKey = `${this.dataVersion || "v0"}:${domain}:${this.state.index}`;
     this._isobarRequestKey = requestKey;
 
@@ -1616,15 +1605,7 @@ class MeteoMapManager {
     for (const band of bands) {
       for (const path of band.paths || []) {
         if (!Array.isArray(path) || path.length < 2) continue;
-        // Points arrive [lon, lat]; Leaflet takes [lat, lon].
         const line = path.map(([lon, lat]) => [lat, lon]);
-        // Drawn twice: a pale casing under a dark hairline, so one ink reads over every
-        // palette these may sit on — the crimson of wind, the violet of heavy rain, the
-        // deep blue of cold. A single stroke disappears into one of them whichever it is.
-        //
-        // Styled through Leaflet options rather than a class: this map renders paths on
-        // CANVAS, where the grid's thousands of cells would sink an SVG layer, and a
-        // canvas path has no DOM node for a stylesheet to reach.
         L.polyline(line, { ...ISOBAR_CASING_STYLE, renderer: this._canvasRenderer }).addTo(layer);
         L.polyline(line, { ...ISOBAR_LINE_STYLE, renderer: this._canvasRenderer }).addTo(layer);
         layer.addLayer(this._isobarLabel(line, band.level));
@@ -1635,14 +1616,11 @@ class MeteoMapManager {
 
     const interval = data?.metadata?.interval;
     if (this.ui.isobarNote && Number.isFinite(interval)) {
-      // Read, never inferred: the interval differs per domain, and a level whose contour
-      // came out empty is omitted, so consecutive published levels can sit two apart.
       const step = interval.toLocaleString("pt-BR");
       this.ui.isobarNote.textContent = `Isóbaras a cada ${step} ${data.metadata.unit || "hPa"}`;
     }
   }
 
-  /** Labels the contour at its own midpoint, which for a closed ring keeps it off the ends. */
   _isobarLabel(line, level) {
     const at = line[Math.floor(line.length / 2)];
     return L.marker(at, {
@@ -1650,8 +1628,6 @@ class MeteoMapManager {
       keyboard: false,
       icon: L.divIcon({
         className: "isobar-label",
-        // Comma decimal like the interval note beside it, but ungrouped: the milibar reads
-        // as one number on a chart, never as "1.014,5".
         html: level.toLocaleString("pt-BR", { useGrouping: false }),
         iconSize: null,
       }),
@@ -1809,7 +1785,6 @@ class MeteoMapManager {
           setTimeout(() => this.renderWindVectors(), 100);
         }
 
-        // Contours belong to the step being painted, so they are refetched with it.
         if (this.ui.isobarCheckbox?.checked) this.renderIsobars();
 
         this._prefetchUpcoming(index, type);
