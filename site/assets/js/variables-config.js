@@ -47,21 +47,11 @@ function getAccumulationHours(variableType, defaultHours = 1) {
 }
 
 /**
- * Cold blue through a mild yellow to hot red — the reading a thermometer already
- * trains, and the one this map should not make anyone relearn.
+ * ColorBrewer RdYlBu 11-class, reversed so blue is cold. Replaces `jet`, whose lightness
+ * rises and falls twice and so draws bands the field does not have.
  *
- * Replaces the `jet` ramp that was here. jet runs blue-cyan-green-yellow-red and its
- * lightness rises and falls twice along the way, so the eye reads the bright cyan and
- * yellow bands as edges in the field that the data does not have — the reason it left
- * matplotlib's defaults in 1.5. The temperature metaphor it was chosen for is kept;
- * the false structure is not.
- *
- * RdBu was tried first and washed out: its neutral is grey-white and sits exactly
- * where this region's temperatures live, so half the map went colourless. RdYlBu holds
- * a saturated yellow through the middle of the range instead, which is where almost
- * every published value falls.
- *
- * ColorBrewer RdYlBu 11-class, reversed so blue is the cold end.
+ * NOT RdBu: its grey-white neutral falls exactly on this region's usual temperatures and
+ * washes half the map out. RdYlBu keeps a saturated yellow through that range.
  */
 const THERMAL_COLORS = [
   "#313695",
@@ -78,14 +68,10 @@ const THERMAL_COLORS = [
 ];
 
 /**
- * A signed flux needs its neutral colour ON zero, and zero rarely sits at the middle
- * of the published scale: sensible heat runs -200..600, so a symmetric ramp would put
- * the neutral at 200 W/m² and paint a real downward flux in the same tone as a real
- * upward one. The colour bar spaces its stops evenly over the scale, so the stops are
+ * A signed flux needs its neutral ON zero, and zero rarely sits mid-scale: sensible heat
+ * runs -200..600, where a symmetric ramp would neutralise 200 W/m² and paint a real
+ * downward flux like a real upward one. The bar spaces stops evenly, so they are
  * generated to land the neutral where zero actually falls.
- *
- * Below zero the ramp cools, above it warms, and the arms keep their own gradients —
- * an arm that covers less of the scale gets fewer stops, not compressed colour.
  */
 function mixHex(from, to, t) {
   const channel = (offset) => {
@@ -110,11 +96,9 @@ const FLUX_NEGATIVE_RAMP = ["#2166ac", "#4393c3", "#92c5de", "#d1e5f0", "#f7f7f7
 const FLUX_POSITIVE_RAMP = ["#f7f7f7", "#fddbc7", "#f4a582", "#d6604d", "#b2182b", "#67001f"];
 
 /**
- * The stop count is chosen, not fixed: the bar interpolates between evenly spaced
- * stops, so unless one stop lands exactly on zero the neutral gets blended with a
- * neighbour and the sign change stops being a visible line. Among the counts that put
- * a stop on zero this takes the smallest, and falls back to the nearest fit when the
- * ratio has no clean one.
+ * Stops are interpolated, so unless one lands exactly on zero the neutral is blended
+ * away and the sign change stops being visible. Smallest count that lands it; nearest
+ * fit when the ratio has none.
  */
 function stepsLandingOnZero(zeroFraction, minSteps = 11, maxSteps = 41) {
   let best = minSteps;
@@ -146,38 +130,26 @@ function fluxColorsAroundZero(scaleMin, scaleMax) {
   return stops;
 }
 
-// Precipitation reads as water, not as heat: dry is bare, and the deeper the blue the
-// heavier the rain. The ramp it replaces was the temperature one, which painted the
-// heaviest rainfall red — the colour every other layer on this map uses for hot.
-//
-// The top of the ramp turns violet, which is the convention rainfall charts already use
-// for the extreme end, and which is what keeps this from being one blue getting darker:
-// colour travel 21 → 30 of the same total.
+// Rain reads as water: it replaces the temperature ramp, which painted the heaviest
+// rainfall in the red every other layer here uses for hot. Violet at the top is the
+// rainfall convention, and is what keeps this from being one blue getting darker.
 const RAIN_COLORS = ["#f7fbff", "#d9eef6", "#9ed8e8", "#5cb8dd", "#2e8fc9", "#1666b3", "#144a9c", "#3b2f8f", "#4a1078"];
 
 /**
- * Two rules hold for every ramp below, and both are constraints of THIS map rather
- * than preferences.
+ * Two constraints hold for every ramp below.
  *
- * LIGHTNESS IS MONOTONIC. It is what separates these from a rainbow: the map still
- * reads in greyscale, in print and under colour-blindness, because the value never
- * depends on hue alone. `jet`, which several of these replace, fails it twice over.
+ * LIGHTNESS IS MONOTONIC — what separates these from a rainbow, and what keeps the map
+ * readable in greyscale and under colour-blindness.
  *
- * THE LOW END IS LIGHT. The field is painted at `fillOpacity` 0.65 over the basemap, so
- * a dark low end turns large quiet areas into grey haze and hides the very variation
- * the ramp exists to show. viridis was tried for wind and failed for exactly that.
- *
- * The single-hue blues that four of these replace spent 78-81% of their perceptual
- * travel on lightness alone — one blue getting darker — so neighbouring values
- * collapsed into the same apparent colour. Colour travel in OKLab, before → after:
- * moisture 15.9 → 38.2, wind 15.0 → 35.9, emissivity 15.9 → 29.2, Kt 41.2 → 66.7.
+ * THE LOW END IS LIGHT — the field paints at `fillOpacity` 0.65 over the basemap, so a
+ * dark low end turns quiet areas into grey haze. viridis was tried for wind and failed
+ * on exactly this.
  *
  * ColorBrewer 2.0 9-class (Brewer & Harrower): YlGnBu, YlOrRd, BuPu, YlOrBr, PuBuGn,
- * RdYlBu, RdBu, Blues. plasma: Smith & van der Walt (2015), matplotlib.
+ * RdYlBu, Blues. plasma: Smith & van der Walt (2015), matplotlib.
  */
 
-// Specific and relative humidity share it because they measure the same thing: yellow
-// where the air is dry, deep blue where it is saturated.
+// Shared by specific and relative humidity: they measure the same thing.
 const MOISTURE_COLORS = [
   "#ffffd9",
   "#edf8b1",
@@ -190,13 +162,10 @@ const MOISTURE_COLORS = [
   "#081d58",
 ];
 
-// Calm stays pale and lets the basemap through; strong wind burns in. Warm-at-high is
-// also the convention wind charts already use, so the reading needs no relearning.
+// Calm stays pale and lets the basemap through; warm-at-high is the wind convention.
 const WIND_COLORS = ["#ffffcc", "#ffeda0", "#fed976", "#feb24c", "#fd8d3c", "#fc4e2a", "#e31a1c", "#bd0026", "#800026"];
 
-// Kept off the warm and the green-blue ranges the neighbouring fields already use: a
-// sky that emits more is the anomaly worth spotting, and violet is what no other layer
-// on this map claims.
+// Violet because no neighbouring field claims it; higher emission is the anomaly.
 const EMISSIVITY_COLORS = [
   "#f7fcfd",
   "#e0ecf4",
@@ -209,8 +178,7 @@ const EMISSIVITY_COLORS = [
   "#4d004b",
 ];
 
-// Overcast at the dark end, full sun at the bright end — the ramp reads as the sky
-// it describes, and travels 66.7 of colour against the 41.2 of the ramp it replaces.
+// Overcast dark, full sun bright — the ramp reads as the sky it describes.
 const CLEARNESS_COLORS = [
   "#0d0887",
   "#4c02a1",
@@ -222,12 +190,8 @@ const CLEARNESS_COLORS = [
   "#fdc328",
   "#f0f921",
 ];
-/**
- * Shortwave family — incoming, reflected and net solar. Sunlight is the thing being
- * measured, so the ramp goes from bare white to the deep red of a full noon field, and
- * the four shortwave layers share it: comparing incoming against reflected only works
- * if the same value wears the same colour in both.
- */
+// Shared by the four shortwave layers: comparing incoming against reflected only works
+// if the same value wears the same colour in both.
 const SHORTWAVE_COLORS = [
   "#ffffff",
   "#fff0a0",
@@ -241,13 +205,8 @@ const SHORTWAVE_COLORS = [
   "#691009",
 ];
 
-/**
- * Longwave family — thermal emission, not sunlight, and given its own ramp so the two
- * are never confused at a glance. Warm like the shortwave one because the quantity is
- * still radiant energy, but it runs to brown rather than to red.
- *
- * ColorBrewer YlOrBr 9-class.
- */
+// ColorBrewer YlOrBr 9-class. Its own ramp so thermal emission is never read as
+// sunlight at a glance: warm like shortwave, but running to brown rather than red.
 const LONGWAVE_COLORS = [
   "#ffffe5",
   "#fff7bc",
@@ -261,14 +220,9 @@ const LONGWAVE_COLORS = [
 ];
 
 /**
- * Surface pressure carries no physical midpoint: the field is PSFC over the terrain and
- * is not reduced to sea level, so "above" and "below" a centre would mean altitude, not
- * weather. A diverging ramp would invent that centre — this one is sequential.
- *
- * Cool and green so it never competes with the thermal reading: on this map blue-to-red
- * already means cold-to-hot, and pressure is not a temperature.
- *
- * ColorBrewer PuBuGn 9-class.
+ * ColorBrewer PuBuGn 9-class, sequential. NOT diverging: the field is PSFC over terrain,
+ * unreduced to sea level, so a midpoint would separate altitudes rather than weather.
+ * Cool so it never competes with the thermal reading, where blue-to-red means cold-hot.
  */
 const PRESSURE_COLORS = [
   "#fff7fb",

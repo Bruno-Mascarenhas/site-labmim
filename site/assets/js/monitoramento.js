@@ -21,12 +21,9 @@
 "use strict";
 
 (function () {
-  // Validated against the card's real surface — #f8f9fa light, #2d2d2d dark — over ALL
-  // pairs, not just neighbours: any two of these series can end up side by side. Both
-  // modes clear the lightness band, the chroma floor, colour-blind separation and 3:1
-  // contrast. The orange is a step darker than the one the PNGs carried, which sat at
-  // 2.86:1 on this surface and missed that floor; the same value is used on the
-  // climatology and sky pages so the site speaks with one orange.
+  // Validated over ALL pairs against the card surface (#f8f9fa light, #2d2d2d dark).
+  // The orange is a step darker than the PNGs carried: theirs sat at 2.86:1 here, under
+  // the 3:1 floor. Climatology and sky use the same value.
   //
   // Two encodings, and both match the `labmim-site-graphs` PNGs so the two products
   // read alike. Single-quantity chart: hue is free, BLUE is measured and ORANGE the
@@ -417,12 +414,9 @@
   };
 
   /**
-   * A bearing axis is read as a compass, not as a number line: 90, 180 and 270 are the
-   * points a reader locates instantly, and 100/200/300 — what an evenly spaced tick
-   * generator produces over 0..360 — are the points nobody names. The quadrant letters
-   * ride along with the degrees so the axis says "L" where the wind comes from the east.
-   *
-   * Same spelling as the wind rose on the climatology page: L for leste, O for oeste.
+   * A bearing is read as a compass: an even tick generator over 0..360 produces
+   * 100/200/300, which are the points nobody names. Same spelling as the climatology
+   * wind rose — L for leste, O for oeste.
    */
   const BEARING_TICKS = [0, 45, 90, 135, 180, 225, 270, 315, 360];
   const BEARING_NAMES = ["N", "NE", "L", "SE", "S", "SO", "O", "NO", "N"];

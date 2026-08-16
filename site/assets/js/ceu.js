@@ -45,26 +45,15 @@
   };
 
   /**
-   * Validated over ALL pairs against the card surface — #f8f9fa light, #2d2d2d dark —
-   * because on a scatter any two classes can end up touching.
+   * Validated over ALL pairs against the card surface (#f8f9fa light, #2d2d2d dark): on
+   * a scatter any two classes can touch.
    *
-   * Condition I was a near-grey, which was the obvious choice for "overcast" and the
-   * wrong one twice over: at chroma 0.04 it read as grey rather than as a colour, and
-   * against the blue of condition II it sat at ΔE 11 under NORMAL vision — the two
-   * hardest classes to tell apart were the two the eye could not separate. Grey cannot
-   * be rescued here: adding enough chroma to clear the floor turns it into a muted
-   * blue, which is condition II. It gives up the metaphor and takes the separation.
+   * Condition I is NOT the grey that "overcast" suggests. Grey fails the chroma floor,
+   * and any grey chromatic enough to pass has become condition II's blue.
    *
-   * Colour-blind separation lands in the 6-8 band, which is legal only alongside a
-   * second encoding — and there is one that is not decorative: a point's class is
-   * fixed by its position against the dashed Kt boundaries, so the hue confirms the
-   * reading rather than carrying it.
-   *
-   * What this costs: condition I now sits ΔE 11.7 from the Lemos band, the one model
-   * drawn in crimson. It was accepted rather than solved — every hue that clears the
-   * model palette fails against the other three conditions, and the conditions are what
-   * the point cloud is read by. The residue is between a POINT and a LINE, which is a
-   * difference the eye already uses, and the models have their own toggles.
+   * Colour-blind separation sits in the 6-8 band, legal here because class is also fixed
+   * by position against the dashed Kt boundaries. Condition I lands ΔE 11.7 from the
+   * Lemos band: accepted, because every hue that clears the models fails the classes.
    */
   const CLASS_PALETTE = {
     light: { i: "#a85a93", ii: "#3761b4", iii: "#1a7f5a", iv: "#d9741c" },
@@ -216,9 +205,8 @@
     return segment.split(/\s+et al\.|\s+\(/)[0].trim() || segment;
   }
 
-  // A toggle with no text on it is unusable, so a model that publishes no `label` still gets a name — but it gets
-  // it from the id, never from `reference`. Cutting the citation at its first comma would read as a nicer name and
-  // would turn editing the bibliography into silently relabelling the figure, a failure far from its cause.
+  // `label` is optional in the contract, so fall back to the id — never to `reference`:
+  // deriving a name from the citation would make editing bibliography relabel the figure.
   function modelDisplayName(model) {
     if (model.label) return shortModelLabel(model.label);
     return String(model.id || "").replace(/_/g, " ");
@@ -231,11 +219,9 @@
       .map((model) => ({ ...model, short: modelDisplayName(model) }));
   }
 
-  // Positional rows drop three repeated keys from every one of tens of thousands of entries, which on a host that
-  // serves JSON uncompressed is most of the file. The price is that the order stops being self-evident, so the
-  // exporter declares it and this reads the declaration: a silent swap of kt for kd would mirror the whole figure
-  // across the diagonal and still look like a plausible scatter — the same failure the density's transpose guard
-  // exists to catch. The historical order is the fallback, for payloads written before the field existed.
+  // Rows are positional to keep the file small on a host that serves JSON uncompressed.
+  // The order is therefore read from the payload, never assumed: kt and kd swapped would
+  // mirror the figure across the diagonal and still look like a plausible scatter.
   const DEFAULT_POINTS_FORMAT = ["kt", "kd", "t"];
 
   function pointsFieldIndex(payload) {
@@ -859,9 +845,8 @@
         button.appendChild(swatch);
       }
       button.appendChild(node("span", null, entry.label));
-      // The Kt band rides on the chip instead of on a legend row of its own: the chips
-      // already carry the swatch and the name, so a second list beneath them repeated
-      // three quarters of itself to add one column.
+      // The Kt band rides on the chip; the legend row it replaced repeated the swatch
+      // and the name to add this one column.
       if (entry.range) button.appendChild(node("span", "sky-chip-range", entry.range));
       const active = isActive(entry);
       button.setAttribute("aria-pressed", String(active));
@@ -911,11 +896,8 @@
 
   // The conditions colour the individual hours, so with the point layer off they
   // have nothing to act on; saying that with `disabled` beats a dead control.
-  // The conditions colour the individual hours, so they act on the point layer and on
-  // nothing else. Kept visible-but-dead they were the tallest control on the panel and
-  // the one that did the least: the layer is off by default, so the usual state of the
-  // page was four chips that refused to be pressed. They now appear with the layer they
-  // belong to, which also says what they are for without a tooltip having to.
+  // The conditions colour individual hours, so they act on the point layer alone. They
+  // appear with it rather than sitting disabled — which was the page's default state.
   function syncClassToggles() {
     const usable = showingPoints();
     const group = el("ceuClasses").closest(".clima-control");
@@ -971,9 +953,7 @@
       .flatMap((payload) => (Array.isArray(payload.caveats) ? payload.caveats : []));
   }
 
-  // Both payloads, deduplicated: `caveatTexts()` already reads the two, and the scatter
-  // and the cumulative describe the same archive, so an identical sentence published by
-  // each of them is one note here, not two.
+  // Both payloads, deduplicated: they describe the same archive and repeat each other.
   function buildCaveats() {
     const list = el("ceuCaveats");
     const caveats = [...new Set(caveatTexts())];

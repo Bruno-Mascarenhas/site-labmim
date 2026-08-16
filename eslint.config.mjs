@@ -63,7 +63,9 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      globals: globals.node,
+      // Browser globals alongside Node's: the reachability check ships functions that
+      // Playwright serialises and runs inside the page, where `document` is the point.
+      globals: { ...globals.node, ...globals.browser },
     },
     rules: {
       "no-unused-vars": "warn",

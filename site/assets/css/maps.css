@@ -252,6 +252,15 @@ header.maps-header {
   color: #888;
 }
 
+/* Leaflet's attribution sits in the corner the 80px control bar occupies, and it was
+   painted over at every desktop width — OpenStreetMap's terms ask for legible, not
+   merely present. Below 900px the bar leaves the map, so the offset must not apply. */
+@media (width > 900px) {
+  .leaflet-bottom.leaflet-right {
+    bottom: 84px;
+  }
+}
+
 .controls-container {
   position: absolute;
   bottom: 0;
@@ -278,17 +287,6 @@ header.maps-header {
   gap: 12px;
 }
 
-/* Leaflet parks its attribution in the map's bottom-right corner, which is exactly where
-   the 80px control bar sits, so "Leaflet | © OpenStreetMap" was painted over at every
-   desktop width — and OpenStreetMap's terms ask for it to be legible, not merely present
-   in the markup. Lifted clear of the bar. Below 900px the bar leaves the map and joins
-   the static stack, so the corner is free again and this offset must not apply. */
-@media (width > 900px) {
-  .leaflet-bottom.leaflet-right {
-    bottom: 84px;
-  }
-}
-
 .slider-wrapper label {
   font-weight: 500;
   font-size: 0.9rem;
@@ -296,10 +294,8 @@ header.maps-header {
   color: #555;
 }
 
-/* The 6px bar used to BE the element, so the whole target for changing the hour was six
-   pixels tall — a miss on any touch screen and awkward with a trackpad. The bar moves to
-   the track pseudo-element and the element keeps a finger-sized box around it, which is
-   what `.sky-range` on the sky page already does. */
+/* The bar lives on the track pseudo-element so the element itself can stay finger-sized:
+   as the element's own background it made the whole target for the hour 6px tall. */
 #layerSlider {
   flex: 1;
   min-width: 150px;
@@ -309,9 +305,8 @@ header.maps-header {
   appearance: none;
 }
 
-/* Two rules, never a selector list: a browser drops the WHOLE list when one selector in
-   it is a vendor pseudo it does not know, so pairing these would leave both engines with
-   no track at all. */
+/* Two rules, never a selector list: a browser drops the WHOLE list over one vendor
+   pseudo it does not know, which would leave both engines with no track at all. */
 #layerSlider::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 3px;
@@ -341,8 +336,7 @@ header.maps-header {
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 
-  /* WebKit lays the thumb from the top of the track, so half the difference between the
-     two brings it back onto the line it is supposed to be riding. */
+  /* WebKit lays the thumb from the top of the track; this recentres it on the line. */
   margin-top: -6px;
 }
 
@@ -1285,10 +1279,8 @@ header.maps-header {
   }
 }
 
-/* A little more room to drag where the pointer is a finger. The transparent-border
-   trick this replaced existed only because the track used to be the element's own
-   background; with the track on its pseudo-element the height is free to grow on its
-   own, and the rule no longer has to be ordered after the width queries to survive. */
+/* More room to drag under a finger. The transparent-border trick this replaced existed
+   only while the track was the element's own background. */
 @media (pointer: coarse) {
   #layerSlider {
     height: 2.25rem;
@@ -2416,10 +2408,9 @@ header.maps-header {
     max-height: calc(100vh - 230px);
     overflow: hidden;
 
-    /* Folded into the top-left corner it lands exactly on Leaflet's zoom buttons, and
-       being painted later it took their clicks: between 769px and 900px the map could
-       not be zoomed at all. The colorbar is a legend with nothing to click, so it lets
-       the pointer through — the same escape the rule below 768px already uses. */
+    /* Folded into this corner it covers Leaflet's zoom buttons and, painted later, took
+       their clicks: between 769px and 900px the map could not be zoomed. A legend has
+       nothing to click, so it lets the pointer through, as the rule below 768px does. */
     pointer-events: none;
   }
 

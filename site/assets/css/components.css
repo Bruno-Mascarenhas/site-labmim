@@ -1057,9 +1057,8 @@
   color: var(--text-secondary);
 }
 
-/* Wraps rather than letting the guide button ride past the edge: on a 320px screen the
-   title is long enough to push it off, and a control half outside the viewport is one
-   the reader cannot press even though the page does not scroll sideways. */
+/* Wraps: at 320px the title pushes the guide button past the edge, and the page clips
+   rather than scrolls, so half the control becomes unpressable with nothing to say so. */
 .sky-panel-title {
   display: flex;
   flex-wrap: wrap;
@@ -1160,9 +1159,8 @@
   margin-inline: auto;
 }
 
-/* Two landmarks in a page that was one uninterrupted column of panels: what the camera
-   sees right now, and what ten years of the archive say. Without them the reader scrolls
-   through four slabs of equal weight with nothing to navigate by. */
+/* Two landmarks — what the camera sees now, what the archive says — in a page that was
+   otherwise four slabs of equal weight with nothing to navigate by. */
 .sky-section-title {
   font-size: 0.78rem;
   font-weight: 700;
@@ -1176,19 +1174,15 @@
   margin-top: 0;
 }
 
-/* The two charts answer different questions about the same archive, so side by side
-   they are compared rather than remembered: the scatter says how Kd follows Kt, the
-   cumulative says how much of the record sits at each Kt. Below this width a column
-   narrow enough to hold both would squeeze the axes, so they stack. */
+/* Side by side the two charts are compared rather than remembered: how Kd follows Kt,
+   and how much of the record sits at each Kt. Narrower than this the axes squeeze. */
 .sky-analysis {
   display: grid;
   gap: 1.25rem;
 }
 
-/* A grid item defaults to `min-width: auto`, so a panel whose content is wider than the
-   phone refuses to shrink and hangs off the edge instead — the page does not scroll
-   sideways, it just clips, which is the worse of the two failures because nothing on
-   screen says the rest is there. */
+/* Grid items default to `min-width: auto` and refuse to shrink below their content, so
+   a panel wider than the phone hangs off the edge — clipped, with no scrollbar to hint. */
 .sky-analysis > * {
   min-width: 0;
 }
@@ -1204,18 +1198,14 @@
   }
 }
 
-/* The frames are context, not the subject: at full height they pushed the analysis
-   below the fold on every laptop. */
+/* The frames are context: at full height they pushed the analysis below every fold. */
 .sky-frame-media {
   max-height: 340px;
 }
 
-/* In a half-width column a label stacked over its chips costs a whole line per group,
-   and this panel has three of them. Beside the chips the label reads the same and the
-   three groups fit in the space one used to take. */
+/* A label stacked over its chips costs a line per group, and this panel has three. */
 @media (width >= 1180px) {
-  /* Four conditions in a half-width column wrapped three-and-one, which reads as a
-     ranking with an outlier. Two by two says what it is: four parts of one whole. */
+  /* Three-and-one reads as a ranking with an outlier; 2x2 reads as parts of one whole. */
   #ceuAcumuladaClasses {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1292,24 +1282,21 @@
   border-radius: 2px;
 }
 
-/* The condition names are full sentences and the Kt band rides with them, which is more
-   than a 320px column holds on one line. The chip wraps inside itself instead of running
-   past the edge — the swatch stays with the name, the band drops beneath. */
+/* The names are full sentences and carry the Kt band, which no 320px column holds on
+   one line, so the chip wraps inside itself rather than running past the edge. */
 .sky-class-btn {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
 
-  /* A flex item defaults to `min-width: auto`, which is its content width — the chip
-     would refuse to shrink and the wrapping above would never get a chance to happen. */
+  /* Without this the flex item keeps its content width and never wraps. */
   min-width: 0;
   max-width: 100%;
   text-align: left;
 }
 
-/* The Kt band the chip stands for, absorbed from the legend row this replaced. Set
-   quieter than the name so the chip still reads as one control, not two labels. */
+/* Quieter than the name so the chip reads as one control, not two labels. */
 .sky-chip-range {
   font-variant-numeric: tabular-nums;
   font-size: 0.86em;
