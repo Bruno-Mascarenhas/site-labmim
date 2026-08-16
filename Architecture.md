@@ -200,7 +200,7 @@ Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](
 | ------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | `monitoramento.js` | Página de monitoramento viva: lê `labmim-monitoring-v1` de `dataset.paths.monitoring` e desenha bruto + horário + WRF |
 | `climatologia.js`  | Página de climatologia: lê `labmim-climatology-v1` de `dataset.paths.climatology`, distribuição medida + teórica      |
-| `ceu.js`           | Página de condição do céu: lê `labmim-sky-v1` de `dataset.paths.sky`; quadro, máscara prevista e Kt × Kd              |
+| `ceu.js`           | Página de condição do céu: lê `labmim-ktkd-v1`, `labmim-kt-cumulative-v1` e `labmim-allsky-frame-v1` de `dataset.paths.sky` |
 
 ### Módulos Do WebGIS
 
@@ -417,13 +417,14 @@ Ver [Manifest De Dados](#manifest-de-dados-e-ciclo-de-vida-da-rodada). Exemplo r
 ### Condição Do Céu
 
 ```text
-Ceu/allsky.jpg     quadro bruto da câmera, nome fixo
-Ceu/mask.png       máscara de segmentação prevista, nome fixo
-Ceu/ktkd.json      labmim-ktkd-v1  — densidade, modelos e pontos horários
-Ceu/frame.json     labmim-allsky-frame-v1 — metadado do quadro atual
+Ceu/allsky.jpg          quadro bruto da câmera, nome fixo
+Ceu/mask.png            máscara de segmentação prevista, nome fixo
+Ceu/ktkd.json           labmim-ktkd-v1 — densidade, modelos e pontos horários
+Ceu/kt_cumulative.json  labmim-kt-cumulative-v1 — acumulada de Kt e horas por condição
+Ceu/frame.json          labmim-allsky-frame-v1 — metadado do quadro atual
 ```
 
-Este é o contrato que **não** vem do pipeline WRF. São dois documentos porque as cadências são diferentes: `frame.json` é reescrito a cada captura, `ktkd.json` a cada reconstrução do acervo. A página busca os dois em paralelo e qualquer um pode faltar sem derrubar o outro.
+Este é o contrato que **não** vem do pipeline WRF. São documentos separados porque as cadências são diferentes: `frame.json` é reescrito a cada captura, `ktkd.json` e `kt_cumulative.json` a cada reconstrução do acervo. A página busca os três em paralelo e qualquer um pode faltar sem derrubar os outros.
 
 `ktkd.json` traz, além de `station`, `period`, `timescale`, `sources` e `filters`:
 
@@ -432,6 +433,12 @@ Este é o contrato que **não** vem do pipeline WRF. São dois documentos porque
 - `sky_conditions` — `kt_upper_bounds`, a citação e as quatro classes com `condition` (1–4), `id` (`i`..`iv`), `name`, `name_pt` e `kt_range`. A página lê os limites daqui; a cópia embutida em `ceu.js` é só o retorno seguro quando o bloco falta.
 - `points[]` — opcional, `{t, kt, kd}` por hora. É a camada de sobreposição, desligada por padrão, e o que sustenta a coloração por condição de céu, o tooltip por observação e a exportação CSV. Sem ela a página desenha só a densidade e o tooltip passa a descrever a célula sob o cursor.
 - `caveats[]` — renderizados sob o gráfico como estão.
+
+`kt_cumulative.json` é a distribuição acumulada de Kt, e responde o que a dispersão não responde: não como Kd se comporta num dado Kt, mas **quanto do registro está em cada condição de céu**. Traz `edges` (as mesmas do histograma de Kt da climatologia) e `subsets`, um objeto cujas chaves são os recortes. Como aqui não há manifesto de onde tirar rótulo, **cada subset carrega o seu `label`**; a ordem de inserção é a ordem dos chips, o primeiro é o padrão, e com um recorte só o seletor não aparece. Cada subset traz `n`, `counts`, `cumulative`, `below`, `above`, `stats` e `sky_conditions` — este último com `kt_upper_bounds`, a citação, e as quatro classes com `condition`, `id`, `name_pt`, `kt_range`, `count` e `fraction` **já calculada**: a página não deriva fração de uma F interpolada, que seria um segundo caminho numérico livre para discordar do exportador.
+
+`cumulative[i]` é F na aresta **superior** do bin `i` — cinquenta valores para cinquenta e uma arestas. É desenhada como **função escada** sobre eixo x linear, constante entre arestas, com âncora em `(edges[0], 0)`. Um eixo de centros de bin deslocaria a curva meio bin dos números a que ela se refere, e uma linha suavizada afirmaria valores intermediários que uma escada não tem. **A página não assume se `below`/`above` entram no denominador**: desenha o publicado, limita o eixo em 1 e nomeia as horas fora das bordas ao lado. Com o produtor atual elas entram, então F para pouco antes de 1 quando há massa fora — o que é informação, não defeito.
+
+Atenção a um `n` que não bate de propósito: a acumulada é gateada só no canal global, o `ktkd.json` exige também medida difusa. São populações diferentes com o mesmo nome de campo, e está nos `caveats` de cada um.
 
 `frame.json` traz `captured_at`, `image`, `mask`, `sky_condition` e `cloud_fraction`. Leia a condição por `sky_condition.condition` (1–4) ou por `.id`, **nunca** por um inteiro solto: a classe interna do exportador é 0-based e a literatura numera de I a IV, então um índice cru atravessando essa fronteira é um erro de um a cada vez esperando para acontecer. `cloud_fraction` é `null` até um modelo produzi-la.
 
