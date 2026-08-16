@@ -48,9 +48,11 @@
     dark: { i: "#94a3b8", ii: "#5589e6", iii: "#31a37a", iv: "#cb8030" },
   };
 
+  // Keyed by the published model id. `ridley_brl_2010` is the one the exporter emits; `ridley_2010` is kept because
+  // dropping it would silently move that model to a fallback colour on any payload still using the older id.
   const MODEL_PALETTE = {
-    light: { marques_filho_2016: "#7c3aa8", lemos_2017: "#c2185b", ridley_2010: "#0e7490" },
-    dark: { marques_filho_2016: "#c08ae0", lemos_2017: "#f06292", ridley_2010: "#4dd0e1" },
+    light: { marques_filho_2016: "#7c3aa8", lemos_2017: "#c2185b", ridley_brl_2010: "#0e7490", ridley_2010: "#0e7490" },
+    dark: { marques_filho_2016: "#c08ae0", lemos_2017: "#f06292", ridley_brl_2010: "#4dd0e1", ridley_2010: "#4dd0e1" },
   };
 
   // A model id the palette does not know still has to be drawable.
@@ -185,11 +187,23 @@
     return text.split(/\s+et al\.|\s+\(/)[0].trim() || text;
   }
 
+  // `label` is not part of the contract — the producer publishes the full citation in `reference` — and a toggle
+  // with no text on it is unusable, so the name is derived instead of left blank. A citation opens with the first
+  // author's surname, which is what runs up to the first comma; the id is the last resort, ugly but legible.
+  function modelDisplayName(model) {
+    if (model.label) return shortModelLabel(model.label);
+    const surname = String(model.reference || "")
+      .split(",")[0]
+      .trim();
+    if (surname && surname.length <= 40) return shortModelLabel(surname);
+    return String(model.id || "").replace(/_/g, " ");
+  }
+
   function resolveModels(payload) {
     const declared = payload && Array.isArray(payload.models) ? payload.models : [];
     return declared
       .filter((model) => model && typeof model.id === "string" && Array.isArray(model.kt))
-      .map((model) => ({ ...model, short: shortModelLabel(model.label) }));
+      .map((model) => ({ ...model, short: modelDisplayName(model) }));
   }
 
   // Positional rows drop three repeated keys from every one of tens of thousands of entries, which on a host that
