@@ -192,14 +192,31 @@
       .map((model) => ({ ...model, short: shortModelLabel(model.label) }));
   }
 
+  // Positional rows drop three repeated keys from every one of tens of thousands of entries, which on a host that
+  // serves JSON uncompressed is most of the file. The price is that the order stops being self-evident, so the
+  // exporter declares it and this reads the declaration: a silent swap of kt for kd would mirror the whole figure
+  // across the diagonal and still look like a plausible scatter — the same failure the density's transpose guard
+  // exists to catch. The historical order is the fallback, for payloads written before the field existed.
+  const DEFAULT_POINTS_FORMAT = ["kt", "kd", "t"];
+
+  function pointsFieldIndex(payload) {
+    const declared = payload && payload.points_format;
+    const order = Array.isArray(declared) && declared.length ? declared : DEFAULT_POINTS_FORMAT;
+    return { kt: order.indexOf("kt"), kd: order.indexOf("kd"), t: order.indexOf("t") };
+  }
+
   function readPoints(payload) {
     const raw = payload && Array.isArray(payload.points) ? payload.points : [];
+    const at = pointsFieldIndex(payload);
+    // A declaration without both coordinates names no scatter at all; falling back to positions it did not
+    // declare would be guessing, and guessing here is what mirrors the figure.
+    if (at.kt < 0 || at.kd < 0) return [];
     const points = [];
     for (const entry of raw) {
       const positional = Array.isArray(entry);
-      const kt = positional ? entry[0] : entry && entry.kt;
-      const kd = positional ? entry[1] : entry && entry.kd;
-      const stamp = positional ? entry[2] : entry && entry.t;
+      const kt = positional ? entry[at.kt] : entry && entry.kt;
+      const kd = positional ? entry[at.kd] : entry && entry.kd;
+      const stamp = positional ? (at.t < 0 ? "" : entry[at.t]) : entry && entry.t;
       if (!Number.isFinite(kt) || !Number.isFinite(kd)) continue;
       points.push({ x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", observed: true });
     }
