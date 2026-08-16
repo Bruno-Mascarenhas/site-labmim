@@ -1057,8 +1057,12 @@
   color: var(--text-secondary);
 }
 
+/* Wraps rather than letting the guide button ride past the edge: on a 320px screen the
+   title is long enough to push it off, and a control half outside the viewport is one
+   the reader cannot press even though the page does not scroll sideways. */
 .sky-panel-title {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
 }
@@ -1181,6 +1185,14 @@
   gap: 1.25rem;
 }
 
+/* A grid item defaults to `min-width: auto`, so a panel whose content is wider than the
+   phone refuses to shrink and hangs off the edge instead — the page does not scroll
+   sideways, it just clips, which is the worse of the two failures because nothing on
+   screen says the rest is there. */
+.sky-analysis > * {
+  min-width: 0;
+}
+
 @media (width >= 1180px) {
   .sky-analysis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1280,10 +1292,20 @@
   border-radius: 2px;
 }
 
+/* The condition names are full sentences and the Kt band rides with them, which is more
+   than a 320px column holds on one line. The chip wraps inside itself instead of running
+   past the edge — the swatch stays with the name, the band drops beneath. */
 .sky-class-btn {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
+
+  /* A flex item defaults to `min-width: auto`, which is its content width — the chip
+     would refuse to shrink and the wrapping above would never get a chance to happen. */
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
 }
 
 /* The Kt band the chip stands for, absorbed from the legend row this replaced. Set

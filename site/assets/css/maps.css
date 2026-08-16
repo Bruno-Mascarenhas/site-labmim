@@ -285,14 +285,32 @@ header.maps-header {
   color: #555;
 }
 
+/* The 6px bar used to BE the element, so the whole target for changing the hour was six
+   pixels tall — a miss on any touch screen and awkward with a trackpad. The bar moves to
+   the track pseudo-element and the element keeps a finger-sized box around it, which is
+   what `.sky-range` on the sky page already does. */
 #layerSlider {
   flex: 1;
   min-width: 150px;
+  height: 1.75rem;
+  background: transparent;
+  outline: none;
+  appearance: none;
+}
+
+/* Two rules, never a selector list: a browser drops the WHOLE list when one selector in
+   it is a vendor pseudo it does not know, so pairing these would leave both engines with
+   no track at all. */
+#layerSlider::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 3px;
   background: linear-gradient(to right, var(--map-accent), var(--map-accent-2));
-  outline: none;
-  appearance: none;
+}
+
+#layerSlider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--map-accent), var(--map-accent-2));
 }
 
 /* The `outline: none` above carries id specificity and beats the house ring
@@ -311,6 +329,10 @@ header.maps-header {
   border: 3px solid var(--map-accent);
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+
+  /* WebKit lays the thumb from the top of the track, so half the difference between the
+     two brings it back onto the line it is supposed to be riding. */
+  margin-top: -6px;
 }
 
 #layerSlider::-moz-range-thumb {
@@ -793,7 +815,6 @@ header.maps-header {
   #layerSlider {
     flex: 1;
     min-width: 80px;
-    height: 4px;
     pointer-events: auto;
   }
 
@@ -1144,7 +1165,6 @@ header.maps-header {
   #layerSlider {
     flex: 1;
     min-width: 60px;
-    height: 4px;
     pointer-events: auto;
   }
 
@@ -1254,17 +1274,13 @@ header.maps-header {
   }
 }
 
-/* Grows the drag target on touch without fattening the 6px track: the
-   transparent borders keep the background painted on the track alone. Must stay
-   AFTER the width media queries — they redeclare `height: 4px` at the same
-   specificity, and 4px minus the 13px borders collapses the padding box to zero
-   and erases the gradient. */
+/* A little more room to drag where the pointer is a finger. The transparent-border
+   trick this replaced existed only because the track used to be the element's own
+   background; with the track on its pseudo-element the height is free to grow on its
+   own, and the rule no longer has to be ordered after the width queries to survive. */
 @media (pointer: coarse) {
   #layerSlider {
-    height: 32px;
-    border-top: 13px solid transparent;
-    border-bottom: 13px solid transparent;
-    background-clip: padding-box;
+    height: 2.25rem;
   }
 }
 
@@ -2388,6 +2404,12 @@ header.maps-header {
     max-width: min(96px, 28vw);
     max-height: calc(100vh - 230px);
     overflow: hidden;
+
+    /* Folded into the top-left corner it lands exactly on Leaflet's zoom buttons, and
+       being painted later it took their clicks: between 769px and 900px the map could
+       not be zoomed at all. The colorbar is a legend with nothing to click, so it lets
+       the pointer through — the same escape the rule below 768px already uses. */
+    pointer-events: none;
   }
 
   .colorbar-content {
