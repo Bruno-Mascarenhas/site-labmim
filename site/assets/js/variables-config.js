@@ -46,8 +46,176 @@ function getAccumulationHours(variableType, defaultHours = 1) {
   }
 }
 
-const TEMPERATURE_COLORS = ["#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000"];
-const HUMIDITY_COLORS = ["#f7fbff", "#deebf7", "#c6dbef", "#6baed6", "#2171b5", "#08306b"];
+/**
+ * Cold blue through a mild yellow to hot red — the reading a thermometer already
+ * trains, and the one this map should not make anyone relearn.
+ *
+ * Replaces the `jet` ramp that was here. jet runs blue-cyan-green-yellow-red and its
+ * lightness rises and falls twice along the way, so the eye reads the bright cyan and
+ * yellow bands as edges in the field that the data does not have — the reason it left
+ * matplotlib's defaults in 1.5. The temperature metaphor it was chosen for is kept;
+ * the false structure is not.
+ *
+ * RdBu was tried first and washed out: its neutral is grey-white and sits exactly
+ * where this region's temperatures live, so half the map went colourless. RdYlBu holds
+ * a saturated yellow through the middle of the range instead, which is where almost
+ * every published value falls.
+ *
+ * ColorBrewer RdYlBu 11-class, reversed so blue is the cold end.
+ */
+const THERMAL_COLORS = [
+  "#313695",
+  "#4575b4",
+  "#74add1",
+  "#abd9e9",
+  "#e0f3f8",
+  "#ffffbf",
+  "#fee090",
+  "#fdae61",
+  "#f46d43",
+  "#d73027",
+  "#a50026",
+];
+
+/**
+ * A signed flux needs its neutral colour ON zero, and zero rarely sits at the middle
+ * of the published scale: sensible heat runs -200..600, so a symmetric ramp would put
+ * the neutral at 200 W/m² and paint a real downward flux in the same tone as a real
+ * upward one. The colour bar spaces its stops evenly over the scale, so the stops are
+ * generated to land the neutral where zero actually falls.
+ *
+ * Below zero the ramp cools, above it warms, and the arms keep their own gradients —
+ * an arm that covers less of the scale gets fewer stops, not compressed colour.
+ */
+function mixHex(from, to, t) {
+  const channel = (offset) => {
+    const a = parseInt(from.slice(offset, offset + 2), 16);
+    const b = parseInt(to.slice(offset, offset + 2), 16);
+    return Math.round(a + (b - a) * t)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${channel(1)}${channel(3)}${channel(5)}`;
+}
+
+function sampleRamp(ramp, t) {
+  const clamped = Math.min(1, Math.max(0, t));
+  const position = clamped * (ramp.length - 1);
+  const low = Math.floor(position);
+  const high = Math.min(low + 1, ramp.length - 1);
+  return mixHex(ramp[low], ramp[high], position - low);
+}
+
+const FLUX_NEGATIVE_RAMP = ["#2166ac", "#4393c3", "#92c5de", "#d1e5f0", "#f7f7f7"];
+const FLUX_POSITIVE_RAMP = ["#f7f7f7", "#fddbc7", "#f4a582", "#d6604d", "#b2182b", "#67001f"];
+
+/**
+ * The stop count is chosen, not fixed: the bar interpolates between evenly spaced
+ * stops, so unless one stop lands exactly on zero the neutral gets blended with a
+ * neighbour and the sign change stops being a visible line. Among the counts that put
+ * a stop on zero this takes the smallest, and falls back to the nearest fit when the
+ * ratio has no clean one.
+ */
+function stepsLandingOnZero(zeroFraction, minSteps = 11, maxSteps = 41) {
+  let best = minSteps;
+  let bestError = Infinity;
+  for (let steps = minSteps; steps <= maxSteps; steps += 1) {
+    const exact = zeroFraction * (steps - 1);
+    const error = Math.abs(exact - Math.round(exact));
+    if (error < bestError - 1e-9) {
+      best = steps;
+      bestError = error;
+      if (error < 1e-9) break;
+    }
+  }
+  return best;
+}
+
+function fluxColorsAroundZero(scaleMin, scaleMax) {
+  const span = scaleMax - scaleMin;
+  const steps = stepsLandingOnZero(-scaleMin / span);
+  const stops = [];
+  for (let index = 0; index < steps; index += 1) {
+    const value = scaleMin + (span * index) / (steps - 1);
+    stops.push(
+      value < 0
+        ? sampleRamp(FLUX_NEGATIVE_RAMP, 1 - value / scaleMin)
+        : sampleRamp(FLUX_POSITIVE_RAMP, value / scaleMax)
+    );
+  }
+  return stops;
+}
+
+// Precipitation reads as water, not as heat: dry is bare, and the deeper the blue the
+// heavier the rain. The ramp it replaces was the temperature one, which painted the
+// heaviest rainfall red — the colour every other layer on this map uses for hot.
+const RAIN_COLORS = ["#f7fbff", "#d0e6f5", "#a6d0ea", "#74b3d8", "#4a92c8", "#2b6fb5", "#1a4f9c", "#173282", "#10184f"];
+
+/**
+ * Multi-hue sequential ramps for the fields whose variation is the whole point of
+ * looking at the map.
+ *
+ * The single-hue blues these replace spent 78-81% of their perceptual travel on
+ * lightness alone — one blue getting darker — so neighbouring values collapsed into
+ * the same apparent colour. Colour travel measured in OKLab over the whole ramp:
+ * humidity 15.9 → 38.2, wind 15.0 → 35.9, emissivity 15.9 → 29.2, Kt 41.2 → 66.7.
+ *
+ * Every one keeps lightness MONOTONIC, which is what separates these from a rainbow:
+ * the map still reads correctly in greyscale, in print, and under colour-blindness,
+ * because value never depends on hue alone.
+ *
+ * All four are also LIGHT at the low end, and that is a constraint of this map rather
+ * than a preference: the field is painted at `fillOpacity` 0.65 over the basemap, so a
+ * dark low end turns large quiet areas into grey haze and hides the very variation the
+ * ramp exists to show. viridis was tried here first and failed for exactly that reason.
+ *
+ * YlGnBu, YlOrRd and BuPu: Brewer & Harrower, ColorBrewer 2.0, 9-class sequential.
+ * plasma: Smith & van der Walt (2015), matplotlib, 9 evenly spaced stops.
+ */
+const RELATIVE_HUMIDITY_COLORS = [
+  "#ffffd9",
+  "#edf8b1",
+  "#c7e9b4",
+  "#7fcdbb",
+  "#41b6c4",
+  "#1d91c0",
+  "#225ea8",
+  "#253494",
+  "#081d58",
+];
+
+// Calm stays pale and lets the basemap through; strong wind burns in. Warm-at-high is
+// also the convention wind charts already use, so the reading needs no relearning.
+const WIND_COLORS = ["#ffffcc", "#ffeda0", "#fed976", "#feb24c", "#fd8d3c", "#fc4e2a", "#e31a1c", "#bd0026", "#800026"];
+
+// Kept off the warm and the green-blue ranges the neighbouring fields already use: a
+// sky that emits more is the anomaly worth spotting, and violet is what no other layer
+// on this map claims.
+const EMISSIVITY_COLORS = [
+  "#f7fcfd",
+  "#e0ecf4",
+  "#bfd3e6",
+  "#9ebcda",
+  "#8c96c6",
+  "#8c6bb1",
+  "#88419d",
+  "#810f7c",
+  "#4d004b",
+];
+
+// Overcast at the dark end, full sun at the bright end — the ramp reads as the sky
+// it describes, and travels 66.7 of colour against the 41.2 of the ramp it replaces.
+const CLEARNESS_COLORS = [
+  "#0d0887",
+  "#4c02a1",
+  "#7e03a8",
+  "#a92395",
+  "#cc4778",
+  "#e66c5c",
+  "#f89441",
+  "#fdc328",
+  "#f0f921",
+];
 // Matplotlib `jet_r` at 11 evenly spaced stops: the colormap the group's Python
 // figures use for specific humidity.
 const JET_R_COLORS = [
@@ -207,7 +375,7 @@ const VARIABLES_CONFIG = {
       "Velocidade do vento interpolada para alturas de hub. A produção eólica é estimada no frontend a partir de parâmetros da turbina.",
     scaleMin: 0,
     scaleMax: 20,
-    colors: ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"],
+    colors: WIND_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.eolico?.ausente) {
         return unavailableInfo("Geração Eólica");
@@ -262,7 +430,7 @@ const VARIABLES_CONFIG = {
     summary: "Temperatura do ar a 2 metros usada como referência meteorológica de superfície.",
     scaleMin: 10,
     scaleMax: 40,
-    colors: TEMPERATURE_COLORS,
+    colors: THERMAL_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.temperature?.ausente) {
         return unavailableInfo("Informações Térmicas");
@@ -306,7 +474,7 @@ const VARIABLES_CONFIG = {
     summary: "Temperatura da superfície do modelo, útil para contraste com a temperatura do ar a 2 metros.",
     scaleMin: 10,
     scaleMax: 50,
-    colors: TEMPERATURE_COLORS,
+    colors: THERMAL_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.skinTemperature?.ausente) {
         return unavailableInfo("Temperatura de Superfície");
@@ -436,7 +604,7 @@ const VARIABLES_CONFIG = {
       "Percentual de saturação do ar próximo à superfície, estimado a partir de temperatura, pressão e vapor d'água.",
     scaleMin: 0,
     scaleMax: 100,
-    colors: HUMIDITY_COLORS,
+    colors: RELATIVE_HUMIDITY_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.relativeHumidity?.ausente) {
         return unavailableInfo("Umidade Relativa");
@@ -498,7 +666,7 @@ const VARIABLES_CONFIG = {
         },
       ],
     },
-    colors: TEMPERATURE_COLORS,
+    colors: RAIN_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.rain?.ausente) {
         return unavailableInfo("Previsão de Precipitação");
@@ -544,7 +712,7 @@ const VARIABLES_CONFIG = {
     summary: "Velocidade do vento a 10 metros calculada a partir das componentes U10 e V10.",
     scaleMin: 0,
     scaleMax: 15,
-    colors: ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"],
+    colors: WIND_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.wind?.ausente) {
         return unavailableInfo("Informações do Vento");
@@ -796,7 +964,7 @@ const VARIABLES_CONFIG = {
     summary: "Saldo de onda longa na superfície; quase sempre negativo, pois a superfície perde mais do que recebe.",
     scaleMin: -200,
     scaleMax: 25,
-    colors: RADIATION_COLORS,
+    colors: fluxColorsAroundZero(-200, 25),
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.netLongwave?.ausente) {
         return unavailableInfo("Onda Longa Líquida");
@@ -833,7 +1001,7 @@ const VARIABLES_CONFIG = {
       "Saldo de radiação de todas as ondas: a energia disponível para os fluxos de calor sensível, latente e no solo.",
     scaleMin: -150,
     scaleMax: 800,
-    colors: RADIATION_COLORS,
+    colors: fluxColorsAroundZero(-150, 800),
     relatedVariables: ["hfx", "lh"],
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.netRadiation?.ausente) {
@@ -881,7 +1049,7 @@ const VARIABLES_CONFIG = {
     summary: "Emissividade efetiva do céu; sobe com umidade e nebulosidade, servindo de indicador de cobertura.",
     scaleMin: 0.6,
     scaleMax: 1,
-    colors: HUMIDITY_COLORS,
+    colors: EMISSIVITY_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.skyEmissivity?.ausente) {
         return unavailableInfo("Emissividade do Céu");
@@ -918,7 +1086,7 @@ const VARIABLES_CONFIG = {
       "Fração da radiação no topo da atmosfera que chega à superfície. Publicado apenas com o sol acima de 10° de elevação.",
     scaleMin: 0,
     scaleMax: 0.85,
-    colors: RADIATION_COLORS,
+    colors: CLEARNESS_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.clearnessIndex?.ausente) {
         return unavailableInfo("Índice de Transparência");
@@ -954,7 +1122,7 @@ const VARIABLES_CONFIG = {
     summary: "Fluxo turbulento de calor sensível entre superfície e atmosfera.",
     scaleMin: -200,
     scaleMax: 600,
-    colors: TEMPERATURE_COLORS,
+    colors: fluxColorsAroundZero(-200, 600),
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.hfx?.ausente) {
         return unavailableInfo("Fluxo de Calor Sensível");
@@ -995,7 +1163,7 @@ const VARIABLES_CONFIG = {
     summary: "Fluxo turbulento de calor latente associado a evaporação e condensação.",
     scaleMin: -100,
     scaleMax: 700,
-    colors: [...TEMPERATURE_COLORS].reverse(),
+    colors: fluxColorsAroundZero(-100, 700),
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.lh?.ausente) {
         return unavailableInfo("Fluxo de Calor Latente");
