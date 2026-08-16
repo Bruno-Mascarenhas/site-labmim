@@ -931,12 +931,80 @@
     }
   }
 
+  // Expanding `[[chave]]` belongs to assets/js/references.js. What is specific here is the SOURCE: the site
+  // bibliography is embedded by the build, and a payload may register its own on top, the same way the climatology
+  // page does with the one its manifest carries.
+  const refs = () =>
+    window.labmimReferences || {
+      expand: (text) => document.createTextNode(String(text)),
+      keysIn: () => [],
+      get: () => null,
+      register: () => {},
+      linkable: () => false,
+    };
+
+  const withReferences = (text) => refs().expand(text);
+
+  function registerPayloadReferences() {
+    for (const payload of [state.chartPayload, state.cumulativePayload]) {
+      if (payload && payload.references) refs().register(payload.references);
+    }
+  }
+
+  function caveatTexts() {
+    return [state.chartPayload, state.cumulativePayload]
+      .filter(Boolean)
+      .flatMap((payload) => (Array.isArray(payload.caveats) ? payload.caveats : []));
+  }
+
   function buildCaveats() {
     const list = el("ceuCaveats");
     const caveats = state.chartPayload && Array.isArray(state.chartPayload.caveats) ? state.chartPayload.caveats : [];
     list.replaceChildren();
-    for (const caveat of caveats) list.appendChild(node("li", null, caveat));
+    for (const caveat of caveats) {
+      const item = document.createElement("li");
+      item.appendChild(withReferences(caveat));
+      list.appendChild(item);
+    }
     list.hidden = caveats.length === 0;
+  }
+
+  // The keys come from what the page ALREADY cited, not from a list kept here: the static prose is decorated by
+  // references.js before this runs, leaving each expanded citation tagged with its key, and the payload caveats are
+  // scanned for markers of their own. Two copies of that list would drift the day someone edits only the prose.
+  function citedKeys() {
+    const keys = [];
+    const add = (key) => {
+      if (key && !keys.includes(key)) keys.push(key);
+    };
+    for (const element of document.querySelectorAll("[data-ref-key]")) add(element.dataset.refKey);
+    for (const text of caveatTexts()) refs().keysIn(text).forEach(add);
+    return keys;
+  }
+
+  function renderReferences() {
+    const panel = el("ceuRefsPanel");
+    const list = el("ceuRefs");
+    list.replaceChildren();
+    for (const key of citedKeys()) {
+      const entry = refs().get(key);
+      if (!entry) continue;
+      const item = document.createElement("li");
+      // Same criterion as assets/js/references.js: a payload bibliography arrives with the deploy data, outside
+      // every gate, so only an http(s) scheme becomes a link.
+      if (refs().linkable(entry.url)) {
+        const link = document.createElement("a");
+        link.href = entry.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = entry.citation;
+        item.appendChild(link);
+      } else {
+        item.textContent = entry.citation;
+      }
+      list.appendChild(item);
+    }
+    panel.hidden = list.children.length === 0;
   }
 
   function syncChartText() {
@@ -1473,20 +1541,17 @@
       return;
     }
     state.cumulativeSubsetId = entries[0].id;
+    // The citation goes in as a marker, not spelled out: the reader gets the short form here, the link on it, and
+    // the full record in the panel at the foot of the page — the same shape every other citation on the site has.
+    // The payload publishes `sky_conditions.reference` as prose, and printing it here would be a second, longer
+    // wording of a work the page already cites properly two paragraphs above.
     const note = el("ceuAcumuladaNota");
     note.replaceChildren(
-      document.createTextNode(
+      withReferences(
         "Curva: fração do registro com Kt até o valor lido no eixo — função escada, constante entre arestas. " +
-          "Verticais tracejadas: os limites entre as condições de céu"
+          "Verticais tracejadas: os limites entre as condições de céu [[escobedo]], na nomenclatura de [[teramoto]]."
       )
     );
-    const reference = (entries[0].subset.sky_conditions || {}).reference || "";
-    if (reference) {
-      note.appendChild(document.createTextNode(" ["));
-      note.appendChild(document.createTextNode(reference));
-      note.appendChild(document.createTextNode("]"));
-    }
-    note.appendChild(document.createTextNode("."));
     buildCumulativeSubsetToggles();
   }
 
@@ -1553,6 +1618,10 @@
     if (!state.density && state.points.length) state.layers.add("points");
     if (state.models.length) state.activeModels.add(state.models[0].id);
 
+    // Before anything renders text: a payload bibliography has to be in the registry for the markers in its own
+    // caveats to expand into citations instead of staying literal.
+    registerPayloadReferences();
+
     renderHeader();
     renderFrames();
     buildLegend();
@@ -1566,6 +1635,9 @@
     el("ceuExport").addEventListener("click", exportCsv);
 
     initCumulative();
+    // Last, so it sees every citation the page ended up making — the static prose already decorated by
+    // references.js, plus the markers the two payloads brought in.
+    renderReferences();
 
     el("ceuEmpty").hidden = true;
     el("ceuApp").hidden = false;

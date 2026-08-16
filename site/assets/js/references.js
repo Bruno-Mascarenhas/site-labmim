@@ -45,6 +45,9 @@
     const linked = linkable(entry.url);
     const element = document.createElement(linked ? "a" : "span");
     element.className = "site-ref";
+    // Keeps the key on the expanded citation so a page can list what it actually cited without repeating the key
+    // list in its own JS — two copies of that list drift the day someone edits only the prose.
+    element.dataset.refKey = key;
     if (linked) {
       element.href = entry.url;
       element.target = "_blank";
