@@ -252,6 +252,15 @@ header.maps-header {
   color: #888;
 }
 
+/* Leaflet's attribution sits in the corner the 80px control bar occupies, and it was
+   painted over at every desktop width — OpenStreetMap's terms ask for legible, not
+   merely present. Below 900px the bar leaves the map, so the offset must not apply. */
+@media (width > 900px) {
+  .leaflet-bottom.leaflet-right {
+    bottom: 84px;
+  }
+}
+
 .controls-container {
   position: absolute;
   bottom: 0;
@@ -285,14 +294,29 @@ header.maps-header {
   color: #555;
 }
 
+/* The bar lives on the track pseudo-element so the element itself can stay finger-sized:
+   as the element's own background it made the whole target for the hour 6px tall. */
 #layerSlider {
   flex: 1;
   min-width: 150px;
+  height: 1.75rem;
+  background: transparent;
+  outline: none;
+  appearance: none;
+}
+
+/* Two rules, never a selector list: a browser drops the WHOLE list over one vendor
+   pseudo it does not know, which would leave both engines with no track at all. */
+#layerSlider::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 3px;
   background: linear-gradient(to right, var(--map-accent), var(--map-accent-2));
-  outline: none;
-  appearance: none;
+}
+
+#layerSlider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--map-accent), var(--map-accent-2));
 }
 
 /* The `outline: none` above carries id specificity and beats the house ring
@@ -311,6 +335,9 @@ header.maps-header {
   border: 3px solid var(--map-accent);
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+
+  /* WebKit lays the thumb from the top of the track; this recentres it on the line. */
+  margin-top: -6px;
 }
 
 #layerSlider::-moz-range-thumb {
@@ -793,7 +820,6 @@ header.maps-header {
   #layerSlider {
     flex: 1;
     min-width: 80px;
-    height: 4px;
     pointer-events: auto;
   }
 
@@ -1144,7 +1170,6 @@ header.maps-header {
   #layerSlider {
     flex: 1;
     min-width: 60px;
-    height: 4px;
     pointer-events: auto;
   }
 
@@ -1254,17 +1279,11 @@ header.maps-header {
   }
 }
 
-/* Grows the drag target on touch without fattening the 6px track: the
-   transparent borders keep the background painted on the track alone. Must stay
-   AFTER the width media queries — they redeclare `height: 4px` at the same
-   specificity, and 4px minus the 13px borders collapses the padding box to zero
-   and erases the gradient. */
+/* More room to drag under a finger. The transparent-border trick this replaced existed
+   only while the track was the element's own background. */
 @media (pointer: coarse) {
   #layerSlider {
-    height: 32px;
-    border-top: 13px solid transparent;
-    border-bottom: 13px solid transparent;
-    background-clip: padding-box;
+    height: 2.25rem;
   }
 }
 
@@ -2388,6 +2407,11 @@ header.maps-header {
     max-width: min(96px, 28vw);
     max-height: calc(100vh - 230px);
     overflow: hidden;
+
+    /* Folded into this corner it covers Leaflet's zoom buttons and, painted later, took
+       their clicks: between 769px and 900px the map could not be zoomed. A legend has
+       nothing to click, so it lets the pointer through, as the rule below 768px does. */
+    pointer-events: none;
   }
 
   .colorbar-content {

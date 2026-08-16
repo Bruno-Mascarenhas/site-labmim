@@ -1057,8 +1057,11 @@
   color: var(--text-secondary);
 }
 
+/* Wraps: at 320px the title pushes the guide button past the edge, and the page clips
+   rather than scrolls, so half the control becomes unpressable with nothing to say so. */
 .sky-panel-title {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
 }
@@ -1156,6 +1159,72 @@
   margin-inline: auto;
 }
 
+/* Two landmarks — what the camera sees now, what the archive says — in a page that was
+   otherwise four slabs of equal weight with nothing to navigate by. */
+.sky-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 0.6rem;
+}
+
+.sky-section-title + * {
+  margin-top: 0;
+}
+
+/* Side by side the two charts are compared rather than remembered: how Kd follows Kt,
+   and how much of the record sits at each Kt. Narrower than this the axes squeeze. */
+.sky-analysis {
+  display: grid;
+  gap: 1.25rem;
+}
+
+/* Grid items default to `min-width: auto` and refuse to shrink below their content, so
+   a panel wider than the phone hangs off the edge — clipped, with no scrollbar to hint. */
+.sky-analysis > * {
+  min-width: 0;
+}
+
+@media (width >= 1180px) {
+  .sky-analysis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .sky-analysis > .clima-panel {
+    margin-bottom: 0;
+  }
+}
+
+/* The frames are context: at full height they pushed the analysis below every fold. */
+.sky-frame-media {
+  max-height: 340px;
+}
+
+/* A label stacked over its chips costs a line per group, and this panel has three. */
+@media (width >= 1180px) {
+  /* Three-and-one reads as a ranking with an outlier; 2x2 reads as parts of one whole. */
+  #ceuAcumuladaClasses {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sky-analysis .clima-control {
+    flex-flow: row wrap;
+    align-items: baseline;
+    column-gap: 0.6rem;
+  }
+
+  .sky-analysis .clima-control-label {
+    flex: 0 0 auto;
+  }
+
+  .sky-analysis .clima-control-actions {
+    justify-content: flex-start;
+  }
+}
+
 /* The intrinsic height is the thumb's, ~16px, under the 24px minimum for a
    touch target; the track stays thin and the extra height is hit area. */
 .sky-range {
@@ -1213,10 +1282,65 @@
   border-radius: 2px;
 }
 
+/* The names are full sentences and carry the Kt band, which no 320px column holds on
+   one line, so the chip wraps inside itself rather than running past the edge. */
 .sky-class-btn {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
+
+  /* Without this the flex item keeps its content width and never wraps. */
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+
+/* Quieter than the name so the chip reads as one control, not two labels. */
+.sky-chip-range {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86em;
+  opacity: 0.75;
+}
+
+.sky-notes {
+  padding-block: 0.85rem;
+}
+
+.sky-notes-toggle {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.sky-notes-count {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.sky-notes [aria-expanded="true"] .fa-chevron-down {
+  transform: rotate(180deg);
+}
+
+.sky-notes-toggle .fa-chevron-down {
+  font-size: 0.8em;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.sky-notes #ceuCaveats {
+  margin-top: 0.85rem;
+  margin-bottom: 0;
 }
 
 .sky-actions {

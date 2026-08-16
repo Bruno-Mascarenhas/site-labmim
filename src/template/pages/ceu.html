@@ -103,6 +103,7 @@
   </div>
 
   <div id="ceuApp" hidden>
+    <h3 class="sky-section-title">Agora</h3>
     <div class="monitor-controls" role="group" aria-label="Exibição dos quadros">
       <div class="monitor-control" id="ceuOpacidadeControl">
         <label class="clima-control-label" for="ceuOpacidade">Opacidade da máscara</label>
@@ -131,7 +132,9 @@
       </figure>
     </div>
 
-    <div class="theme-surface clima-panel">
+    <h3 class="sky-section-title">O acervo</h3>
+    <div class="sky-analysis">
+      <div class="theme-surface clima-panel">
       <div class="clima-panel-head">
         <div class="sky-panel-title">
           <h3 class="clima-panel-title">Índice de claridade × fração difusa</h3>
@@ -147,8 +150,6 @@
         <p class="clima-legend" id="ceuGraficoNota"></p>
         <p class="clima-legend sky-metrics" id="ceuMetricas" hidden></p>
       </div>
-
-      <ul class="sky-legend" id="ceuLegenda"></ul>
 
       <div class="clima-controls">
         <div class="clima-control">
@@ -174,8 +175,6 @@
       </div>
 
       <p class="clima-status" id="ceuStatus" aria-live="polite"></p>
-
-      <ul class="clima-caveats" id="ceuCaveats" hidden></ul>
     </div>
 
     <!-- Hidden until `labmim-kt-cumulative-v1` is published: the two panels have different cadences and either
@@ -209,6 +208,29 @@
       </div>
 
       <p class="clima-status" id="ceuAcumuladaStatus" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <!-- Both charts' qualifications, full width. Inside the scatter's panel the
+     cumulative's own notes had nowhere to go and were dropped. -->
+    <div class="theme-surface clima-panel sky-notes" id="ceuNotasPainel" hidden>
+      <button
+        class="sky-notes-toggle"
+        type="button"
+        data-ui-toggle="ceuNotasConteudo"
+        data-label-open="Notas sobre estes dados"
+        data-label-closed="Notas sobre estes dados"
+        aria-controls="ceuNotasConteudo"
+        aria-expanded="false"
+      >
+        <i class="fas fa-chevron-down" aria-hidden="true"></i>
+        <span data-toggle-label>Notas sobre estes dados</span>
+        <!-- Outside the toggle label so it survives the open/closed swap. -->
+        <span class="sky-notes-count" id="ceuNotasContagem"></span>
+      </button>
+      <div id="ceuNotasConteudo" hidden>
+        <ul class="clima-caveats" id="ceuCaveats"></ul>
+      </div>
     </div>
 
     <!-- Same contract as the climatology page: the `[[chave]]` markers in the prose expand into short linked

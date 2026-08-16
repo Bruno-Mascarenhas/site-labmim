@@ -21,7 +21,9 @@
 "use strict";
 
 (function () {
-  // Validated with scripts/validate_palette.js, same pairs as the climatology page.
+  // Validated over ALL pairs against the card surface (#f8f9fa light, #2d2d2d dark).
+  // The orange is a step darker than the PNGs carried: theirs sat at 2.86:1 here, under
+  // the 3:1 floor. Climatology and sky use the same value.
   //
   // Two encodings, and both match the `labmim-site-graphs` PNGs so the two products
   // read alike. Single-quantity chart: hue is free, BLUE is measured and ORANGE the
@@ -32,7 +34,7 @@
   // Raw is achromatic rather than a fourth colour: it is not another quantity, it is
   // the same one before aggregation.
   const PALETTE = {
-    light: { station: "#3761b4", model: "#e07a1f", net: "#3761b4", shortwave: "#e07a1f", longwave: "#1a7f5a" },
+    light: { station: "#3761b4", model: "#d9741c", net: "#3761b4", shortwave: "#d9741c", longwave: "#1a7f5a" },
     dark: { station: "#5589e6", model: "#cb8030", net: "#5589e6", shortwave: "#cb8030", longwave: "#31a37a" },
   };
 
@@ -411,6 +413,40 @@
     },
   };
 
+  /**
+   * A bearing is read as a compass: an even tick generator over 0..360 produces
+   * 100/200/300, which are the points nobody names. Same spelling as the climatology
+   * wind rose — L for leste, O for oeste.
+   */
+  const BEARING_TICKS = [0, 45, 90, 135, 180, 225, 270, 315, 360];
+  const BEARING_NAMES = ["N", "NE", "L", "SE", "S", "SO", "O", "NO", "N"];
+
+  function isBearingAxis(chart) {
+    return chart.unit === "°" && Array.isArray(chart.y_limits) && chart.y_limits[0] === 0 && chart.y_limits[1] === 360;
+  }
+
+  function bearingTick(value) {
+    const index = BEARING_TICKS.indexOf(value);
+    return index === -1 ? value : `${value}° ${BEARING_NAMES[index]}`;
+  }
+
+  function yScale(chart, theme) {
+    const scale = {
+      min: chart.y_limits ? chart.y_limits[0] : undefined,
+      max: chart.y_limits ? chart.y_limits[1] : undefined,
+      beginAtZero: chart.kind === "bar",
+      title: { display: Boolean(chart.unit), text: chart.unit, color: theme.textSecondary },
+      ticks: { color: theme.textSecondary, maxTicksLimit: 7 },
+      grid: { color: theme.grid },
+    };
+    if (!isBearingAxis(chart)) return scale;
+    scale.afterBuildTicks = (axis) => {
+      axis.ticks = BEARING_TICKS.map((value) => ({ value }));
+    };
+    scale.ticks = { color: theme.textSecondary, autoSkip: false, callback: bearingTick };
+    return scale;
+  }
+
   // Swatches drawn with the dataset's own `borderDash`, so solid/dashed/dotted are
   // told apart in the legend too. The Chart.js default turns "Onda curta ↓" and
   // "Onda curta ↑" into two identical orange circles.
@@ -553,14 +589,7 @@
             },
             grid: { display: false },
           },
-          y: {
-            min: chart.y_limits ? chart.y_limits[0] : undefined,
-            max: chart.y_limits ? chart.y_limits[1] : undefined,
-            beginAtZero: chart.kind === "bar",
-            title: { display: Boolean(chart.unit), text: chart.unit, color: theme.textSecondary },
-            ticks: { color: theme.textSecondary, maxTicksLimit: 7 },
-            grid: { color: theme.grid },
-          },
+          y: yScale(chart, theme),
         },
       },
     };

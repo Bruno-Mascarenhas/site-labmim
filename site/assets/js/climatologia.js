@@ -17,7 +17,7 @@
   // Pairs validated with scripts/validate_palette.js: luminance band, chroma floor, colour-blind separation and
   // contrast against the surface. Changing a value means running the validator again.
   const PALETTE = {
-    light: { empirical: "#3761b4", model: "#e07a1f" },
+    light: { empirical: "#3761b4", model: "#d9741c" },
     dark: { empirical: "#5589e6", model: "#cb8030" },
   };
 
@@ -214,7 +214,16 @@
           legend: {
             display: true,
             position: "top",
-            labels: { color: theme.legendText, usePointStyle: true, boxWidth: 10 },
+            labels: {
+              color: theme.legendText,
+              usePointStyle: true,
+              boxWidth: 10,
+              // The curve carries `order: 1` so it paints ON TOP of the bars, and Chart.js
+              // reads that same field for the legend — which listed the fitted model ahead
+              // of the measurement it is fitted to. Draw order is a depth question; legend
+              // order is a "what is this chart about" question, and the answer is the bars.
+              sort: (a, b) => (a.datasetIndex === b.datasetIndex ? 0 : a.datasetIndex - b.datasetIndex),
+            },
           },
           tooltip: {
             backgroundColor: theme.tooltipBg,

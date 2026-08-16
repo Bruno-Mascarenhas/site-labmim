@@ -57,7 +57,7 @@
     <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
-    <link rel="stylesheet" href="assets/css/components.css?v=84834ba9" />
+    <link rel="stylesheet" href="assets/css/components.css?v=3441d80e" />
 
     <link rel="stylesheet" href="assets/css/theme.css?v=33083143" />
 
@@ -246,6 +246,7 @@
         </div>
 
         <div id="ceuApp" hidden>
+          <h3 class="sky-section-title">Agora</h3>
           <div class="monitor-controls" role="group" aria-label="Exibição dos quadros">
             <div class="monitor-control" id="ceuOpacidadeControl">
               <label class="clima-control-label" for="ceuOpacidade">Opacidade da máscara</label>
@@ -274,88 +275,109 @@
             </figure>
           </div>
 
-          <div class="theme-surface clima-panel">
-            <div class="clima-panel-head">
-              <div class="sky-panel-title">
-                <h3 class="clima-panel-title">Índice de claridade × fração difusa</h3>
-                <button
-                  class="sky-guide-open"
-                  type="button"
-                  id="ceuGuia"
-                  aria-label="O que significa cada elemento deste gráfico"
-                >
-                  <i class="fas fa-circle-info" aria-hidden="true"></i>
-                </button>
+          <h3 class="sky-section-title">O acervo</h3>
+          <div class="sky-analysis">
+            <div class="theme-surface clima-panel">
+              <div class="clima-panel-head">
+                <div class="sky-panel-title">
+                  <h3 class="clima-panel-title">Índice de claridade × fração difusa</h3>
+                  <button
+                    class="sky-guide-open"
+                    type="button"
+                    id="ceuGuia"
+                    aria-label="O que significa cada elemento deste gráfico"
+                  >
+                    <i class="fas fa-circle-info" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <p class="clima-legend" id="ceuGraficoNota"></p>
+                <p class="clima-legend sky-metrics" id="ceuMetricas" hidden></p>
               </div>
-              <p class="clima-legend" id="ceuGraficoNota"></p>
-              <p class="clima-legend sky-metrics" id="ceuMetricas" hidden></p>
+
+              <div class="clima-controls">
+                <div class="clima-control">
+                  <span class="clima-control-label" id="ceuCamadasLabel">Camadas</span>
+                  <div class="clima-segmented" id="ceuCamadas" role="group" aria-labelledby="ceuCamadasLabel"></div>
+                </div>
+                <div class="clima-control">
+                  <span class="clima-control-label" id="ceuClassesLabel">Condições de céu</span>
+                  <div class="clima-segmented" id="ceuClasses" role="group" aria-labelledby="ceuClassesLabel"></div>
+                </div>
+                <div class="clima-control">
+                  <span class="clima-control-label" id="ceuCurvaLabel">Modelos</span>
+                  <div class="clima-segmented" id="ceuCurva" role="group" aria-labelledby="ceuCurvaLabel"></div>
+                </div>
+                <div class="clima-control clima-control-actions sky-actions">
+                  <button type="button" class="btn btn-sm btn-outline-lab" id="ceuAmpliar">Ampliar</button>
+                  <button type="button" class="btn btn-sm btn-outline-lab" id="ceuExport">Baixar CSV</button>
+                </div>
+              </div>
+
+              <div class="chart-container clima-chart sky-chart" id="ceuChartWrap">
+                <canvas
+                  id="ceuCanvas"
+                  role="img"
+                  aria-label="Dispersão do índice de claridade contra a fração difusa"
+                ></canvas>
+              </div>
+
+              <p class="clima-status" id="ceuStatus" aria-live="polite"></p>
             </div>
 
-            <ul class="sky-legend" id="ceuLegenda"></ul>
+            <!-- Hidden until `labmim-kt-cumulative-v1` is published: the two panels have different cadences and either
+     may be absent, the same contract the frames and the Kt × Kd chart already follow. -->
+            <div class="theme-surface clima-panel" id="ceuAcumuladaPainel" hidden>
+              <div class="clima-panel-head">
+                <h3 class="clima-panel-title">Quanto tempo o céu passa em cada condição</h3>
+                <p class="clima-legend" id="ceuAcumuladaNota"></p>
+              </div>
 
-            <div class="clima-controls">
-              <div class="clima-control">
-                <span class="clima-control-label" id="ceuCamadasLabel">Camadas</span>
-                <div class="clima-segmented" id="ceuCamadas" role="group" aria-labelledby="ceuCamadasLabel"></div>
+              <div class="clima-controls">
+                <div class="clima-control">
+                  <span class="clima-control-label" id="ceuAcumuladaRecorteLabel">Recorte</span>
+                  <div
+                    class="clima-segmented"
+                    id="ceuAcumuladaRecorte"
+                    role="group"
+                    aria-labelledby="ceuAcumuladaRecorteLabel"
+                  ></div>
+                </div>
               </div>
-              <div class="clima-control">
-                <span class="clima-control-label" id="ceuClassesLabel">Condições de céu</span>
-                <div class="clima-segmented" id="ceuClasses" role="group" aria-labelledby="ceuClassesLabel"></div>
+
+              <div class="clima-stats" id="ceuAcumuladaClasses"></div>
+
+              <div class="chart-container clima-chart sky-chart" id="ceuAcumuladaChartWrap">
+                <canvas
+                  id="ceuAcumuladaCanvas"
+                  role="img"
+                  aria-label="Distribuição acumulada do índice de claridade"
+                ></canvas>
               </div>
-              <div class="clima-control">
-                <span class="clima-control-label" id="ceuCurvaLabel">Modelos</span>
-                <div class="clima-segmented" id="ceuCurva" role="group" aria-labelledby="ceuCurvaLabel"></div>
-              </div>
-              <div class="clima-control clima-control-actions sky-actions">
-                <button type="button" class="btn btn-sm btn-outline-lab" id="ceuAmpliar">Ampliar</button>
-                <button type="button" class="btn btn-sm btn-outline-lab" id="ceuExport">Baixar CSV</button>
-              </div>
+
+              <p class="clima-status" id="ceuAcumuladaStatus" aria-live="polite"></p>
             </div>
-
-            <div class="chart-container clima-chart sky-chart" id="ceuChartWrap">
-              <canvas
-                id="ceuCanvas"
-                role="img"
-                aria-label="Dispersão do índice de claridade contra a fração difusa"
-              ></canvas>
-            </div>
-
-            <p class="clima-status" id="ceuStatus" aria-live="polite"></p>
-
-            <ul class="clima-caveats" id="ceuCaveats" hidden></ul>
           </div>
 
-          <!-- Hidden until `labmim-kt-cumulative-v1` is published: the two panels have different cadences and either
-     may be absent, the same contract the frames and the Kt × Kd chart already follow. -->
-          <div class="theme-surface clima-panel" id="ceuAcumuladaPainel" hidden>
-            <div class="clima-panel-head">
-              <h3 class="clima-panel-title">Quanto tempo o céu passa em cada condição</h3>
-              <p class="clima-legend" id="ceuAcumuladaNota"></p>
+          <!-- Both charts' qualifications, full width. Inside the scatter's panel the
+     cumulative's own notes had nowhere to go and were dropped. -->
+          <div class="theme-surface clima-panel sky-notes" id="ceuNotasPainel" hidden>
+            <button
+              class="sky-notes-toggle"
+              type="button"
+              data-ui-toggle="ceuNotasConteudo"
+              data-label-open="Notas sobre estes dados"
+              data-label-closed="Notas sobre estes dados"
+              aria-controls="ceuNotasConteudo"
+              aria-expanded="false"
+            >
+              <i class="fas fa-chevron-down" aria-hidden="true"></i>
+              <span data-toggle-label>Notas sobre estes dados</span>
+              <!-- Outside the toggle label so it survives the open/closed swap. -->
+              <span class="sky-notes-count" id="ceuNotasContagem"></span>
+            </button>
+            <div id="ceuNotasConteudo" hidden>
+              <ul class="clima-caveats" id="ceuCaveats"></ul>
             </div>
-
-            <div class="clima-controls">
-              <div class="clima-control">
-                <span class="clima-control-label" id="ceuAcumuladaRecorteLabel">Recorte</span>
-                <div
-                  class="clima-segmented"
-                  id="ceuAcumuladaRecorte"
-                  role="group"
-                  aria-labelledby="ceuAcumuladaRecorteLabel"
-                ></div>
-              </div>
-            </div>
-
-            <div class="clima-stats" id="ceuAcumuladaClasses"></div>
-
-            <div class="chart-container clima-chart sky-chart" id="ceuAcumuladaChartWrap">
-              <canvas
-                id="ceuAcumuladaCanvas"
-                role="img"
-                aria-label="Distribuição acumulada do índice de claridade"
-              ></canvas>
-            </div>
-
-            <p class="clima-status" id="ceuAcumuladaStatus" aria-live="polite"></p>
           </div>
 
           <!-- Same contract as the climatology page: the `[[chave]]` markers in the prose expand into short linked
@@ -540,6 +562,6 @@
     <script defer src="assets/js/references.js?v=23573fee"></script>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
-    <script defer src="assets/js/ceu.js?v=2e195a29"></script>
+    <script defer src="assets/js/ceu.js?v=84ec45bc"></script>
   </body>
 </html>
