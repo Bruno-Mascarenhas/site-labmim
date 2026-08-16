@@ -16,6 +16,7 @@
 (function () {
   const KTKD_PAYLOAD = "ktkd.json";
   const FRAME_PAYLOAD = "frame.json";
+  const CUMULATIVE_PAYLOAD = "kt_cumulative.json";
   const DEFAULT_RAW_FRAME = "allsky.jpg";
   const DEFAULT_MASK_FRAME = "mask.png";
 
@@ -83,6 +84,9 @@
     activeModels: new Set(),
     framesMissing: 0,
     hoverCell: null,
+    cumulativePayload: null,
+    cumulativeSubsetId: "",
+    cumulativeChart: null,
   };
 
   const el = (id) => document.getElementById(id);
@@ -1159,6 +1163,303 @@
    * Absence and unreadability stay apart, as in monitoramento.js — a 200 cut in
    * half is the normal state during an upload, not a file yet to be deployed.
    */
+  // Cumulative distribution of the clearness index (`labmim-kt-cumulative-v1`).
+  //
+  // A third payload, independent of the other two: it answers what the scatter cannot — not how Kd behaves at a
+  // given Kt, but how much of the record sits in each sky condition at all. Rebuilt on the archive's cadence, so
+  // it is fetched apart and may be absent while the others are present.
+  //
+  // `cumulative[i]` is F at the UPPER edge of bin i — fifty values for fifty-one edges — so the series is drawn on
+  // a LINEAR x scale with `stepped: "after"`: F is defined AT the edges and holds constant between them. A
+  // bin-centre axis would shift the whole curve half a bin off the numbers it refers to, and a smoothed line would
+  // claim intermediate values a step function does not have.
+  //
+  // Whether `below`/`above` sit inside the denominator decides whether F can reach 1, and the page does not assume
+  // either way: it draws the published values, caps the axis at 1, and names the out-of-edge hours beside the curve
+  // instead of folding them in silently. In the sibling climatology contract they are NOT inside `n` — every
+  // published subset there has `sum(counts) == n` exactly — so a reader who assumes otherwise misreads the total.
+
+  function percent(fraction, digits = 1) {
+    if (!Number.isFinite(fraction)) return "—";
+    return `${decimal(fraction * 100, digits)}%`;
+  }
+
+  function integer(value) {
+    if (!Number.isFinite(value)) return "—";
+    return new Intl.NumberFormat("pt-BR").format(Math.round(value));
+  }
+
+  function cumulativeSubsets() {
+    const payload = state.cumulativePayload;
+    const subsets = payload && payload.subsets;
+    if (!subsets || typeof subsets !== "object") return [];
+    return Object.entries(subsets).map(([id, subset]) => ({
+      id,
+      label: (subset && subset.label) || id,
+      subset,
+    }));
+  }
+
+  function currentCumulativeSubset() {
+    const entry = cumulativeSubsets().find((item) => item.id === state.cumulativeSubsetId);
+    return entry ? entry.subset : null;
+  }
+
+  function cumulativePoints(subset, edges) {
+    const values = (subset && subset.cumulative) || [];
+    if (!values.length || !Array.isArray(edges) || edges.length < 2) return [];
+    const points = [{ x: edges[0], y: 0 }];
+    for (let index = 0; index < values.length; index += 1) {
+      points.push({ x: edges[index + 1], y: values[index] });
+    }
+    return points;
+  }
+
+  // No copy of the thresholds here. They are literature, they arrive beside their citation in the payload, and the
+  // embedded fallback this file keeps for the scatter exists only so the figure never draws boundaries from
+  // nowhere — it is not a second source to classify by.
+  function cumulativeBounds(subset) {
+    const sky = subset && subset.sky_conditions;
+    const bounds = sky && Array.isArray(sky.kt_upper_bounds) ? sky.kt_upper_bounds : [];
+    return bounds.filter((value) => Number.isFinite(value));
+  }
+
+  // Read by `condition`/`id`, never by position: the exporter's internal class is 0-based while the literature
+  // numbers I to IV, so a raw index crossing that boundary is an off-by-one waiting to happen.
+  function cumulativeConditionAt(subset, value) {
+    const sky = subset && subset.sky_conditions;
+    for (const condition of (sky && sky.conditions) || []) {
+      const range = condition.kt_range || [];
+      const low = range[0];
+      const high = range[1];
+      const aboveLow = low === null || low === undefined || value > low;
+      const belowHigh = high === null || high === undefined || value <= high;
+      if (aboveLow && belowHigh) return condition;
+    }
+    return null;
+  }
+
+  function cumulativeConditionLabel(condition) {
+    if (!condition) return "—";
+    const numeral = String(condition.id || condition.condition || "").toUpperCase();
+    return `${numeral} ${condition.name_pt || condition.name || ""}`.trim();
+  }
+
+  function cumulativeBoundsPlugin(subset, theme) {
+    const bounds = cumulativeBounds(subset);
+    return {
+      id: "ceuAcumuladaBounds",
+      afterDatasetsDraw(chart) {
+        if (!bounds.length) return;
+        const { ctx, chartArea, scales } = chart;
+        ctx.save();
+        ctx.strokeStyle = theme.textSecondary;
+        ctx.fillStyle = theme.textSecondary;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.font = "11px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        // The lines always draw; the labels yield to each other. On a narrow chart the boundaries sit a few pixels
+        // apart and two numbers printed on top of one another read as a third, wrong one.
+        let lastLabelRight = -Infinity;
+        for (const bound of bounds) {
+          const x = scales.x.getPixelForValue(bound);
+          if (x < chartArea.left || x > chartArea.right) continue;
+          ctx.beginPath();
+          ctx.moveTo(x, chartArea.top);
+          ctx.lineTo(x, chartArea.bottom);
+          ctx.stroke();
+          const text = decimal(bound, 2);
+          const half = ctx.measureText(text).width / 2;
+          if (x - half > lastLabelRight + 4) {
+            ctx.fillText(text, x, chartArea.top + 12);
+            lastLabelRight = x + half;
+          }
+        }
+        ctx.restore();
+      },
+    };
+  }
+
+  function drawCumulative() {
+    const panel = el("ceuAcumuladaPainel");
+    const subset = currentCumulativeSubset();
+    const payload = state.cumulativePayload;
+    if (!payload || !subset) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+
+    const theme = themeColors();
+    const edges = payload.edges || [];
+    const points = cumulativePoints(subset, edges);
+    const lineInk = `rgb(${theme.ink})`;
+
+    if (state.cumulativeChart) {
+      state.cumulativeChart.destroy();
+      state.cumulativeChart = null;
+    }
+
+    const canvas = el("ceuAcumuladaCanvas");
+    state.cumulativeChart = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        datasets: [
+          {
+            label: "Fração acumulada",
+            data: points,
+            borderColor: lineInk,
+            backgroundColor: lineInk,
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            stepped: "after",
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: "nearest", axis: "x" },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: theme.tooltipBg,
+            titleColor: theme.tooltipText,
+            bodyColor: theme.tooltipText,
+            borderColor: lineInk,
+            borderWidth: 1,
+            callbacks: {
+              title: (items) => `Kt até ${decimal(items[0].parsed.x, 2)}`,
+              label: (item) => {
+                const lines = [`Fração do registro: ${percent(item.parsed.y, 2)}`];
+                const condition = cumulativeConditionAt(subset, item.parsed.x);
+                if (condition) lines.push(`Condição ${cumulativeConditionLabel(condition)}`);
+                return lines;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: "linear",
+            min: edges[0],
+            max: edges[edges.length - 1],
+            title: { display: true, text: "Kt", color: theme.textSecondary },
+            ticks: { color: theme.textSecondary, maxTicksLimit: 11 },
+            grid: { display: false },
+          },
+          y: {
+            min: 0,
+            max: 1,
+            title: { display: true, text: "Fração acumulada", color: theme.textSecondary },
+            ticks: { color: theme.textSecondary, callback: (value) => percent(value, 0) },
+            grid: { color: theme.grid },
+          },
+        },
+      },
+      plugins: [cumulativeBoundsPlugin(subset, theme)],
+    });
+
+    canvas.setAttribute(
+      "aria-label",
+      `Distribuição acumulada do índice de claridade — ${currentCumulativeLabel()}. ` +
+        `As frações por condição de céu estão listadas acima do gráfico.`
+    );
+
+    renderCumulativeClasses(subset);
+    renderCumulativeStatus(subset);
+  }
+
+  function currentCumulativeLabel() {
+    const entry = cumulativeSubsets().find((item) => item.id === state.cumulativeSubsetId);
+    return entry ? entry.label : state.cumulativeSubsetId;
+  }
+
+  // The share of hours per class is the headline, not a footnote: the curve answers "how often below Kt", these
+  // answer "how often in this state", and the second is what the classification exists for. Published already
+  // computed — reading it off an interpolated F would be a second numerical path free to disagree.
+  function renderCumulativeClasses(subset) {
+    const container = el("ceuAcumuladaClasses");
+    container.replaceChildren();
+    const sky = subset.sky_conditions || {};
+    for (const condition of sky.conditions || []) {
+      const tile = node("div", "clima-stat");
+      const value = node("span", "clima-stat-value", percent(condition.fraction, 1));
+      const caption = node("span", "clima-stat-label", cumulativeConditionLabel(condition));
+      tile.append(value, caption);
+      container.appendChild(tile);
+    }
+  }
+
+  function renderCumulativeStatus(subset) {
+    const sky = subset.sky_conditions || {};
+    const below = Number.isFinite(subset.below) ? subset.below : 0;
+    const above = Number.isFinite(subset.above) ? subset.above : 0;
+    const parts = [`${integer(subset.n)} horas no recorte`];
+    if (sky.n !== undefined && sky.n !== null) parts.push(`${integer(sky.n)} classificadas`);
+    // Named, not hidden: these sit inside `n` but outside the curve, which is exactly why F does not reach 1.
+    if (below || above) {
+      const ends = [];
+      if (below) ends.push(`${integer(below)} abaixo`);
+      if (above) ends.push(`${integer(above)} acima`);
+      parts.push(`fora das bordas ${ends.join(" e ")}`);
+    }
+    el("ceuAcumuladaStatus").textContent = `${parts.join(" · ")}.`;
+  }
+
+  function buildCumulativeSubsetToggles() {
+    const group = el("ceuAcumuladaRecorte");
+    group.replaceChildren();
+    const entries = cumulativeSubsets();
+    // A single published slice needs no chooser — the control would be a button that changes nothing.
+    group.parentElement.hidden = entries.length < 2;
+    for (const entry of entries) {
+      const button = node("button", "clima-segmented-btn", entry.label);
+      button.type = "button";
+      button.dataset.subset = entry.id;
+      button.setAttribute("aria-pressed", String(entry.id === state.cumulativeSubsetId));
+      button.classList.toggle("is-active", entry.id === state.cumulativeSubsetId);
+      button.addEventListener("click", () => {
+        state.cumulativeSubsetId = entry.id;
+        for (const other of group.children) {
+          const active = other.dataset.subset === state.cumulativeSubsetId;
+          other.setAttribute("aria-pressed", String(active));
+          other.classList.toggle("is-active", active);
+        }
+        drawCumulative();
+      });
+      group.appendChild(button);
+    }
+  }
+
+  function initCumulative() {
+    const payload = state.cumulativePayload;
+    const entries = cumulativeSubsets();
+    if (!payload || !entries.length) {
+      el("ceuAcumuladaPainel").hidden = true;
+      return;
+    }
+    state.cumulativeSubsetId = entries[0].id;
+    const note = el("ceuAcumuladaNota");
+    note.replaceChildren(
+      document.createTextNode(
+        "Curva: fração do registro com Kt até o valor lido no eixo — função escada, constante entre arestas. " +
+          "Verticais tracejadas: os limites entre as condições de céu"
+      )
+    );
+    const reference = (entries[0].subset.sky_conditions || {}).reference || "";
+    if (reference) {
+      note.appendChild(document.createTextNode(" ["));
+      note.appendChild(document.createTextNode(reference));
+      note.appendChild(document.createTextNode("]"));
+    }
+    note.appendChild(document.createTextNode("."));
+    buildCumulativeSubsetToggles();
+  }
+
   async function loadJson(name) {
     let response;
     try {
@@ -1188,6 +1489,7 @@
     buildClassToggles();
     buildModelToggles();
     drawChart();
+    drawCumulative();
   }
 
   async function start() {
@@ -1204,10 +1506,15 @@
     }
 
     el("ceuEmpty").hidden = false;
-    const [chart, frame] = await Promise.all([loadJson(KTKD_PAYLOAD), loadJson(FRAME_PAYLOAD)]);
+    const [chart, frame, cumulative] = await Promise.all([
+      loadJson(KTKD_PAYLOAD),
+      loadJson(FRAME_PAYLOAD),
+      loadJson(CUMULATIVE_PAYLOAD),
+    ]);
     state.chartPayload = chart.payload;
     state.chartStatus = chart.status;
     state.framePayload = frame.payload;
+    state.cumulativePayload = cumulative.payload;
     state.classes = resolveClasses(state.chartPayload);
     state.models = resolveModels(state.chartPayload);
     state.points = readPoints(state.chartPayload);
@@ -1228,9 +1535,12 @@
     el("ceuAmpliar").addEventListener("click", openZoom);
     el("ceuExport").addEventListener("click", exportCsv);
 
+    initCumulative();
+
     el("ceuEmpty").hidden = true;
     el("ceuApp").hidden = false;
     drawChart();
+    drawCumulative();
 
     window.addEventListener("labmim-theme-change", onThemeChange);
   }
