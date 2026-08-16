@@ -49,9 +49,11 @@
     dark: { i: "#94a3b8", ii: "#5589e6", iii: "#31a37a", iv: "#cb8030" },
   };
 
+  // Keyed by the published model id. `ridley_brl_2010` is the one the exporter emits; `ridley_2010` is kept because
+  // dropping it would silently move that model to a fallback colour on any payload still using the older id.
   const MODEL_PALETTE = {
-    light: { marques_filho_2016: "#7c3aa8", lemos_2017: "#c2185b", ridley_2010: "#0e7490" },
-    dark: { marques_filho_2016: "#c08ae0", lemos_2017: "#f06292", ridley_2010: "#4dd0e1" },
+    light: { marques_filho_2016: "#7c3aa8", lemos_2017: "#c2185b", ridley_brl_2010: "#0e7490", ridley_2010: "#0e7490" },
+    dark: { marques_filho_2016: "#c08ae0", lemos_2017: "#f06292", ridley_brl_2010: "#4dd0e1", ridley_2010: "#4dd0e1" },
   };
 
   // A model id the palette does not know still has to be drawable.
@@ -182,28 +184,56 @@
     });
   }
 
-  // "Marques Filho et al. (2016)" -> "Marques Filho"; "… — BRL" -> "BRL".
+  // "Marques Filho et al. (2016)" -> "Marques Filho"; "BRL — Ridley et al. (2010)" -> "Ridley". The dash separates
+  // a family name from a citation, and the citation is the half that distinguishes — two of the three models are
+  // BRL fits, so "BRL" alone would name neither. Both cuts apply, in order, whichever side of the dash survives:
+  // otherwise one chip carries a year the others do not and the row stops reading as one set.
   function shortModelLabel(label) {
     const text = String(label || "");
-    if (text.includes(" — ")) return text.split(" — ").pop().trim();
-    return text.split(/\s+et al\.|\s+\(/)[0].trim() || text;
+    const segment = text.includes(" — ") ? text.split(" — ").pop().trim() : text;
+    return segment.split(/\s+et al\.|\s+\(/)[0].trim() || segment;
+  }
+
+  // A toggle with no text on it is unusable, so a model that publishes no `label` still gets a name — but it gets
+  // it from the id, never from `reference`. Cutting the citation at its first comma would read as a nicer name and
+  // would turn editing the bibliography into silently relabelling the figure, a failure far from its cause.
+  function modelDisplayName(model) {
+    if (model.label) return shortModelLabel(model.label);
+    return String(model.id || "").replace(/_/g, " ");
   }
 
   function resolveModels(payload) {
     const declared = payload && Array.isArray(payload.models) ? payload.models : [];
     return declared
       .filter((model) => model && typeof model.id === "string" && Array.isArray(model.kt))
-      .map((model) => ({ ...model, short: shortModelLabel(model.label) }));
+      .map((model) => ({ ...model, short: modelDisplayName(model) }));
+  }
+
+  // Positional rows drop three repeated keys from every one of tens of thousands of entries, which on a host that
+  // serves JSON uncompressed is most of the file. The price is that the order stops being self-evident, so the
+  // exporter declares it and this reads the declaration: a silent swap of kt for kd would mirror the whole figure
+  // across the diagonal and still look like a plausible scatter — the same failure the density's transpose guard
+  // exists to catch. The historical order is the fallback, for payloads written before the field existed.
+  const DEFAULT_POINTS_FORMAT = ["kt", "kd", "t"];
+
+  function pointsFieldIndex(payload) {
+    const declared = payload && payload.points_format;
+    const order = Array.isArray(declared) && declared.length ? declared : DEFAULT_POINTS_FORMAT;
+    return { kt: order.indexOf("kt"), kd: order.indexOf("kd"), t: order.indexOf("t") };
   }
 
   function readPoints(payload) {
     const raw = payload && Array.isArray(payload.points) ? payload.points : [];
+    const at = pointsFieldIndex(payload);
+    // A declaration without both coordinates names no scatter at all; falling back to positions it did not
+    // declare would be guessing, and guessing here is what mirrors the figure.
+    if (at.kt < 0 || at.kd < 0) return [];
     const points = [];
     for (const entry of raw) {
       const positional = Array.isArray(entry);
-      const kt = positional ? entry[0] : entry && entry.kt;
-      const kd = positional ? entry[1] : entry && entry.kd;
-      const stamp = positional ? entry[2] : entry && entry.t;
+      const kt = positional ? entry[at.kt] : entry && entry.kt;
+      const kd = positional ? entry[at.kd] : entry && entry.kd;
+      const stamp = positional ? (at.t < 0 ? "" : entry[at.t]) : entry && entry.t;
       if (!Number.isFinite(kt) || !Number.isFinite(kd)) continue;
       points.push({ x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", observed: true });
     }
