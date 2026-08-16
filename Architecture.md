@@ -443,7 +443,7 @@ Sobre o conteúdo: `kt` é o índice de claridade (global medida na horizontal s
 
 ## Variáveis E Palhetas
 
-As variáveis ficam em `VARIABLES_CONFIG` (14 chaves):
+As variáveis ficam em `VARIABLES_CONFIG` (21 chaves):
 
 | Chave              | ID principal             | Observação                                             |
 | ------------------ | ------------------------ | ------------------------------------------------------ |
@@ -458,9 +458,18 @@ As variáveis ficam em `VARIABLES_CONFIG` (14 chaves):
 | `rain`             | `RAIN`                   | Precipitação                                           |
 | `wind`             | `WIND`                   | Vento a 10m                                            |
 | `longwave`         | `GLW`                    | Radiação de onda longa incidente                       |
+| `shortwaveUp`      | `SWUP`                   | Onda curta refletida pela superfície                   |
+| `netShortwave`     | `SWNET`                  | Saldo de onda curta                                    |
+| `longwaveUp`       | `LWUP`                   | Onda longa emitida pela superfície                     |
+| `netLongwave`      | `LWNET`                  | Saldo de onda longa                                    |
+| `netRadiation`     | `RNET`                   | Saldo de radiação                                      |
+| `skyEmissivity`    | `EPS_SKY`                | Emissividade do céu, adimensional                      |
+| `clearnessIndex`   | `KT`                     | Publicado só com o sol acima de 10° de elevação        |
 | `hfx`              | `HFX`                    | Calor sensível                                         |
 | `lh`               | `LH`                     | Calor latente                                          |
 | `windPowerDensity` | `WIND_POWER_DENSITY_10M` | Densidade de potência eólica a 10m                     |
+
+As sete entre `shortwaveUp` e `clearnessIndex` são derivadas do balanço de radiação à superfície e chegam prontas do pipeline, como as demais. `clearnessIndex` é a única que produz ausência em volume: o quociente é indefinido abaixo do corte de elevação solar, então os passos de crepúsculo vêm com `null` em parte das células — e, em rodadas geradas antes do portão que os suprime, com `null` em **todas**. Um passo inteiramente vazio é estado possível, não anomalia: a página desenha o mapa sem células e não deve tratá-lo como falha de carregamento.
 
 Cada entrada define ao menos `id`, `label`, `unit`, `colors`, `scaleMin`/`scaleMax` e `specificInfo(value, allValues)`. Campos opcionais: `relatedVariables` (variáveis auxiliares buscadas para a sidebar), `chartCompanions` (séries companheiras carregadas para os gráficos — ex.: temperatura para `solar`/`eolico`), `id_100m`/`id_150m` (eólico), `optionLabel`, `icon`/`faIcon`, `sourceId`, `summary`, e `scaleTicks`/`scaleTickCount` (ticks explícitos da colorbar). A ordem de resolução da escala em `getScaleValues()` é: `scaleTicks` → rampa linear de `scaleMin`/`scaleMax` (`scaleTickCount`, padrão 10) → `metadata.scale_values` do arquivo. (Os antigos `useDynamicScale`/`normalValue` não existem mais.)
 
