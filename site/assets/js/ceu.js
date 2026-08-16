@@ -45,7 +45,7 @@
   };
 
   const CLASS_PALETTE = {
-    light: { i: "#64748b", ii: "#3761b4", iii: "#1a7f5a", iv: "#e07a1f" },
+    light: { i: "#64748b", ii: "#3761b4", iii: "#1a7f5a", iv: "#d9741c" },
     dark: { i: "#94a3b8", ii: "#5589e6", iii: "#31a37a", iv: "#cb8030" },
   };
 

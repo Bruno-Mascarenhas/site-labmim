@@ -17,7 +17,7 @@
   // Pairs validated with scripts/validate_palette.js: luminance band, chroma floor, colour-blind separation and
   // contrast against the surface. Changing a value means running the validator again.
   const PALETTE = {
-    light: { empirical: "#3761b4", model: "#e07a1f" },
+    light: { empirical: "#3761b4", model: "#d9741c" },
     dark: { empirical: "#5589e6", model: "#cb8030" },
   };
 
