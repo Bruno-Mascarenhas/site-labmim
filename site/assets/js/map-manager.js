@@ -110,6 +110,9 @@ function pointInGeoJsonFeature(lng, lat, feature) {
   return false;
 }
 
+const ISOBAR_CASING_STYLE = { color: "#ffffff", weight: 4, opacity: 0.8, interactive: false };
+const ISOBAR_LINE_STYLE = { color: "#1c2733", weight: 1.4, opacity: 0.95, interactive: false };
+
 class MeteoMapManager {
   constructor() {
     this.mapContext = this.resolveMapContext();
@@ -284,6 +287,11 @@ class MeteoMapManager {
     this.timeline.availability =
       manifest?.availability && typeof manifest.availability === "object" ? manifest.availability : null;
     this.timeline.features = manifest?.features && typeof manifest.features === "object" ? manifest.features : null;
+
+    // The wind toggle answers from a variable name and can be decided before any fetch;
+    // this one is only answerable once the manifest says which fields it covers, so it is
+    // re-decided here rather than left at the state it took during setup.
+    this.updateIsobarToggleVisibility();
 
     // start_local is the local datetime of FILE INDEX 0, so it always pairs with
     // initialIndex 0 — never index_min, which a skip-first run pushes above 0.
@@ -881,6 +889,9 @@ class MeteoMapManager {
       accumSelectorTitle: document.getElementById("accumSelectorTitle"),
       accumButtonGroup: document.getElementById("accumButtonGroup"),
       windLayerToggle: document.getElementById("windLayerToggle"),
+      isobarToggle: document.getElementById("isobarLayerToggle"),
+      isobarCheckbox: document.getElementById("isobarLayerCheckbox"),
+      isobarNote: document.getElementById("isobarInterval"),
       sidebar: document.getElementById("sidebar"),
       sidebarContent: document.getElementById("sidebarContent"),
       colorbarGradient: document.getElementById("colorbarGradient"),
@@ -981,6 +992,12 @@ class MeteoMapManager {
       });
     }
 
+    if (this.ui.isobarCheckbox) {
+      this.ui.isobarCheckbox.addEventListener("change", (e) => {
+        this.toggleIsobarLayer(e.target.checked);
+      });
+    }
+
     this.map.on("click", (e) => {
       this.handleMapClick(e, { userInitiated: true }).catch(() => {
         /* feedback already shown by showErrorMessage */
@@ -1002,6 +1019,7 @@ class MeteoMapManager {
 
     this.updateDomainIndicator();
     this.updateWindLayerToggleVisibility(this.state.type);
+    this.updateIsobarToggleVisibility(this.state.type);
 
     this.setupDocumentationListeners();
   }
@@ -1501,6 +1519,7 @@ class MeteoMapManager {
     this.configureAccumulationSelector(variableType);
 
     this.updateWindLayerToggleVisibility(variableType);
+    this.updateIsobarToggleVisibility(variableType);
     this.refreshVariableOverviewPreview(variableType);
 
     // The legend describes the selected variable, not the last painted field.
@@ -1526,6 +1545,117 @@ class MeteoMapManager {
       if (this.ui.windCheckbox) this.ui.windCheckbox.checked = false;
       this.clearWindVectors();
     }
+  }
+
+  /**
+   * Which fields the isobars may be drawn over is the PIPELINE's call, published in
+   * `features.isobar_overlay.draw_over`, and is not mirrored here: the pressure pattern
+   * says nothing about a field governed by land use and the diurnal cycle, and which
+   * fields those are is a question the producer answers.
+   */
+  isobarOverlay() {
+    const feature = this.timeline.features?.isobar_overlay;
+    return feature && Array.isArray(feature.draw_over) ? feature : null;
+  }
+
+  isobarsAllowedFor(variableType = this.state.type) {
+    const overlay = this.isobarOverlay();
+    if (!overlay) return false;
+    return overlay.draw_over.includes(this.getVariableId(variableType));
+  }
+
+  updateIsobarToggleVisibility(variableType = this.state.type) {
+    const allowed = this.isobarsAllowedFor(variableType);
+    this.ui.isobarToggle?.classList.toggle("active", allowed);
+    if (!allowed) {
+      if (this.ui.isobarCheckbox) this.ui.isobarCheckbox.checked = false;
+      this.clearIsobars();
+    }
+  }
+
+  toggleIsobarLayer(isEnabled) {
+    if (isEnabled) this.renderIsobars();
+    else this.clearIsobars();
+  }
+
+  clearIsobars() {
+    if (this.isobarLayer) {
+      this.map.removeLayer(this.isobarLayer);
+      this.isobarLayer = null;
+    }
+    if (this.ui.isobarNote) this.ui.isobarNote.textContent = "";
+  }
+
+  renderIsobars() {
+    if (!this.ui.isobarCheckbox?.checked || !this.isobarsAllowedFor()) return;
+    const domain = this.state.domain;
+    const overlay = this.isobarOverlay();
+    const path = this.valuesJsonPath(domain, overlay.variable || "ISOBARS", this.state.index);
+    // Same guard the wind layer uses: a late response for a step the user has left must
+    // not paint its contours over the one now on screen.
+    const requestKey = `${this.dataVersion || "v0"}:${domain}:${this.state.index}`;
+    this._isobarRequestKey = requestKey;
+
+    this._cachedFetch(this.dataUrl(path))
+      .then((data) => {
+        if (this._isobarRequestKey !== requestKey || !this.ui.isobarCheckbox?.checked) return;
+        this._drawIsobars(data);
+      })
+      .catch((error) => {
+        console.warn("Isóbaras indisponíveis:", error.message);
+        if (this._isobarRequestKey === requestKey) this.clearIsobars();
+      });
+  }
+
+  _drawIsobars(data) {
+    this.clearIsobars();
+    const bands = Array.isArray(data?.isobars) ? data.isobars : [];
+    if (!bands.length) return;
+
+    const layer = L.layerGroup();
+    for (const band of bands) {
+      for (const path of band.paths || []) {
+        if (!Array.isArray(path) || path.length < 2) continue;
+        // Points arrive [lon, lat]; Leaflet takes [lat, lon].
+        const line = path.map(([lon, lat]) => [lat, lon]);
+        // Drawn twice: a pale casing under a dark hairline, so one ink reads over every
+        // palette these may sit on — the crimson of wind, the violet of heavy rain, the
+        // deep blue of cold. A single stroke disappears into one of them whichever it is.
+        //
+        // Styled through Leaflet options rather than a class: this map renders paths on
+        // CANVAS, where the grid's thousands of cells would sink an SVG layer, and a
+        // canvas path has no DOM node for a stylesheet to reach.
+        L.polyline(line, { ...ISOBAR_CASING_STYLE, renderer: this._canvasRenderer }).addTo(layer);
+        L.polyline(line, { ...ISOBAR_LINE_STYLE, renderer: this._canvasRenderer }).addTo(layer);
+        layer.addLayer(this._isobarLabel(line, band.level));
+      }
+    }
+    layer.addTo(this.map);
+    this.isobarLayer = layer;
+
+    const interval = data?.metadata?.interval;
+    if (this.ui.isobarNote && Number.isFinite(interval)) {
+      // Read, never inferred: the interval differs per domain, and a level whose contour
+      // came out empty is omitted, so consecutive published levels can sit two apart.
+      const step = interval.toLocaleString("pt-BR");
+      this.ui.isobarNote.textContent = `Isóbaras a cada ${step} ${data.metadata.unit || "hPa"}`;
+    }
+  }
+
+  /** Labels the contour at its own midpoint, which for a closed ring keeps it off the ends. */
+  _isobarLabel(line, level) {
+    const at = line[Math.floor(line.length / 2)];
+    return L.marker(at, {
+      interactive: false,
+      keyboard: false,
+      icon: L.divIcon({
+        className: "isobar-label",
+        // Comma decimal like the interval note beside it, but ungrouped: the milibar reads
+        // as one number on a chart, never as "1.014,5".
+        html: level.toLocaleString("pt-BR", { useGrouping: false }),
+        iconSize: null,
+      }),
+    });
   }
 
   /**
@@ -1678,6 +1808,9 @@ class MeteoMapManager {
         if (this.ui.windCheckbox && this.ui.windCheckbox.checked) {
           setTimeout(() => this.renderWindVectors(), 100);
         }
+
+        // Contours belong to the step being painted, so they are refetched with it.
+        if (this.ui.isobarCheckbox?.checked) this.renderIsobars();
 
         this._prefetchUpcoming(index, type);
 

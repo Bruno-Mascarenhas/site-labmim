@@ -19,6 +19,12 @@
    controls join the static stack and the offset stops applying. */
 :root {
   --map-left-rail-clear: 190px;
+
+  /* The floating toggles stack from this line up, one row apart. Both the wind vectors
+     and the isobars are offered over the wind fields, so they are on screen together and
+     must not be given the same corner — declared once so the two never drift. */
+  --map-toggle-row: 100px;
+  --map-toggle-step: 56px;
 }
 
 * {
@@ -521,9 +527,43 @@ header.maps-header {
 .wind-layer-toggle {
   display: none;
   position: absolute;
-  bottom: 100px;
+  bottom: var(--map-toggle-row);
   left: var(--map-left-rail-clear);
   z-index: var(--z-controls);
+}
+
+.isobar-layer-toggle {
+  bottom: calc(var(--map-toggle-row) + var(--map-toggle-step));
+}
+
+.isobar-label {
+  color: #1c2733;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  /* Same defence as the line: the halo is painted behind the glyphs, so the number stays
+     legible over any field without an opaque box hiding the data under it. */
+  paint-order: stroke fill;
+  text-shadow:
+    0 0 3px rgba(255, 255, 255, 0.95),
+    0 0 3px rgba(255, 255, 255, 0.95);
+}
+
+.colorbar-isobar-note {
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  color: var(--ink-strong, #172033);
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.colorbar-isobar-note:empty {
+  display: none;
 }
 
 .wind-layer-toggle.active {
@@ -706,10 +746,14 @@ header.maps-header {
 
   /* In a row the box is far wider than the 190px left rail the floating controls clear, so it would reach under
      them exactly as the control bar reached under it. Above the bottom edge everything therefore stacks instead
-     of sharing a line: bar, domains, then these. */
-  .segmented-selector,
-  .wind-layer-toggle {
-    bottom: 196px;
+     of sharing a line: bar, domains, then these. Moving the row variable carries the wind
+     and isobar toggles along with the selectors, so the stack never comes apart. */
+  :root {
+    --map-toggle-row: 196px;
+  }
+
+  .segmented-selector {
+    bottom: var(--map-toggle-row);
   }
 
   /* Freed from its fixed `top`, the box now rises with the viewport and meets the colorbar from below on the

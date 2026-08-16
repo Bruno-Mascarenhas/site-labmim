@@ -59,7 +59,7 @@
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
     <link rel="stylesheet" href="assets/css/components.css?v=3441d80e" />
-    <link rel="stylesheet" href="assets/css/maps.css?v=6cd0df7a" />
+    <link rel="stylesheet" href="assets/css/maps.css?v=3aee21a9" />
     <link rel="stylesheet" href="assets/css/theme.css?v=33083143" />
 
     <script src="assets/js/theme-boot.js?v=fef91866"></script>
@@ -196,6 +196,9 @@
           <div class="colorbar-labels" id="colorbarLabels"></div>
         </div>
         <div class="colorbar-unit" id="colorbarUnit">W/m²</div>
+        <!-- Legend for the overlay, not for the painted field: it appears with the contours
+     and names the interval the current domain publishes, which differs between them. -->
+        <p class="colorbar-isobar-note" id="isobarInterval"></p>
       </div>
 
       <div class="domain-indicators-container">
@@ -268,6 +271,16 @@
           <input type="checkbox" id="windLayerCheckbox" class="visually-hidden" />
           <i class="fas fa-arrows-alt"></i>
           <span class="wind-toggle-text">Vetores de Vento</span>
+        </label>
+      </div>
+
+      <!-- Offered only over the fields `features.isobar_overlay.draw_over` names, so the
+   control is absent rather than present-and-dead where pressure explains nothing. -->
+      <div class="wind-layer-toggle isobar-layer-toggle" id="isobarLayerToggle">
+        <label title="Isóbaras ao nível do mar">
+          <input type="checkbox" id="isobarLayerCheckbox" class="visually-hidden" />
+          <i class="fas fa-water"></i>
+          <span class="wind-toggle-text">Isóbaras ao nível do mar</span>
         </label>
       </div>
 
@@ -452,6 +465,30 @@
                 <li><strong>Direção:</strong> Apontam para a origem do vento (convenção meteorológica)</li>
                 <li><strong>Altura Configurável:</strong> Selecione entre 50m, 100m ou 150m de altura</li>
               </ul>
+
+              <h4>🌀 Isóbaras: pressão reduzida ao nível do mar</h4>
+              <ul class="doc-list">
+                <li>
+                  <strong>Botão Flutuante:</strong> Ative ou desative as isóbaras pelo botão circular acima do de vento
+                  (aparece só sobre os campos que a pressão ajuda a explicar).
+                </li>
+                <li>
+                  <strong>Intervalo:</strong> Varia por domínio e é escolhido a cada rodada; a barra de cores informa o
+                  intervalo do arquivo em exibição.
+                </li>
+              </ul>
+              <p>
+                As linhas mostram pressão reduzida ao nível do mar, e não a pressão medida à superfície. A redução
+                estima a pressão que cada coluna de ar teria se descesse até o nível do mar — é o que torna serra e
+                litoral comparáveis na mesma escala. Sem ela, o desenho seria praticamente um mapa do relevo.
+              </p>
+              <p>
+                Essa estimativa é uma ficção abaixo do solo e, sobre terreno alto, deixa um resíduo. Medida no domínio
+                de 9 km, a diferença de pressão entre a serra e o litoral oscila cerca de <strong>2,0 hPa</strong> entre
+                a madrugada e a tarde. Essa oscilação ao longo do dia é limitação do método de redução, não um
+                comportamento do tempo — é o que se vê pulsar sobre a Chapada ao longo da animação.
+              </p>
+              <p>A diferença média diária entre serra e litoral, essa é real.</p>
 
               <h4>🌧️ Janela de Acumulado</h4>
               <ul class="doc-list">
@@ -1319,7 +1356,7 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
     <script src="assets/js/variables-config.js?v=c9128d8d" defer></script>
     <script src="assets/js/data-service.js?v=91903943" defer></script>
     <script src="assets/js/charts-manager.js?v=a54c8fa5" defer></script>
-    <script src="assets/js/map-manager.js?v=6e518549" defer></script>
+    <script src="assets/js/map-manager.js?v=df7ee0f8" defer></script>
     <script src="assets/js/map-init.js?v=d65a5ee0" defer></script>
   </body>
 </html>
