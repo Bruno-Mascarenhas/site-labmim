@@ -149,30 +149,36 @@ function fluxColorsAroundZero(scaleMin, scaleMax) {
 // Precipitation reads as water, not as heat: dry is bare, and the deeper the blue the
 // heavier the rain. The ramp it replaces was the temperature one, which painted the
 // heaviest rainfall red — the colour every other layer on this map uses for hot.
-const RAIN_COLORS = ["#f7fbff", "#d0e6f5", "#a6d0ea", "#74b3d8", "#4a92c8", "#2b6fb5", "#1a4f9c", "#173282", "#10184f"];
+//
+// The top of the ramp turns violet, which is the convention rainfall charts already use
+// for the extreme end, and which is what keeps this from being one blue getting darker:
+// colour travel 21 → 30 of the same total.
+const RAIN_COLORS = ["#f7fbff", "#d9eef6", "#9ed8e8", "#5cb8dd", "#2e8fc9", "#1666b3", "#144a9c", "#3b2f8f", "#4a1078"];
 
 /**
- * Multi-hue sequential ramps for the fields whose variation is the whole point of
- * looking at the map.
+ * Two rules hold for every ramp below, and both are constraints of THIS map rather
+ * than preferences.
  *
- * The single-hue blues these replace spent 78-81% of their perceptual travel on
- * lightness alone — one blue getting darker — so neighbouring values collapsed into
- * the same apparent colour. Colour travel measured in OKLab over the whole ramp:
- * humidity 15.9 → 38.2, wind 15.0 → 35.9, emissivity 15.9 → 29.2, Kt 41.2 → 66.7.
+ * LIGHTNESS IS MONOTONIC. It is what separates these from a rainbow: the map still
+ * reads in greyscale, in print and under colour-blindness, because the value never
+ * depends on hue alone. `jet`, which several of these replace, fails it twice over.
  *
- * Every one keeps lightness MONOTONIC, which is what separates these from a rainbow:
- * the map still reads correctly in greyscale, in print, and under colour-blindness,
- * because value never depends on hue alone.
+ * THE LOW END IS LIGHT. The field is painted at `fillOpacity` 0.65 over the basemap, so
+ * a dark low end turns large quiet areas into grey haze and hides the very variation
+ * the ramp exists to show. viridis was tried for wind and failed for exactly that.
  *
- * All four are also LIGHT at the low end, and that is a constraint of this map rather
- * than a preference: the field is painted at `fillOpacity` 0.65 over the basemap, so a
- * dark low end turns large quiet areas into grey haze and hides the very variation the
- * ramp exists to show. viridis was tried here first and failed for exactly that reason.
+ * The single-hue blues that four of these replace spent 78-81% of their perceptual
+ * travel on lightness alone — one blue getting darker — so neighbouring values
+ * collapsed into the same apparent colour. Colour travel in OKLab, before → after:
+ * moisture 15.9 → 38.2, wind 15.0 → 35.9, emissivity 15.9 → 29.2, Kt 41.2 → 66.7.
  *
- * YlGnBu, YlOrRd and BuPu: Brewer & Harrower, ColorBrewer 2.0, 9-class sequential.
- * plasma: Smith & van der Walt (2015), matplotlib, 9 evenly spaced stops.
+ * ColorBrewer 2.0 9-class (Brewer & Harrower): YlGnBu, YlOrRd, BuPu, YlOrBr, PuBuGn,
+ * RdYlBu, RdBu, Blues. plasma: Smith & van der Walt (2015), matplotlib.
  */
-const RELATIVE_HUMIDITY_COLORS = [
+
+// Specific and relative humidity share it because they measure the same thing: yellow
+// where the air is dry, deep blue where it is saturated.
+const MOISTURE_COLORS = [
   "#ffffd9",
   "#edf8b1",
   "#c7e9b4",
@@ -216,33 +222,64 @@ const CLEARNESS_COLORS = [
   "#fdc328",
   "#f0f921",
 ];
-// Matplotlib `jet_r` at 11 evenly spaced stops: the colormap the group's Python
-// figures use for specific humidity.
-const JET_R_COLORS = [
-  "#800000",
-  "#f30900",
-  "#ff6800",
-  "#ffc600",
-  "#ceff29",
-  "#7bff7b",
-  "#29ffce",
-  "#00b2ff",
-  "#004dff",
-  "#0000f3",
-  "#000080",
+/**
+ * Shortwave family — incoming, reflected and net solar. Sunlight is the thing being
+ * measured, so the ramp goes from bare white to the deep red of a full noon field, and
+ * the four shortwave layers share it: comparing incoming against reflected only works
+ * if the same value wears the same colour in both.
+ */
+const SHORTWAVE_COLORS = [
+  "#ffffff",
+  "#fff0a0",
+  "#ffd700",
+  "#ffaa00",
+  "#ff6600",
+  "#ff2200",
+  "#dd0000",
+  "#aa0000",
+  "#7a0000",
+  "#691009",
 ];
-const RADIATION_COLORS = ["#1d1d1d", "#4a3366", "#8d4f8a", "#d67a59", "#f0b35a", "#fff2a8"];
+
+/**
+ * Longwave family — thermal emission, not sunlight, and given its own ramp so the two
+ * are never confused at a glance. Warm like the shortwave one because the quantity is
+ * still radiant energy, but it runs to brown rather than to red.
+ *
+ * ColorBrewer YlOrBr 9-class.
+ */
+const LONGWAVE_COLORS = [
+  "#ffffe5",
+  "#fff7bc",
+  "#fee391",
+  "#fec44f",
+  "#fe9929",
+  "#ec7014",
+  "#cc4c02",
+  "#993404",
+  "#662506",
+];
+
+/**
+ * Surface pressure carries no physical midpoint: the field is PSFC over the terrain and
+ * is not reduced to sea level, so "above" and "below" a centre would mean altitude, not
+ * weather. A diverging ramp would invent that centre — this one is sequential.
+ *
+ * Cool and green so it never competes with the thermal reading: on this map blue-to-red
+ * already means cold-to-hot, and pressure is not a temperature.
+ *
+ * ColorBrewer PuBuGn 9-class.
+ */
 const PRESSURE_COLORS = [
-  "#a50026",
-  "#d73027",
-  "#f46d43",
-  "#fdae61",
-  "#fee090",
-  "#e0f3f8",
-  "#abd9e9",
-  "#74add1",
-  "#4575b4",
-  "#313695",
+  "#fff7fb",
+  "#ece2f0",
+  "#d0d1e6",
+  "#a6bddb",
+  "#67a9cf",
+  "#3690c0",
+  "#02818a",
+  "#016c59",
+  "#014636",
 ];
 
 const VARIABLE_CONTEXTS = {
@@ -309,18 +346,7 @@ const VARIABLES_CONFIG = {
       "Radiação solar incidente na superfície. A produção fotovoltaica exibida é uma estimativa calculada no frontend.",
     scaleMin: 0,
     scaleMax: 1200,
-    colors: [
-      "#ffffff",
-      "#fff0a0",
-      "#ffd700",
-      "#ffaa00",
-      "#ff6600",
-      "#ff2200",
-      "#dd0000",
-      "#aa0000",
-      "#7a0000",
-      "#691009",
-    ],
+    colors: SHORTWAVE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined) {
         return unavailableInfo("Geração Fotovoltaica");
@@ -562,7 +588,7 @@ const VARIABLES_CONFIG = {
     summary: "Conteúdo de vapor d'água do ar próximo à superfície, expresso em g/kg (derivado de Q2 do WRF).",
     scaleMin: 0,
     scaleMax: 25,
-    colors: JET_R_COLORS,
+    colors: MOISTURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.humidity?.ausente) {
         return unavailableInfo("Condições de Umidade");
@@ -604,7 +630,7 @@ const VARIABLES_CONFIG = {
       "Percentual de saturação do ar próximo à superfície, estimado a partir de temperatura, pressão e vapor d'água.",
     scaleMin: 0,
     scaleMax: 100,
-    colors: RELATIVE_HUMIDITY_COLORS,
+    colors: MOISTURE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.relativeHumidity?.ausente) {
         return unavailableInfo("Umidade Relativa");
@@ -753,18 +779,7 @@ const VARIABLES_CONFIG = {
     summary: "Radiação solar de onda curta incidente na superfície. Não inclui cálculo fotovoltaico nesta página.",
     scaleMin: 0,
     scaleMax: 1200,
-    colors: [
-      "#ffffff",
-      "#fff0a0",
-      "#ffd700",
-      "#ffaa00",
-      "#ff6600",
-      "#ff2200",
-      "#dd0000",
-      "#aa0000",
-      "#7a0000",
-      "#691009",
-    ],
+    colors: SHORTWAVE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.globalRadiation?.ausente) {
         return unavailableInfo("Radiação Global");
@@ -806,7 +821,7 @@ const VARIABLES_CONFIG = {
     summary: "Radiação de onda longa incidente na superfície, usada no balanço radiativo.",
     scaleMin: 250,
     scaleMax: 500,
-    colors: RADIATION_COLORS,
+    colors: LONGWAVE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.longwave?.ausente) {
         return unavailableInfo("Radiação de Onda Longa");
@@ -851,7 +866,7 @@ const VARIABLES_CONFIG = {
     summary: "Radiação solar refletida pela superfície (albedo x radiação incidente).",
     scaleMin: 0,
     scaleMax: 250,
-    colors: RADIATION_COLORS,
+    colors: SHORTWAVE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.shortwaveUp?.ausente) {
         return unavailableInfo("Onda Curta Refletida");
@@ -887,7 +902,7 @@ const VARIABLES_CONFIG = {
     summary: "Radiação solar efetivamente absorvida pela superfície.",
     scaleMin: 0,
     scaleMax: 900,
-    colors: RADIATION_COLORS,
+    colors: SHORTWAVE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.netShortwave?.ausente) {
         return unavailableInfo("Onda Curta Líquida");
@@ -923,7 +938,7 @@ const VARIABLES_CONFIG = {
     summary: "Onda longa que deixa a superfície: emissão de corpo cinza mais a fração do céu refletida.",
     scaleMin: 300,
     scaleMax: 650,
-    colors: RADIATION_COLORS,
+    colors: LONGWAVE_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.longwaveUp?.ausente) {
         return unavailableInfo("Onda Longa Emitida");
@@ -1206,7 +1221,7 @@ const VARIABLES_CONFIG = {
     summary: "Densidade de potência disponível no vento a 10 metros. Não é geração real de turbina.",
     scaleMin: 0,
     scaleMax: 1500,
-    colors: ["#ffffcc", "#ffeda0", "#fed976", "#feb24c", "#fd8d3c", "#e31a1c", "#800026"],
+    colors: WIND_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.windPowerDensity?.ausente) {
         return unavailableInfo("Densidade de Potência Eólica");
