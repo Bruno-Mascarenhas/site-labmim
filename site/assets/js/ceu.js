@@ -74,12 +74,12 @@
   // Keyed by the published model id. `ridley_brl_2010` is the one the exporter emits; `ridley_2010` is kept because
   // dropping it would silently move that model to a fallback colour on any payload still using the older id.
   const MODEL_PALETTE = {
-    light: { marques_filho_2016: "#7c3aa8", lemos_2017: "#c2185b", ridley_brl_2010: "#0e7490", ridley_2010: "#0e7490" },
-    dark: { marques_filho_2016: "#c08ae0", lemos_2017: "#f06292", ridley_brl_2010: "#4dd0e1", ridley_2010: "#4dd0e1" },
+    light: { marques_filho_2016: "#7c3aa8", lemos_2017: "#c2185b", ridley_brl_2010: "#0d86a3", ridley_2010: "#0d86a3" },
+    dark: { marques_filho_2016: "#8a5fd0", lemos_2017: "#c9486f", ridley_brl_2010: "#2ba3ba", ridley_2010: "#2ba3ba" },
   };
 
   // A model id the palette does not know still has to be drawable.
-  const MODEL_FALLBACK = { light: ["#7c3aa8", "#c2185b", "#0e7490"], dark: ["#c08ae0", "#f06292", "#4dd0e1"] };
+  const MODEL_FALLBACK = { light: ["#7c3aa8", "#c2185b", "#0d86a3"], dark: ["#8a5fd0", "#c9486f", "#2ba3ba"] };
 
   // Monochrome, because colour on this page already means sky condition. Channels
   // rather than a hex: the cell alpha is what carries the count.
@@ -859,6 +859,10 @@
         button.appendChild(swatch);
       }
       button.appendChild(node("span", null, entry.label));
+      // The Kt band rides on the chip instead of on a legend row of its own: the chips
+      // already carry the swatch and the name, so a second list beneath them repeated
+      // three quarters of itself to add one column.
+      if (entry.range) button.appendChild(node("span", "sky-chip-range", entry.range));
       const active = isActive(entry);
       button.setAttribute("aria-pressed", String(active));
       button.classList.toggle("is-active", active);
@@ -907,12 +911,16 @@
 
   // The conditions colour the individual hours, so with the point layer off they
   // have nothing to act on; saying that with `disabled` beats a dead control.
+  // The conditions colour the individual hours, so they act on the point layer and on
+  // nothing else. Kept visible-but-dead they were the tallest control on the panel and
+  // the one that did the least: the layer is off by default, so the usual state of the
+  // page was four chips that refused to be pressed. They now appear with the layer they
+  // belong to, which also says what they are for without a tooltip having to.
   function syncClassToggles() {
     const usable = showingPoints();
-    for (const button of el("ceuClasses").children) {
-      button.disabled = !usable;
-      button.title = usable ? button.title : "Ative a camada de pontos para filtrar por condição";
-    }
+    const group = el("ceuClasses").closest(".clima-control");
+    if (group) group.hidden = !usable;
+    for (const button of el("ceuClasses").children) button.disabled = !usable;
   }
 
   function buildModelToggles() {
@@ -935,22 +943,6 @@
           ? `${model.label} — mediana e faixa p10-p90 por intervalo de Kt`
           : `${model.label} — curva, função apenas de Kt`
     );
-  }
-
-  function buildLegend() {
-    const colors = themeColors().classes;
-    const list = el("ceuLegenda");
-    list.replaceChildren();
-    for (const entry of state.classes) {
-      const item = node("li", "sky-legend-item");
-      item.title = entry.full;
-      const swatch = node("span", "sky-swatch");
-      swatch.style.background = colors[entry.id];
-      item.appendChild(swatch);
-      item.appendChild(node("span", "sky-legend-label", `${entry.roman} · ${entry.label}`));
-      item.appendChild(node("span", "sky-legend-range", entry.range));
-      list.appendChild(item);
-    }
   }
 
   // Expanding `[[chave]]` belongs to assets/js/references.js. What is specific here is the SOURCE: the site
@@ -979,16 +971,20 @@
       .flatMap((payload) => (Array.isArray(payload.caveats) ? payload.caveats : []));
   }
 
+  // Both payloads, deduplicated: `caveatTexts()` already reads the two, and the scatter
+  // and the cumulative describe the same archive, so an identical sentence published by
+  // each of them is one note here, not two.
   function buildCaveats() {
     const list = el("ceuCaveats");
-    const caveats = state.chartPayload && Array.isArray(state.chartPayload.caveats) ? state.chartPayload.caveats : [];
+    const caveats = [...new Set(caveatTexts())];
     list.replaceChildren();
     for (const caveat of caveats) {
       const item = document.createElement("li");
       item.appendChild(withReferences(caveat));
       list.appendChild(item);
     }
-    list.hidden = caveats.length === 0;
+    el("ceuNotasContagem").textContent = caveats.length ? `(${caveats.length})` : "";
+    el("ceuNotasPainel").hidden = caveats.length === 0;
   }
 
   // The keys come from what the page ALREADY cited, not from a list kept here: the static prose is decorated by
@@ -1602,7 +1598,6 @@
   }
 
   function onThemeChange() {
-    buildLegend();
     buildClassToggles();
     buildModelToggles();
     drawChart();
@@ -1646,7 +1641,6 @@
 
     renderHeader();
     renderFrames();
-    buildLegend();
     buildCaveats();
     buildLayerToggles();
     buildClassToggles();

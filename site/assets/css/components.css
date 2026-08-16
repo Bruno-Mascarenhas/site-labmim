@@ -1156,6 +1156,73 @@
   margin-inline: auto;
 }
 
+/* Two landmarks in a page that was one uninterrupted column of panels: what the camera
+   sees right now, and what ten years of the archive say. Without them the reader scrolls
+   through four slabs of equal weight with nothing to navigate by. */
+.sky-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 0.6rem;
+}
+
+.sky-section-title + * {
+  margin-top: 0;
+}
+
+/* The two charts answer different questions about the same archive, so side by side
+   they are compared rather than remembered: the scatter says how Kd follows Kt, the
+   cumulative says how much of the record sits at each Kt. Below this width a column
+   narrow enough to hold both would squeeze the axes, so they stack. */
+.sky-analysis {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (width >= 1180px) {
+  .sky-analysis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .sky-analysis > .clima-panel {
+    margin-bottom: 0;
+  }
+}
+
+/* The frames are context, not the subject: at full height they pushed the analysis
+   below the fold on every laptop. */
+.sky-frame-media {
+  max-height: 340px;
+}
+
+/* In a half-width column a label stacked over its chips costs a whole line per group,
+   and this panel has three of them. Beside the chips the label reads the same and the
+   three groups fit in the space one used to take. */
+@media (width >= 1180px) {
+  /* Four conditions in a half-width column wrapped three-and-one, which reads as a
+     ranking with an outlier. Two by two says what it is: four parts of one whole. */
+  #ceuAcumuladaClasses {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sky-analysis .clima-control {
+    flex-flow: row wrap;
+    align-items: baseline;
+    column-gap: 0.6rem;
+  }
+
+  .sky-analysis .clima-control-label {
+    flex: 0 0 auto;
+  }
+
+  .sky-analysis .clima-control-actions {
+    justify-content: flex-start;
+  }
+}
+
 /* The intrinsic height is the thumb's, ~16px, under the 24px minimum for a
    touch target; the track stays thin and the extra height is hit area. */
 .sky-range {
@@ -1217,6 +1284,54 @@
   display: inline-flex;
   gap: 0.4rem;
   align-items: center;
+}
+
+/* The Kt band the chip stands for, absorbed from the legend row this replaced. Set
+   quieter than the name so the chip still reads as one control, not two labels. */
+.sky-chip-range {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86em;
+  opacity: 0.75;
+}
+
+.sky-notes {
+  padding-block: 0.85rem;
+}
+
+.sky-notes-toggle {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.sky-notes-count {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.sky-notes [aria-expanded="true"] .fa-chevron-down {
+  transform: rotate(180deg);
+}
+
+.sky-notes-toggle .fa-chevron-down {
+  font-size: 0.8em;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.sky-notes #ceuCaveats {
+  margin-top: 0.85rem;
+  margin-bottom: 0;
 }
 
 .sky-actions {
