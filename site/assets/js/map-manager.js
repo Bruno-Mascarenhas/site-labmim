@@ -1592,14 +1592,19 @@ class MeteoMapManager {
       })
       .catch((error) => {
         console.warn("Isóbaras indisponíveis:", error.message);
-        if (this._isobarRequestKey === requestKey) this.clearIsobars();
+        if (this._isobarRequestKey !== requestKey) return;
+        this.clearIsobars();
+        if (this.ui.isobarNote) this.ui.isobarNote.textContent = "Isóbaras indisponíveis";
       });
   }
 
   _drawIsobars(data) {
     this.clearIsobars();
     const bands = Array.isArray(data?.isobars) ? data.isobars : [];
-    if (!bands.length) return;
+    if (!bands.length) {
+      if (this.ui.isobarNote) this.ui.isobarNote.textContent = "Sem isóbaras neste horário";
+      return;
+    }
 
     const layer = L.layerGroup();
     for (const band of bands) {
