@@ -1480,6 +1480,7 @@ class MeteoMapManager {
         this.applyValuesToGrid(this.currentGeoJsonLayer, this.currentValueData);
       }
     }
+    if (this.ui.isobarCheckbox?.checked) this.renderIsobars();
   }
 
   startAnimation() {
@@ -1607,23 +1608,48 @@ class MeteoMapManager {
     }
 
     const layer = L.layerGroup();
+    let drawn = 0;
     for (const band of bands) {
       for (const path of band.paths || []) {
         if (!Array.isArray(path) || path.length < 2) continue;
         const line = path.map(([lon, lat]) => [lat, lon]);
-        L.polyline(line, { ...ISOBAR_CASING_STYLE, renderer: this._canvasRenderer }).addTo(layer);
-        L.polyline(line, { ...ISOBAR_LINE_STYLE, renderer: this._canvasRenderer }).addTo(layer);
-        layer.addLayer(this._isobarLabel(line, band.level));
+        for (const segment of this._clipLineToState(line)) {
+          L.polyline(segment, { ...ISOBAR_CASING_STYLE, renderer: this._canvasRenderer }).addTo(layer);
+          L.polyline(segment, { ...ISOBAR_LINE_STYLE, renderer: this._canvasRenderer }).addTo(layer);
+          layer.addLayer(this._isobarLabel(segment, band.level));
+          drawn++;
+        }
       }
     }
     layer.addTo(this.map);
     this.isobarLayer = layer;
 
+    if (!this.ui.isobarNote) return;
+    if (!drawn) {
+      this.ui.isobarNote.textContent = `Sem isóbaras dentro da ${this.state.stateAbbr}`;
+      return;
+    }
     const interval = data?.metadata?.interval;
-    if (this.ui.isobarNote && Number.isFinite(interval)) {
+    if (Number.isFinite(interval)) {
       const step = interval.toLocaleString("pt-BR");
       this.ui.isobarNote.textContent = `Isóbaras a cada ${step} ${data.metadata.unit || "hPa"}`;
     }
+  }
+
+  _clipLineToState(line) {
+    if (!this.state.isClippedToState || !this.stateGeoJson) return [line];
+    const segments = [];
+    let current = [];
+    for (const point of line) {
+      if (pointInGeoJsonFeature(point[1], point[0], this.stateGeoJson)) {
+        current.push(point);
+        continue;
+      }
+      if (current.length > 1) segments.push(current);
+      current = [];
+    }
+    if (current.length > 1) segments.push(current);
+    return segments;
   }
 
   _isobarLabel(line, level) {
