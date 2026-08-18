@@ -172,7 +172,7 @@ O resumo do processo está em [`CONTRIBUTING.md`](CONTRIBUTING.md). O material c
 
 A regra que os dois repetem: **a `main` é a linha estável e ninguém commita direto nela** — toda mudança nasce em uma branch curta, entra por pull request com CI verde e é revisada por outra pessoa. E edite sempre `src/`: `site/` é saída gerada, e o próximo build sobrescreve qualquer edição feita à mão lá.
 
-Para a estrutura de arquivos de uma publicação, a receita detalhada é [`src/sites/README.md`](src/sites/README.md). O guia de contribuição foi escrito enquanto a modularização ainda era um PR aberto, então os trechos dele que citam `src/pages/` descrevem a estrutura anterior — o fluxo de trabalho continua válido, e a árvore de arquivos atual está no deck de onboarding e no `src/sites/README.md`.
+Para a estrutura de arquivos de uma publicação, a receita detalhada é [`src/sites/README.md`](src/sites/README.md). Os dois PDFs foram revisados em 18/08/2026 contra a arquitetura modular vigente e o contrato do produtor `micrometeorology/src/micrometeorology`.
 
 ## Desenvolvimento
 
