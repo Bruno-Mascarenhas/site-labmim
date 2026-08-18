@@ -110,6 +110,9 @@ function pointInGeoJsonFeature(lng, lat, feature) {
   return false;
 }
 
+const ISOBAR_CASING_STYLE = { color: "#ffffff", weight: 4, opacity: 0.8, interactive: false };
+const ISOBAR_LINE_STYLE = { color: "#1c2733", weight: 1.4, opacity: 0.95, interactive: false };
+
 class MeteoMapManager {
   constructor() {
     this.mapContext = this.resolveMapContext();
@@ -284,6 +287,8 @@ class MeteoMapManager {
     this.timeline.availability =
       manifest?.availability && typeof manifest.availability === "object" ? manifest.availability : null;
     this.timeline.features = manifest?.features && typeof manifest.features === "object" ? manifest.features : null;
+
+    this.updateIsobarToggleVisibility();
 
     // start_local is the local datetime of FILE INDEX 0, so it always pairs with
     // initialIndex 0 — never index_min, which a skip-first run pushes above 0.
@@ -881,6 +886,9 @@ class MeteoMapManager {
       accumSelectorTitle: document.getElementById("accumSelectorTitle"),
       accumButtonGroup: document.getElementById("accumButtonGroup"),
       windLayerToggle: document.getElementById("windLayerToggle"),
+      isobarToggle: document.getElementById("isobarLayerToggle"),
+      isobarCheckbox: document.getElementById("isobarLayerCheckbox"),
+      isobarNote: document.getElementById("isobarInterval"),
       sidebar: document.getElementById("sidebar"),
       sidebarContent: document.getElementById("sidebarContent"),
       colorbarGradient: document.getElementById("colorbarGradient"),
@@ -981,6 +989,12 @@ class MeteoMapManager {
       });
     }
 
+    if (this.ui.isobarCheckbox) {
+      this.ui.isobarCheckbox.addEventListener("change", (e) => {
+        this.toggleIsobarLayer(e.target.checked);
+      });
+    }
+
     this.map.on("click", (e) => {
       this.handleMapClick(e, { userInitiated: true }).catch(() => {
         /* feedback already shown by showErrorMessage */
@@ -1002,6 +1016,7 @@ class MeteoMapManager {
 
     this.updateDomainIndicator();
     this.updateWindLayerToggleVisibility(this.state.type);
+    this.updateIsobarToggleVisibility(this.state.type);
 
     this.setupDocumentationListeners();
   }
@@ -1465,6 +1480,7 @@ class MeteoMapManager {
         this.applyValuesToGrid(this.currentGeoJsonLayer, this.currentValueData);
       }
     }
+    if (this.ui.isobarCheckbox?.checked) this.renderIsobars();
   }
 
   startAnimation() {
@@ -1501,6 +1517,7 @@ class MeteoMapManager {
     this.configureAccumulationSelector(variableType);
 
     this.updateWindLayerToggleVisibility(variableType);
+    this.updateIsobarToggleVisibility(variableType);
     this.refreshVariableOverviewPreview(variableType);
 
     // The legend describes the selected variable, not the last painted field.
@@ -1526,6 +1543,126 @@ class MeteoMapManager {
       if (this.ui.windCheckbox) this.ui.windCheckbox.checked = false;
       this.clearWindVectors();
     }
+  }
+
+  isobarOverlay() {
+    const feature = this.timeline.features?.isobar_overlay;
+    return feature && Array.isArray(feature.draw_over) ? feature : null;
+  }
+
+  isobarsAllowedFor(variableType = this.state.type) {
+    const overlay = this.isobarOverlay();
+    if (!overlay) return false;
+    return overlay.draw_over.includes(this.getVariableId(variableType));
+  }
+
+  updateIsobarToggleVisibility(variableType = this.state.type) {
+    const allowed = this.isobarsAllowedFor(variableType);
+    this.ui.isobarToggle?.classList.toggle("active", allowed);
+    if (!allowed) {
+      if (this.ui.isobarCheckbox) this.ui.isobarCheckbox.checked = false;
+      this.clearIsobars();
+    }
+  }
+
+  toggleIsobarLayer(isEnabled) {
+    if (isEnabled) this.renderIsobars();
+    else this.clearIsobars();
+  }
+
+  clearIsobars() {
+    if (this.isobarLayer) {
+      this.map.removeLayer(this.isobarLayer);
+      this.isobarLayer = null;
+    }
+    if (this.ui.isobarNote) this.ui.isobarNote.textContent = "";
+  }
+
+  renderIsobars() {
+    if (!this.ui.isobarCheckbox?.checked || !this.isobarsAllowedFor()) return;
+    const domain = this.state.domain;
+    const overlay = this.isobarOverlay();
+    const path = this.valuesJsonPath(domain, overlay.variable || "ISOBARS", this.state.index);
+    const requestKey = `${this.dataVersion || "v0"}:${domain}:${this.state.index}`;
+    this._isobarRequestKey = requestKey;
+
+    this._cachedFetch(this.dataUrl(path))
+      .then((data) => {
+        if (this._isobarRequestKey !== requestKey || !this.ui.isobarCheckbox?.checked) return;
+        this._drawIsobars(data);
+      })
+      .catch((error) => {
+        console.warn("Isóbaras indisponíveis:", error.message);
+        if (this._isobarRequestKey !== requestKey) return;
+        this.clearIsobars();
+        if (this.ui.isobarNote) this.ui.isobarNote.textContent = "Isóbaras indisponíveis";
+      });
+  }
+
+  _drawIsobars(data) {
+    this.clearIsobars();
+    const bands = Array.isArray(data?.isobars) ? data.isobars : [];
+    if (!bands.length) {
+      if (this.ui.isobarNote) this.ui.isobarNote.textContent = "Sem isóbaras neste horário";
+      return;
+    }
+
+    const layer = L.layerGroup();
+    let drawn = 0;
+    for (const band of bands) {
+      for (const path of band.paths || []) {
+        if (!Array.isArray(path) || path.length < 2) continue;
+        const line = path.map(([lon, lat]) => [lat, lon]);
+        for (const segment of this._clipLineToState(line)) {
+          L.polyline(segment, { ...ISOBAR_CASING_STYLE, renderer: this._canvasRenderer }).addTo(layer);
+          L.polyline(segment, { ...ISOBAR_LINE_STYLE, renderer: this._canvasRenderer }).addTo(layer);
+          layer.addLayer(this._isobarLabel(segment, band.level));
+          drawn++;
+        }
+      }
+    }
+    layer.addTo(this.map);
+    this.isobarLayer = layer;
+
+    if (!this.ui.isobarNote) return;
+    if (!drawn) {
+      this.ui.isobarNote.textContent = `Sem isóbaras dentro da ${this.state.stateAbbr}`;
+      return;
+    }
+    const interval = data?.metadata?.interval;
+    if (Number.isFinite(interval)) {
+      const step = interval.toLocaleString("pt-BR");
+      this.ui.isobarNote.textContent = `Isóbaras a cada ${step} ${data.metadata.unit || "hPa"}`;
+    }
+  }
+
+  _clipLineToState(line) {
+    if (!this.state.isClippedToState || !this.stateGeoJson) return [line];
+    const segments = [];
+    let current = [];
+    for (const point of line) {
+      if (pointInGeoJsonFeature(point[1], point[0], this.stateGeoJson)) {
+        current.push(point);
+        continue;
+      }
+      if (current.length > 1) segments.push(current);
+      current = [];
+    }
+    if (current.length > 1) segments.push(current);
+    return segments;
+  }
+
+  _isobarLabel(line, level) {
+    const at = line[Math.floor(line.length / 2)];
+    return L.marker(at, {
+      interactive: false,
+      keyboard: false,
+      icon: L.divIcon({
+        className: "isobar-label",
+        html: level.toLocaleString("pt-BR", { useGrouping: false }),
+        iconSize: null,
+      }),
+    });
   }
 
   /**
@@ -1678,6 +1815,8 @@ class MeteoMapManager {
         if (this.ui.windCheckbox && this.ui.windCheckbox.checked) {
           setTimeout(() => this.renderWindVectors(), 100);
         }
+
+        if (this.ui.isobarCheckbox?.checked) this.renderIsobars();
 
         this._prefetchUpcoming(index, type);
 
