@@ -4,10 +4,13 @@ Documento-base da apresentação de onboarding. As afirmações abaixo foram ver
 repositório `site-labmim`. O nível `Confirmado` significa leitura direta do arquivo/símbolo citado;
 `Operacional` significa que a prática depende também do ambiente de deploy.
 
+Revisão factual: **18/08/2026**.
+
 Repositórios envolvidos:
 
 - `site-labmim` — gerador e frontend estático multi-publicação.
-- `micrometeorology` — pipeline externo que produz JSON, GeoJSON, binários e PNGs de monitoramento.
+- `micrometeorology/src/micrometeorology` — pipeline externo que produz JSON, GeoJSON, binários, imagens,
+  distribuições observadas e a série operacional WRF usada pelos produtos de estação.
 
 ---
 
@@ -149,7 +152,8 @@ Confiança: **Confirmado**
 
 Observações:
 
-- Assets de identidade são caminhos locais sob `site/assets/` e precisam existir.
+- Assets de identidade nascem em `src/sites/<id>/assets/`, são publicados sob `site/assets/` e possuem
+  ownership e colisões de caminho validados.
 - Um redirect só pode apontar para output declarado na própria publicação.
 - A origem é usada para canonical, Open Graph, sitemap e robots.
 
@@ -208,7 +212,7 @@ Contrato:
 {
   id,
   attribution,
-  paths: { manifest, values, grids },
+  paths: { manifest, values, grids, monitoring?, climatology?, sky?, graphs? },
   timeline: { defaultMaxLayer, initialIndex, stepHours, label },
   defaultDomain,
   domains: [{ id, label, longLabel, center, zoom,
@@ -219,6 +223,9 @@ Contrato:
 Validação em `validateDataset()`:
 
 - paths relativos seguros e concretos;
+- pares página/dado: monitoramento interativo exige `paths.monitoring`, climatologia exige
+  `paths.climatology` e condição do céu exige `paths.sky`;
+- a variante estática de monitoramento exige `dataset.observations.charts`;
 - timeline inteira e coerente, incluindo `stepHours > 0` para derivar frequência e horizonte;
 - IDs de domínio únicos;
 - `defaultDomain` presente no array;
@@ -228,7 +235,8 @@ Confiança: **Confirmado**
 
 Observação:
 IDs como `D01` fazem parte do contrato de arquivos, cache e estado do WebGIS. Labels podem variar por
-publicação; IDs técnicos não devem ser alterados apenas por apresentação.
+publicação; IDs técnicos não devem ser alterados apenas por apresentação. Os paths opcionais são dados
+operacionais fornecidos pelo deploy e não entram nos bundles.
 
 ---
 
@@ -359,7 +367,9 @@ Arquivos:
 
 Fronteira confirmada:
 
-- cada `src/sites/<id>/theme.css` é **token-only** e implementa 19 custom properties institucionais;
+- cada `src/sites/<id>/theme.css` é **token-only** e implementa 19 custom properties obrigatórias;
+- tokens opcionais de tinta, superfície, hairline, tooltip e gráficos possuem fallback no CSS/JS comum e
+  só são declarados quando a publicação quer substituí-los;
 - `base.css` contém aliases estruturais comuns, incluindo `--primary-color` e `--secondary-color`;
 - tokens de dark accent (`--dark-accent`, hover e RGB) pertencem à publicação;
 - aliases redundantes de identidade e `--primary-dark` não fazem parte do tema;
@@ -419,8 +429,8 @@ necessidade.
 
 Fronteira de ownership:
 `page.styles` controla inclusão por página, não identidade institucional. Uma fonte pode ser compartilhada
-ou pertencer a um site, mas deve conter estrutura da página; diferenças de marca pertencem aos 19 tokens
-do tema.
+ou pertencer a um site, mas deve conter estrutura da página; diferenças de marca pertencem aos tokens
+obrigatórios e opcionais do tema.
 
 ---
 
@@ -500,7 +510,8 @@ Confiança: **Confirmado**
 
 - criado por `build:all` para cada publicação descoberta;
 - copia o frontend estático completo;
-- omite manifest, values e grids derivados de `publication.dataset.paths`;
+- omite todos os paths operacionais derivados de `publication.dataset.paths` (incluindo monitoramento,
+  climatologia, céu e gráficos de estação);
 - fica ignorado pelo Git.
 
 Confiança: **Confirmado**
@@ -581,6 +592,7 @@ Todos os caminhos abaixo são relativos às bases declaradas pelo dataset.
 | `manifest.json`               | `labmim-data-manifest-v2` | versão, timeline, disponibilidade e features |
 | `{D}_{VAR}_{NNN}.json`        | valores por passo         | cores da grade                               |
 | `{D}_WIND_VECTORS_{NNN}.json` | vetores                   | camada de vento                              |
+| `{D}_ISOBARS_{NNN}.json`      | `isobars-v1`              | overlay de pressão ao nível do mar           |
 | `{D}.grid.json`               | `grid-edges-v1`           | grade compacta preferida                     |
 | `{D}.geojson`                 | FeatureCollection         | fallback de grade                            |
 | `{D}_{VAR}.series.bin`        | `cell-series-int32-le-v1` | série de célula via Range                    |
@@ -590,7 +602,9 @@ Confiança: **Confirmado**
 
 Observação:
 Formatos possuem fallbacks no cliente porque frontend e dados são publicados separadamente. Evolução de
-contrato deve ser aditiva.
+contrato deve ser aditiva. `manifest.features.isobar_overlay` anuncia formato, ID, campos sobre os quais as
+linhas podem ser desenhadas e mantém o overlay fora do catálogo de campos sombreados; por isso `ISOBARS`
+não gera `.series.bin` ou `.summary.json`.
 
 ---
 
@@ -598,11 +612,20 @@ contrato deve ser aditiva.
 
 ### Monitoramento
 
-- fonte HTML comum: `src/template/pages/monitoring.html`;
-- nove imagens de nome fixo em `site/assets/graphs/`;
-- cards/modais Bootstrap;
-- geradas externamente por `labmim-site-graphs`;
-- não usa Chart.js.
+- duas fontes para a mesma rota, escolhidas em `pages.js`;
+- variante interativa em `src/template/pages/monitoring-live.html`, runtime em
+  `site/assets/js/monitoramento.js` e dados `labmim-monitoring-v1` em `dataset.paths.monitoring`;
+- nove gráficos com três camadas: amostras brutas de 5 minutos, média horária e WRF quando disponível;
+- variante estática em `src/template/pages/monitoring.html`, nove PNGs fixos declarados em
+  `dataset.observations.charts`, cards/modais Bootstrap e produção por `labmim-site-graphs`;
+- o validator distingue as variantes pela fonte resolvida e exige o contrato de dados correspondente.
+
+### Climatologia
+
+- fonte HTML comum em `src/template/pages/climatologia.html`, runtime em `site/assets/js/climatologia.js`;
+- consome `labmim-climatology-v1` em `dataset.paths.climatology`;
+- histogramas e densidades teóricas, rosa dos ventos, recortes, cobertura do registro, bibliografia e CSV;
+- Chart.js 3.9.1 é declarado por página; a rosa dos ventos é SVG autoral no runtime.
 
 ### WebGIS
 
@@ -631,13 +654,15 @@ contrato deve ser aditiva.
 - cada modelo traz `rmse`, `mbe`, `mae` e `n` medidos no período, exibidos junto da legenda;
 - ao lado do gráfico, o quadro bruto da câmera all-sky e a máscara de segmentação prevista sobre ele,
   cujo metadado vem de um segundo arquivo, `labmim-allsky-frame-v1`, com cadência própria.
+- um terceiro payload, `labmim-kt-cumulative-v1`, alimenta o painel de tempo acumulado em cada condição de
+  céu; o painel fica oculto quando esse contrato ainda não chegou, sem bloquear os outros dois.
 
 Confiança: **Confirmado**
 
 Observação:
 O diretório de dados é `dataset.paths.sky` (`site/Ceu/` na UFBA) e chega só com o deploy. Ele traz
 `allsky.jpg` e `mask.png`, de nome fixo e reescritos no lugar — por isso a página desfaz o cache com um
-`?t=` derivado do horário da captura —, mais dois JSON de cadências distintas:
+`?t=` derivado do horário da captura —, mais três JSON de cadências distintas:
 
 ```js
 ktkd.json   // labmim-ktkd-v1: station, period, timescale, sources, filters,
@@ -645,6 +670,7 @@ ktkd.json   // labmim-ktkd-v1: station, period, timescale, sources, filters,
             // color_scale_hint}, models[], points[] (opcional), caveats[]
 frame.json  // labmim-allsky-frame-v1: captured_at, image, mask,
             // sky_condition{condition,id,name,name_pt}, cloud_fraction
+kt_cumulative.json // labmim-kt-cumulative-v1: recortes e distribuição acumulada de Kt
 ```
 
 Em `density.counts`, linhas são faixas de Kd e colunas faixas de Kt; o renderizador recusa uma matriz
@@ -660,10 +686,10 @@ normal em CI.
 
 Sequência confirmada:
 
-1. Criar `src/sites/<id>/identity.js`, `pages.js`, `theme.css`, `site.js` e conteúdo/estilos próprios.
+1. Criar `src/sites/<id>/identity.js`, `pages.js`, `theme.css`, `site.js` e conteúdo/estilos/assets próprios.
 2. Reutilizar ou criar território; para estado novo, adicionar `site/assets/data/br_<uf>.json`.
 3. Reutilizar ou criar dataset.
-4. Implementar o contrato completo de 19 tokens no tema.
+4. Implementar os 19 tokens obrigatórios no tema e apenas os opcionais que a publicação quiser substituir.
 5. Compor identidade, páginas, território e dataset em `site.js`.
 6. Rodar `npm run sites:list`.
 7. Rodar `npm run build -- --site=<id>`.
@@ -728,6 +754,8 @@ Arquivos:
 Checks:
 
 - descoberta/validação/renderização de todas as publicações;
+- `build:all` no CI e upload de `dist/` por 14 dias, incluindo `.htaccess`, para revisão dos outputs que não
+  cabem simultaneamente em `site/`;
 - drift da saída canônica;
 - ESLint, Stylelint e Prettier;
 - contrato de temas;
@@ -789,7 +817,7 @@ Confiança: **Confirmado**
 2. Começar toda página decidindo se o conteúdo é comum ou exclusivo.
 3. Manter uma fonte de verdade por site em `pages.js`.
 4. Não editar sitemap, robots, navbar ou footer gerados para cadastrar rota.
-5. Colocar identidade somente em `identity.js` e nos 19 tokens do tema.
+5. Colocar identidade em `identity.js`, nos assets do módulo e nos tokens obrigatórios/opcionais do tema.
 6. Declarar CSS específico em `page.styles`.
 7. Colocar estado/contorno/viewport em território e contrato WRF em dataset.
 8. Evitar condicionais por ID em template, renderer, CSS e runtime.
@@ -797,3 +825,50 @@ Confiança: **Confirmado**
 10. Validar visualmente light/dark, mobile e WebGIS das publicações afetadas.
 
 Confiança: **Confirmado**
+
+---
+
+## 26. Repositório produtor `micrometeorology`
+
+Responsabilidade:
+Produzir fora do gerador Node todos os artefatos meteorológicos e observacionais que chegam ao site no
+deploy. O escopo auditado é `micrometeorology/src/micrometeorology` e seus entrypoints em `pyproject.toml`.
+
+Camadas:
+
+- `wrf/` — leitura NetCDF, extractors, `value_source`, jobs, grades, séries, isóbaras e writers;
+- `sensors/` — ingestão, arquivo, qualidade, calibração, agregação, vento e catálogo de monitoramento;
+- `stats/` — climatologia, distribuições, Kt x Kd, condição do céu, comparação e métricas;
+- `cli/` + `common/` — entrypoints, configuração, logging, paths, tipos e política temporal.
+
+CLIs `labmim-*` confirmadas em `pyproject.toml` (12):
+
+- publicação direta no site: `labmim-wrf-geojson`, `labmim-monitoring`, `labmim-climatology`,
+  `labmim-sky`, `labmim-site-graphs`;
+- base operacional: `labmim-wrf-series`, `labmim-archive`, `labmim-sensor-process`;
+- figuras e análise: `labmim-wrf-figures`, `labmim-station-graphs`, `labmim-metrics`,
+  `labmim-comparison`.
+
+Mudanças recentes confirmadas:
+
+- `labmim-wrf-series` mantém `series_operacional.dat`, anexando a janela horária de cada rodada e
+  preservando o header do próprio arquivo como schema;
+- `labmim-monitoring-v1` publica bruto de 5 minutos, média horária e WRF na mesma janela;
+- `labmim-kt-cumulative-v1` complementa `labmim-ktkd-v1` e `labmim-allsky-frame-v1` na página de céu;
+- o WebGIS possui 21 campos de base no consumidor (18 de previsão e 3 de energia) e overlays independentes;
+- `ISOBARS` é um work unit/artefato próprio, anunciado em `manifest.features.isobar_overlay`, sem
+  `.series.bin` ou `.summary.json`.
+
+Arquivos representativos:
+
+- `src/micrometeorology/cli/export_wrf_geojson.py`
+- `src/micrometeorology/cli/export_operational_series.py`
+- `src/micrometeorology/wrf/value_source.py`
+- `src/micrometeorology/wrf/jobs.py`
+- `src/micrometeorology/wrf/isobars.py`
+- `src/micrometeorology/wrf/operational_series.py`
+- `src/micrometeorology/sensors/monitoring.py`
+- `src/micrometeorology/stats/sky_condition.py`
+- `docs/micrometeorology.md`, seção “Front-end integration (site-labmim)”
+
+Confiança: **Confirmado no checkout local de 18/08/2026**
