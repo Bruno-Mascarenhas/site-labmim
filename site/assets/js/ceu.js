@@ -377,11 +377,20 @@
     return state.layers.has("points") && state.points.length > 0;
   }
 
+  let visiblePointsCache = null;
+
+  function invalidateVisiblePoints() {
+    visiblePointsCache = null;
+  }
+
   function visiblePoints() {
-    return state.points.filter((point) => {
-      const entry = classOf(point.x);
-      return !entry || !state.hidden.has(entry.id);
-    });
+    if (!visiblePointsCache) {
+      visiblePointsCache = state.points.filter((point) => {
+        const entry = classOf(point.x);
+        return !entry || !state.hidden.has(entry.id);
+      });
+    }
+    return visiblePointsCache;
   }
 
   function hasDrawing() {
@@ -580,7 +589,8 @@
         const found = model ? modelValueAt(model, observation ? observation.x : kt) : null;
         index = found ? found.bin : -1;
       } else if (observation) {
-        index = dataset.data.indexOf(observation);
+        const stamped = observation.dataIndex;
+        index = Number.isInteger(stamped) && dataset.data[stamped] === observation ? stamped : -1;
       }
       if (index < 0) return;
       const element = chart.getDatasetMeta(datasetIndex).data[index];
@@ -643,7 +653,10 @@
       const grouped = new Map(state.classes.map((entry) => [entry.id, []]));
       for (const point of state.points) {
         const entry = classOf(point.x);
-        if (entry && grouped.has(entry.id)) grouped.get(entry.id).push(point);
+        if (!entry || !grouped.has(entry.id)) continue;
+        const bucket = grouped.get(entry.id);
+        point.dataIndex = bucket.length;
+        bucket.push(point);
       }
       for (const entry of state.classes) {
         const data = grouped.get(entry.id);
@@ -877,16 +890,19 @@
     );
   }
 
+  function toggleHiddenClass(id) {
+    if (state.hidden.has(id)) state.hidden.delete(id);
+    else state.hidden.add(id);
+    invalidateVisiblePoints();
+  }
+
   function buildClassToggles() {
     const colors = themeColors().classes;
     buildToggles(
       el("ceuClasses"),
       state.classes.map((entry) => ({ ...entry, swatch: colors[entry.id] })),
       (entry) => !state.hidden.has(entry.id),
-      (entry) => {
-        if (state.hidden.has(entry.id)) state.hidden.delete(entry.id);
-        else state.hidden.add(entry.id);
-      },
+      (entry) => toggleHiddenClass(entry.id),
       (entry) => entry.full
     );
     syncClassToggles();
@@ -1670,6 +1686,7 @@
     state.models = resolveModels(state.chartPayload);
     state.points = readPoints(state.chartPayload);
     state.density = readDensity(state.chartPayload);
+    invalidateVisiblePoints();
     if (!state.density) state.layers.delete("density");
     if (!state.density && state.points.length) state.layers.add("points");
     if (state.models.length) state.activeModels.add(state.models[0].id);
