@@ -54,6 +54,10 @@ site/Ceu/*
 # node_modules/ e dist/ (assets/dist) já caem nas regras acima.
 *.pptx
 docs/onboarding-architecture/assets/theme-previews/
+# Capturas do build local usadas no tour dos módulos: são imagens pesadas e
+# derivadas do site já renderizado. O PDF exportado carrega o tour; a fonte
+# das capturas é o próprio build, recapturado quando a interface muda.
+docs/onboarding-architecture/public/module-tour/
 
 # Environment variables
 .env

@@ -416,7 +416,7 @@ locais, procura tokens não resolvidos e volta ao site padrão antes de conferir
 
 ---
 
-# Criar uma publicação nova: fluxo completo
+# Nova publicação: fluxo completo
 
 <div class="flex justify-center pt-1">
   <img src="/diagrams/publication-flow.svg" class="w-full max-w-5xl" alt="Passos para criar e descobrir uma nova publicação" />
@@ -519,7 +519,7 @@ sidebar, SEO e JSON-LD.
 
 ---
 
-# Passo 2: território e dataset
+# Passo 2: território + dataset
 
 <div class="grid grid-cols-2 gap-5 text-sm">
 <div>
@@ -746,7 +746,7 @@ Para oferecer a página em UFBA e UFES, adicione a declaração a ambos os `page
 
 ---
 
-# Receita: página exclusiva ou variação editorial
+# Receita: página exclusiva
 
 ```js
 const { customPage, siteSource } = require("../../template/page-types");
@@ -1054,6 +1054,252 @@ aditiva permite publicar frontend e dados separadamente.
 [Sources]
 - site-labmim, checkout local de 18-08-2026: README.md, Architecture.md, src/sites/README.md e arquivos citados neste slide.
 - micrometeorology, checkout local de 18-08-2026: docs/micrometeorology.md, pyproject.toml e arquivos citados neste slide.
+-->
+
+---
+
+# Início e equipe expressam cada publicação
+
+<div class="grid grid-cols-2 gap-5 pt-1 text-sm">
+<div>
+
+  <img src="/module-tour/home.jpg" class="w-full h-44 object-cover object-top rounded-lg border" alt="Página inicial do LabMiM em tema escuro" />
+
+### Início
+
+Apresenta o laboratório, o modelo WRF e o monitoramento. A fonte é exclusiva de cada publicação.
+
+</div>
+<div>
+
+  <img src="/module-tour/equipe.jpg" class="w-full h-44 object-cover object-top rounded-lg border" alt="Página da equipe do LabMiM em tema escuro" />
+
+### Equipe
+
+Organiza responsáveis, colaboradores, estudantes, contato e localização institucional.
+
+</div>
+</div>
+
+<div class="border-l-4 border-violet-600 pl-3 py-2 mt-2 text-sm">
+
+**UFBA:** sete páginas. **UFES:** início, equipe, previsões e potenciais energéticos. Cada `pages.js` publica somente o que tem identidade e dados próprios.
+
+</div>
+
+<!--
+Esta é a porta de entrada do tour. As duas páginas não são apenas conteúdo genérico: `home` e `team`
+exigem fonte do próprio site. Assim, LabMiM e LEAL compartilham renderer, layout e componentes sem misturar
+texto institucional, pessoas, logos ou contato.
+
+A publicação UFBA atual declara sete rotas. A UFES não publica monitoramento, climatologia ou céu porque os
+artefatos operacionais disponíveis pertencem à estação e à câmera de Salvador. O manifesto da publicação é
+quem transforma essa diferença editorial em navegação, sitemap e arquivos gerados.
+
+[Sources]
+- Capturas locais em http://localhost:8000/ e /team.html, build UFBA de 18-08-2026.
+- site-labmim, checkout local de 18-08-2026: src/sites/ufba/pages.js, src/sites/ufes/pages.js, src/template/page-types.js.
+-->
+
+---
+
+# Previsões WRF em um mapa explorável
+
+<div class="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] gap-5 items-start pt-1">
+<div>
+
+  <img src="/module-tour/wrf-previsoes.jpg" class="w-full h-[300px] object-contain rounded-lg border bg-slate-900" alt="WebGIS de previsões WRF sobre a Bahia" />
+
+</div>
+<div class="text-sm pt-1">
+
+- **18 variáveis** meteorológicas, radiativas e de fluxo
+- **4 domínios** aninhados: BA/NE, BA, RMS e SSA
+- linha do tempo horária com reprodução e pausa
+- contorno estadual, vetores de vento e isóbaras opcionais
+- clique na grade abre série temporal e resumo do domínio
+
+<div class="border-l-4 border-blue-600 pl-3 py-2 mt-4">
+
+O `manifest.json` anuncia disponibilidade; valores, grade compacta, séries e resumos chegam do produtor.
+
+</div>
+</div>
+</div>
+
+<!--
+O WebGIS é a interface mais direta com a rodada WRF. O contexto `forecast` seleciona as 18 variáveis de
+previsão. A barra inferior controla o passo temporal, o domínio e a variável; o mapa combina a base Leaflet,
+o campo rasterizado no cliente, o limite do estado e overlays anunciados pelo manifest.
+
+Ao clicar numa célula, `ChartsManager` usa `series.bin` por HTTP Range quando disponível e recua para os JSONs
+por passo quando necessário. `summary.json` oferece a prévia de domínio. A captura usa os artefatos locais
+presentes em `site/JSON` e `site/GeoJSON`; a data visível pertence a esse snapshot, não à data do build.
+
+[Sources]
+- Captura local em http://localhost:8000/mapas_interativos.html, build UFBA de 18-08-2026.
+- site-labmim, checkout local de 18-08-2026: src/template/page-types.js, site/assets/js/variables-config.js, site/assets/js/map-manager.js, site/assets/js/charts-manager.js.
+-->
+
+---
+
+# Potenciais energéticos no WebGIS
+
+<div class="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] gap-5 items-start pt-1">
+<div>
+
+  <img src="/module-tour/potenciais.jpg" class="w-full h-[300px] object-contain rounded-lg border bg-slate-900" alt="WebGIS de potencial fotovoltaico sobre a Bahia" />
+
+</div>
+<div class="text-sm pt-1">
+
+- potencial fotovoltaico em W/m²
+- potencial eólico em W/m²
+- densidade eólica a 10 m em W/m²
+- mesmos domínios, timeline e ferramentas do mapa de previsão
+- escalas, paletas, unidades e textos próprios do contexto `energy`
+
+<div class="border-l-4 border-orange-500 pl-3 py-2 mt-4">
+
+Uma página nova não duplicou o mapa: ela declarou outro contexto para o mesmo layout e runtime.
+
+</div>
+</div>
+</div>
+
+<!--
+`forecast` e `energy` são duas páginas sobre o mesmo motor. A diferença nasce em `data-map-context` e em
+`VARIABLE_CONTEXTS`: o contexto de energia reduz o catálogo a três produtos e fornece as decisões editoriais
+correspondentes, como unidade, escala, paleta, ícone e descrição.
+
+Esse reaproveitamento é um exemplo do desenho multi-publicação: o shell WebGIS, o gerenciador de dados, a
+timeline e a documentação são compartilhados; território, dataset e identidade continuam declarativos. A
+captura mostra o potencial fotovoltaico no snapshot WRF local.
+
+[Sources]
+- Captura local em http://localhost:8000/potenciais_energeticos.html, build UFBA de 18-08-2026.
+- site-labmim, checkout local de 18-08-2026: src/template/page-types.js, src/template/pages/potenciais_energeticos.html, site/assets/js/variables-config.js.
+-->
+
+---
+
+# Monitoramento aproxima estação e WRF
+
+<div class="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] gap-5 items-start pt-1">
+<div>
+
+  <img src="/module-tour/monitoring.jpg" class="w-full h-[300px] object-contain rounded-lg border bg-slate-900" alt="Gráficos de velocidade e direção do vento no monitoramento ambiental" />
+
+</div>
+<div class="text-sm pt-1">
+
+- janela móvel de **7 dias**, com recortes de 3 dias e 24 horas
+- camadas de amostras brutas, agregação horária e WRF
+- nove gráficos de meteorologia e balanço de radiação
+- ampliar, exportar CSV e ler notas interpretativas
+- o payload informa cobertura, publicação e lacunas por variável
+
+<div class="border-l-4 border-emerald-600 pl-3 py-2 mt-4">
+
+O gráfico não trata o WRF como correção da estação: as camadas permanecem comparáveis e identificadas.
+
+</div>
+</div>
+</div>
+
+<!--
+A variante viva de monitoramento lê `labmim-monitoring-v1`. O usuário combina bruto de 5 minutos, média ou
+soma horária e a camada WRF, além de escolher o período. As notas abaixo de alguns gráficos registram
+diferenças sistemáticas relevantes para interpretação, sem esconder a origem de cada série.
+
+A página possui nove canvases e mantém ações de ampliação e CSV por variável. Quando uma série não cobre a
+janela, o card explica se faltam estação e modelo em vez de desenhar uma linha enganosa. A UFBA usa esta
+variante; a fonte estática de nove PNGs continua disponível para publicações com gráficos próprios.
+
+[Sources]
+- Captura local em http://localhost:8000/monitoring.html, build UFBA de 18-08-2026; payload publicado localmente em site/Monitoramento/monitoring.json.
+- site-labmim, checkout local de 18-08-2026: src/template/pages/monitoring-live.html, site/assets/js/monitoramento.js, src/sites/ufba/pages.js.
+-->
+
+---
+
+# Climatologia resume o registro observado
+
+<div class="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] gap-5 items-start pt-1">
+<div>
+
+  <img src="/module-tour/climatologia.jpg" class="w-full h-[300px] object-contain rounded-lg border bg-slate-900" alt="Histograma climatológico de temperatura do ar" />
+
+</div>
+<div class="text-sm pt-1">
+
+- **16 variáveis** observadas declaradas no manifest
+- recortes anual, verão, inverno e WRF anual quando disponível
+- frequência medida e densidade teórica adequada à variável
+- amostra, média, dispersão, percentis e cobertura
+- bibliografia e CSV via o próprio contrato de dados
+
+<div class="border-l-4 border-violet-600 pl-3 py-2 mt-4">
+
+A página recebe distribuições prontas; não recalcula quase dez anos de observações no navegador.
+
+</div>
+</div>
+</div>
+
+<!--
+O manifest `labmim-climatology-v1` lista as variáveis, recortes, período coberto, arquivos e referências. O
+frontend escolhe o gráfico e a explicação conforme o tipo de distribuição: temperatura, vento, precipitação,
+radiômetros e índice de claridade não precisam compartilhar o mesmo modelo estatístico.
+
+Na captura, temperatura do ar usa barras para frequência medida e linha gaussiana, com 75.622 observações no
+recorte anual. Os dados locais cobrem de 29-09-2016 a 15-08-2026. A seleção de WRF anual aparece somente onde
+o produtor publicou a distribuição correspondente.
+
+[Sources]
+- Captura local em http://localhost:8000/climatologia.html, build UFBA de 18-08-2026; manifest local em site/Climatologia/manifest.json.
+- site-labmim, checkout local de 18-08-2026: src/template/pages/climatologia.html, site/assets/js/climatologia.js, src/sites/ufba/pages.js.
+-->
+
+---
+
+# Céu: câmera e modelos de radiação
+
+<div class="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] gap-5 items-start pt-1">
+<div>
+
+  <img src="/module-tour/ceu.jpg" class="w-full h-[300px] object-contain rounded-lg border bg-slate-900" alt="Densidade Kt por Kd e distribuição acumulada das condições de céu" />
+
+</div>
+<div class="text-sm pt-1">
+
+- quadro all-sky atual e máscara de segmentação, quando publicados
+- densidade de `Kt` x `Kd` e quatro condições de céu
+- modelos Marques Filho, Lemos e Ridley com métricas
+- acumulada de `Kt` por registro, verão e inverno
+- ampliação, CSV, notas e referências científicas
+
+<div class="border-l-4 border-teal-600 pl-3 py-2 mt-4">
+
+O snapshot local contém o acervo estatístico; o quadro “agora” depende de um artefato de captura separado.
+
+</div>
+</div>
+</div>
+
+<!--
+A página combina três cadências. `labmim-allsky-frame-v1` descreve o quadro e a máscara mais recentes;
+`labmim-ktkd-v1` publica a densidade horária de índice de claridade contra fração difusa; e
+`labmim-kt-cumulative-v1` resume quanto tempo o registro passa em cada condição de céu.
+
+O snapshot local não possui o frame/máscara atuais, por isso a captura registra apenas a seção analítica,
+que está completa. A densidade pode receber pontos e os três modelos empíricos; a acumulada marca os limites
+de Escobedo e oferece recortes sazonais. Essa separação evita que a ausência de uma imagem recente torne o
+acervo histórico indisponível.
+
+[Sources]
+- Captura local em http://localhost:8000/ceu.html, build UFBA de 18-08-2026; payloads locais site/Ceu/ktkd.json e site/Ceu/kt_cumulative.json.
+- site-labmim, checkout local de 18-08-2026: src/template/pages/ceu.html, site/assets/js/ceu.js, src/sites/ufba/pages.js.
 -->
 
 ---
@@ -1470,7 +1716,7 @@ os bounds por-passo do export). Não esqueça de incluir a chave no array de VAR
 
 ---
 
-# Receita B - variável derivada em quatro camadas
+# Receita B: variável derivada
 
 <div class="grid grid-cols-2 gap-6 text-sm pt-1">
 <div>

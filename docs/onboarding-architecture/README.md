@@ -13,6 +13,7 @@ Em aproximadamente 25 minutos, a apresentação fornece o modelo mental e as rec
 - criar uma publicação sem editar o builder;
 - adicionar uma página compartilhada ou exclusiva;
 - atualizar conteúdo, SEO, navegação, tema, território e dataset;
+- reconhecer as páginas e os produtos científicos disponíveis hoje;
 - construir e validar uma ou todas as publicações;
 - localizar o runtime e os contratos de dados do WebGIS.
 
@@ -44,6 +45,7 @@ docs/onboarding-architecture/
 │   ├── arquitetura-poster.svg           # autoral — site: fonte→navegador
 │   ├── micrometeorology-overview.svg    # autoral — o pacote de pipeline
 │   └── add-wrf-variable.svg             # autoral — adicionar variável aos mapas
+├── public/module-tour/           # capturas do tour das páginas (git-ignored)
 └── assets/
     ├── labmim-onboarding.pdf                          # export do Slidev (npm run export:pdf)
     ├── labmim-onboarding.pptx                         # idem, editável (git-ignored)
@@ -57,6 +59,11 @@ docs/onboarding-architecture/
 [`src/sites/README.md`](../../src/sites/README.md). Ele é a saída de `npm run export:distribution`.
 `labmim-onboarding.pdf` é o nome auxiliar usado em previews históricos; não o compartilhe como fonte de
 verdade sem regenerá-lo a partir do mesmo `slides.md`.
+
+O deck distribuído possui 36 slides. A seção **Tour dos módulos** usa capturas do build local da publicação
+UFBA para apresentar início, equipe, previsões WRF, potenciais energéticos, monitoramento, climatologia e
+condição do céu. As imagens ficam em `public/module-tour/`, fora do git como os demais gerados: recapture-as
+a partir do build local antes de reexportar o PDF sempre que a interface ou os contratos visuais mudarem.
 
 ## Guia de contribuição
 
