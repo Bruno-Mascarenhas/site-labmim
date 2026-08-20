@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { defaultPublication, discoverPublications } = require("./site-builder/publications.js");
-const { finishWithFailure, installSignalRestore } = require("./site-builder/cli.js");
+const { finishWithFailure, installSignalRestore, makeRestore } = require("./site-builder/cli.js");
 const { allOperationalPaths } = require("./site-builder/operational-paths.js");
 const publications = discoverPublications(root);
 const defaultSite = defaultPublication(publications);
@@ -68,22 +68,18 @@ function checkPublication(publication) {
   );
 }
 
-// A Ctrl-C reaches the whole process group, so the first attempt is often killed along
-// with the build it replaces; retry once.
+const restore = makeRestore({
+  execPath: process.execPath,
+  buildScript,
+  defaultId: defaultSite.id,
+  label: "check-links",
+  cwd: root,
+});
+
 function restoreDefault() {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const result = spawnSync(process.execPath, [buildScript, `--site=${defaultSite.id}`], {
-      cwd: root,
-      stdio: "inherit",
-    });
-    if (!result.error && result.status === 0) {
-      siteHolds = defaultSite.id;
-      return true;
-    }
-    if (!result.signal) break;
-  }
-  console.error(`check-links: could not restore site/; run: npm run build -- --site=${defaultSite.id}`);
-  return false;
+  const restored = restore();
+  if (restored) siteHolds = defaultSite.id;
+  return restored;
 }
 
 installSignalRestore(restoreDefault, { label: "check-links", defaultId: defaultSite.id });
