@@ -119,50 +119,9 @@
     cumulativeChart: null,
   };
 
-  const el = (id) => document.getElementById(id);
-
-  function decimal(value, digits) {
-    if (!Number.isFinite(value)) return "—";
-    return new Intl.NumberFormat("pt-BR", {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
-    }).format(value);
-  }
-
-  function node(tag, className, text) {
-    const element = document.createElement(tag);
-    if (className) element.className = className;
-    if (text !== undefined) element.textContent = text;
-    return element;
-  }
-
-  function fade(hex, alpha) {
-    const value = parseInt(hex.slice(1), 16);
-    return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
-  }
-
-  const STAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
-  const COMPACT_STAMP = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/;
-
-  // Station-local stamps carry no offset: they go in through `Date.UTC` and come
-  // back through `getUTC*`, or every reading would shift by the VIEWER's offset.
-  function parseStationTime(text) {
-    const parts = STAMP.exec(String(text)) || COMPACT_STAMP.exec(String(text));
-    if (!parts) return NaN;
-    return Date.UTC(+parts[1], +parts[2] - 1, +parts[3], +parts[4], +parts[5], parts[6] ? +parts[6] : 0);
-  }
-
-  const pad = (value) => String(value).padStart(2, "0");
-
-  function formatDay(ms) {
-    const date = new Date(ms);
-    return `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}/${date.getUTCFullYear()}`;
-  }
-
-  function formatStamp(ms) {
-    const date = new Date(ms);
-    return `${formatDay(ms)} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
-  }
+  const { el, node, pad, decimal, integer, percent, fade, parseStationTime, downloadCsv } = window.labmimChartPage;
+  const formatDay = window.labmimChartPage.formatDayYear;
+  const formatStamp = window.labmimChartPage.formatStampYear;
 
   function isDark() {
     return document.documentElement.classList.contains("dark-theme");
@@ -1257,8 +1216,6 @@
     }
   }
 
-  const EXCEL_UTF8_BOM = "\ufeff";
-
   function exportCsv() {
     if (!state.points.length) return;
     const rows = ["instante;kt;kd;condicao"];
@@ -1280,13 +1237,7 @@
         ].join(";")
       );
     }
-    const blob = new Blob([`${EXCEL_UTF8_BOM}${rows.join("\n")}\n`], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "condicao-ceu-kt-kd.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCsv("condicao-ceu-kt-kd.csv", rows);
   }
 
   function renderHeader() {
@@ -1313,16 +1264,6 @@
   // either way: it draws the published values, caps the axis at 1, and names the out-of-edge hours beside the curve
   // instead of folding them in silently. In the sibling climatology contract they are NOT inside `n` — every
   // published subset there has `sum(counts) == n` exactly — so a reader who assumes otherwise misreads the total.
-
-  function percent(fraction, digits = 1) {
-    if (!Number.isFinite(fraction)) return "—";
-    return `${decimal(fraction * 100, digits)}%`;
-  }
-
-  function integer(value) {
-    if (!Number.isFinite(value)) return "—";
-    return new Intl.NumberFormat("pt-BR").format(Math.round(value));
-  }
 
   function cumulativeSubsets() {
     const payload = state.cumulativePayload;
