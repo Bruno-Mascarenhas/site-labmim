@@ -21,12 +21,15 @@
 "use strict";
 
 (function () {
-  // Validated over ALL pairs against the card surface (#f8f9fa light, #2d2d2d dark).
-  // The orange is a step darker than the PNGs carried: theirs sat at 2.86:1 here, under
-  // the 3:1 floor. Climatology and sky use the same value.
+  // Validated over ALL pairs against the card surface, raw measured as drawn (alpha 0.85).
+  // Hue is the identity and matches the `labmim-site-graphs` PNGs; LIGHTNESS is what moved.
+  // The four marks used to sit in one lightness band, so hue carried the whole encoding:
+  // in dark theme shortwave and longwave were isoluminant (1.00:1) and longwave against raw
+  // fell to dE 5.9 under deuteranopia. Every pair now clears dE 8 and dL 0.06 in both themes.
+  // Climatology follows these values; sky keeps its own, which are solved against the model
+  // curves it overlays.
   //
-  // Two encodings, and both match the `labmim-site-graphs` PNGs so the two products
-  // read alike. Single-quantity chart: hue is free, BLUE is measured and ORANGE the
+  // Two encodings. Single-quantity chart: hue is free, BLUE is measured and ORANGE the
   // model. Radiation balance: hue names the family (net, shortwave, longwave),
   // direction moves to the stroke (solid down, dashed up) and DOTTED is left for the
   // model, which therefore borrows the hue of the term it mirrors.
@@ -34,11 +37,11 @@
   // Raw is achromatic rather than a fourth colour: it is not another quantity, it is
   // the same one before aggregation.
   const PALETTE = {
-    light: { station: "#3761b4", model: "#d9741c", net: "#3761b4", shortwave: "#d9741c", longwave: "#1a7f5a" },
-    dark: { station: "#5589e6", model: "#cb8030", net: "#5589e6", shortwave: "#cb8030", longwave: "#31a37a" },
+    light: { station: "#406bbf", model: "#c26300", net: "#406bbf", shortwave: "#c26300", longwave: "#006c4a" },
+    dark: { station: "#5387e3", model: "#d78b3c", net: "#5387e3", shortwave: "#d78b3c", longwave: "#60cca1" },
   };
 
-  const RAW_COLOR = { light: "#8a929c", dark: "#79828d" };
+  const RAW_COLOR = { light: "#79818b", dark: "#7b848f" };
 
   const RAW_LABEL = "Bruto 5 min";
 

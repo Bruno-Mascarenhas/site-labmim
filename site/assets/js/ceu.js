@@ -52,8 +52,13 @@
    * and any grey chromatic enough to pass has become condition II's blue.
    *
    * Colour-blind separation sits in the 6-8 band, legal here because class is also fixed
-   * by position against the dashed Kt boundaries. Condition I lands ΔE 11.7 from the
-   * Lemos band: accepted, because every hue that clears the models fails the classes.
+   * by position against the dashed Kt boundaries — the cloud is drawn at POINT_ALPHA, so
+   * hue is the weaker of the two cues by design and position carries the class.
+   *
+   * These hues are NOT solved against the model curves: no hue that clears the models
+   * clears the classes. The curves stay legible over the cloud by luminance instead, via
+   * the casing, which is what makes the collision (class III against the Lemos band, ΔE
+   * 1,9 under protanopia in the light theme) survivable rather than fixed.
    */
   const CLASS_PALETTE = {
     light: { i: "#a85a93", ii: "#3761b4", iii: "#1a7f5a", iv: "#d9741c" },
@@ -69,6 +74,15 @@
 
   // A model id the palette does not know still has to be drawable.
   const MODEL_FALLBACK = { light: ["#7c3aa8", "#c2185b", "#0d86a3"], dark: ["#8a5fd0", "#c9486f", "#2ba3ba"] };
+
+  // 23 mil pontos opacos apagavam as curvas dos modelos por acúmulo, não por ordem de
+  // desenho: as linhas já vêm na frente. Com alfa o acúmulo passa a ser o próprio dado —
+  // a cauda esparsa clareia e o núcleo satura — e a curva atravessa a nuvem.
+  const POINT_ALPHA = 0.38;
+  // Sobre o núcleo saturado nenhuma cor de linha se garante: no tema claro a classe III
+  // e a banda de Lemos ficam a ΔE 1,9 sob protanopia. O contorno na cor do cartão separa
+  // a linha do fundo por luminância, como as isóbaras fazem sobre os campos do WebGIS.
+  const MODEL_CASING_WIDTH = 5.5;
 
   // Monochrome, because colour on this page already means sky condition. Channels
   // rather than a hex: the cell alpha is what carries the count.
@@ -163,6 +177,7 @@
       grid: root.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
       tooltipBg: root.getPropertyValue("--tooltip-bg").trim() || "rgba(18, 18, 18, 0.96)",
       tooltipText: root.getPropertyValue("--tooltip-text").trim() || "#fff",
+      surface: isDark() ? "#2d2d2d" : "#fff",
       guide: isDark() ? "rgba(255, 255, 255, 0.34)" : "rgba(0, 0, 0, 0.26)",
       crosshair: isDark() ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
     };
@@ -643,6 +658,24 @@
     return `Kt ${decimal(cell.kt[0], 3)}–${decimal(cell.kt[1], 3)} · Kd ${decimal(cell.kd[0], 3)}–${decimal(cell.kd[1], 3)} · ${hours}`;
   }
 
+  function modelCasing(label, data, surface, dash) {
+    return {
+      type: "line",
+      label: `${label} contorno`,
+      labmimEnvelope: true,
+      data,
+      borderColor: surface,
+      backgroundColor: "transparent",
+      borderWidth: MODEL_CASING_WIDTH,
+      borderDash: dash,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      spanGaps: false,
+      tension: 0,
+      order: 2,
+    };
+  }
+
   function buildDatasets(theme, radius) {
     const datasets = [];
     if (showingPoints()) {
@@ -659,7 +692,7 @@
           label: `${entry.roman} · ${entry.label}`,
           data,
           borderColor: "transparent",
-          backgroundColor: theme.classes[entry.id],
+          backgroundColor: fade(theme.classes[entry.id], POINT_ALPHA),
           borderWidth: 0,
           showLine: false,
           pointRadius: radius,
@@ -707,6 +740,7 @@
           tension: 0,
           order: 3,
         });
+        datasets.push(modelCasing(model.label, envelope(model.median), theme.surface));
         datasets.push({
           type: "line",
           label: model.label,
@@ -724,11 +758,13 @@
         });
         continue;
       }
+      const curve = model.kt.map((kt, index) => ({ x: kt, y: model.kd[index], bin: index }));
+      datasets.push(modelCasing(model.label, curve, theme.surface, [6, 4]));
       datasets.push({
         type: "line",
         label: model.label,
         labmimModel: model.id,
-        data: model.kt.map((kt, index) => ({ x: kt, y: model.kd[index], bin: index })),
+        data: curve,
         borderColor: color,
         backgroundColor: color,
         borderWidth: 2.5,

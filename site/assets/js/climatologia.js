@@ -16,9 +16,10 @@
 (function () {
   // Pairs validated with scripts/validate_palette.js: luminance band, chroma floor, colour-blind separation and
   // contrast against the surface. Changing a value means running the validator again.
+  // Same values as the monitoring page, re-stepped in lightness so the pair separates without hue.
   const PALETTE = {
-    light: { empirical: "#3761b4", model: "#d9741c" },
-    dark: { empirical: "#5589e6", model: "#cb8030" },
+    light: { empirical: "#406bbf", model: "#c26300" },
+    dark: { empirical: "#5387e3", model: "#d78b3c" },
   };
 
   const ROSE_RINGS = 4;
