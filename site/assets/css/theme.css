@@ -342,8 +342,10 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
+/* 0.68 left the tiles at OKLCH L 0.73, right where a diverging field's neutral has to sit:
+   any grey marking a zero crossing landed on top of the basemap instead of over it. */
 .dark-theme .leaflet-tile {
-  filter: brightness(0.68) contrast(1.12) saturate(0.8);
+  filter: brightness(0.52) contrast(1.12) saturate(0.8);
 }
 
 .dark-theme .leaflet-control,

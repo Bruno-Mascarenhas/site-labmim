@@ -5,6 +5,30 @@ const CHART_TIMELINE_FIRST_INDEX = 1;
 // CSV must format in UTC too — local time would shift them off the map.
 const CHART_FORECAST_TIME_ZONE = "UTC";
 
+// The two card surfaces a series is drawn on: assets/css/maps.css and the dark override in
+// assets/css/theme.css (.chart-modal-body, div[id^="chartContainer"]).
+const CHART_SURFACES = ["#ffffff", "#161b22"];
+const CHART_SERIES_FALLBACK = "#0d6efd";
+
+function relativeLuminance(hex) {
+  const channel = (offset) => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+function contrastRatio(a, b) {
+  const [high, low] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+}
+
+function themeInvariantSeriesColor(colors) {
+  if (!Array.isArray(colors) || !colors.length) return CHART_SERIES_FALLBACK;
+  const worstContrast = (color) => Math.min(...CHART_SURFACES.map((surface) => contrastRatio(color, surface)));
+  return colors.reduce((best, color) => (worstContrast(color) > worstContrast(best) ? color : best), colors[0]);
+}
+
 class ChartsManager {
   constructor(app) {
     this.app = app;
@@ -527,7 +551,7 @@ class ChartsManager {
       })
     );
     const chartData = series.map((entry) => entry.value);
-    const chartColor = config.colors?.[config.colors.length - 1] || "#0d6efd";
+    const chartColor = themeInvariantSeriesColor(config.colors);
     const chartLabel = `Média do domínio · ${this._stepLabel(config)}`;
     const tooltipLabel = (ctx) => this._formatPreviewValue(ctx.parsed.y, config.unit);
 
@@ -822,12 +846,12 @@ class ChartsManager {
         data: timeData.map((entry) => entry.value),
         label: this._stepLabel(config),
         unit: config.unit,
-        color: config.colors[config.colors.length - 1],
+        color: themeInvariantSeriesColor(config.colors),
       };
     }
 
     const unit = variableType === "solar" ? "Wh/m²" : "kWh";
-    const color = variableType === "solar" ? "#FDB462" : "#80B1D3";
+    const color = variableType === "solar" ? "#b16d00" : "#4783a9";
     const temperatureSeries = this.timeSeriesData?.temperature?.data || [];
     const temperatureByHour = new Map(temperatureSeries.map((entry) => [entry.hour, entry.value]));
     const data = timeData.map((entry) => {

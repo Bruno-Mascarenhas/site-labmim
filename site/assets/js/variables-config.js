@@ -47,24 +47,25 @@ function getAccumulationHours(variableType, defaultHours = 1) {
 }
 
 /**
- * ColorBrewer RdYlBu 11-class, reversed so blue is cold. Replaces `jet`, whose lightness
- * rises and falls twice and so draws bands the field does not have.
+ * Blue-to-red across a gold centre, lightness monotonic on each arm. Replaces `jet`, whose
+ * lightness rises and falls twice and so draws bands the field does not have.
  *
- * NOT RdBu: its grey-white neutral falls exactly on this region's usual temperatures and
- * washes half the map out. RdYlBu keeps a saturated yellow through that range.
+ * The centre sits ON this region's usual temperatures, so it is the one stop that must not
+ * be pale: RdYlBu's `#ffffbf` composited to 3.6 OKLab units over the basemap and washed the
+ * common case out. The gold here clears 8, and 25 degC gets no hard edge it has not earned.
  */
 const THERMAL_COLORS = [
-  "#313695",
-  "#4575b4",
-  "#74add1",
-  "#abd9e9",
-  "#e0f3f8",
-  "#ffffbf",
-  "#fee090",
-  "#fdae61",
-  "#f46d43",
-  "#d73027",
-  "#a50026",
+  "#10197e",
+  "#084f95",
+  "#1c7cb2",
+  "#45a9cd",
+  "#75d5e8",
+  "#fdcd62",
+  "#f0b87f",
+  "#e9772a",
+  "#c2452a",
+  "#950d27",
+  "#560d20",
 ];
 
 /**
@@ -72,6 +73,12 @@ const THERMAL_COLORS = [
  * runs -200..600, where a symmetric ramp would neutralise 200 W/m² and paint a real
  * downward flux like a real upward one. The bar spaces stops evenly, so they are
  * generated to land the neutral where zero actually falls.
+ *
+ * The neutral is a grey, not a white: at `fillOpacity` 0.45 white composites to 1.2 OKLab
+ * units over the light basemap, so the sign change — the one feature the field exists to
+ * show — was the least visible point on the map. Its lightness is the one that clears both
+ * basemaps, the light tiles and the darkened ones under `.dark-theme`; a grey tuned to
+ * either alone lands on top of the other. It clears 8 on both.
  */
 function mixHex(from, to, t) {
   const channel = (offset) => {
@@ -92,8 +99,9 @@ function sampleRamp(ramp, t) {
   return mixHex(ramp[low], ramp[high], position - low);
 }
 
-const FLUX_NEGATIVE_RAMP = ["#2166ac", "#4393c3", "#92c5de", "#d1e5f0", "#f7f7f7"];
-const FLUX_POSITIVE_RAMP = ["#f7f7f7", "#fddbc7", "#f4a582", "#d6604d", "#b2182b", "#67001f"];
+const FLUX_NEUTRAL = "#b3b1ad";
+const FLUX_NEGATIVE_RAMP = ["#012571", "#074b81", "#1f6e96", "#4890a7", FLUX_NEUTRAL];
+const FLUX_POSITIVE_RAMP = [FLUX_NEUTRAL, "#c37155", "#be402b", "#a11e26", "#7d0224", "#53071f"];
 
 /**
  * Stops are interpolated, so unless one lands exactly on zero the neutral is blended
@@ -133,49 +141,53 @@ function fluxColorsAroundZero(scaleMin, scaleMax) {
 // Rain reads as water: it replaces the temperature ramp, which painted the heaviest
 // rainfall in the red every other layer here uses for hot. Violet at the top is the
 // rainfall convention, and is what keeps this from being one blue getting darker.
-const RAIN_COLORS = ["#f7fbff", "#d9eef6", "#9ed8e8", "#5cb8dd", "#2e8fc9", "#1666b3", "#144a9c", "#3b2f8f", "#4a1078"];
+const RAIN_COLORS = ["#66e6f8", "#46cded", "#38b3dd", "#2d99cd", "#227fbe", "#1965b1", "#204b9f", "#243188", "#241570"];
 
 /**
- * Two constraints hold for every ramp below.
+ * Three constraints hold for every ramp below.
  *
  * LIGHTNESS IS MONOTONIC — what separates these from a rainbow, and what keeps the map
- * readable in greyscale and under colour-blindness.
+ * readable in greyscale and under colour-blindness. Diverging ramps hold it per arm.
  *
- * THE LOW END IS LIGHT — the field paints at `fillOpacity` 0.65 over the basemap, so a
- * dark low end turns quiet areas into grey haze. viridis was tried for wind and failed
- * on exactly this.
+ * THE LOW END IS LIGHT WITHOUT BEING PALE — the field paints at `fillOpacity` 0.45, which
+ * leaves lightness a third of its range once composited over the basemap. A white low end
+ * lands within 2 OKLab units of bare terrain, so the quietest values read as unpainted; a
+ * dark one hazes the map, which is how viridis failed here for wind. Every ramp starts at
+ * the palest its hue can be and still clear 6 units.
  *
- * ColorBrewer 2.0 9-class (Brewer & Harrower): YlGnBu, YlOrRd, BuPu, YlOrBr, PuBuGn,
- * RdYlBu, Blues. plasma: Smith & van der Walt (2015), matplotlib.
+ * CHROMA CARRIES THE SCALE — with lightness compressed, hue and saturation do most of the
+ * separating, so the stops walk an OKLCH arc instead of resting on one hue.
+ *
+ * plasma, kept as-is for clearness: Smith & van der Walt (2015), matplotlib.
  */
 
 // Shared by specific and relative humidity: they measure the same thing.
 const MOISTURE_COLORS = [
-  "#ffffd9",
-  "#edf8b1",
-  "#c7e9b4",
-  "#7fcdbb",
-  "#41b6c4",
-  "#1d91c0",
-  "#225ea8",
-  "#253494",
-  "#081d58",
+  "#dbf363",
+  "#99e36c",
+  "#52ce7d",
+  "#41b08f",
+  "#31938c",
+  "#237783",
+  "#155d77",
+  "#0f426a",
+  "#07157d",
 ];
 
-// Calm stays pale and lets the basemap through; warm-at-high is the wind convention.
-const WIND_COLORS = ["#ffffcc", "#ffeda0", "#fed976", "#feb24c", "#fd8d3c", "#fc4e2a", "#e31a1c", "#bd0026", "#800026"];
+// Calm stays light, not blank; warm-at-high is the wind convention.
+const WIND_COLORS = ["#fdd75c", "#f7b625", "#e7971f", "#d8770f", "#c95502", "#b23712", "#99151b", "#77091f", "#53081d"];
 
 // Violet because no neighbouring field claims it; higher emission is the anomaly.
 const EMISSIVITY_COLORS = [
-  "#f7fcfd",
-  "#e0ecf4",
-  "#bfd3e6",
-  "#9ebcda",
-  "#8c96c6",
-  "#8c6bb1",
-  "#88419d",
-  "#810f7c",
-  "#4d004b",
+  "#d5befa",
+  "#cd9df6",
+  "#c47fe2",
+  "#b668c3",
+  "#a651a5",
+  "#963a88",
+  "#84226b",
+  "#6b184e",
+  "#501035",
 ];
 
 // Overcast dark, full sun bright — the ramp reads as the sky it describes.
@@ -193,47 +205,46 @@ const CLEARNESS_COLORS = [
 // Shared by the four shortwave layers: comparing incoming against reflected only works
 // if the same value wears the same colour in both.
 const SHORTWAVE_COLORS = [
-  "#ffffff",
-  "#fff0a0",
-  "#ffd700",
-  "#ffaa00",
-  "#ff6600",
-  "#ff2200",
-  "#dd0000",
-  "#aa0000",
-  "#7a0000",
-  "#691009",
+  "#fddc5a",
+  "#f5bb26",
+  "#e69b1a",
+  "#d77903",
+  "#c65800",
+  "#b53100",
+  "#990a16",
+  "#720d1f",
+  "#4e0b1a",
 ];
 
-// ColorBrewer YlOrBr 9-class. Its own ramp so thermal emission is never read as
-// sunlight at a glance: warm like shortwave, but running to brown rather than red.
+// Its own ramp so thermal emission is never read as sunlight at a glance: warm like
+// shortwave, but the chroma tapers so it runs to brown rather than to red.
 const LONGWAVE_COLORS = [
-  "#ffffe5",
-  "#fff7bc",
-  "#fee391",
-  "#fec44f",
-  "#fe9929",
-  "#ec7014",
-  "#cc4c02",
-  "#993404",
-  "#662506",
+  "#fde15f",
+  "#ecc440",
+  "#d8a92c",
+  "#c18f29",
+  "#a97726",
+  "#8e6123",
+  "#744c1f",
+  "#5a3919",
+  "#412712",
 ];
 
 /**
- * ColorBrewer PuBuGn 9-class, sequential. NOT diverging: the field is PSFC over terrain,
- * unreduced to sea level, so a midpoint would separate altitudes rather than weather.
- * Cool so it never competes with the thermal reading, where blue-to-red means cold-hot.
+ * Sequential, NOT diverging: the field is PSFC over terrain, unreduced to sea level, so a
+ * midpoint would separate altitudes rather than weather. Cool so it never competes with the
+ * thermal reading, where blue-to-red means cold-hot.
  */
 const PRESSURE_COLORS = [
-  "#fff7fb",
-  "#ece2f0",
-  "#d0d1e6",
-  "#a6bddb",
-  "#67a9cf",
-  "#3690c0",
-  "#02818a",
-  "#016c59",
-  "#014636",
+  "#61f4f8",
+  "#4edbd6",
+  "#3cc2b5",
+  "#31a996",
+  "#269179",
+  "#1d795d",
+  "#156143",
+  "#104a2c",
+  "#0a3518",
 ];
 
 const VARIABLE_CONTEXTS = {

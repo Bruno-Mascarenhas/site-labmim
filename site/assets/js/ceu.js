@@ -52,8 +52,13 @@
    * and any grey chromatic enough to pass has become condition II's blue.
    *
    * Colour-blind separation sits in the 6-8 band, legal here because class is also fixed
-   * by position against the dashed Kt boundaries. Condition I lands ΔE 11.7 from the
-   * Lemos band: accepted, because every hue that clears the models fails the classes.
+   * by position against the dashed Kt boundaries — the cloud is drawn at POINT_ALPHA, so
+   * hue is the weaker of the two cues by design and position carries the class.
+   *
+   * These hues are NOT solved against the model curves: no hue that clears the models
+   * clears the classes. The curves stay legible over the cloud by luminance instead, via
+   * the casing, which is what makes the collision (class III against the Lemos band, ΔE
+   * 1,9 under protanopia in the light theme) survivable rather than fixed.
    */
   const CLASS_PALETTE = {
     light: { i: "#a85a93", ii: "#3761b4", iii: "#1a7f5a", iv: "#d9741c" },
@@ -69,6 +74,18 @@
 
   // A model id the palette does not know still has to be drawable.
   const MODEL_FALLBACK = { light: ["#7c3aa8", "#c2185b", "#0d86a3"], dark: ["#8a5fd0", "#c9486f", "#2ba3ba"] };
+
+  // 23 mil pontos opacos apagavam as curvas dos modelos por acúmulo, não por ordem de
+  // desenho: as linhas já vêm na frente. Com alfa o acúmulo passa a ser o próprio dado —
+  // a cauda esparsa clareia e o núcleo satura — e a curva atravessa a nuvem.
+  const POINT_ALPHA = 0.38;
+  // Sobre o núcleo saturado nenhuma cor de linha se garante: no tema claro a classe III
+  // e a banda de Lemos ficam a ΔE 1,9 sob protanopia. O contorno na cor do cartão separa
+  // a linha do fundo por luminância, como as isóbaras fazem sobre os campos do WebGIS.
+  const MODEL_CASING_WIDTH = 5.5;
+  const CURVE_CASING_WIDTH = 7.5;
+  const CURVE_LINE_WIDTH = 3.4;
+  const CURVE_DASH = [9, 6];
 
   // Monochrome, because colour on this page already means sky condition. Channels
   // rather than a hex: the cell alpha is what carries the count.
@@ -163,6 +180,7 @@
       grid: root.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
       tooltipBg: root.getPropertyValue("--tooltip-bg").trim() || "rgba(18, 18, 18, 0.96)",
       tooltipText: root.getPropertyValue("--tooltip-text").trim() || "#fff",
+      surface: isDark() ? "#2d2d2d" : "#fff",
       guide: isDark() ? "rgba(255, 255, 255, 0.34)" : "rgba(0, 0, 0, 0.26)",
       crosshair: isDark() ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
     };
@@ -643,6 +661,23 @@
     return `Kt ${decimal(cell.kt[0], 3)}–${decimal(cell.kt[1], 3)} · Kd ${decimal(cell.kd[0], 3)}–${decimal(cell.kd[1], 3)} · ${hours}`;
   }
 
+  function modelCasing(label, data, surface, width = MODEL_CASING_WIDTH) {
+    return {
+      type: "line",
+      label: `${label} contorno`,
+      labmimEnvelope: true,
+      data,
+      borderColor: surface,
+      backgroundColor: "transparent",
+      borderWidth: width,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      spanGaps: false,
+      tension: 0,
+      order: 2,
+    };
+  }
+
   function buildDatasets(theme, radius) {
     const datasets = [];
     if (showingPoints()) {
@@ -659,7 +694,7 @@
           label: `${entry.roman} · ${entry.label}`,
           data,
           borderColor: "transparent",
-          backgroundColor: theme.classes[entry.id],
+          backgroundColor: fade(theme.classes[entry.id], POINT_ALPHA),
           borderWidth: 0,
           showLine: false,
           pointRadius: radius,
@@ -707,6 +742,7 @@
           tension: 0,
           order: 3,
         });
+        datasets.push(modelCasing(model.label, envelope(model.median), theme.surface));
         datasets.push({
           type: "line",
           label: model.label,
@@ -724,15 +760,18 @@
         });
         continue;
       }
+      const curve = model.kt.map((kt, index) => ({ x: kt, y: model.kd[index], bin: index }));
+      datasets.push(modelCasing(model.label, curve, theme.surface, CURVE_CASING_WIDTH));
       datasets.push({
         type: "line",
         label: model.label,
         labmimModel: model.id,
-        data: model.kt.map((kt, index) => ({ x: kt, y: model.kd[index], bin: index })),
+        data: curve,
         borderColor: color,
         backgroundColor: color,
-        borderWidth: 2.5,
-        borderDash: [6, 4],
+        borderWidth: CURVE_LINE_WIDTH,
+        borderDash: CURVE_DASH,
+        borderCapStyle: "butt",
         pointStyle: "line",
         pointRadius: 0,
         pointHoverRadius: 0,
@@ -1341,6 +1380,85 @@
     return `${numeral} ${condition.name_pt || condition.name || ""}`.trim();
   }
 
+  const CUMULATIVE_AREA_ALPHA = 0.12;
+  const CUMULATIVE_BAND_ALPHA = 0.3;
+
+  function conditionPixelRange(condition, chart) {
+    const { chartArea, scales } = chart;
+    const range = (condition && condition.kt_range) || [];
+    const low = Number.isFinite(range[0]) ? scales.x.getPixelForValue(range[0]) : chartArea.left;
+    const high = Number.isFinite(range[1]) ? scales.x.getPixelForValue(range[1]) : chartArea.right;
+    return [Math.max(chartArea.left, Math.min(low, high)), Math.min(chartArea.right, Math.max(low, high))];
+  }
+
+  function paintCumulativeArea(chart, points, columns, fillStyle) {
+    const spans = columns.filter(([left, right]) => right - left > 0.5);
+    if (!spans.length) return;
+    const { ctx, chartArea, scales } = chart;
+    const baseline = scales.y.getPixelForValue(0);
+    ctx.save();
+    ctx.beginPath();
+    for (const [left, right] of spans) {
+      ctx.rect(left, chartArea.top, right - left, chartArea.bottom - chartArea.top);
+    }
+    ctx.clip();
+    ctx.fillStyle = fillStyle;
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const top = scales.y.getPixelForValue(points[index + 1].y);
+      if (top >= baseline) continue;
+      const left = scales.x.getPixelForValue(points[index].x);
+      const right = scales.x.getPixelForValue(points[index + 1].x);
+      ctx.fillRect(left, top, right - left, baseline - top);
+    }
+    ctx.restore();
+  }
+
+  function cumulativeAreaPlugin(subset, theme, points) {
+    let hovered = null;
+    return {
+      id: "ceuAcumuladaArea",
+      afterEvent(chart, args) {
+        const { event } = args;
+        const { chartArea } = chart;
+        const inside =
+          event.type !== "mouseout" &&
+          Number.isFinite(event.x) &&
+          Number.isFinite(event.y) &&
+          event.x >= chartArea.left &&
+          event.x <= chartArea.right &&
+          event.y >= chartArea.top &&
+          event.y <= chartArea.bottom;
+        const next = inside ? cumulativeConditionAt(subset, chart.scales.x.getValueForPixel(event.x)) : null;
+        const nextId = next ? String(next.id || "").toLowerCase() : "";
+        if (nextId === (hovered ? String(hovered.id || "").toLowerCase() : "")) return;
+        hovered = nextId ? next : null;
+        args.changed = true;
+      },
+      beforeDatasetsDraw(chart) {
+        if (!points.length) return;
+        const { chartArea } = chart;
+        const wash = `rgba(${theme.ink}, ${CUMULATIVE_AREA_ALPHA})`;
+        if (!hovered) {
+          paintCumulativeArea(chart, points, [[chartArea.left, chartArea.right]], wash);
+          return;
+        }
+        const [bandLeft, bandRight] = conditionPixelRange(hovered, chart);
+        paintCumulativeArea(
+          chart,
+          points,
+          [
+            [chartArea.left, bandLeft],
+            [bandRight, chartArea.right],
+          ],
+          wash
+        );
+        const hue = theme.classes[String(hovered.id || "").toLowerCase()];
+        if (!hue) return;
+        paintCumulativeArea(chart, points, [[bandLeft, bandRight]], fade(hue, CUMULATIVE_BAND_ALPHA));
+      },
+    };
+  }
+
   function cumulativeBoundsPlugin(subset, theme) {
     const bounds = cumulativeBounds(subset);
     return {
@@ -1456,7 +1574,7 @@
           },
         },
       },
-      plugins: [cumulativeBoundsPlugin(subset, theme)],
+      plugins: [cumulativeAreaPlugin(subset, theme, points), cumulativeBoundsPlugin(subset, theme)],
     });
 
     canvas.setAttribute(
