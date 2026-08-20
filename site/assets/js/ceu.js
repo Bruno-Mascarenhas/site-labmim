@@ -83,6 +83,9 @@
   // e a banda de Lemos ficam a ΔE 1,9 sob protanopia. O contorno na cor do cartão separa
   // a linha do fundo por luminância, como as isóbaras fazem sobre os campos do WebGIS.
   const MODEL_CASING_WIDTH = 5.5;
+  const CURVE_CASING_WIDTH = 7.5;
+  const CURVE_LINE_WIDTH = 3.4;
+  const CURVE_DASH = [9, 6];
 
   // Monochrome, because colour on this page already means sky condition. Channels
   // rather than a hex: the cell alpha is what carries the count.
@@ -658,7 +661,7 @@
     return `Kt ${decimal(cell.kt[0], 3)}–${decimal(cell.kt[1], 3)} · Kd ${decimal(cell.kd[0], 3)}–${decimal(cell.kd[1], 3)} · ${hours}`;
   }
 
-  function modelCasing(label, data, surface, dash) {
+  function modelCasing(label, data, surface, width = MODEL_CASING_WIDTH) {
     return {
       type: "line",
       label: `${label} contorno`,
@@ -666,8 +669,7 @@
       data,
       borderColor: surface,
       backgroundColor: "transparent",
-      borderWidth: MODEL_CASING_WIDTH,
-      borderDash: dash,
+      borderWidth: width,
       pointRadius: 0,
       pointHoverRadius: 0,
       spanGaps: false,
@@ -759,7 +761,7 @@
         continue;
       }
       const curve = model.kt.map((kt, index) => ({ x: kt, y: model.kd[index], bin: index }));
-      datasets.push(modelCasing(model.label, curve, theme.surface, [6, 4]));
+      datasets.push(modelCasing(model.label, curve, theme.surface, CURVE_CASING_WIDTH));
       datasets.push({
         type: "line",
         label: model.label,
@@ -767,8 +769,9 @@
         data: curve,
         borderColor: color,
         backgroundColor: color,
-        borderWidth: 2.5,
-        borderDash: [6, 4],
+        borderWidth: CURVE_LINE_WIDTH,
+        borderDash: CURVE_DASH,
+        borderCapStyle: "butt",
         pointStyle: "line",
         pointRadius: 0,
         pointHoverRadius: 0,
@@ -1377,6 +1380,85 @@
     return `${numeral} ${condition.name_pt || condition.name || ""}`.trim();
   }
 
+  const CUMULATIVE_AREA_ALPHA = 0.12;
+  const CUMULATIVE_BAND_ALPHA = 0.3;
+
+  function conditionPixelRange(condition, chart) {
+    const { chartArea, scales } = chart;
+    const range = (condition && condition.kt_range) || [];
+    const low = Number.isFinite(range[0]) ? scales.x.getPixelForValue(range[0]) : chartArea.left;
+    const high = Number.isFinite(range[1]) ? scales.x.getPixelForValue(range[1]) : chartArea.right;
+    return [Math.max(chartArea.left, Math.min(low, high)), Math.min(chartArea.right, Math.max(low, high))];
+  }
+
+  function paintCumulativeArea(chart, points, columns, fillStyle) {
+    const spans = columns.filter(([left, right]) => right - left > 0.5);
+    if (!spans.length) return;
+    const { ctx, chartArea, scales } = chart;
+    const baseline = scales.y.getPixelForValue(0);
+    ctx.save();
+    ctx.beginPath();
+    for (const [left, right] of spans) {
+      ctx.rect(left, chartArea.top, right - left, chartArea.bottom - chartArea.top);
+    }
+    ctx.clip();
+    ctx.fillStyle = fillStyle;
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const top = scales.y.getPixelForValue(points[index + 1].y);
+      if (top >= baseline) continue;
+      const left = scales.x.getPixelForValue(points[index].x);
+      const right = scales.x.getPixelForValue(points[index + 1].x);
+      ctx.fillRect(left, top, right - left, baseline - top);
+    }
+    ctx.restore();
+  }
+
+  function cumulativeAreaPlugin(subset, theme, points) {
+    let hovered = null;
+    return {
+      id: "ceuAcumuladaArea",
+      afterEvent(chart, args) {
+        const { event } = args;
+        const { chartArea } = chart;
+        const inside =
+          event.type !== "mouseout" &&
+          Number.isFinite(event.x) &&
+          Number.isFinite(event.y) &&
+          event.x >= chartArea.left &&
+          event.x <= chartArea.right &&
+          event.y >= chartArea.top &&
+          event.y <= chartArea.bottom;
+        const next = inside ? cumulativeConditionAt(subset, chart.scales.x.getValueForPixel(event.x)) : null;
+        const nextId = next ? String(next.id || "").toLowerCase() : "";
+        if (nextId === (hovered ? String(hovered.id || "").toLowerCase() : "")) return;
+        hovered = nextId ? next : null;
+        args.changed = true;
+      },
+      beforeDatasetsDraw(chart) {
+        if (!points.length) return;
+        const { chartArea } = chart;
+        const wash = `rgba(${theme.ink}, ${CUMULATIVE_AREA_ALPHA})`;
+        if (!hovered) {
+          paintCumulativeArea(chart, points, [[chartArea.left, chartArea.right]], wash);
+          return;
+        }
+        const [bandLeft, bandRight] = conditionPixelRange(hovered, chart);
+        paintCumulativeArea(
+          chart,
+          points,
+          [
+            [chartArea.left, bandLeft],
+            [bandRight, chartArea.right],
+          ],
+          wash
+        );
+        const hue = theme.classes[String(hovered.id || "").toLowerCase()];
+        if (!hue) return;
+        paintCumulativeArea(chart, points, [[bandLeft, bandRight]], fade(hue, CUMULATIVE_BAND_ALPHA));
+      },
+    };
+  }
+
   function cumulativeBoundsPlugin(subset, theme) {
     const bounds = cumulativeBounds(subset);
     return {
@@ -1492,7 +1574,7 @@
           },
         },
       },
-      plugins: [cumulativeBoundsPlugin(subset, theme)],
+      plugins: [cumulativeAreaPlugin(subset, theme, points), cumulativeBoundsPlugin(subset, theme)],
     });
 
     canvas.setAttribute(
