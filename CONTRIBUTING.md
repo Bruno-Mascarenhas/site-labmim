@@ -7,7 +7,7 @@ Este repositório gera sites estáticos para publicações meteorológicas (hoje
 Os dois materiais estão em [`docs/onboarding-architecture/assets/`](docs/onboarding-architecture/):
 
 - **[Onboarding da plataforma estática multi-publicação](docs/onboarding-architecture/assets/onboarding-plataforma-estatica-labmim-leal.pdf)** — a documentação de arquitetura vigente (30 slides): o modelo mental `publicação + template + território + dataset`, como o build descobre e valida cada `src/sites/<id>/site.js`, onde colocar uma mudança de estilo, as receitas de página compartilhada e exclusiva, o que `build:check` protege, o runtime do WebGIS e o contrato com o pipeline `micrometeorology`.
-- **[Como contribuir no site-labmim](docs/onboarding-architecture/assets/guia-contribuicao-site.pdf)** — o passo a passo do processo, com exemplos reais de issues, branches e pull requests do repositório.
+- **[Como contribuir no site-labmim](docs/onboarding-architecture/assets/guia-contribuicao-site.pdf)** — o passo a passo atualizado, incluindo as fronteiras do consumidor e o contrato com o produtor `micrometeorology`.
 
 ## Ambiente
 

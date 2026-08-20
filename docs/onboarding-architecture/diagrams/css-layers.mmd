@@ -1,6 +1,6 @@
 %% Camadas de CSS: identidade é injetada por tokens e não por seletores de site.
 flowchart LR
-  UFBA["sites/ufba/theme.css"] --> PICK{"publicação selecionada"}
+  UFBA["sites/ufba/theme.css<br/>19 obrigatórios + opcionais"] --> PICK{"publicação selecionada"}
   UFES["sites/ufes/theme.css"] --> PICK
   FUT["sites/novo/theme.css"] --> PICK
   PICK --> GENERATED["site/assets/css/site-theme.css<br/>somente um tema"]

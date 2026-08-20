@@ -6,6 +6,6 @@ flowchart LR
   SHARED["site/assets<br/>CSS · JS · imagens · vendor"] --> BUILD
   BUILD --> SITE["site/<br/>uma publicação selecionada"]
   BUILD --> DIST["dist/id/<br/>um bundle por publicação"]
-  PIPE["micrometeorology"] --> DATA["manifest · values · grids · gráficos<br/>paths definidos no dataset"]
+  PIPE["micrometeorology"] --> DATA["WebGIS · monitoramento · climatologia · céu<br/>paths definidos no dataset"]
   DATA --> SITE
   DATA -.-> DIST
