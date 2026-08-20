@@ -639,7 +639,7 @@ header.maps-header {
   height: 200px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  background: linear-gradient(to top, #10197e, #1c7cb2, #75d5e8, #fdcd62, #e9772a, #950d27, #560d20);
+  background: #e9ecef;
 }
 
 .colorbar-labels {
@@ -1883,7 +1883,6 @@ header.maps-header {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 14px 36px rgba(15, 23, 42, 0.18);
-  backdrop-filter: blur(10px);
 }
 
 .variable-overview-panel.is-collapsed .variable-overview-body {
