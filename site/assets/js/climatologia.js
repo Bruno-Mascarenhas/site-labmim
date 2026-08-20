@@ -14,8 +14,6 @@
 "use strict";
 
 (function () {
-  // Pairs validated with scripts/validate_palette.js: luminance band, chroma floor, colour-blind separation and
-  // contrast against the surface. Changing a value means running the validator again.
   // Same values as the monitoring page, re-stepped in lightness so the pair separates without hue.
   const PALETTE = {
     light: { empirical: "#406bbf", model: "#c26300" },
@@ -24,9 +22,6 @@
 
   const ROSE_RINGS = 4;
   const COMPASS = ["N", "NE", "L", "SE", "S", "SO", "O", "NO"];
-
-  // Without it Excel in pt-BR opens the CSV as Latin-1 and the accented labels reach the researcher corrupted.
-  const EXCEL_UTF8_BOM = "\uFEFF";
 
   const state = {
     base: "",
@@ -39,25 +34,7 @@
     seq: 0,
   };
 
-  const el = (id) => document.getElementById(id);
-
-  function decimal(value, digits) {
-    if (value === null || value === undefined || Number.isNaN(value)) return "—";
-    return new Intl.NumberFormat("pt-BR", {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
-    }).format(value);
-  }
-
-  function integer(value) {
-    if (value === null || value === undefined) return "—";
-    return new Intl.NumberFormat("pt-BR").format(Math.round(value));
-  }
-
-  function percent(fraction, digits = 1) {
-    if (fraction === null || fraction === undefined) return "—";
-    return `${decimal(fraction * 100, digits)}%`;
-  }
+  const { el, decimal, integer, percent, downloadCsv } = window.labmimChartPage;
 
   function digitsToDistinguishBins(edges) {
     let smallest = Infinity;
@@ -748,15 +725,7 @@
     if (!subset || !subset.n) return;
     const { header, rows } = tableRows(subset);
     const lines = [header.join(";"), ...rows.map((row) => row.join(";"))];
-    const blob = new Blob([`${EXCEL_UTF8_BOM}${lines.join("\n")}`], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `climatologia_${state.variableId}_${state.subsetId}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(`climatologia_${state.variableId}_${state.subsetId}.csv`, lines);
   }
 
   function renderCoverage() {

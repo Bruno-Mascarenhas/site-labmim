@@ -19,7 +19,7 @@ module.exports = [
     // Chart.js is declared per page: loading it from the institutional layout
     // would cost 200 KB on the routes that draw nothing.
     vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
-    scripts: ["assets/js/monitoramento.js"],
+    scripts: ["assets/js/chart-page.js", "assets/js/monitoramento.js"],
     append: [siteSource("fragments/funding.html")],
     seo: {
       title: "LabMiM — Monitoramento Ambiental · UFBA",
@@ -37,7 +37,7 @@ module.exports = [
   }),
   page("sky", {
     vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
-    scripts: ["assets/js/ceu.js"],
+    scripts: ["assets/js/chart-page.js", "assets/js/ceu.js"],
     seo: {
       title: "LabMiM — Condição do Céu · UFBA",
       description:
@@ -46,7 +46,7 @@ module.exports = [
   }),
   page("climatology", {
     vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
-    scripts: ["assets/js/climatologia.js"],
+    scripts: ["assets/js/chart-page.js", "assets/js/climatologia.js"],
     seo: {
       title: "LabMiM — Climatologia · UFBA",
       description:

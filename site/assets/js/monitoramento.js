@@ -81,15 +81,19 @@
     revealed: new Set(),
   };
 
-  const el = (id) => document.getElementById(id);
-
-  function decimal(value, digits) {
-    if (value === null || value === undefined || Number.isNaN(value)) return "—";
-    return new Intl.NumberFormat("pt-BR", {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
-    }).format(value);
-  }
+  const {
+    el,
+    node,
+    pad,
+    decimal,
+    fade,
+    parseStationTime,
+    formatDay,
+    formatHour,
+    formatStamp,
+    formatStampYear,
+    downloadCsv,
+  } = window.labmimChartPage;
 
   // Rain needs THREE decimals: the tipping bucket counts in steps of 0.254 mm, and
   // two would print "0,25" (the exporter keeps three in `_DECIMALS`). A tenth of a
@@ -98,43 +102,6 @@
     if (unit === "mm") return 3;
     if (unit === "W/m²") return 0;
     return 1;
-  }
-
-  // Two spellings because the payload has two origins: layer axes come from a pandas
-  // Timestamp (`2022-07-01 00:00:00`), the publication stamp from a compact strftime
-  // (`20260809T121500Z`).
-  const STAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
-  const COMPACT_STAMP = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/;
-
-  function parseStationTime(text) {
-    const value = String(text);
-    const parts = STAMP.exec(value) || COMPACT_STAMP.exec(value);
-    if (!parts) return NaN;
-    return Date.UTC(+parts[1], +parts[2] - 1, +parts[3], +parts[4], +parts[5], parts[6] ? +parts[6] : 0);
-  }
-
-  const pad = (value) => String(value).padStart(2, "0");
-
-  function formatDay(ms) {
-    const date = new Date(ms);
-    return `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}`;
-  }
-
-  function formatHour(ms) {
-    const date = new Date(ms);
-    return `${pad(date.getUTCHours())}h`;
-  }
-
-  function formatStamp(ms) {
-    const date = new Date(ms);
-    return `${formatDay(ms)} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
-  }
-
-  // Only the header carries the year: the page presents itself as refreshed hourly,
-  // and without it a document that stalled years ago reads exactly like today's.
-  function formatStampYear(ms) {
-    const date = new Date(ms);
-    return `${formatDay(ms)}/${date.getUTCFullYear()} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
   }
 
   function isDark() {
@@ -154,11 +121,6 @@
       tooltipText: root.getPropertyValue("--tooltip-text").trim() || "#fff",
       crosshair: isDark() ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
     };
-  }
-
-  function fade(hex, alpha) {
-    const value = parseInt(hex.slice(1), 16);
-    return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
   }
 
   // The global layer button is generic, but the hourly aggregate is not always a
@@ -622,9 +584,6 @@
     }
   }
 
-  // Without it Excel reads the file as latin-1 and the accented headers arrive broken.
-  const EXCEL_UTF8_BOM = "\ufeff";
-
   // The chart's text alternative, and the only route to the raw layers the drawing
   // leaves out: one row per instant, one column per series/layer.
   function exportCsv(chart) {
@@ -662,20 +621,7 @@
       if (cells.some((cell) => cell !== "")) rows.push([iso, ...cells].join(";"));
     }
 
-    const blob = new Blob([`${EXCEL_UTF8_BOM}${rows.join("\n")}\n`], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `monitoramento-${chart.id}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function node(tag, className, text) {
-    const element = document.createElement(tag);
-    if (className) element.className = className;
-    if (text !== undefined) element.textContent = text;
-    return element;
+    downloadCsv(`monitoramento-${chart.id}.csv`, rows);
   }
 
   function layersWithData(chart) {

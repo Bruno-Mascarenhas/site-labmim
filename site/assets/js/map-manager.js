@@ -7,6 +7,7 @@ const CACHE_ENTRIES_PER_TIMELINE_STEP = 5.5;
 const DAYLIGHT_ONLY_VARIABLE_IDS = new Set(["SWDOWN", "SWUP", "SWNET", "KT"]);
 const DAYLIGHT_FALLBACK_FIRST_LOCAL_HOUR = 6;
 const DAYLIGHT_FALLBACK_LAST_LOCAL_HOUR = 18;
+const SCALE_TICK_COUNT = 10;
 
 function workerScriptUrl(fileName) {
   if (!workerScriptUrl._hashes) {
@@ -79,35 +80,174 @@ function _debounce(fn, delay) {
   };
 }
 
-function _pointInRing(lng, lat, ring) {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const xi = ring[i][0];
-    const yi = ring[i][1];
-    const xj = ring[j][0];
-    const yj = ring[j][1];
-    const intersects = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
-    if (intersects) inside = !inside;
-  }
-  return inside;
+const STATE_EDGE_BUCKET_TARGET_LOAD = 8;
+const STATE_EDGE_BUCKET_LIMIT = 4096;
+
+function _statePolygonList(geometry) {
+  if (geometry?.type === "Polygon") return [geometry.coordinates];
+  if (geometry?.type === "MultiPolygon") return geometry.coordinates;
+  return [];
 }
 
-function _pointInPolygonCoords(lng, lat, polygonCoords) {
-  if (!_pointInRing(lng, lat, polygonCoords[0])) return false;
-  for (let h = 1; h < polygonCoords.length; h++) {
-    if (_pointInRing(lng, lat, polygonCoords[h])) return false;
-  }
-  return true;
-}
+class StateEdgeIndex {
+  constructor(feature) {
+    const edgeX0 = [];
+    const edgeY0 = [];
+    const edgeX1 = [];
+    const edgeY1 = [];
+    const edgeRing = [];
+    const outerRingOfPolygon = [];
+    const holeStart = [0];
+    const holeRing = [];
+    let ringCount = 0;
 
-function pointInGeoJsonFeature(lng, lat, feature) {
-  const geometry = feature?.geometry;
-  if (!geometry) return false;
-  if (geometry.type === "Polygon") return _pointInPolygonCoords(lng, lat, geometry.coordinates);
-  if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates.some((polygonCoords) => _pointInPolygonCoords(lng, lat, polygonCoords));
+    const addRing = (ring, ringId) => {
+      if (!Array.isArray(ring)) return;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const ay = ring[i][1];
+        const by = ring[j][1];
+        const lo = ay < by ? ay : by;
+        const hi = ay < by ? by : ay;
+        if (!(lo < hi)) continue;
+        edgeX0.push(ring[i][0]);
+        edgeY0.push(ay);
+        edgeX1.push(ring[j][0]);
+        edgeY1.push(by);
+        edgeRing.push(ringId);
+      }
+    };
+
+    for (const polygonCoords of _statePolygonList(feature?.geometry)) {
+      if (!Array.isArray(polygonCoords) || !polygonCoords.length) continue;
+      const outerRing = ringCount++;
+      outerRingOfPolygon.push(outerRing);
+      addRing(polygonCoords[0], outerRing);
+      for (let h = 1; h < polygonCoords.length; h++) {
+        const ring = ringCount++;
+        holeRing.push(ring);
+        addRing(polygonCoords[h], ring);
+      }
+      holeStart.push(holeRing.length);
+    }
+
+    this.edgeX0 = Float64Array.from(edgeX0);
+    this.edgeY0 = Float64Array.from(edgeY0);
+    this.edgeX1 = Float64Array.from(edgeX1);
+    this.edgeY1 = Float64Array.from(edgeY1);
+    this.ringOfEdge = Int32Array.from(edgeRing);
+    this.holeStart = Int32Array.from(holeStart);
+    this.holeRing = Int32Array.from(holeRing);
+    this.polygonOfOuterRing = new Int32Array(ringCount).fill(-1);
+    for (let p = 0; p < outerRingOfPolygon.length; p++) this.polygonOfOuterRing[outerRingOfPolygon[p]] = p;
+    this.ringParity = new Uint8Array(ringCount);
+    this.ringStamp = new Int32Array(ringCount);
+    this.touchedRings = new Int32Array(ringCount);
+    this.queryStamp = 0;
+
+    const edgeCount = this.ringOfEdge.length;
+    if (!edgeCount) {
+      this.bucketCount = 0;
+      this.minLat = 0;
+      this.maxLat = 0;
+      this.bucketScale = 0;
+      this.bucketStart = new Int32Array(1);
+      this.bucketEdge = new Int32Array(0);
+      return;
+    }
+
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    for (let e = 0; e < edgeCount; e++) {
+      const ay = this.edgeY0[e];
+      const by = this.edgeY1[e];
+      if (ay < minLat) minLat = ay;
+      if (by < minLat) minLat = by;
+      if (ay > maxLat) maxLat = ay;
+      if (by > maxLat) maxLat = by;
+    }
+    this.minLat = minLat;
+    this.maxLat = maxLat;
+    this.bucketCount = Math.max(
+      1,
+      Math.min(STATE_EDGE_BUCKET_LIMIT, Math.ceil(edgeCount / STATE_EDGE_BUCKET_TARGET_LOAD))
+    );
+    this.bucketScale = this.bucketCount / (maxLat - minLat);
+
+    const counts = new Int32Array(this.bucketCount);
+    for (let e = 0; e < edgeCount; e++) {
+      const first = this._bucketOf(Math.min(this.edgeY0[e], this.edgeY1[e]));
+      const last = this._bucketOf(Math.max(this.edgeY0[e], this.edgeY1[e]));
+      for (let b = first; b <= last; b++) counts[b]++;
+    }
+    this.bucketStart = new Int32Array(this.bucketCount + 1);
+    let total = 0;
+    for (let b = 0; b < this.bucketCount; b++) {
+      this.bucketStart[b] = total;
+      total += counts[b];
+    }
+    this.bucketStart[this.bucketCount] = total;
+    this.bucketEdge = new Int32Array(total);
+    const cursor = this.bucketStart.slice(0, this.bucketCount);
+    for (let e = 0; e < edgeCount; e++) {
+      const first = this._bucketOf(Math.min(this.edgeY0[e], this.edgeY1[e]));
+      const last = this._bucketOf(Math.max(this.edgeY0[e], this.edgeY1[e]));
+      for (let b = first; b <= last; b++) {
+        this.bucketEdge[cursor[b]++] = e;
+      }
+    }
   }
-  return false;
+
+  _bucketOf(lat) {
+    const bucket = Math.floor((lat - this.minLat) * this.bucketScale);
+    if (bucket < 0) return 0;
+    if (bucket >= this.bucketCount) return this.bucketCount - 1;
+    return bucket;
+  }
+
+  contains(lng, lat) {
+    if (!this.bucketCount) return false;
+    if (!(lat >= this.minLat && lat <= this.maxLat)) return false;
+    if (this.queryStamp >= 2147483647) {
+      this.queryStamp = 0;
+      this.ringStamp.fill(0);
+    }
+    const bucket = this._bucketOf(lat);
+    const stamp = ++this.queryStamp;
+    const end = this.bucketStart[bucket + 1];
+    let touchedCount = 0;
+    for (let k = this.bucketStart[bucket]; k < end; k++) {
+      const e = this.bucketEdge[k];
+      const yi = this.edgeY0[e];
+      const yj = this.edgeY1[e];
+      if (yi > lat === yj > lat) continue;
+      const xi = this.edgeX0[e];
+      if (!(lng < ((this.edgeX1[e] - xi) * (lat - yi)) / (yj - yi) + xi)) continue;
+      const ring = this.ringOfEdge[e];
+      if (this.ringStamp[ring] === stamp) {
+        this.ringParity[ring] ^= 1;
+        continue;
+      }
+      this.ringStamp[ring] = stamp;
+      this.ringParity[ring] = 1;
+      this.touchedRings[touchedCount++] = ring;
+    }
+    for (let t = 0; t < touchedCount; t++) {
+      const ring = this.touchedRings[t];
+      if (this.ringParity[ring] !== 1) continue;
+      const polygon = this.polygonOfOuterRing[ring];
+      if (polygon < 0) continue;
+      let inHole = false;
+      for (let h = this.holeStart[polygon]; h < this.holeStart[polygon + 1]; h++) {
+        const hole = this.holeRing[h];
+        if (this.ringStamp[hole] === stamp && this.ringParity[hole] === 1) {
+          inHole = true;
+          break;
+        }
+      }
+      if (!inHole) return true;
+    }
+    return false;
+  }
 }
 
 const ISOBAR_CASING_STYLE = { color: "#ffffff", weight: 4, opacity: 0.8, interactive: false };
@@ -169,7 +309,7 @@ class MeteoMapManager {
       console.warn("Web Workers not available, falling back to main thread:", err);
       this._colorWorker = null;
     }
-    this.stateGeoJson = null;
+    this.stateEdgeIndex = null;
     this.selectedMarker = null;
     this.customParameters = {};
     this.windHeight = 50;
@@ -1333,13 +1473,14 @@ class MeteoMapManager {
         return res.json();
       })
       .then((geojson) => {
-        this.stateGeoJson = geojson.features[0];
+        const boundaryFeature = geojson.features[0];
+        this.stateEdgeIndex = boundaryFeature ? new StateEdgeIndex(boundaryFeature) : null;
         if (this.ui.clipStateBtn) {
           this.ui.clipStateBtn.innerHTML = `<i class="fas fa-map"></i> ${stateCode} Off`;
           this.ui.clipStateBtn.style.display = "inline-block";
         }
 
-        // The mask is an O(cells x boundary points) ray cast: never on plain startup.
+        // The mask walks every cell against the boundary index: never on plain startup.
         if (this.currentGeoJsonLayer && this.state.isClippedToState) {
           this._precomputeStateMask(this.currentGeoJsonLayer);
           if (this.currentValueData) {
@@ -1351,12 +1492,12 @@ class MeteoMapManager {
   }
 
   _precomputeStateMask(gridLayer) {
-    if (!this.stateGeoJson || gridLayer._stateMaskComputed) return;
+    if (!this.stateEdgeIndex || gridLayer._stateMaskComputed) return;
     gridLayer.eachLayer((layer) => {
       const bounds = layer.getBounds();
       const lng = (bounds.getEast() + bounds.getWest()) / 2;
       const lat = (bounds.getNorth() + bounds.getSouth()) / 2;
-      layer._inStateMask = pointInGeoJsonFeature(lng, lat, this.stateGeoJson);
+      layer._inStateMask = this.stateEdgeIndex.contains(lng, lat);
     });
     gridLayer._stateMaskComputed = true;
   }
@@ -1637,11 +1778,11 @@ class MeteoMapManager {
   }
 
   _clipLineToState(line) {
-    if (!this.state.isClippedToState || !this.stateGeoJson) return [line];
+    if (!this.state.isClippedToState || !this.stateEdgeIndex) return [line];
     const segments = [];
     let current = [];
     for (const point of line) {
-      if (pointInGeoJsonFeature(point[1], point[0], this.stateGeoJson)) {
+      if (this.stateEdgeIndex.contains(point[1], point[0])) {
         current.push(point);
         continue;
       }
@@ -2251,15 +2392,10 @@ class MeteoMapManager {
   }
 
   getScaleValues(config, valueData = this.currentValueData) {
-    if (Array.isArray(config.scaleTicks) && config.scaleTicks.length >= 2) {
-      return config.scaleTicks;
-    }
-
     if (Number.isFinite(config.scaleMin) && Number.isFinite(config.scaleMax) && config.scaleMin < config.scaleMax) {
-      const tickCount = Number.isInteger(config.scaleTickCount) ? config.scaleTickCount : 10;
       const values = [];
-      for (let i = 0; i < tickCount; i++) {
-        values.push(config.scaleMin + (config.scaleMax - config.scaleMin) * (i / (tickCount - 1)));
+      for (let i = 0; i < SCALE_TICK_COUNT; i++) {
+        values.push(config.scaleMin + (config.scaleMax - config.scaleMin) * (i / (SCALE_TICK_COUNT - 1)));
       }
       return values;
     }

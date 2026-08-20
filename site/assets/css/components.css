@@ -1262,37 +1262,6 @@
   accent-color: var(--brand-secondary);
 }
 
-.sky-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-  padding: 0;
-  margin: 0 0 1.5rem;
-  list-style: none;
-}
-
-.sky-legend-item {
-  display: flex;
-  gap: 0.45rem;
-  align-items: center;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.82rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-}
-
-.sky-legend-label {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.sky-legend-range {
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-}
-
 /* The active chip paints --brand-secondary, which on the UFBA palette is the
    exact hex of the second class: without a ring the swatch dissolves into the
    button. It also lifts the warm class to the 3:1 minimum over --bg-secondary. */
@@ -1380,10 +1349,6 @@
 @media (width <= 768px) {
   .sky-frames {
     grid-template-columns: 1fr;
-  }
-
-  .sky-legend {
-    justify-content: flex-start;
   }
 
   .sky-chart {

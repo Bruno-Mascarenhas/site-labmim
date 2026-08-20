@@ -119,50 +119,9 @@
     cumulativeChart: null,
   };
 
-  const el = (id) => document.getElementById(id);
-
-  function decimal(value, digits) {
-    if (!Number.isFinite(value)) return "—";
-    return new Intl.NumberFormat("pt-BR", {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
-    }).format(value);
-  }
-
-  function node(tag, className, text) {
-    const element = document.createElement(tag);
-    if (className) element.className = className;
-    if (text !== undefined) element.textContent = text;
-    return element;
-  }
-
-  function fade(hex, alpha) {
-    const value = parseInt(hex.slice(1), 16);
-    return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
-  }
-
-  const STAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
-  const COMPACT_STAMP = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/;
-
-  // Station-local stamps carry no offset: they go in through `Date.UTC` and come
-  // back through `getUTC*`, or every reading would shift by the VIEWER's offset.
-  function parseStationTime(text) {
-    const parts = STAMP.exec(String(text)) || COMPACT_STAMP.exec(String(text));
-    if (!parts) return NaN;
-    return Date.UTC(+parts[1], +parts[2] - 1, +parts[3], +parts[4], +parts[5], parts[6] ? +parts[6] : 0);
-  }
-
-  const pad = (value) => String(value).padStart(2, "0");
-
-  function formatDay(ms) {
-    const date = new Date(ms);
-    return `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}/${date.getUTCFullYear()}`;
-  }
-
-  function formatStamp(ms) {
-    const date = new Date(ms);
-    return `${formatDay(ms)} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
-  }
+  const { el, node, pad, decimal, integer, percent, fade, parseStationTime, downloadCsv } = window.labmimChartPage;
+  const formatDay = window.labmimChartPage.formatDayYear;
+  const formatStamp = window.labmimChartPage.formatStampYear;
 
   function isDark() {
     return document.documentElement.classList.contains("dark-theme");
@@ -418,11 +377,20 @@
     return state.layers.has("points") && state.points.length > 0;
   }
 
+  let visiblePointsCache = null;
+
+  function invalidateVisiblePoints() {
+    visiblePointsCache = null;
+  }
+
   function visiblePoints() {
-    return state.points.filter((point) => {
-      const entry = classOf(point.x);
-      return !entry || !state.hidden.has(entry.id);
-    });
+    if (!visiblePointsCache) {
+      visiblePointsCache = state.points.filter((point) => {
+        const entry = classOf(point.x);
+        return !entry || !state.hidden.has(entry.id);
+      });
+    }
+    return visiblePointsCache;
   }
 
   function hasDrawing() {
@@ -621,7 +589,8 @@
         const found = model ? modelValueAt(model, observation ? observation.x : kt) : null;
         index = found ? found.bin : -1;
       } else if (observation) {
-        index = dataset.data.indexOf(observation);
+        const stamped = observation.dataIndex;
+        index = Number.isInteger(stamped) && dataset.data[stamped] === observation ? stamped : -1;
       }
       if (index < 0) return;
       const element = chart.getDatasetMeta(datasetIndex).data[index];
@@ -684,7 +653,10 @@
       const grouped = new Map(state.classes.map((entry) => [entry.id, []]));
       for (const point of state.points) {
         const entry = classOf(point.x);
-        if (entry && grouped.has(entry.id)) grouped.get(entry.id).push(point);
+        if (!entry || !grouped.has(entry.id)) continue;
+        const bucket = grouped.get(entry.id);
+        point.dataIndex = bucket.length;
+        bucket.push(point);
       }
       for (const entry of state.classes) {
         const data = grouped.get(entry.id);
@@ -918,16 +890,19 @@
     );
   }
 
+  function toggleHiddenClass(id) {
+    if (state.hidden.has(id)) state.hidden.delete(id);
+    else state.hidden.add(id);
+    invalidateVisiblePoints();
+  }
+
   function buildClassToggles() {
     const colors = themeColors().classes;
     buildToggles(
       el("ceuClasses"),
       state.classes.map((entry) => ({ ...entry, swatch: colors[entry.id] })),
       (entry) => !state.hidden.has(entry.id),
-      (entry) => {
-        if (state.hidden.has(entry.id)) state.hidden.delete(entry.id);
-        else state.hidden.add(entry.id);
-      },
+      (entry) => toggleHiddenClass(entry.id),
       (entry) => entry.full
     );
     syncClassToggles();
@@ -1257,8 +1232,6 @@
     }
   }
 
-  const EXCEL_UTF8_BOM = "\ufeff";
-
   function exportCsv() {
     if (!state.points.length) return;
     const rows = ["instante;kt;kd;condicao"];
@@ -1280,13 +1253,7 @@
         ].join(";")
       );
     }
-    const blob = new Blob([`${EXCEL_UTF8_BOM}${rows.join("\n")}\n`], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "condicao-ceu-kt-kd.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCsv("condicao-ceu-kt-kd.csv", rows);
   }
 
   function renderHeader() {
@@ -1313,16 +1280,6 @@
   // either way: it draws the published values, caps the axis at 1, and names the out-of-edge hours beside the curve
   // instead of folding them in silently. In the sibling climatology contract they are NOT inside `n` — every
   // published subset there has `sum(counts) == n` exactly — so a reader who assumes otherwise misreads the total.
-
-  function percent(fraction, digits = 1) {
-    if (!Number.isFinite(fraction)) return "—";
-    return `${decimal(fraction * 100, digits)}%`;
-  }
-
-  function integer(value) {
-    if (!Number.isFinite(value)) return "—";
-    return new Intl.NumberFormat("pt-BR").format(Math.round(value));
-  }
 
   function cumulativeSubsets() {
     const payload = state.cumulativePayload;
@@ -1729,6 +1686,7 @@
     state.models = resolveModels(state.chartPayload);
     state.points = readPoints(state.chartPayload);
     state.density = readDensity(state.chartPayload);
+    invalidateVisiblePoints();
     if (!state.density) state.layers.delete("density");
     if (!state.density && state.points.length) state.layers.add("points");
     if (state.models.length) state.activeModels.add(state.models[0].id);

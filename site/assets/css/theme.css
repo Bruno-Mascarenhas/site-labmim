@@ -355,42 +355,6 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
-.variable-solar {
-  --variable-accent: #ff6b00;
-}
-
-.variable-wind {
-  --variable-accent: #06c;
-}
-
-.variable-temperature {
-  --variable-accent: #d62828;
-}
-
-.variable-humidity {
-  --variable-accent: #2a9d8f;
-}
-
-.variable-rain {
-  --variable-accent: #457b9d;
-}
-
-.variable-solar .sidebar-header,
-.variable-wind .sidebar-header,
-.variable-temperature .sidebar-header,
-.variable-humidity .sidebar-header,
-.variable-rain .sidebar-header {
-  background: linear-gradient(135deg, var(--variable-accent), var(--map-accent-2));
-}
-
-.variable-solar .info-section-title,
-.variable-wind .info-section-title,
-.variable-temperature .info-section-title,
-.variable-humidity .info-section-title,
-.variable-rain .info-section-title {
-  color: var(--variable-accent);
-}
-
 .dark-theme .wind-layer-toggle label:not(:has(input:checked)) {
   background: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
