@@ -17,6 +17,8 @@ module.exports = {
     manifest: "JSON/manifest.json",
     values: "JSON",
     grids: "GeoJSON",
+    monitoring: "Monitoramento",
+    climatology: "Climatologia",
   },
   timeline: {
     defaultMaxLayer: 72,
