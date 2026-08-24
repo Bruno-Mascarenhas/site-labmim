@@ -37,8 +37,8 @@ module.exports = {
     { from: "/mapas_solares.html", to: "/potenciais_energeticos.html", status: 301 },
     // This publication serves no monitoring page, so both legacy routes point at
     // the interactive maps rather than land on a 404.
-    { from: "/monitoramento.html", to: "/mapas_interativos.html", status: 301 },
-    { from: "/monitoring.html", to: "/mapas_interativos.html", status: 301 },
+    //{ from: "/monitoramento.html", to: "/mapas_interativos.html", status: 301 },
+    //{ from: "/monitoring.html", to: "/mapas_interativos.html", status: 301 },
     { from: "/equipe.html", to: "/team.html", status: 301 },
     { from: "/contato.html", to: "/team.html", hash: "contato", status: 301 },
     { from: "/mapas_interativos_es.html", to: "/mapas_interativos.html", status: 301 },
