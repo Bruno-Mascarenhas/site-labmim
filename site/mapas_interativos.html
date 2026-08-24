@@ -1,35 +1,35 @@
 <!doctype html>
-<html lang="pt-BR" data-publication="ufba" data-territory="ba">
+<html lang="pt-BR" data-publication="ufes" data-territory="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LEAL — Mapas Interativos WRF: visualização interativa de previsões meteorológicas do modelo WRF para o Espírito Santo."
     />
-    <title>LabMiM — Mapas Interativos WRF · UFBA</title>
+    <title>LEAL — Mapas Interativos WRF · UFES</title>
 
-    <link rel="canonical" href="https://labmim.if.ufba.br/mapas_interativos.html" />
+    <link rel="canonical" href="https://www.lealufes.org/mapas_interativos.html" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="LabMiM" />
-    <meta property="og:title" content="LabMiM — Mapas Interativos WRF · UFBA" />
+    <meta property="og:site_name" content="LEAL" />
+    <meta property="og:title" content="LEAL — Mapas Interativos WRF · UFES" />
     <meta
       property="og:description"
-      content="LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LEAL — Mapas Interativos WRF: visualização interativa de previsões meteorológicas do modelo WRF para o Espírito Santo."
     />
-    <meta property="og:url" content="https://labmim.if.ufba.br/mapas_interativos.html" />
-    <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+    <meta property="og:url" content="https://www.lealufes.org/mapas_interativos.html" />
+    <meta property="og:image" content="https://www.lealufes.org/assets/img/logo_leal.png" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LabMiM — Mapas Interativos WRF · UFBA" />
+    <meta name="twitter:title" content="LEAL — Mapas Interativos WRF · UFES" />
     <meta
       name="twitter:description"
-      content="LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LEAL — Mapas Interativos WRF: visualização interativa de previsões meteorológicas do modelo WRF para o Espírito Santo."
     />
-    <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+    <meta name="twitter:image" content="https://www.lealufes.org/assets/img/logo_leal.png" />
 
     <link
       rel="icon"
@@ -56,7 +56,7 @@
     <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4" />
 
     <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
-    <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
+    <link rel="stylesheet" href="assets/css/site-theme.css?v=668f7921" />
     <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
     <link rel="stylesheet" href="assets/css/components.css?v=38f8ac6c" />
     <link rel="stylesheet" href="assets/css/maps.css?v=ff828da6" />
@@ -71,7 +71,7 @@
          only consumer is map-manager.js; institutional pages skip the bytes. -->
     <meta
       name="site-config"
-      content='{"publicationId":"ufba","brandName":"LabMiM","territory":{"id":"ba","code":"BA","name":"Bahia"},"data":{"manifestPath":"JSON/manifest.json","valuesBase":"JSON","gridsBase":"GeoJSON","timeline":{"defaultMaxLayer":75,"initialIndex":7,"stepHours":1,"label":"Horário local (UTC−03)"}},"map":{"initialCenter":[-12.97,-38.5],"initialZoom":6,"fitBounds":null,"fitMaxZoom":7,"stateCode":"BA","stateName":"Bahia","boundaryAsset":"assets/data/br_ba.json","attribution":"LabMiM-UFBA","defaultDomain":"D01","domains":{"D01":{"label":"BA/NE","center":[-12.97,-38.5],"zoom":5.5},"D02":{"label":"BA","center":[-12.97,-38.5],"zoom":7},"D03":{"label":"RMS","center":[-12.97,-38.5],"zoom":9},"D04":{"label":"SSA","center":[-12.97,-38.5],"zoom":12}}}}'
+      content='{"publicationId":"ufes","brandName":"LEAL","territory":{"id":"es","code":"ES","name":"Espírito Santo"},"data":{"manifestPath":"JSON/manifest.json","valuesBase":"JSON","gridsBase":"GeoJSON","timeline":{"defaultMaxLayer":73,"initialIndex":7,"stepHours":1,"label":"Horário local (UTC−03)"}},"map":{"initialCenter":[-19.6,-40.2],"initialZoom":6,"fitBounds":[[-21.301749887531145,-41.87979769536264],[-17.89196807577609,-39.66603413587281]],"fitMaxZoom":7,"stateCode":"ES","stateName":"Espírito Santo","boundaryAsset":"assets/data/br_es.json","attribution":"LEAL-UFES","defaultDomain":"D01","domains":{"D01":{"label":"S/SE/NE","center":[-20.3,-40.3],"zoom":5.5},"D02":{"label":"Sudeste","center":[-20.3,-40.3],"zoom":7},"D03":{"label":"ES","center":[-20.3,-40.3],"zoom":9},"D04":{"label":"Grande Vitória","center":[-20.3,-40.3],"zoom":12}}}}'
     />
 
     <!-- Worker content hashes stamped by build.js; map-manager.js builds the
@@ -92,16 +92,14 @@
     <header class="maps-header">
       <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
         <a class="navbar-brand ms-4" href="index.html">
-          <picture
-            ><source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
-            <img
-              loading="eager"
-              src="assets/img/logonova1-nav.png"
-              alt="LabMiM Logo"
-              width="250"
-              height="80"
-              class="brand-logo site-brand-logo"
-          /></picture>
+          <img
+            loading="eager"
+            src="assets/img/logo_leal.png"
+            alt="LEAL Logo"
+            width="176"
+            height="80"
+            class="brand-logo site-brand-logo"
+          />
         </a>
         <button
           class="navbar-toggler"
@@ -129,7 +127,6 @@
             <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
             </li>
-            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="ceu.html" id="nav-ceu">Céu</a></li>
             <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="climatologia.html" id="nav-climatologia">Climatologia</a>
             </li>
@@ -145,17 +142,13 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation me-3"
-            ><picture
-              ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
-              <img
-                loading="lazy"
-                src="assets/img/logo_cienam-nav.png"
-                alt="CIEnAm"
-                width="230"
-                height="80"
-                class="brand-logo-sm" /></picture
-          ></a>
+          <a
+            href="https://ct.ufes.br"
+            target="_blank"
+            rel="noopener"
+            class="site-affiliation me-3 site-affiliation-text"
+            ><span>Centro Tecnológico</span><small>UFES</small></a
+          >
         </div>
       </nav>
     </header>
@@ -168,16 +161,14 @@
       <div class="sidebar" id="sidebar">
         <div class="sidebar-logo-header">
           <a href="index.html" title="Voltar ao início">
-            <picture
-              ><source srcset="assets/img/logonova1-sidebar.webp" type="image/webp" />
-              <img
-                loading="lazy"
-                src="assets/img/logonova1-sidebar.png"
-                alt="LabMiM Logo"
-                width="720"
-                height="230"
-                class="brand-logo site-brand-logo"
-            /></picture>
+            <img
+              loading="lazy"
+              src="assets/img/logo_leal.png"
+              alt="LEAL Logo"
+              width="505"
+              height="230"
+              class="brand-logo site-brand-logo"
+            />
           </a>
         </div>
         <div class="sidebar-header">
@@ -203,18 +194,20 @@
         <span class="domain-label">Domínios:</span>
         <div class="domain-buttons-group">
           <button type="button" class="domain-btn active" aria-pressed="true" data-domain="D01" data-zoom="5.5">
-            BA/NE
+            S/SE/NE
           </button>
-          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D02" data-zoom="7">BA</button>
-          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D03" data-zoom="9">RMS</button>
-          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D04" data-zoom="12">SSA</button>
+          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D02" data-zoom="7">Sudeste</button>
+          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D03" data-zoom="9">ES</button>
+          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D04" data-zoom="12">
+            Grande Vitória
+          </button>
         </div>
       </div>
 
       <div class="controls-container">
         <div class="slider-wrapper">
           <label for="layerSlider">Hora:</label>
-          <input type="range" id="layerSlider" min="1" max="75" step="1" value="7" />
+          <input type="range" id="layerSlider" min="1" max="73" step="1" value="7" />
           <div class="slider-time-container">
             <span class="slider-time" id="layerLabel">Carregando...</span>
             <i
@@ -313,7 +306,7 @@
                 <span class="variable-preview-label" id="variablePreviewLabel">Resumo visual</span>
                 <h3 id="variablePreviewTitle">Selecione uma variável</h3>
               </div>
-              <span class="variable-preview-domain" id="variablePreviewDomain">BA/NE</span>
+              <span class="variable-preview-domain" id="variablePreviewDomain">S/SE/NE</span>
             </div>
             <div class="variable-preview-stats" id="variablePreviewStats"></div>
             <div class="variable-preview-chart">
@@ -398,7 +391,7 @@
               tabindex="0"
               data-tab="overview"
             >
-              <h3>Plataforma WebGIS de Previsão Meteorológica — LabMiM / UFBA</h3>
+              <h3>Plataforma WebGIS de Previsão Meteorológica — LEAL / UFES</h3>
               <div class="doc-warning">
                 <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
                 Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
@@ -409,16 +402,16 @@
               <p>
                 Este mapa interativo apresenta dados de <strong>previsão numérica do tempo</strong> gerados pelo modelo
                 <strong>WRF (Weather Research and Forecasting)</strong>, permitindo visualizar variáveis meteorológicas
-                e potenciais energéticos em alta resolução espacial e temporal para a região da Bahia e entorno. Os
-                dados cobrem um horizonte de previsão de <strong>74 horas</strong>, com saídas horárias.
+                e potenciais energéticos em alta resolução espacial e temporal para a região do Espírito Santo e
+                entorno. Os dados cobrem um horizonte de previsão de <strong>72 horas</strong>, com saídas horárias.
               </p>
               <h4>Interface Principal</h4>
               <ul class="doc-list">
                 <li><strong>Mapa Principal:</strong> Exibe a grade do modelo com dados codificados por cores</li>
                 <li><strong>Barra de Cores:</strong> Mostra a escala de valores da variável selecionada (esquerda)</li>
                 <li>
-                  <strong>Indicador de Domínio:</strong> Exibe qual domínio amigável (BA/NE, BA, RMS ou SSA) está sendo
-                  visualizado
+                  <strong>Indicador de Domínio:</strong> Exibe qual domínio amigável (S/SE/NE, Sudeste, ES ou Grande
+                  Vitória) está sendo visualizado
                 </li>
                 <li><strong>Controles Inferiores:</strong> Manipulação de tempo, variáveis e camadas</li>
                 <li><strong>Painel de Detalhes:</strong> Informações de células ao clicar (lado direito)</li>
@@ -448,7 +441,10 @@
               <ul class="doc-list">
                 <li><strong>Zoom:</strong> Role do mouse ou use os botões + e - no mapa</li>
                 <li><strong>Deslocamento:</strong> Arraste o mapa com o mouse</li>
-                <li><strong>Domínios:</strong> Use os botões BA/NE, BA, RMS ou SSA para alternar entre os domínios</li>
+                <li>
+                  <strong>Domínios:</strong> Use os botões S/SE/NE, Sudeste, ES ou Grande Vitória para alternar entre os
+                  domínios
+                </li>
               </ul>
 
               <h4>💨 Vetores de Vento</h4>
@@ -1106,21 +1102,20 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     progressiva:
                     <ul>
                       <li>
-                        <strong>Bahia/Nordeste — 27 km:</strong> Escala sinótica/regional. Cobre o Sul-Nordeste do
-                        Brasil (~1860×1860 km). Captura frentes, ciclones e massas de ar.
+                        <strong>Sul–Sudeste–Nordeste — 27 km:</strong> Escala sinótica/regional. Cobre uma ampla faixa
+                        das regiões Sul, Sudeste e Nordeste e representa frentes, ciclones e massas de ar.
                       </li>
                       <li>
-                        <strong>Bahia — 9 km:</strong> Escala intermediária. Cobre a Bahia (~890×890 km). Resolve
-                        convecção organizada e brisas de escala meso-α.
+                        <strong>Sudeste — 9 km:</strong> Escala intermediária sobre a Região Sudeste. Resolve sistemas
+                        de mesoescala, convecção organizada e circulações costeiras.
                       </li>
                       <li>
-                        <strong>Região Metropolitana de Salvador — 3 km:</strong> Escala local. Cobre a Região
-                        Metropolitana de Salvador e o Recôncavo (~300×300 km). Resolução suficiente para resolver
-                        convecção profunda explicitamente (sem parametrização de cumulus).
+                        <strong>Espírito Santo — 3 km:</strong> Escala estadual de alta resolução. Cobre o Espírito
+                        Santo e permite resolver convecção profunda explicitamente (sem parametrização de cumulus).
                       </li>
                       <li>
-                        <strong>Salvador — 1 km:</strong> Alta resolução. Cobre Salvador e Região Metropolitana (~85×85
-                        km). Captura efeitos topográficos, brisa marítima e ilha de calor urbana.
+                        <strong>Região Metropolitana da Grande Vitória — 1 km:</strong> Maior detalhe espacial sobre a
+                        Grande Vitória. Captura efeitos costeiros, topográficos, brisa marítima e influências urbanas.
                       </li>
                     </ul>
                   </li>
@@ -1128,7 +1123,7 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     <strong>Dados de Entrada (Condições Iniciais e de Contorno):</strong> GFS (Global Forecast System)
                     da NOAA [[gfs]], resolução 0.25°, atualizações a cada 6h.
                   </li>
-                  <li><strong>Resolução Temporal:</strong> Saídas horárias (75 timesteps para 74h de previsão).</li>
+                  <li><strong>Resolução Temporal:</strong> Saídas horárias (73 timesteps para 72h de previsão).</li>
                   <li>
                     <strong>Coordenadas Verticais:</strong> ~40 níveis sigma, com maior concentração na camada limite
                     planetária (CLP).
@@ -1155,8 +1150,8 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                   </li>
                   <li>
                     <strong>Cumulus (Kain-Fritsch [[kainfritsch]]):</strong> Parametriza a convecção sub-grade nos
-                    domínios BA/NE e BA. Desativada em RMS e SSA (Δx &lt; 4 km), onde a convecção é resolvida
-                    explicitamente.
+                    domínios S/SE/NE e Sudeste. Desativada em ES e Grande Vitória (Δx &lt; 4 km), onde a convecção é
+                    resolvida explicitamente.
                   </li>
                 </ul>
 
@@ -1195,12 +1190,12 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     48h).
                   </li>
                   <li>
-                    A topografia complexa (como o Recôncavo Baiano) pode introduzir viés local, especialmente em
+                    A topografia complexa (como o relevo serrano capixaba) pode introduzir viés local, especialmente em
                     variáveis de superfície.
                   </li>
                   <li>
-                    A resolução do modelo pode não capturar fenômenos convectivos isolados (&lt; Δx) nos domínios BA/NE
-                    e BA.
+                    A resolução do modelo pode não capturar fenômenos convectivos isolados (&lt; Δx) nos domínios
+                    S/SE/NE e Sudeste.
                   </li>
                   <li>
                     A assimilação de dados observacionais locais (estações, radiossondas) melhoraria significativamente

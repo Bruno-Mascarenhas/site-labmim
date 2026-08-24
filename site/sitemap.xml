@@ -1,24 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://labmim.if.ufba.br/</loc>
+    <loc>https://www.lealufes.org/</loc>
   </url>
   <url>
-    <loc>https://labmim.if.ufba.br/monitoring.html</loc>
+    <loc>https://www.lealufes.org/team.html</loc>
   </url>
   <url>
-    <loc>https://labmim.if.ufba.br/team.html</loc>
+    <loc>https://www.lealufes.org/mapas_interativos.html</loc>
   </url>
   <url>
-    <loc>https://labmim.if.ufba.br/ceu.html</loc>
+    <loc>https://www.lealufes.org/potenciais_energeticos.html</loc>
   </url>
   <url>
-    <loc>https://labmim.if.ufba.br/climatologia.html</loc>
+    <loc>https://www.lealufes.org/climatologia.html</loc>
   </url>
   <url>
-    <loc>https://labmim.if.ufba.br/mapas_interativos.html</loc>
-  </url>
-  <url>
-    <loc>https://labmim.if.ufba.br/potenciais_energeticos.html</loc>
+    <loc>https://www.lealufes.org/monitoring.html</loc>
   </url>
 </urlset>

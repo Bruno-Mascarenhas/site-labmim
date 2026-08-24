@@ -11,7 +11,10 @@ ErrorDocument 404 /404.html
 
 # Each publication declares only its own aliases in the manifest.
 <IfModule mod_alias.c>
-  Redirect 301 "/mapas_meteorologicos.html" "/mapas_interativos.html"
+  Redirect 301 "/mapas_eolicos.html" "/potenciais_energeticos.html"
+  Redirect 301 "/mapas_solares.html" "/potenciais_energeticos.html"
+  Redirect 301 "/equipe.html" "/team.html"
+  Redirect 301 "/contato.html" "/team.html#contato"
 </IfModule>
 
 <IfModule mod_mime.c>

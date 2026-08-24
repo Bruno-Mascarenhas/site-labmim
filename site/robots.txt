@@ -1,11 +1,10 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://labmim.if.ufba.br/sitemap.xml
+Sitemap: https://www.lealufes.org/sitemap.xml
 
 # Dados gerados pelo pipeline externo — sem valor de SEO e potencialmente grandes.
 Disallow: /JSON/
 Disallow: /GeoJSON/
 Disallow: /Climatologia/
 Disallow: /Monitoramento/
-Disallow: /Ceu/

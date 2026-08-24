@@ -1,6 +1,6 @@
 "use strict";
 
-const { page, siteSource } = require("../../template/page-types");
+const { page, siteSource, templateSource } = require("../../template/page-types");
 
 module.exports = [
   page("home", {
@@ -38,6 +38,30 @@ module.exports = [
       title: "LEAL — Potenciais Energéticos · UFES",
       description:
         "LEAL — Potenciais Energéticos: mapas interativos de potencial fotovoltaico, potencial eólico e densidade eólica para o Espírito Santo.",
+    },
+  }),
+  page("climatology", {
+    source: templateSource("pages/climatologia.html"),
+    vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+    scripts: ["assets/js/climatologia.js"],
+    seo: {
+      title: "LEAL — Climatologia · UFES",
+      description:
+        "LEAL — Climatologia: distribuições estatísticas do registro observado da estação micrometeorológica do LEAL em Vitória, com as densidades teóricas da literatura. Laboratório de energias alternativas, UFES",
+    },
+  }),
+  page("monitoring", {
+    // Interactive variant, reading the hourly payload from
+    // `dataset.paths.monitoring`; pages/monitoring.html is the static one.
+    source: templateSource("pages/monitoring-live.html"),
+    // Chart.js is declared per page: loading it from the institutional layout
+    // would cost 200 KB on the routes that draw nothing.
+    vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+    scripts: ["assets/js/monitoramento.js"],
+    seo: {
+      title: "LEAL — Monitoramento Ambiental · UFES",
+      description:
+        "LEAL — Monitoramento Ambiental: variáveis meteorológicas medidas em tempo quase real por estações micrometeorológicas em Vitória, ES.",
     },
   }),
 ];

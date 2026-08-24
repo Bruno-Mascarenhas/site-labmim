@@ -1,35 +1,35 @@
 <!doctype html>
-<html lang="pt-BR" data-publication="ufba" data-territory="ba">
+<html lang="pt-BR" data-publication="ufes" data-territory="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores."
+      content="LEAL — Equipe do Laboratório de Energias Alternativas da UFES: pesquisadores, colaboradores e estudantes."
     />
-    <title>LabMiM — Equipe · UFBA</title>
+    <title>LEAL — Equipe · UFES</title>
 
-    <link rel="canonical" href="https://labmim.if.ufba.br/team.html" />
+    <link rel="canonical" href="https://www.lealufes.org/team.html" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="LabMiM" />
-    <meta property="og:title" content="LabMiM — Equipe · UFBA" />
+    <meta property="og:site_name" content="LEAL" />
+    <meta property="og:title" content="LEAL — Equipe · UFES" />
     <meta
       property="og:description"
-      content="LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores."
+      content="LEAL — Equipe do Laboratório de Energias Alternativas da UFES: pesquisadores, colaboradores e estudantes."
     />
-    <meta property="og:url" content="https://labmim.if.ufba.br/team.html" />
-    <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+    <meta property="og:url" content="https://www.lealufes.org/team.html" />
+    <meta property="og:image" content="https://www.lealufes.org/assets/img/logo_leal.png" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LabMiM — Equipe · UFBA" />
+    <meta name="twitter:title" content="LEAL — Equipe · UFES" />
     <meta
       name="twitter:description"
-      content="LabMiM — Equipe de pesquisadores do Laboratório de Micrometeorologia e Modelagem da UFBA: professores, doutorandos, mestrandos e colaboradores."
+      content="LEAL — Equipe do Laboratório de Energias Alternativas da UFES: pesquisadores, colaboradores e estudantes."
     />
-    <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+    <meta name="twitter:image" content="https://www.lealufes.org/assets/img/logo_leal.png" />
 
     <link
       rel="icon"
@@ -55,7 +55,7 @@
     <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
 
     <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
-    <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
+    <link rel="stylesheet" href="assets/css/site-theme.css?v=668f7921" />
     <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
     <link rel="stylesheet" href="assets/css/components.css?v=38f8ac6c" />
 
@@ -71,16 +71,14 @@
     <header>
       <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
         <a class="navbar-brand ms-4" href="index.html">
-          <picture
-            ><source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
-            <img
-              loading="eager"
-              src="assets/img/logonova1-nav.png"
-              alt="LabMiM Logo"
-              width="250"
-              height="80"
-              class="brand-logo site-brand-logo"
-          /></picture>
+          <img
+            loading="eager"
+            src="assets/img/logo_leal.png"
+            alt="LEAL Logo"
+            width="176"
+            height="80"
+            class="brand-logo site-brand-logo"
+          />
         </a>
         <button
           class="navbar-toggler"
@@ -106,7 +104,6 @@
             <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
             </li>
-            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="ceu.html" id="nav-ceu">Céu</a></li>
             <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="climatologia.html" id="nav-climatologia">Climatologia</a>
             </li>
@@ -124,17 +121,13 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation me-3"
-            ><picture
-              ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
-              <img
-                loading="lazy"
-                src="assets/img/logo_cienam-nav.png"
-                alt="CIEnAm"
-                width="230"
-                height="80"
-                class="brand-logo-sm" /></picture
-          ></a>
+          <a
+            href="https://ct.ufes.br"
+            target="_blank"
+            rel="noopener"
+            class="site-affiliation me-3 site-affiliation-text"
+            ><span>Centro Tecnológico</span><small>UFES</small></a
+          >
         </div>
       </nav>
     </header>
@@ -142,10 +135,9 @@
     <main id="main">
       <h1 class="visually-hidden">Equipe</h1>
       <!--
-  `.team-group a` zeroes the underline, and colour alone cannot mark the Lattes
-  links: #06235e sits at roughly 1:1 luminance against #212529 (WCAG 1.4.1/G183).
-  Hence the underline in a style attribute — allowed by the CSP, whereas a new
-  utility class would not survive the Bootstrap purge.
+  Same reason as the UFBA team.html: `.team-group a` zeroes the underline and
+  colour alone cannot mark the Lattes links (WCAG 1.4.1/G183), so the underline
+  is explicit in a style attribute — a utility class would not survive the purge.
 -->
       <div class="modern-section">
         <div class="page-header">
@@ -160,14 +152,14 @@
               <div class="d-flex align-items-center mb-2">
                 <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i>
                 <a
-                  href="https://lattes.cnpq.br/3112476528507003"
+                  href="https://lattes.cnpq.br/8212836406462666"
                   target="_blank"
                   rel="noopener"
                   class="me-2"
                   style="text-decoration: underline"
-                  >Edson P. Marques Filho</a
+                  >Maxsuel Marcos Rocha Pereira</a
                 >
-                <span class="badge text-bg-info">IF-UFBA</span>
+                <span class="badge text-bg-info">DTI-UFES</span>
               </div>
             </div>
           </div>
@@ -179,24 +171,35 @@
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
                   ><a
-                    href="https://lattes.cnpq.br/8212836406462666"
+                    href="https://lattes.cnpq.br/1912113095988528"
                     target="_blank"
                     rel="noopener"
                     style="text-decoration: underline"
-                    >Maxsuel M. Rocha Pereira</a
+                    >Jussara Farias Fardin</a
                   >
-                  <span class="badge text-bg-secondary float-end">CT-UFES</span>
+                  <span class="badge text-bg-secondary float-end">DE-UFES</span>
                 </div>
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
                   ><a
-                    href="https://lattes.cnpq.br/1778866012464923"
+                    href="https://lattes.cnpq.br/2379169013108798"
                     target="_blank"
                     rel="noopener"
                     style="text-decoration: underline"
-                    >José Ricardo A. França</a
+                    >Marcelo Vieira Segatto</a
                   >
-                  <span class="badge text-bg-secondary float-end">IGEO-UFRJ</span>
+                  <span class="badge text-bg-secondary float-end">DE-UFES</span>
+                </div>
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a
+                    href="https://lattes.cnpq.br/3112476528507003"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
+                    >Edson Pereira Marques Filho</a
+                  >
+                  <span class="badge text-bg-secondary float-end">IF-UFBA</span>
                 </div>
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
@@ -212,24 +215,24 @@
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
                   ><a
-                    href="https://lattes.cnpq.br/6401622195719726"
+                    href="https://lattes.cnpq.br/6934266516168836"
                     target="_blank"
                     rel="noopener"
                     style="text-decoration: underline"
-                    >Iuri Muniz Pepe</a
+                    >Daniel Campos Pompermayer</a
                   >
-                  <span class="badge text-bg-secondary float-end">IF-UFBA</span>
+                  <span class="badge text-bg-secondary float-end">IFSP</span>
                 </div>
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
                   ><a
-                    href="https://lattes.cnpq.br/6553529534653449"
+                    href="https://lattes.cnpq.br/9470331518728833"
                     target="_blank"
                     rel="noopener"
                     style="text-decoration: underline"
-                    >Umberto Rizza</a
+                    >Danilo de Paula e Silva</a
                   >
-                  <span class="badge text-bg-secondary float-end">ISAC-CNR</span>
+                  <span class="badge text-bg-secondary float-end">IFES-ES</span>
                 </div>
               </div>
             </div>
@@ -237,18 +240,29 @@
 
           <div class="col-md-6 mb-4 d-flex">
             <div class="team-group w-100 p-4 border rounded shadow-sm">
-              <h3 class="team-group-title"><i class="fas fa-graduation-cap me-2"></i>Alunos Doutorado</h3>
+              <h3 class="team-group-title"><i class="fas fa-user-graduate me-2"></i>Alunos de Mestrado</h3>
               <div class="stack-sm">
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
                   ><a
-                    href="https://lattes.cnpq.br/6895899768798180"
+                    href="https://lattes.cnpq.br/0589592633774448"
                     target="_blank"
                     rel="noopener"
                     style="text-decoration: underline"
-                    >Ernando Ferreira</a
+                    >Giovanna de Medeiros Salotto</a
                   >
-                  <span class="badge text-bg-light border float-end">PGEnAm-UFBA</span>
+                  <span class="badge text-bg-light border float-end">PPGES-UFES</span>
+                </div>
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a
+                    href="https://lattes.cnpq.br/3668225659164357"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
+                    >Giuliano Silva Battisti</a
+                  >
+                  <span class="badge text-bg-light border float-end">PPGES-UFES</span>
                 </div>
               </div>
             </div>
@@ -256,37 +270,29 @@
 
           <div class="col-md-6 mb-4 d-flex">
             <div class="team-group w-100 p-4 border rounded shadow-sm">
-              <h3 class="team-group-title"><i class="fas fa-user-graduate me-2"></i>Alunos Mestrado</h3>
-              <div class="stack-sm">
-                <div>
-                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i>
-                  <a
-                    href="https://lattes.cnpq.br/9111550721326814"
-                    target="_blank"
-                    rel="noopener"
-                    style="text-decoration: underline"
-                    >Diogo Santos de Jesus</a
-                  >
-                  <span class="badge text-bg-light border float-end">PPGM-UFBA</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-md-6 mb-4 d-flex">
-            <div class="team-group w-100 p-4 border rounded shadow-sm">
-              <h3 class="team-group-title"><i class="fas fa-flask me-2"></i>Alunos Iniciação Científica</h3>
+              <h3 class="team-group-title"><i class="fas fa-flask me-2"></i>Alunos de Iniciação Científica</h3>
               <div class="stack-sm">
                 <div>
                   <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
                   ><a
-                    href="https://lattes.cnpq.br/8164651360713654"
+                    href="https://lattes.cnpq.br/0750690461240602"
                     target="_blank"
                     rel="noopener"
                     style="text-decoration: underline"
-                    >Bruno S. Mascarenhas</a
+                    >Breno Odnan Ferreira de Souza</a
                   >
-                  <span class="badge text-bg-light border float-end">EP-UFBA</span>
+                  <span class="badge text-bg-light border float-end">DE-UFES</span>
+                </div>
+                <div>
+                  <i class="fas fa-chevron-right text-muted me-2 icon-chevron"></i
+                  ><a
+                    href="https://lattes.cnpq.br/1381927851014903"
+                    target="_blank"
+                    rel="noopener"
+                    style="text-decoration: underline"
+                    >Murilo Barroso dos Passos</a
+                  >
+                  <span class="badge text-bg-light border float-end">DE-UFES</span>
                 </div>
               </div>
             </div>
@@ -304,22 +310,20 @@
           <div class="col-12 mt-3 mb-4">
             <p class="text-secondary lead-copy">
               <i class="fas fa-map-marker-alt text-lab me-2"></i>
-              <strong>Laboratório de Micrometeorologia e Modelagem (LabMiM)</strong>
-              <br />Rua Barão de Jeremoabo, s/n <br />Campus Universitário de Ondina <br />Salvador, BA, Brasil - CEP
-              40170-115
+              <strong>Laboratório de Energias Alternativas (LEAL)</strong>
+              <br />Departamento de Tecnologia Industrial <br />Centro Tecnológico — UFES <br />Av. Fernando Ferrari,
+              514, Goiabeiras <br />Vitória, ES, Brasil — CEP 29075-910
             </p>
           </div>
         </div>
 
         <div class="mt-2 mb-5">
-          <!-- Plain embed (?output=embed) rather than My Maps: same host under the CSP,
-         without the deprecation warnings My Maps logs from Google's own iframe. -->
           <iframe
             loading="lazy"
-            src="https://www.google.com/maps?q=-13.0007998,-38.507221&amp;z=16&amp;output=embed"
+            src="https://www.google.com/maps?q=Universidade+Federal+do+Esp%C3%ADrito+Santo,+Av.+Fernando+Ferrari,+514,+Vit%C3%B3ria,+ES&amp;z=16&amp;output=embed"
             height="350"
             class="embedded-map"
-            title="Localização do LabMiM"
+            title="Localização do LEAL"
           ></iframe>
         </div>
       </div>
@@ -329,21 +333,18 @@
       <div class="container">
         <div class="footer-topline">
           <a href="index.html"
-            ><picture
-              ><source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
-              <img
-                loading="lazy"
-                src="assets/img/logonova1-nav.png"
-                alt="LabMiM Logo"
-                width="250"
-                height="80"
-                class="brand-logo brand-logo-bright site-brand-logo" /></picture
-          ></a>
+            ><img
+              loading="lazy"
+              src="assets/img/logo_leal.png"
+              alt="LEAL Logo"
+              width="176"
+              height="80"
+              class="brand-logo brand-logo-bright site-brand-logo"
+          /></a>
           <nav class="footer-nav" aria-label="Navegação do rodapé">
             <a href="mapas_interativos.html"><i class="fas fa-map me-1"></i> Previsões</a>
             <a href="potenciais_energeticos.html"><i class="fas fa-bolt me-1"></i> Potenciais Energéticos</a>
             <a href="monitoring.html"><i class="fas fa-chart-line me-1"></i> Monitoramento</a>
-            <a href="ceu.html"><i class="fas fa-cloud me-1"></i> Céu</a>
             <a href="climatologia.html"><i class="fas fa-cloud-sun me-1"></i> Climatologia</a>
             <a href="team.html"><i class="fas fa-users me-1"></i> Equipe</a>
           </nav>
@@ -357,17 +358,9 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation"
-            ><picture
-              ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
-              <img
-                loading="lazy"
-                src="assets/img/logo_cienam-nav.png"
-                alt="CIEnAm"
-                width="230"
-                height="80"
-                class="brand-logo brand-logo-bright" /></picture
-          ></a>
+          <a href="https://ct.ufes.br" target="_blank" rel="noopener" class="site-affiliation site-affiliation-text"
+            ><span>Centro Tecnológico</span><small>UFES</small></a
+          >
         </div>
         <div class="footer-bottom-compact">
           <p class="footer-disclaimer">
@@ -375,7 +368,7 @@
             Não recomendamos atitudes de risco com base nesta plataforma.
           </p>
           <p class="copyright mb-0">
-            &copy; 2026 LabMiM - Todos os direitos reservados
+            &copy; 2026 LEAL - Todos os direitos reservados
             <!--
           Inlined SVG (Octicons, MIT) rather than the Font Awesome icon: that glyph lives in the
           *brands* family (fa-brands-400.woff2, 108 KB), a font no page downloads today.
