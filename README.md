@@ -1,345 +1,122 @@
 # Sites LabMiM / LEAL
 
-Gerador de sites estáticos para publicações meteorológicas, atualmente **LabMiM/UFBA** e **LEAL/UFES**, preparado para incorporar outros estados e instituições sem duplicar a aplicação. O projeto reúne páginas institucionais, monitoramento ambiental e WebGIS para previsões meteorológicas e potenciais energéticos derivados de saídas do modelo WRF.
+[![CI](https://github.com/Bruno-Mascarenhas/site-labmim/actions/workflows/ci.yml/badge.svg)](https://github.com/Bruno-Mascarenhas/site-labmim/actions/workflows/ci.yml)
+[![Licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+[![Site em produção](https://img.shields.io/badge/site-labmim.if.ufba.br-0aa)](https://labmim.if.ufba.br/)
 
-O resultado continua sendo HTML, CSS e JavaScript puros, sem backend e sem Node no servidor. O build local/CI descobre automaticamente cada `src/sites/<id>/site.js`, valida sua configuração, combina conteúdo próprio com o template comum, gera SEO/404/robots/sitemap e **carimba hashes de conteúdo (`?v=<md5-8>`) nos assets próprios** para invalidação automática de cache.
+Gerador de sites estáticos para publicações meteorológicas de laboratórios universitários — hoje **LabMiM/UFBA**, no ar em <https://labmim.if.ufba.br/>, e **LEAL/UFES** —, preparado para incorporar outros estados e instituições sem duplicar a aplicação. Cada publicação reúne páginas institucionais e os WebGIS de previsões meteorológicas e potenciais energéticos derivados do modelo WRF; monitoramento ambiental, condição do céu e climatologia entram onde o laboratório tem estação e câmera próprias. A saída é HTML, CSS e JavaScript puros, sem backend, sem Node no servidor e sem CDN no caminho crítico; a arquitetura completa está em [Architecture.md](Architecture.md).
 
-Os dados dos mapas interativos (`site/JSON/` e `site/GeoJSON/`) **não são gerados aqui**: eles vêm do pipeline WRF do repositório irmão **[micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology)** — ver [Dados do WebGIS (pipeline externo)](#dados-do-webgis-pipeline-externo).
+Os dados dos mapas (`site/JSON/` e `site/GeoJSON/`) **não são gerados aqui**: eles vêm do pipeline WRF do repositório irmão [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) — ver [De onde vêm os dados](#de-onde-vêm-os-dados).
 
-## Funcionalidades
+![WebGIS de previsões do LabMiM com o campo de temperatura do WRF sobre a Bahia](docs/imagens/webgis-previsoes.webp)
 
-- Página inicial institucional, equipe, identidade e SEO próprios de cada publicação.
-- Página de monitoramento em duas variantes, escolhidas por `source:` na declaração da página: a **viva**, que lê `labmim-monitoring-v1` do diretório `dataset.paths.monitoring` e desenha a janela de 7 dias em três camadas (amostras brutas, média horária e WRF), e a **estática**, que exibe os PNGs de `dataset.observations` em cards e modais Bootstrap (é a que o LEAL usa hoje).
-- Página de equipe com links de pesquisadores e localização incorporada.
-- Página de climatologia com as distribuições observadas da estação (`labmim-climatology-v1` em `dataset.paths.climatology`): histograma medido, densidade teórica ajustada e bibliografia vinda do próprio manifesto.
-- Página de condição do céu (`ceu.html`, hoje só na publicação da UFBA): o quadro bruto da câmera all-sky ao lado da máscara de segmentação prevista sobre ele (com controle de opacidade sobre os pixels brutos) e o plano do índice de claridade `Kt` contra a fração difusa `Kd = Hd/H`. O gráfico desenha a **densidade horária** publicada em `labmim-ktkd-v1` (histograma 2D, escala logarítmica), com sobreposição opcional dos pontos coloridos pelas quatro condições de céu de Escobedo et al. (2009) e dos modelos empíricos: Marques Filho et al. (2016) como curva, por ser função só de `Kt`, e Lemos et al. (2017) e o BRL de Ridley et al. (2010) como banda de mediana e p10-p90, por dependerem de mais cinco preditores. RMSE e MBE de cada modelo no período, tooltip por coluna, ampliação e CSV. O metadado do quadro vem em `labmim-allsky-frame-v1`, arquivo separado porque é reescrito a cada captura; os dois quadros têm nome fixo, então a página invalida o cache por `?t=` derivado do horário da captura.
-- WebGIS de previsões em `mapas_interativos.html` com variáveis meteorológicas.
-- WebGIS de potenciais energéticos em `potenciais_energeticos.html` com potencial fotovoltaico, potencial eólico e densidade eólica.
-- Leaflet com renderização em Canvas, domínios WRF, palhetas por variável, animação temporal, recorte por estado, camada de vento e séries temporais em modal.
-- **Linha do tempo dirigida por manifest**: `JSON/manifest.json` (v2) define o intervalo de passos do slider, a âncora de data/hora e a disponibilidade por variável; o site re-checa o manifest a cada 15 min e ressincroniza sozinho quando o pipeline publica uma rodada nova.
-- **Artefatos consolidados**: série temporal de uma célula lida de `{D}_{VAR}.series.bin` com uma única requisição HTTP Range (~300 B) e resumo de domínio (média/mín/máx por passo) lido de `{D}_{VAR}.summary.json` — com fallback transparente para a varredura hora-a-hora legada.
-- Camada de dados compartilhada (`data-service.js`) com cache LRU em memória, deduplicação de requisições em voo, cache negativo e parsing em Web Worker.
-- Dark mode persistente em `localStorage`, com sincronização para gráficos via evento `labmim-theme-change`.
+_WebGIS de previsões: campo de temperatura do WRF sobre a Bahia e o Nordeste, com seletor de domínio (BA/NE, BA, RMS, SSA), escala de cores e linha do tempo dirigida pelo manifesto da rodada._
 
-## Estrutura Do Repositório
+## O que o site publica
 
-```text
-.
-├── build.js                       # seleciona, valida e renderiza uma publicação
-├── scripts/
-│   ├── site-builder/              # descoberta, validação, renderização e assets
-│   ├── build-site.mjs             # wrapper de um build + formatação da saída
-│   ├── build-all.mjs              # cria um bundle por publicação em dist/
-│   └── check-publications.mjs     # valida todas e restaura a publicação padrão
-├── src/
-│   ├── template/                  # aplicação compartilhada, sem identidade institucional
-│   │   ├── layouts/               # esqueletos institutional e webgis
-│   │   ├── partials/              # head, navbar, footer, scripts e documentação
-│   │   ├── pages/                 # conteúdos realmente comuns
-│   │   ├── static/                # 404 e template de .htaccess
-│   │   └── page-types.js          # catálogo e helpers page/customPage
-│   ├── sites/
-│   │   ├── README.md              # receita operacional para nova publicação
-│   │   ├── ufba/
-│   │   │   ├── site.js            # composição da publicação
-│   │   │   ├── identity.js        # marca, instituição, origem e redirects
-│   │   │   ├── pages.js           # manifesto de páginas, SEO e navegação
-│   │   │   ├── theme.css          # paleta exclusiva
-│   │   │   ├── pages/             # conteúdos exclusivos
-│   │   │   └── fragments/         # trechos exclusivos anexáveis
-│   │   └── ufes/                  # mesma fronteira de módulo
-│   ├── territories/               # estado, contorno e viewport (ba.js, es.js, ...)
-│   └── datasets/                  # caminhos, timeline e domínios WRF por produto
-├── site/                           # saída compatível: uma publicação por vez
-│   ├── *.html, .htaccess, robots.txt, sitemap.xml
-│   ├── assets/                     # CSS/JS/imagens/vendor compartilhados
-│   ├── JSON/                       # dados operacionais externos, não gerados no build
-│   ├── GeoJSON/                    # grades operacionais externas, não geradas no build
-│   ├── Climatologia/               # distribuições observadas, entregues pelo deploy
-│   ├── Monitoramento/              # janela de 7 dias da estação, entregue pelo deploy
-│   └── Ceu/                        # quadros all-sky, máscara e payload Kt × Kd (deploy)
-└── dist/<id>/                      # bundles estáticos de build:all, sem dados operacionais
-```
+Tudo abaixo é arquivo estático: não há backend consultando nada em runtime, só JSON e imagens que o deploy deposita nos caminhos do dataset.
 
-As fronteiras são intencionais:
+**Previsões meteorológicas.** A imagem acima: as variáveis da rodada do WRF — temperatura, vento, radiação, precipitação, pressão e umidade —, em quatro domínios aninhados de 27 km a 1 km, com série temporal ao clicar em qualquer célula.
 
-- `src/template/` deve permanecer neutro quanto a instituição e estado.
-- `src/sites/<id>/` contém somente o que pertence à publicação.
-- `src/territories/` descreve a geografia; `src/datasets/` descreve o produto de dados. Ambos podem ser reutilizados por mais de uma publicação.
-- `site/` e `dist/` são saídas geradas. Edite sempre `src/` ou os assets-fonte existentes em `site/assets/`, nunca os HTMLs gerados.
+**Potenciais energéticos.** Os mesmos campos do WRF convertidos em potencial fotovoltaico, potencial eólico e densidade eólica a 10 m.
 
-## Dados Do WebGIS (Pipeline Externo)
+![WebGIS de potenciais energéticos mostrando o potencial fotovoltaico em tons de amarelo e laranja sobre a Bahia](docs/imagens/webgis-potenciais-energeticos.webp)
 
-`site/JSON/` e `site/GeoJSON/` são os caminhos operacionais das publicações atuais e ficam fora do controle de versão (ver `.gitignore`). Novos datasets podem declarar outros caminhos em `dataset.paths`; nesse caso, inclua-os também no `.gitignore`. As regras existentes ignoram por extensão (`site/JSON/*.json`, `site/Climatologia/*.json`, ...); a exceção é `site/Ceu/`, ignorado por diretório (`site/Ceu/*` com `!site/Ceu/.keep`), porque ali chegam imagens além de JSON. Quem gera os dados atuais é o repositório irmão **[micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology)**, pela CLI `labmim-wrf-geojson` (entry point `micrometeorology.cli.export_wrf_geojson`; escrita dos artefatos em `wrf/jobs.py` e `wrf/geojson.py`). Invocação típica a partir de saídas `wrfout_d0X_*` do WRF:
+_WebGIS de potenciais energéticos: potencial fotovoltaico em W/m², sobre a mesma base de mapa e os mesmos domínios das previsões._
+
+**Monitoramento da estação.** A janela de sete dias da estação do laboratório, em três camadas sobrepostas.
+
+![Gráficos de monitoramento da estação com as séries de temperatura do ar e de umidade relativa ao longo de sete dias](docs/imagens/monitoramento-estacao.webp)
+
+_Monitoramento da estação: temperatura do ar e umidade relativa em três camadas — amostras brutas de 5 min, média horária e WRF —, com ampliação e exportação em CSV._
+
+**Condição do céu.** O quadro da câmera all-sky com a máscara de segmentação prevista sobreposta, e o plano do índice de claridade Kt contra a fração difusa Kd.
+
+![Histograma 2D de densidade de Kt por Kd ao lado da curva acumulada de Kt e das quatro condições de céu](docs/imagens/condicao-ceu-kt-kd.webp)
+
+_Condição do céu: densidade horária de Kt × Kd com a curva de Marques Filho et al. (2016) e a sobreposição opcional de Lemos et al. (2017) e do BRL de Ridley et al. (2010); ao lado, a curva acumulada de Kt e as quatro condições de céu de Escobedo et al. (2009) — 32.706 horas classificadas na captura._
+
+**Climatologia da estação.** As distribuições observadas do registro, com a densidade teórica ajustada e a bibliografia vinda do próprio manifesto.
+
+![Histograma da temperatura do ar com a curva do ajuste gaussiano e as estatísticas de aderência](docs/imagens/climatologia-distribuicoes.webp)
+
+_Climatologia: histograma de temperatura do ar com ajuste gaussiano (75.622 observações na captura) e as estatísticas de aderência publicadas junto dos dados._
+
+**Tema claro e escuro.** Vale para todas as páginas: o tema é escolhido pelo leitor, persistido no navegador e propagado aos gráficos sem recarregar a página.
+
+![O mesmo WebGIS de previsões renderizado no tema escuro, com navbar e painéis em fundo escuro](docs/imagens/webgis-tema-escuro.webp)
+
+_O mesmo WebGIS no tema escuro: a preferência fica no navegador e os gráficos se reajustam junto._
+
+Cada publicação traz ainda as páginas institucionais — início e equipe —, com identidade visual e SEO próprios.
+
+Quais dessas páginas existem é decidido publicação a publicação, no `pages.js` de cada uma. A UFBA publica as sete — as cinco de dados acima, mais início e equipe; o LEAL, que não tem estação nem câmera all-sky próprias, publica só as institucionais e os dois WebGIS.
+
+## Como rodar localmente
+
+Não abra as páginas por `file://`. Os mapas e os workers dependem de `fetch`, então é preciso servir por HTTP local.
 
 ```bash
-labmim-wrf-geojson --wrf-dir <dir com wrfout> --date YYYYMMDD -D 1,2,3,4 \
-  -o site/JSON -g site/GeoJSON --workers 14
-```
-
-O fuso do produto é fixado por `LABMIM_TIMEZONE` (default `America/Bahia`); `--no-site-artifacts` desliga a escrita dos artefatos consolidados. O contrato de integração é documentado no próprio repositório do pipeline (`docs/micrometeorology.md`, seção "Front-end integration (site-labmim)").
-
-Artefatos que o site consome:
-
-| Arquivo                            | Formato                               | Uso no site                                                                                                                                   |
-| ---------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JSON/manifest.json`               | `labmim-data-manifest-v2`             | Versão da rodada (`?v=` nos dados), intervalo do slider, âncora de data, disponibilidade por variável, descritores dos artefatos consolidados |
-| `GeoJSON/{D}.grid.json`            | `grid-edges-v1` (ou `grid-bounds-v1`) | Grade compacta (~2 KB) expandida no cliente; preferida                                                                                        |
-| `GeoJSON/{D}.geojson`              | FeatureCollection                     | Grade legada (1,2–2,6 MB); fallback quando não há `grid.json`                                                                                 |
-| `JSON/{D}_{VAR}_{NNN}.json`        | valores por passo                     | Cores do mapa (`values[]` indexado por `linear_index`)                                                                                        |
-| `JSON/{D}_WIND_VECTORS_{NNN}.json` | vetores por passo                     | Setas de vento da variável `wind` (o `eolico` embute vetores em `metadata.wind`)                                                              |
-| `JSON/{D}_{VAR}.series.bin`        | `cell-series-int32-le-v1`             | Série temporal de uma célula via HTTP Range (~300 B por leitura)                                                                              |
-| `JSON/{D}_{VAR}.summary.json`      | `domain-summary-v1`                   | Média/mín/máx do domínio por passo (painel "Sobre as variáveis")                                                                              |
-
-O site **degrada graciosamente**: sem manifest (ou com manifest v1) ele usa o intervalo padrão de 73 passos e a heurística solar legada; sem `grid.json` cai no `.geojson`; sem `series.bin`/`summary.json` volta à varredura hora-a-hora. Isso permite publicar site e dados em qualquer ordem (site primeiro é o preferido).
-
-Não abra, formate ou reprocesse `/data`, `site/JSON/` ou `site/GeoJSON/` durante manutenção comum; esses diretórios contêm dados grandes gerados pelo pipeline externo.
-
-## Como Executar Localmente
-
-Não abra as páginas direto por `file://`. Os mapas e workers dependem de `fetch`, então use um servidor HTTP local.
-
-Liste as publicações descobertas e gere a desejada antes de servir/publicar:
-
-```bash
-npm run sites:list
-npm run build -- --site=ufba
-npm run build -- --site=ufes
-```
-
-Sem `--site`, o build usa a única publicação marcada com `isDefault: true`. `SITE_ID` é a forma equivalente por variável de ambiente; `--variant` e `SITE_VARIANT` permanecem somente como compatibilidade.
-
-```bash
-SITE_ID=ufes npm run build
-npm run build                 # publicação padrão
-npm run build:all             # todos os bundles em dist/<id>/
-npm run build:check           # valida todas e restaura a padrão em site/
-```
-
-O build individual sempre escreve em `site/`, preservando o fluxo de deploy existente. `build:all` materializa uma cópia autocontida do frontend em `dist/<id>/` para cada publicação; esses bundles omitem o manifest e os diretórios declarados em `dataset.paths`, pois os dados operacionais pertencem ao pipeline externo. O build também remove HTMLs antigos que não façam parte do manifesto selecionado, evitando vazamento de páginas entre publicações.
-
-> A publicação seleciona o **frontend**; ela não converte os dados operacionais. Cada deploy precisa receber, nos caminhos configurados pelo respectivo dataset, a rodada WRF e os gráficos de monitoramento produzidos para aquela instituição.
-
-Para adicionar um estado, uma publicação ou uma página, siga a receita em [`src/sites/README.md`](src/sites/README.md). Não é necessário registrar o novo ID em `build.js` ou em `package.json`: a existência de um `src/sites/<id>/site.js` válido é o registro.
-
-```bash
-make serve            # serve site/ em http://localhost:8000
-```
-
-Ou diretamente:
-
-```bash
-cd site
-python3 -m http.server 8000
-```
-
-Acesse:
-
-- `http://localhost:8000/`
-- `http://localhost:8000/mapas_interativos.html`
-- `http://localhost:8000/potenciais_energeticos.html`
-- `http://localhost:8000/ceu.html`
-
-Se a porta 8000 estiver ocupada, use outra (ex.: `python3 -m http.server 8100`).
-
-Nota: o `http.server` do Python ignora cabeçalhos `Range` (responde 200 com o corpo inteiro); o leitor de `series.bin` detecta isso e fatia localmente, então as séries funcionam igual em dev — apenas com mais bytes no fio do que em produção (Apache responde 206).
-
-## Deploy (Produção)
-
-O deploy é manual e deve ser precedido por `npm run build -- --site=<id>` (ou pela seleção do bundle correspondente em `dist/<id>/`). Código e dados são publicados de forma desacoplada. Regras aprendidas em produção:
-
-- **Publicar o site completo junto com o `.htaccess`** — nunca subir o `.htaccess` sozinho sobre uma versão antiga do site: a CSP `script-src 'self'` quebra páginas que ainda usem CDN/scripts inline.
-- **Ordem segura para mudanças de formato de dados**: (1) publicar o site novo, (2) conferir em produção, (3) atualizar o pipeline no servidor de operação e regenerar os dados — o cliente tem fallback para todos os contratos, então site novo + dados velhos funciona; o inverso não é garantido.
-- **Rollback do pipeline**: se voltar a uma versão que não escreve `manifest.json`, deletar o manifest órfão do servidor junto (um manifest órfão congela o `?v=` enquanto os bytes mudam por baixo; o `.htaccess` limita o estrago a 24 h). Os artefatos `series.bin`/`summary.json` devem ir e vir junto com o manifest que os anuncia.
-- **O host roda `mod_pagespeed` e ele reescreve o HTML servido.** Hoje (`Server: Apache/2.4.6 (CloudLinux)`, `X-Mod-Pagespeed: 1.13.35.2-0`) toda resposta HTML volta com dois `<script>` **inline** injetados pelo módulo (`window.mod_pagespeed_start` e o beacon com `data-pagespeed-no-defer`) que não existem em nenhum arquivo deste repositório. A CSP que o `.htaccess` publica é `script-src 'self'`, sem `'unsafe-inline'` e sem nonce: assim que o `.htaccess` entrar, o navegador **bloqueia esses dois blocos** e registra a violação em toda página. O estrago hoje é cosmético (é telemetria do módulo), mas os filtros do PageSpeed que embutem ou combinam JS transformariam os nossos próprios scripts em inline — e aí a página para de funcionar. Antes de confiar na CSP em produção, desligue a reescrita do módulo no `.htaccess` (dentro de `<IfModule pagespeed_module>`, para não arriscar 500 num host sem ele) e confirme com `curl -ks https://labmim.if.ufba.br/ | grep -c mod_pagespeed_start` — o esperado é `0`.
-- Após publicar, conferir se o `.htaccess` realmente entrou: `curl -ksI https://labmim.if.ufba.br/ | grep -i content-security-policy`. O `-k` é necessário enquanto a cadeia TLS do host estiver incompleta (sem ele o `curl` sai com 60 e não imprime nada). Não use a compressão como sinal: o `mod_deflate` do host já comprime tudo por conta própria, então `Content-Encoding: gzip` aparece mesmo com o `.htaccess` ausente. A CSP, ao contrário, só existe se o arquivo estiver ativo.
-
-## Dependências Externas Em Runtime
-
-Todo o site usa **uma única versão do Bootstrap — 5.3.8 — vendorizada localmente** em `assets/vendor/bootstrap/`. As páginas carregam o CSS **purgado** (`bootstrap.purged.min.css`, ~27 KB via PurgeCSS; o `bootstrap.min.css` completo fica apenas como fonte do purge). **Não há jQuery no projeto.** O Font Awesome 6.4.0 usa um **subset de fonte** (`fa-solid-900.woff2` com só os glifos usados, ~6 KB; ver `scripts/subset-fontawesome.md`). Bootstrap, Font Awesome, Leaflet 1.9.4, Chart.js 3.9.1 e os contornos de BA/ES são carregados **localmente** (`assets/vendor/` e `assets/data/`) — não há CDN no caminho crítico de renderização. `leaflet.js` é carregado com `defer`. O antigo Turf.js foi removido — a máscara de recorte por estado usa um _point-in-polygon_ local em `map-manager.js`.
-
-Origens externas restantes:
-
-- Tiles do mapa base via OpenStreetMap (apenas nas páginas WebGIS).
-- Iframe do Google My Maps na página de equipe (`team.html`; liberado no CSP via `frame-src https://www.google.com`).
-
-## Onboarding E Contribuição
-
-O resumo do processo está em [`CONTRIBUTING.md`](CONTRIBUTING.md). O material completo são dois PDFs em [`docs/onboarding-architecture/assets/`](docs/onboarding-architecture/):
-
-- **[Onboarding da plataforma estática multi-publicação](docs/onboarding-architecture/assets/onboarding-plataforma-estatica-labmim-leal.pdf)** — a documentação de arquitetura vigente (36 slides, gerados de `slides.md`): o modelo mental `publicação + template + território + dataset`, a descoberta e a validação de `src/sites/<id>/site.js`, onde colocar uma mudança de estilo, as receitas de página compartilhada e exclusiva, um tour visual das páginas atuais, o que `build:check` protege, o runtime do WebGIS e o contrato com o pipeline `micrometeorology` — incluindo como adicionar uma variável nova aos mapas. A fonte e as instruções de regeneração estão em [`docs/onboarding-architecture/README.md`](docs/onboarding-architecture/README.md).
-- **[Como contribuir no site-labmim](docs/onboarding-architecture/assets/guia-contribuicao-site.pdf)** — o fluxo de trabalho de ponta a ponta: abrir a issue, criar a branch a partir da `main` atualizada, alterar o lugar certo, validar com `make build`/`make ci`/`make serve`, fazer commits pequenos, abrir o pull request, responder à revisão e mergear. Traz também o padrão de nomes de branch (`feat/`, `fix/`, `docs/`, `chore/`), o formato das mensagens de commit, os erros que costumam travar uma revisão e um checklist final.
-
-A regra que os dois repetem: **a `main` é a linha estável e ninguém commita direto nela** — toda mudança nasce em uma branch curta, entra por pull request com CI verde e é revisada por outra pessoa. E edite sempre `src/`: `site/` é saída gerada, e o próximo build sobrescreve qualquer edição feita à mão lá.
-
-Para a estrutura de arquivos de uma publicação, a receita detalhada é [`src/sites/README.md`](src/sites/README.md). Os dois PDFs foram revisados em 18/08/2026 contra a arquitetura modular vigente e o contrato do produtor `micrometeorology/src/micrometeorology`.
-
-## Desenvolvimento
-
-O projeto usa a versão de Node fixada em `.nvmrc` (Node 24 LTS). Com `nvm`:
-
-```bash
-nvm install    # instala a versão do .nvmrc, se necessário
-nvm use
+nvm use      # Node 24, fixado em .nvmrc
 npm ci
 ```
 
-Scripts npm:
+Liste as publicações descobertas e gere a desejada antes de servir:
 
 ```bash
-npm run sites:list    # lista src/sites/<id>/site.js descobertos e marca o padrão
-npm run build         # gera a publicação padrão em site/ (+ Prettier na saída)
-npm run build -- --site=ufes # gera uma publicação específica em site/
-npm run build:all     # gera todos os bundles em dist/<id>/, sem dados operacionais
-npm run build:check   # gera/valida todas as publicações e restaura a padrão
-npm run lint          # JS/CSS + contrato de temas + checks de ícones/purge
-npm run lint:all      # lint + lint:html + lint:links
-npm run lint:js       # ESLint no runtime, build e módulos de configuração
-npm run lint:css      # Stylelint no CSS compartilhado e nos temas dos sites
-npm run lint:themes   # contrato token-only, isolamento e ordem da cascata CSS
-npm run lint:icons    # cobertura do subset Font Awesome (scripts/check-fa-subset.mjs)
-npm run lint:purge    # cobertura do Bootstrap purgado (scripts/check-bootstrap-purge.mjs)
-npm run lint:html     # html-validate nas páginas geradas
-npm run lint:links    # linkinator (ignora externos e os caminhos do dataset padrão)
-npm run format        # Prettier no output e nos módulos JS/CSS do gerador
-npm run format:check
+npm run sites:list             # lista os src/sites/<id>/site.js e marca o padrão
+npm run build                  # publicação padrão em site/
+npm run build -- --site=ufba   # publicação específica em site/
+npm run build -- --site=ufes
 ```
 
-Também há atalhos no `Makefile`:
+Edite sempre `src/`: as páginas de `site/` e todo o `dist/` são saída gerada, e o próximo build sobrescreve qualquer edição feita à mão neles. Nem todo o `site/assets/` é gerado — parte dele é fonte e se edita normalmente; a fronteira exata está em [O que não se edita à mão](CONTRIBUTING.md#o-que-não-se-edita-à-mão).
 
 ```bash
-make build         # gera as páginas a partir de src/
-make build-check   # valida todas as publicações e a saída padrão
-make lint          # ESLint + Stylelint + contrato de temas + checks de assets
-make lint-html     # html-validate
-make lint-links    # linkinator
-make format-check  # Prettier (somente verifica)
-make fix           # aplica Prettier + correções dos linters
-make audit         # npm audit --audit-level=high
-make serve         # python3 -m http.server 8000 --directory site
-make ci            # build-check + build-all + format-check + lint + lint-html + lint-links + audit
+make serve                     # serve site/ em http://localhost:8000
 ```
 
-`make ci` roda os mesmos checks do CI do GitHub (o alvo `lint` inclui `lint:icons` e `lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`, e publica os bundles de `dist/` como artefato do build.
+Sem `make`, o equivalente cru é `cd site && python3 -m http.server 8000`. Se a porta 8000 estiver ocupada, use outra (ex.: `python3 -m http.server 8100`). Confira:
 
-As ferramentas de desenvolvimento (ESLint, Stylelint, Prettier, html-validate, linkinator) são `devDependencies` em `package.json`. Não há dependências de runtime instaladas via npm: o servidor recebe somente os arquivos estáticos gerados. O PurgeCSS é uma dependência exclusiva de desenvolvimento.
+- <http://localhost:8000/>
+- <http://localhost:8000/mapas_interativos.html>
+- <http://localhost:8000/potenciais_energeticos.html>
+- <http://localhost:8000/ceu.html>
 
-## Páginas Principais
+A publicação seleciona o **frontend**; ela não converte dados operacionais — cada deploy precisa receber, nos caminhos do seu dataset, a rodada WRF e o acervo daquela instituição (ver [De onde vêm os dados](#de-onde-vêm-os-dados)).
 
-- `site/index.html`: página inicial.
-- `site/monitoring.html`: monitoramento ambiental (gráficos vivos ou PNGs, conforme a variante) e financiadores.
-- `site/team.html`: equipe e localização.
-- `site/ceu.html`: quadro da câmera all-sky, máscara de segmentação prevista e dispersão Kt × Kd, lidos de `Ceu/`.
-- `site/climatologia.html`: distribuições observadas da estação, lidas de `Climatologia/`.
-- `site/mapas_interativos.html`: WebGIS de previsões meteorológicas.
-- `site/potenciais_energeticos.html`: WebGIS de potenciais fotovoltaico, eólico e densidade eólica.
-- `site/404.html`: página de erro standalone (caminhos absolutos, servida via `ErrorDocument`).
+Antes de abrir um pull request, `make ci` roda a mesma bateria do CI: build de todas as publicações, verificação de formatação, linters e auditoria de dependências.
 
-## Mapas Interativos
+A lista completa dos scripts npm e dos atalhos do `Makefile` está em [CONTRIBUTING.md](CONTRIBUTING.md#comandos).
 
-O WebGIS é inicializado por `map-init.js`, que busca o manifest, cria `MeteoMapManager` e `ChartsManager`.
+## De onde vêm os dados
 
-Navbar principal: Previsões, Potenciais Energéticos, Monitoramento, Céu, Climatologia e Equipe.
+Os campos do WebGIS (`site/JSON/`, `site/GeoJSON/`) são produzidos pelo pipeline WRF do repositório irmão [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), **nunca por este build**. O acervo do laboratório (`site/Ceu/`, `site/Climatologia/`, `site/Monitoramento/`) vem da câmera all-sky e dos sensores da estação.
 
-Principais recursos:
+**Nenhum desses dados é versionado**: o git rastreia apenas o `.keep` que mantém cada diretório, e quem entrega o conteúdo é o deploy. Não abra, varra, formate nem reprocesse esses caminhos em manutenção comum — são arquivos grandes, gerados fora daqui, e mexer neles não conserta nada do lado do site.
 
-- Domínios, labels, centros e resoluções definidos no módulo de dataset da publicação; os IDs técnicos (como `D01`–`D04`) continuam nos arquivos, cache e estado interno.
-- Variáveis de Previsões configuradas em `VARIABLE_CONTEXTS.forecast`: `wind`, `temperature`, `skinTemperature`, `pressure`, `humidity`, `relativeHumidity`, `rain`, `globalRadiation`, `longwave`, `hfx` e `lh`.
-- Variáveis de Potenciais Energéticos configuradas em `VARIABLE_CONTEXTS.energy`: `solar`, `eolico` e `windPowerDensity`.
-- `humidity` representa Vapor d'Água / razão de mistura em `g/kg`; `relativeHumidity` representa RH2 em `%`.
-- `SWDOWN` aparece em dois contextos: `globalRadiation` como Radiação Global em Previsões, e `solar` como Potencial Fotovoltaico em Potenciais Energéticos.
-- O `<select id="variableSelect">` é populado em runtime por `configureVariableSelect()` a partir de `VARIABLES_CONFIG`/`VARIABLE_CONTEXTS` (o HTML traz só um placeholder "Carregando…").
-- Palhetas e escalas ficam em `VARIABLES_CONFIG`; as variáveis usam limites fixos (`scaleMin`/`scaleMax`) para manter cores comparáveis entre horários.
-- Slider temporal com animação play/pause (autoplay no primeiro carregamento; intervalo de 800 ms). O intervalo do slider vem de `index_min`/`index_max` do manifest, com o mínimo clampado a ≥ 1 no cliente (73 passos é só o fallback sem manifest).
-- Disponibilidade por variável vem de `availability` do manifest (ex.: `SWDOWN` só nos passos diurnos); a janela solar 6h–18h derivada da âncora é apenas o fallback legado. Passos indisponíveis são pulados na animação.
-- `windLayerToggle` visível apenas para variáveis de vento (`wind` e `eolico`).
-- Séries temporais no modal `timeSeriesModal`, com exportação CSV e parâmetros customizáveis (solar/eólico) persistidos em `localStorage`.
-- O painel "Sobre as variáveis" inicia minimizado; a prévia usa o `summary.json` do domínio quando disponível.
-- A aba "Variáveis" da documentação dos mapas usa seções expansíveis com fórmulas e limitações por variável.
+O site **degrada graciosamente** quando eles faltam: sem manifest usa o intervalo declarado pelo dataset, sem `grid.json` cai no `.geojson`, sem os artefatos consolidados volta à varredura hora-a-hora. Por isso o site novo funciona sobre dados antigos, e essa é a ordem segura numa mudança de formato: publicar o site primeiro e só então atualizar o pipeline — o inverso não é garantido (ver [Deploy em produção](Architecture.md#deploy-em-produção)).
 
-## Camada De Dados E Performance
+- [Contratos de dados](Architecture.md#contratos-de-dados) — cada arquivo que o site consome, formato a formato.
+- [Produtor dos dados](Architecture.md#produtor-dos-dados) — a CLI `labmim-wrf-geojson` que os gera, com fuso, paralelismo e entry points.
+- [O que não se edita à mão](CONTRIBUTING.md#o-que-não-se-edita-à-mão) — a fronteira entre o que é fonte e o que é entregue.
 
-O carregamento de JSON do WebGIS passa por `LabmimDataService` (`data-service.js`), exposto em `window.LabmimDataService` e instanciado por `MeteoMapManager` como `this.dataService`. `MeteoMapManager._cachedFetch()` e `ChartsManager._fetchHourJson()` delegam a ele. O serviço oferece:
+## Onde está o resto
 
-- **Cache LRU em memória** (limite base 400 entradas; cresce com o tamanho da rodada via `ensureCacheLimit`).
-- **Deduplicação de requisições em voo**: chamadas concorrentes à mesma URL compartilham um único `fetch` + parse.
-- **Cache negativo**: 60 s para ausência determinística (404/403/410 — ex.: horas noturnas de `SWDOWN`) e apenas 4 s para falhas transitórias (rede/5xx), que podem se recuperar rápido.
-- **Parsing em Web Worker** (`json-parser.worker.js`) com _fallback_ transparente para a thread principal caso o worker falhe.
-- **Distinção 404 vs falha transitória**: um 404 determinístico é lacuna esperada; apenas falhas transitórias impedem o cache de séries.
+Este README é o ponto de partida; o detalhe vive nos documentos abaixo.
 
-Ciclo de vida do manifest (`map-init.js` + `map-manager.js`):
+| Documento                                                        | O que responde                                                                                                                                  |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`Architecture.md`](Architecture.md)                             | A arquitetura completa: organização de pastas, contratos de dados, runtime do WebGIS, `.htaccess`, deploy em produção e checklist de validação. |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)                             | O fluxo de issue, branch e pull request, os comandos npm e do `Makefile`, e o que não se edita à mão.                                           |
+| [`src/sites/README.md`](src/sites/README.md)                     | Como criar uma publicação, uma página, um território ou um dataset — e as fronteiras entre esses módulos.                                       |
+| [`docs/onboarding-architecture/`](docs/onboarding-architecture/) | Os dois PDFs de onboarding — a plataforma e o guia de contribuição —, sua fonte e como regenerá-los.                                            |
+| [`scripts/subset-fontawesome.md`](scripts/subset-fontawesome.md) | Como regenerar o subset da fonte do Font Awesome quando entra um ícone novo.                                                                    |
 
-- `JSON/manifest.json` é buscado no parse do script com corrida de 3 s (um manifest lento não atrasa o primeiro paint) e adotado tardiamente se perder a corrida.
-- Re-checagem a cada **15 min** e ao voltar o foco da aba (gap mínimo de 5 min). Quando a versão muda (rodada nova publicada nos mesmos nomes de arquivo), `handleManifestUpdate()` limpa o cache de dados e de gráficos, refaz as grades e reancora a linha do tempo — sem recarregar a página.
-- `dataUrl()` anexa `?v=<versão da rodada>` a toda URL de dados; o `.htaccess` dá 24 h de cache a dados versionados (vs `no-cache` sem versão).
-
-Outras otimizações da camada de mapa:
-
-- A grade preferida é `GeoJSON/{D}.grid.json` (compacta, ~2 KB, expandida no cliente); o `.geojson` de 1,2–2,6 MB é só fallback. A grade fica em cache por domínio e **não** é descartada ao trocar de variável ou altura.
-- Valores e grade são buscados em paralelo (`Promise.all`), com chaves de staleness por (versão, domínio, variável, passo) — o mapa nunca pinta dados velhos sob um rótulo novo.
-- **Prefetch** dos próximos 2 passos reproduzíveis durante a animação (desligado sob `navigator.connection.saveData`).
-- A interpolação de cores roda em `color-calc.worker.js`, com _fallback_ para a thread principal e descarte de respostas obsoletas por `requestId`.
-- A série de uma célula é lida de `series.bin` com **uma requisição Range** em vez de até 76 fetches; o resumo do domínio vem de um único `summary.json`.
-
-Cache busting dos assets (build):
-
-- CSS/JS próprios: `?v=<hash md5-8 do conteúdo>` estampado por `build.js` em todo `href`/`src` (regra `immutable` de 1 ano no `.htaccess` para URLs versionadas).
-- Web Workers: hashes publicados na `<meta name="labmim-asset-hashes">` e lidos por `workerScriptUrl()` (sem a meta, a URL sai sem `?v=` e cai no cache curto).
-- Vendor: tokens manuais de release (`?v=1.9.4`, `?v=3.9.1`, `?v=5.3.8`, `?v=6.4.0`) + cache `immutable` de 1 ano — **exceto** `bootstrap.purged.min.css`, que é content-hashed pelo build (o conteúdo depende do HTML do site), e as webfonts do Font Awesome, que ficam na regra de 7 dias (o subset regenera no mesmo nome).
-
-## Dark Mode
-
-O dark mode é dividido em dois passos:
-
-- `theme-boot.js` roda cedo e aplica `.dark-theme` antes do carregamento completo, reduzindo flash visual.
-- `theme-toggle.js` controla os botões de tema, persiste `labmim-theme` em `localStorage` e emite `labmim-theme-change`.
-
-`charts-manager.js` escuta `labmim-theme-change` para atualizar cores dos gráficos sem recriar toda a UI.
-
-## Manutenção
-
-- **Navbar, rodapé, `<head>` e blocos de script são compartilhados**: edite-os em `src/template/partials/`. Layouts ficam em `src/template/layouts/`; não edite `site/*.html`.
-- Para conteúdo compartilhado, crie o fragmento em `src/template/pages/` e referencie-o com `templateSource()`. Para conteúdo próprio, use `src/sites/<id>/pages/` e `siteSource()`.
-- Páginas, SEO e navegação são declarados em `src/sites/<id>/pages.js`; `page()` reutiliza um tipo do catálogo e `customPage()` cria uma rota fora dele.
-- Identidade, instituição, origem e redirects ficam em `identity.js`; a paleta fica no `theme.css` da publicação. Cores estruturais comuns permanecem em `site/assets/css/`.
-- Estado, contorno e viewport pertencem a `src/territories/`; caminhos, timeline e domínios WRF pertencem a `src/datasets/`.
-- Para navbar, footer e estrutura de página, use `assets/css/layout.css`; cards e blocos reutilizáveis em `components.css`; dark mode em `theme.css`; WebGIS em `maps.css`.
-- Para adicionar uma variável ao mapa, atualize `variables-config.js` e o contexto em `VARIABLE_CONTEXTS` — o `<select>` é montado em runtime, não há lista no HTML para sincronizar. Garanta que o pipeline exporte os arquivos da variável.
-- Para lógica de mapa, prefira métodos em `MeteoMapManager` e preserve a API global exposta em `window.MeteoMapManager`.
-- Para busca/cache de dados, use `LabmimDataService` em vez de `fetch` direto; mantenha a API de `data-service.js` estável para os consumidores.
-- Para gráficos temporais, altere `ChartsManager` e preserve os IDs usados no modal.
-- Ao atualizar uma biblioteca vendorizada (Leaflet, Chart.js, Bootstrap bundle, FA css), substitua o arquivo em `assets/vendor/` e atualize o `?v=` manual correspondente em `src/template/partials/` ou `src/template/layouts/`, depois rode o build. CSS/JS próprios, `bootstrap.purged.min.css` e os workers **não** precisam de token manual — o hash é automático.
-- O CSP do `.htaccess` é `script-src 'self'` (sem scripts inline). Qualquer script novo precisa ser um arquivo próprio; JSON-LD (`application/ld+json`) é permitido por não ser executável.
-
-## Checklist Manual Rápido
-
-Antes de publicar:
-
-- Abrir `index.html`, `monitoring.html`, `team.html`, `ceu.html` e `climatologia.html` em light e dark mode.
-- Abrir `mapas_interativos.html` e verificar se o mapa renderiza apenas variáveis meteorológicas/radiativas, incluindo Radiação Global.
-- Abrir `potenciais_energeticos.html` e verificar se o mapa renderiza apenas Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
-- Testar troca de variável (a grade não deve piscar/recarregar do zero).
-- Testar todos os botões de domínio da publicação selecionada, confirmando que as requisições usam os IDs técnicos configurados no dataset.
-- Testar play/pause do slider temporal e conferir que o rótulo de data/hora segue o manifest (não deve haver passos "sem dados" em loop com manifest presente).
-- Confirmar que `windLayerToggle` aparece em `wind`/`eolico` e não aparece nas demais variáveis.
-- Clicar em uma célula do mapa e verificar sidebar e modal de série temporal (a série deve carregar quase instantânea via `series.bin` quando o manifest anuncia `features.cell_series`).
-- Alternar dark mode com modal aberto e verificar gráficos/títulos.
-- Conferir responsividade em largura mobile.
-- Verificar console do navegador sem erros.
-
-## Notas Para Futuros Desenvolvedores
-
-- Este repositório não contém o pipeline que gera os dados WRF; ele apenas consome os arquivos publicados em `site/GeoJSON/` e `site/JSON/`. O pipeline vive em [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) (CLI `labmim-wrf-geojson`).
-- Não abra, varra, formate ou reprocesse `/data`; evite também ler conteúdo de `site/JSON/` e `site/GeoJSON/` fora de depuração estritamente necessária.
-- Evite estilos inline em HTML. Use os módulos CSS existentes.
-- Evite adicionar dependências de build para o runtime do site; hoje ele funciona como site estático.
-- Mudanças no formato dos dados devem ser **aditivas e com fallback no cliente** — site e dados são publicados de forma desacoplada em produção.
-- A documentação técnica detalhada fica em [Architecture.md](Architecture.md).
+O deploy é manual: publica-se o site completo junto do `.htaccess`, nunca o `.htaccess` sozinho sobre uma versão antiga. As regras aprendidas em produção — ordem segura para mudança de formato, rollback do pipeline e o `mod_pagespeed` do host — estão em [Deploy em produção](Architecture.md#deploy-em-produção).
 
 ## Licença
 
 O código deste repositório está sob a [Licença MIT](LICENSE): qualquer pessoa pode usar, copiar, modificar e redistribuir — inclusive em fork ou em uso comercial — sem pagar nada, desde que **mantenha o aviso de copyright e a licença** e cite este repositório como origem.
 
-A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados operacionais publicados em produção (`site/JSON/`, `site/GeoJSON/`, `site/Climatologia/`, `site/Monitoramento/`, `site/Ceu/`, `site/assets/graphs/`), que pertencem às instituições correspondentes — os do WebGIS vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), os demais do acervo de sensores e da câmera all-sky do laboratório. Um fork deve substituí-los pela própria identidade e pelos próprios dados.
-
-As bibliotecas vendorizadas em `site/assets/vendor/` mantêm suas licenças originais (Bootstrap, Leaflet, Chart.js e Font Awesome).
+A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados operacionais publicados em produção (`site/JSON/`, `site/GeoJSON/`, `site/Climatologia/`, `site/Monitoramento/`, `site/Ceu/`, `site/assets/graphs/`), que pertencem às instituições correspondentes — os do WebGIS vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), os demais do acervo de sensores e da câmera all-sky do laboratório. Um fork deve substituir ambos pela própria identidade e pelos próprios dados. As bibliotecas vendorizadas em `site/assets/vendor/` mantêm suas licenças originais (Bootstrap, Leaflet, Chart.js e Font Awesome).
