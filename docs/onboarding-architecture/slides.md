@@ -297,8 +297,9 @@ Os módulos compartilhados consomem tokens como `--brand-primary`, `--accent-rgb
 carregam paleta institucional. Alterar `theme.css` de um site muda só aquele site. Alterar
 `base/layout/components/theme` muda todos e exige validar todas as publicações.
 
-CSS específico de uma página entra pelo manifesto `page.styles`. O tipo WebGIS declara `maps.css`; o
-layout não decide isso implicitamente. Uma fonte `templateSource("styles/x.css")` ou
+CSS específico de uma página entra pelo manifesto `page.styles`. O contrato do layout `webgis`
+(`LAYOUT_CONTRACTS`, em `page-types.js`) declara `maps.css` e o CSS do Leaflet, e `finalizePage()` os mescla
+em qualquer página que use esse layout. Uma fonte `templateSource("styles/x.css")` ou
 `siteSource("styles/x.css")` é copiada para seu namespace gerado. CSS de bibliotecas locais usa
 `page.vendorStyles`  -  hoje Leaflet nos tipos WebGIS. A cascata protegida é vendor da página -> base ->
 site-theme -> layout -> components -> styles da página -> theme.
@@ -838,7 +839,7 @@ Antes de editar algo compartilhado, procure os consumidores com `rg` e valide to
 Este slide é o guia para manutenção diária.
 
 Uma fonte template pode ser compartilhada por algumas publicações, não necessariamente todas. Procure
-`templateSource("pages/nome.html")` nos manifests para saber o impacto real.
+`templateSource("pages/nome.html")` nos manifestos para saber o impacto real.
 
 Layouts e partials têm alcance ainda maior. A navbar, o footer, o head e os scripts são expandidos em todas
 as páginas; uma mudança neles pede build e inspeção das duas publicações atuais.
@@ -973,8 +974,8 @@ silenciosamente para Bahia.
 
 <!--
 O shell do mapa vive em `src/template/layouts/webgis.html`; as abas de documentação comuns ficam em
-`src/template/pages/` e `src/template/partials/`. O tipo de página declara `maps.css` em `page.styles`, por
-isso o layout se mantém estrutural.
+`src/template/pages/` e `src/template/partials/`. O contrato do layout `webgis` declara `maps.css` em
+`LAYOUT_CONTRACTS`, por isso o arquivo de layout se mantém estrutural.
 
 `map-init.js` cria `MeteoMapManager` e `ChartsManager`. Ambos trabalham com a mesma configuração de site e
 com a instância compartilhada de `LabmimDataService`, que oferece cache, deduplicação e parsing em worker.
@@ -1154,7 +1155,7 @@ presentes em `site/JSON` e `site/GeoJSON`; a data visível pertence a esse snaps
 <div class="text-sm pt-1">
 
 - potencial fotovoltaico em W/m²
-- potencial eólico em W/m²
+- potencial eólico em m/s (velocidade do vento nas alturas de hub)
 - densidade eólica a 10 m em W/m²
 - mesmos domínios, timeline e ferramentas do mapa de previsão
 - escalas, paletas, unidades e textos próprios do contexto `energy`
@@ -1253,7 +1254,7 @@ frontend escolhe o gráfico e a explicação conforme o tipo de distribuição: 
 radiômetros e índice de claridade não precisam compartilhar o mesmo modelo estatístico.
 
 Na captura, temperatura do ar usa barras para frequência medida e linha gaussiana, com 75.622 observações no
-recorte anual. Os dados locais cobrem de 29-09-2016 a 15-08-2026. A seleção de WRF anual aparece somente onde
+recorte anual. Os dados locais cobrem de 29-09-2016 a 27-08-2026. A seleção de WRF anual aparece somente onde
 o produtor publicou a distribuição correspondente.
 
 [Sources]
@@ -1292,7 +1293,7 @@ A página combina três cadências. `labmim-allsky-frame-v1` descreve o quadro e
 `labmim-ktkd-v1` publica a densidade horária de índice de claridade contra fração difusa; e
 `labmim-kt-cumulative-v1` resume quanto tempo o registro passa em cada condição de céu.
 
-O snapshot local não possui o frame/máscara atuais, por isso a captura registra apenas a seção analítica,
+O snapshot local não possui o quadro/máscara atuais, por isso a captura registra apenas a seção analítica,
 que está completa. A densidade pode receber pontos e os três modelos empíricos; a acumulada marca os limites
 de Escobedo e oferece recortes sazonais. Essa separação evita que a ausência de uma imagem recente torne o
 acervo histórico indisponível.
@@ -1321,7 +1322,7 @@ acervo histórico indisponível.
 - **Páginas**  -  fonte, layout, style, vendor, SEO/nav
 - **Saída**  -  tokens, HTML, referências locais
 - **CSS/vendor**  -  Bootstrap purgado e ícones
-- **Bundles**  -  cada `dist/<id>` inclui só assets referenciados
+- **Bundles** (`build:all`)  -  cada `dist/<id>` inclui só assets referenciados
 
 </div>
 </div>
@@ -1341,8 +1342,10 @@ artefato revisável, incluindo o `.htaccess` de cada site.
 O wrapper de links também deriva do dataset os paths operacionais que o Linkinator deve ignorar; um site
 novo não exige acrescentar regex de `JSON/`/`GeoJSON/` manualmente.
 
-Ainda não há testes de navegador automatizados. Por isso inspeção manual continua necessária, sobretudo
-para dark mode, responsividade, mapa, troca de domínio, slider e modal de série.
+O único teste de navegador automatizado é `npm run check:reach` (`scripts/check-reachability.mjs`):
+Playwright/Chromium em 13 viewports, verificando se cada controle é clicável. Ele não roda no CI e cobre só
+alcançabilidade; por isso inspeção manual continua necessária, sobretudo para dark mode, responsividade,
+mapa, troca de domínio, slider e modal de série.
 
 Quando uma mudança mexe em CSS comum ou template, validar apenas o site que motivou a alteração é
 insuficiente. O contrato multi-publicação só é real se todas forem exercitadas.
@@ -1808,7 +1811,7 @@ O `sourceId` no site **tem** de ser esse `{VAR}`. Confira em `JSON/manifest.json
 
 **Base x overlay**
 
-`WIND_VECTORS` e `ISOBARS` são descobertos em `manifest.features`; não entram em `VARIABLES_CONFIG` nem geram série de célula.
+`ISOBARS` é descoberto em `manifest.features`; `WIND_VECTORS` ainda é um id fixo em `map-manager.js`. Nenhum dos dois entra em `VARIABLES_CONFIG` nem gera série de célula.
 
 `sourceId` errado -> 404 + cache negativo; a base fica muda sem erro visual explícito.
 
@@ -1832,9 +1835,9 @@ Isso é **decisão editorial**. Ícone novo exige regenerar o subset Font Awesom
 
 <!--
 Fecho da seção do pipeline. O contrato de id cola os campos sombreados entre os repos e o manifest é a fonte
-de verdade do nome final. Overlays possuem outro contrato: o descriptor informa o formato, o template e os
-campos sobre os quais podem aparecer. Uma incompatibilidade de id não estoura erro: o DataService trata 404
-com cache negativo e a variável simplesmente não aparece.
+de verdade do nome final. Overlays possuem outro contrato: o descriptor informa o formato, a variável que
+nomeia os arquivos por passo e os campos sobre os quais podem aparecer. Uma incompatibilidade de id não
+estoura erro: o DataService trata 404 com cache negativo e a variável simplesmente não aparece.
 
 Sugestão de exercício: adicionar um campo cru de teste pelo caminho rápido, rodar o export num wrfout,
 conferir o nome no manifest e só então declarar `sourceId`, escala, paleta e texto no site.
