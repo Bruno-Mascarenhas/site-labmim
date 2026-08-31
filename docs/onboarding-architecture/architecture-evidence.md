@@ -275,8 +275,9 @@ Confiança: **Confirmado**
 Observações:
 
 - Home e equipe exigem `siteSource()` por definição do catálogo.
-- Forecast e energy trazem `assets/css/maps.css` em `styles` e o CSS vendorizado do Leaflet em
-  `vendorStyles` pelo tipo de página.
+- Forecast e energy recebem `assets/css/maps.css` em `styles` e o CSS vendorizado do Leaflet em
+  `vendorStyles` pelo contrato do layout `webgis` (`LAYOUT_CONTRACTS` em `page-types.js`), que
+  `finalizePage()` mescla ao que a página declara.
 - `sky` existe no catálogo mas só é declarado por `src/sites/ufba/pages.js`; a UFES não oferece a rota.
 - Cada `pages.js` é a fonte da verdade editorial do respectivo site.
 - Navbar, rodapé e sitemap são derivados do mesmo array.
@@ -297,7 +298,8 @@ Regras:
 
 Exemplo real:
 `src/sites/ufba/pages.js` usa a fonte compartilhada de monitoramento e anexa
-`siteSource("fragments/funding.html")`; UFES usa apenas a fonte comum.
+`siteSource("fragments/funding.html")`. A UFES não declara a rota: sem estação e sem
+`observations.charts` próprios, ela reusaria os gráficos de Salvador.
 
 Confiança: **Confirmado**
 
@@ -409,8 +411,8 @@ Contrato:
 - o namespace gerado é limpo no início de cada build, evitando vazamento entre publicações;
 - o renderer injeta CSS vendorizado da página antes de `base.css` e `styles` depois de `components.css` e
   antes de `theme.css`;
-- `PAGE_TYPES.forecast` e `PAGE_TYPES.energy` declaram `assets/css/maps.css`.
-- esses mesmos tipos declaram `assets/vendor/leaflet/leaflet.css?v=1.9.4` em `vendorStyles`;
+- o contrato do layout `webgis` declara `assets/css/maps.css`, herdado por `forecast` e `energy`.
+- o mesmo contrato de layout declara `assets/vendor/leaflet/leaflet.css?v=1.9.4` em `vendorStyles`;
 - layouts não podem conter `<link rel="stylesheet">`; a ordem pertence ao head/manifesto.
 
 Arquivos:
@@ -450,7 +452,7 @@ Símbolos principais:
 - `validateDataset()`
 - `validatePages()`
 - `validateRedirects()`
-- `boundaryBounds()`
+- `inspectBoundaryGeoJson()`
 
 Categorias validadas:
 
@@ -651,7 +653,8 @@ não gera `.series.bin` ou `.summary.json`.
   569-580, e o BRL de Ridley, Boland e Lauret, 2010, Renewable Energy 35(2), 478-483), porque dependem
   de hora solar aparente, altitude solar, `Kt` diário e persistência; a faixa com menos amostras que
   `min_samples_per_bin` vem com `median` nula e não é desenhada nem atribuída à faixa vizinha;
-- cada modelo traz `rmse`, `mbe`, `mae` e `n` medidos no período, exibidos junto da legenda;
+- cada modelo traz `rmse`, `mbe`, `mae` e `n` medidos no período no payload; a linha junto da
+  legenda exibe RMSE e MBE;
 - ao lado do gráfico, o quadro bruto da câmera all-sky e a máscara de segmentação prevista sobre ele,
   cujo metadado vem de um segundo arquivo, `labmim-allsky-frame-v1`, com cadência própria.
 - um terceiro payload, `labmim-kt-cumulative-v1`, alimenta o painel de tempo acumulado em cada condição de
@@ -665,8 +668,8 @@ O diretório de dados é `dataset.paths.sky` (`site/Ceu/` na UFBA) e chega só c
 `?t=` derivado do horário da captura —, mais três JSON de cadências distintas:
 
 ```js
-ktkd.json   // labmim-ktkd-v1: station, period, timescale, sources, filters,
-            // axes, sky_conditions, density{kt_edges,kd_edges,counts,max_count,
+ktkd.json   // labmim-ktkd-v1: schema, version, station, period, timescale, sources,
+            // filters, sky_conditions, density{kt_edges,kd_edges,counts,max_count,
             // color_scale_hint}, models[], points[] (opcional), caveats[]
 frame.json  // labmim-allsky-frame-v1: captured_at, image, mask,
             // sky_condition{condition,id,name,name_pt}, cloud_fraction
@@ -767,7 +770,9 @@ Checks:
 Confiança: **Confirmado**
 
 Observação:
-Não há suíte de navegador automatizada. Light/dark, mobile e interações do WebGIS ainda exigem inspeção
+A única checagem automatizada de navegador é `npm run check:reach`, que dirige o Chromium em treze
+viewports (320 a 1920 px) e confere se cada controle das páginas construídas é alcançável; ela roda
+à mão antes do merge, não no CI. Light/dark e as interações do WebGIS continuam exigindo inspeção
 manual.
 
 ---
@@ -777,7 +782,7 @@ manual.
 Responsabilidade:
 Publicar a saída estática da publicação correta junto de seus dados operacionais.
 
-Evidências em `README.md`:
+Evidências em `Architecture.md`, seção “Deploy Em Produção”:
 
 - build individual em `site/` ou seleção de `dist/<id>/`;
 - deploy manual;
@@ -851,8 +856,10 @@ CLIs `labmim-*` confirmadas em `pyproject.toml` (12):
 
 Mudanças recentes confirmadas:
 
-- `labmim-wrf-series` mantém `series_operacional.dat`, anexando a janela horária de cada rodada e
-  preservando o header do próprio arquivo como schema;
+- `labmim-wrf-series` mantém um registro por estação, `{nome}_series_operacional.dat` (padrão
+  `labmim_series_operacional.dat`), anexando a janela horária de cada rodada e preservando o header
+  do próprio arquivo como schema; o `series_operacional.dat` sem prefixo é o registro v1, convertido
+  uma vez por `labmim-wrf-series migrate`;
 - `labmim-monitoring-v1` publica bruto de 5 minutos, média horária e WRF na mesma janela;
 - `labmim-kt-cumulative-v1` complementa `labmim-ktkd-v1` e `labmim-allsky-frame-v1` na página de céu;
 - o WebGIS possui 21 campos de base no consumidor (18 de previsão e 3 de energia) e overlays independentes;

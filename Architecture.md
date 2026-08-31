@@ -37,13 +37,15 @@ O diretório `src/sites/` é o registro. A descoberta ordena os diretórios que 
 | `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
 | `site/404.html`                    | Página de erro standalone (caminhos absolutos, `ErrorDocument 404`)   |
 
-A rota `monitoring.html` tem duas fontes possíveis, escolhidas por `source:` na declaração da página: a variante viva (`src/template/pages/monitoring-live.html` + `assets/js/monitoramento.js`), para publicações que declaram `dataset.paths.monitoring`, e a variante estática (`src/template/pages/monitoring.html`), que desenha os PNGs de `dataset.observations` e é a que o LEAL usa. O mesmo vale para `climatologia.html`, que só faz sentido com `dataset.paths.climatology` declarado. `ceu.html` tem fonte única e a mesma dependência: declará-la sem `dataset.paths.sky` falha o build (o diretório ainda ausente na árvore é só um aviso, o normal em CI), e hoje só o LabMiM a oferece, porque a câmera all-sky é dele.
+A rota `monitoring.html` tem duas fontes possíveis, escolhidas por `source:` na declaração da página: a variante viva (`src/template/pages/monitoring-live.html` + `assets/js/monitoramento.js`), para publicações que declaram `dataset.paths.monitoring`, e a variante estática (`src/template/pages/monitoring.html`), que desenha os PNGs de `dataset.observations` e é a fonte padrão do tipo `monitoring` em `page-types.js`. Hoje nenhuma publicação usa a estática: o LabMiM sobrescreve o `source:` pela variante viva e o LEAL não declara a página, porque não tem estação própria — os PNGs em `assets/graphs/` trazem a marca d'água do LabMiM. O catálogo de gráficos que preencheria `dataset.observations.charts` existe em `src/datasets/labmim-station-charts.js`, mas nenhum dataset o importa. O mesmo vale para `climatologia.html`, que só faz sentido com `dataset.paths.climatology` declarado. `ceu.html` tem fonte única e a mesma dependência: declará-la sem `dataset.paths.sky` falha o build (o diretório ainda ausente na árvore é só um aviso, o normal em CI), e hoje só o LabMiM a oferece, porque a câmera all-sky é dele.
 
 Todas são declaradas no array de `src/sites/<id>/pages.js` e geradas por `build.js`. A fonte de `404.html` fica em `src/template/static/404.html` e mantém caminhos absolutos `/assets/...` para resolver em qualquer profundidade.
 
-Todas as páginas usam **Bootstrap 5.3.8 vendorizado localmente**; as páginas geradas carregam o **CSS purgado** (`bootstrap.purged.min.css`, ~27 KB). Não há Bootstrap 4 nem jQuery no projeto. Leaflet e Chart.js também são carregados localmente (ver [Dependências Externas](#dependências-externas)).
+Todas as páginas usam **Bootstrap 5.3.8 vendorizado localmente**; as páginas geradas carregam o **CSS purgado** (`bootstrap.purged.min.css`, ~29 KB). Não há Bootstrap 4 nem jQuery no projeto. Leaflet e Chart.js também são carregados localmente (ver [Dependências Externas](#dependências-externas)).
 
 A navbar e o rodapé são derivados das entradas `nav` do manifesto da publicação, ordenadas por `nav.order`. A página pode existir sem aparecer na navegação omitindo `nav`. Editar a estrutura da navbar/rodapé/`<head>` significa editar `src/template/partials/`, não `site/*.html`.
+
+A lista concreta é consequência dessa regra, não uma regra à parte: na publicação da UFBA as entradas resolvem para Previsões, Potenciais Energéticos, Monitoramento, Céu, Climatologia e Equipe, nessa ordem — `nav.order` 10, 20, 30, 35, 40 e 50, declarados nos tipos correspondentes de `src/template/page-types.js`. A página inicial não declara `nav` e por isso não aparece na barra. Outra publicação monta outra barra a partir do próprio `pages.js`.
 
 ## Organização De Pastas
 
@@ -81,7 +83,7 @@ src/
 │   │   └── fragments/               # trechos exclusivos anexáveis
 │   └── ufes/                        # mesma interface
 ├── territories/                     # ba.js, es.js e futuros estados
-└── datasets/                        # labmim-wrf.js, leal-wrf.js e futuros produtos
+└── datasets/                        # labmim-wrf.js, leal-wrf.js, labmim-station-charts.js
 
 site/                                 # saída compatível; uma publicação por vez
 ├── .htaccess, robots.txt, sitemap.xml
@@ -99,6 +101,7 @@ site/                                 # saída compatível; uma publicação por
 │   │   ├── theme-toggle.js
 │   │   ├── ui-shell.js
 │   │   ├── references.js
+│   │   ├── chart-page.js
 │   │   ├── monitoramento.js
 │   │   ├── climatologia.js
 │   │   ├── ceu.js
@@ -111,8 +114,8 @@ site/                                 # saída compatível; uma publicação por
 │   │       ├── color-calc.worker.js
 │   │       └── json-parser.worker.js
 │   ├── vendor/                     # bibliotecas vendorizadas localmente
-│   │   ├── bootstrap/              # 5.3.8: bootstrap.purged.min.css (servido),
-│   │   │                           #   bootstrap.min.css (fonte do purge + 404), bundle js
+│   │   ├── bootstrap/              # 5.3.8: bootstrap.purged.min.css (servido, inclusive no 404),
+│   │   │                           #   bootstrap.min.css (só fonte do purge), bundle js
 │   │   ├── fontawesome/            # 6.4.0: all.min.css, subset-glyphs.json, webfonts/
 │   │   │                           #   (fa-solid-900.woff2 = subset; .full.woff2 = original)
 │   │   ├── leaflet/                # 1.9.4 (js, css, images/)
@@ -134,7 +137,7 @@ dist/<id>/                           # bundles de frontend gerados em lote
 
 Observações:
 
-- `assets/graphs/` contém PNGs usados em `monitoring.html`, regenerados pela estação **nos mesmos nomes de arquivo** (por isso o `.htaccess` os serve com `no-cache`).
+- `assets/graphs/` contém os PNGs da estação que a variante estática de `monitoring.html` desenharia — hoje nenhuma página gerada os referencia —, regenerados pela estação **nos mesmos nomes de arquivo** (por isso o `.htaccess` os serve com `no-cache`).
 - `assets/img/` contém logos e imagens institucionais (WebP + fallback PNG via `<picture>` para as versões redimensionadas).
 - `assets/vendor/` contém bibliotecas de terceiros servidas localmente, evitando dependência de CDN no caminho crítico.
 - `assets/data/br_ba.json` e `br_es.json` são os contornos referenciados pelos módulos de território atuais.
@@ -146,7 +149,7 @@ Observações:
 
 O fluxo de um build é:
 
-1. `publications.js` descobre todos os `src/sites/<id>/site.js` e seleciona `--site`, `SITE_ID` ou a publicação padrão.
+1. `publications.js` descobre todos os `src/sites/<id>/site.js` e seleciona `--site`, `SITE_ID` ou a publicação padrão; `--variant` e `SITE_VARIANT` continuam aceitos como aliases legados (`build.js`).
 2. `validate.js` acumula erros de identidade, páginas, fontes confinadas, redirects, tema, território, contorno GeoJSON, dataset e domínios antes de escrever a saída.
 3. `renderer.js` resolve cada fonte explicitamente no template ou na publicação, expande partials/tokens e rejeita qualquer `{{...}}` não resolvido.
 4. O renderer gera canonical, Open Graph, Twitter card, JSON-LD, `<meta name="site-config">`, `404.html`, `.htaccess`, `robots.txt` e `sitemap.xml` a partir do manifesto selecionado.
@@ -196,11 +199,12 @@ O build muda somente o frontend. Os diretórios configurados em `dataset.paths` 
 
 Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](#adicionar-página)); nenhum deles calcula ciência — o número desenhado é o que o exportador Python publicou. As únicas derivações nesses módulos são a faixa de Kt que colore cada ponto em `ceu.js` e as curvas de referência que ele pode sobrepor, traçadas a partir das equações dos artigos, nunca ajustadas aos dados da página.
 
-| Arquivo            | Responsabilidade                                                                                                      |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| `monitoramento.js` | Página de monitoramento viva: lê `labmim-monitoring-v1` de `dataset.paths.monitoring` e desenha bruto + horário + WRF |
-| `climatologia.js`  | Página de climatologia: lê `labmim-climatology-v1` de `dataset.paths.climatology`, distribuição medida + teórica      |
-| `ceu.js`           | Página de condição do céu: lê `labmim-ktkd-v1`, `labmim-kt-cumulative-v1` e `labmim-allsky-frame-v1` de `dataset.paths.sky` |
+| Arquivo            | Responsabilidade                                                                                                                                                                              |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chart-page.js`    | Utilitários compartilhados pelas três páginas de gráfico (`window.labmimChartPage`): formatação pt-BR, carimbos de hora da estação e exportação CSV; carregado antes do módulo de cada página |
+| `monitoramento.js` | Página de monitoramento viva: lê `labmim-monitoring-v1` de `dataset.paths.monitoring` e desenha bruto + horário + WRF                                                                         |
+| `climatologia.js`  | Página de climatologia: lê `labmim-climatology-v1` de `dataset.paths.climatology`, distribuição medida + teórica                                                                              |
+| `ceu.js`           | Página de condição do céu: lê `labmim-ktkd-v1`, `labmim-kt-cumulative-v1` e `labmim-allsky-frame-v1` de `dataset.paths.sky`                                                                   |
 
 ### Módulos Do WebGIS
 
@@ -218,7 +222,7 @@ Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](
 
 ### Ordem De Carregamento (páginas WebGIS)
 
-No `<head>`: `theme-boot.js` (síncrono, para reduzir flash), `theme-toggle.js` e `ui-shell.js` (`defer`); `leaflet.js` (vendorizado) com `defer`. Antes de `</body>`, todos com `defer` e nesta ordem: Bootstrap 5 (vendorizado), Chart.js (vendorizado), `variables-config.js`, `data-service.js`, `charts-manager.js`, `map-manager.js`, `map-init.js`. Todo CSS/JS próprio carrega com `?v=<hash de conteúdo>` estampado pelo build.
+No `<head>`: `theme-boot.js` (síncrono, para reduzir flash), `theme-toggle.js` e `ui-shell.js` (`defer`); `leaflet.js` (vendorizado) com `defer`. Antes de `</body>`, todos com `defer` e nesta ordem: Bootstrap 5 (vendorizado), `references.js`, Chart.js (vendorizado), `variables-config.js`, `data-service.js`, `charts-manager.js`, `map-manager.js`, `map-init.js`. Todo CSS/JS próprio carrega com `?v=<hash de conteúdo>` estampado pelo build.
 
 ## Dark Mode
 
@@ -263,13 +267,14 @@ O pipeline publica `JSON/manifest.json` (formato `labmim-data-manifest-v2`) junt
 | `availability`            | Mapa `variableId → [[início, fim], ...]` (inclusivo) → passos exibíveis/puláveis por variável                                                             |
 | `features.domain_summary` | Descritor `{format: "domain-summary-v1", template}` → habilita o resumo consolidado                                                                       |
 | `features.cell_series`    | Descritor `{format: "cell-series-int32-le-v1", template, dtype, byte_order, scale, missing, index_min, index_max}` → habilita a leitura binária de séries |
+| `features.isobar_overlay` | Descritor `{format: "isobars-v1", variable: "ISOBARS", draw_over[]}` → habilita a camada de isóbaras ao nível do mar sobre as variáveis de `draw_over`    |
 
 Ciclo de vida (`map-init.js`):
 
 - O manifest é buscado **no parse do script** com `fetch(..., {cache: "no-cache"})` e corrido contra um timeout de 3 s — um manifest lento nunca atrasa o primeiro paint. Se perder a corrida, é adotado tardiamente (sem limpar caches) enquanto `dataVersion` ainda for nula.
 - Re-checagem a cada 15 min (`MANIFEST_RECHECK_INTERVAL_MS`) e ao voltar o foco da aba (gap mínimo de 5 min), porque o pipeline regenera diariamente **nos mesmos nomes de arquivo**.
 - Em versão nova, `handleManifestUpdate()`: `dataService.clear()`, `chartsManager.clearCaches()` + fecha modal/sidebar, descarta `gridLayers` (com token `_gridGeneration` que impede um fetch de grade em voo da rodada velha de repopular o cache), reancora a linha do tempo, ajusta `state.index` se o passo atual deixou de existir e repinta.
-- **Degradação**: manifest v1 (sem `index_max`) reseta a linha do tempo para o padrão; sem manifest algum, o site usa `DEFAULT_MAX_LAYER = 73`, URLs sem `?v=` e a heurística solar legada — nada quebra, apenas perde as otimizações.
+- **Degradação**: manifest v1 (sem `index_max`) reseta a linha do tempo para o padrão; sem manifest algum, o site usa o `timeline.defaultMaxLayer` do dataset (75 no LabMiM, 73 no LEAL), URLs sem `?v=` e a heurística solar legada — nada quebra, apenas perde as otimizações.
 
 A versão da rodada participa de todas as chaves de staleness (`_loadKey`, `_windRequestKey`, chaves de cache do `ChartsManager`).
 
@@ -296,7 +301,7 @@ O primeiro carregamento espera a corrida do manifest e então `applyManifest` �
 
 `MeteoMapManager` mantém estado em `this.state`:
 
-- `type`, `domain`, `index`, `maxLayer`
+- `type`, `domain`, `index`, `accumHours`, `maxLayer`
 - `isPlaying`, `hasUserControlledPlayback`, `intervalId`
 - `isClippedToState`, `stateAbbr`
 - `initialDateTime`, `initialIndex`
@@ -336,17 +341,30 @@ Resultados de carga são descartados se a chave (`_loadKey` = versão:domínio:v
 
 1. Com manifest v2, índices fora de `[indexMin, indexMax]` são indisponíveis.
 2. Se `availability` traz faixas para o ID resolvido da variável, o índice precisa cair em alguma faixa (vale para qualquer variável, não só `SWDOWN`).
-3. Fallback legado: apenas `SWDOWN` é gatado à janela 6h–18h **derivada da âncora de data** (`calculateTargetDateFromIndex`) — não existe mais a heurística `(index-1)%24`; sem âncora, o índice é permitido de forma otimista.
+3. Fallback legado: só os IDs diurnos (`DAYLIGHT_ONLY_VARIABLE_IDS` = `SWDOWN`, `SWUP`, `SWNET`, `KT`, espelhando `DAYLIGHT_ONLY_VARIABLES` do pipeline) são gatados à janela 6h–18h **derivada da âncora de data** (`calculateTargetDateFromIndex`) — não existe mais a heurística `(index-1)%24`; sem âncora, o índice é permitido de forma otimista.
 
 `nextPlayableIndex()` avança pulando passos indisponíveis e dá a volta para `timeline.indexMin`. A animação (`startAnimation`, tick de 800 ms) usa esse mecanismo; durante o playback, um 404 inesperado dispara `_maybeFastSkipEmptyFrame` (pulo em 50 ms, com guarda de streak para o modo degradado sem manifest).
 
 ### Recorte Por Estado
 
-`loadStateGeoJson(stateCode)` busca `assets/data/br_{state}.json` (local, fetch direto). `_precomputeStateMask()` marca cada célula com um _point-in-polygon_ local (ray casting sobre Polygon/MultiPolygon) — o antigo Turf.js foi removido. O botão de recorte só aparece quando o contorno carrega; se falhar, o mapa renderiza sem recorte.
+`loadStateGeoJson()` busca o `boundaryAsset` declarado pelo território da publicação (`assets/data/br_ba.json` ou `br_es.json`, local, fetch direto), nunca um caminho montado a partir do código do estado — o estreitamento por alcançabilidade do `build:all` só varre HTML e CSS, e um caminho montado daria 404. `_precomputeStateMask()` marca cada célula com um _point-in-polygon_ local (ray casting sobre Polygon/MultiPolygon) — o antigo Turf.js foi removido. O botão de recorte só aparece quando o contorno carrega; se falhar, o mapa renderiza sem recorte.
 
 ## Contratos De Dados
 
 Salvo indicação em contrário, os arquivos abaixo são gerados pelo pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) e publicados em `site/JSON/` e `site/GeoJSON/` (gitignored). Com manifest presente, toda URL recebe `?v=<versão da rodada>`.
+
+### Produtor Dos Dados
+
+A CLI é `labmim-wrf-geojson` (entry point `micrometeorology.cli.export_wrf_geojson`; a escrita dos artefatos fica em `wrf/jobs.py` e `wrf/geojson.py`) e a entrada são as saídas `wrfout_d0X_*` do WRF. Invocação típica:
+
+```bash
+labmim-wrf-geojson --wrf-dir <dir com wrfout> --date YYYYMMDD -D 1,2,3,4 \
+  -o site/JSON -g site/GeoJSON --workers 14
+```
+
+O fuso do produto é fixado pela variável de ambiente `LABMIM_TIMEZONE` (default `America/Bahia`): dela saem o campo `timezone` do manifest, o `start_local` e os dígitos de `date_time` de cada arquivo de valores — o site exibe esses dígitos como recebidos, sem reconverter. `--no-site-artifacts` desliga a escrita dos artefatos consolidados (`series.bin`, `summary.json` e os campos de manifest que os anunciam), e o cliente volta à varredura hora-a-hora descrita adiante. O contrato de integração completo mora no repositório do pipeline, em `docs/micrometeorology.md`, seção "Front-end integration (site-labmim)".
+
+As subseções seguintes descrevem os formatos que essa invocação produz e que este repositório apenas consome.
 
 ### Grade Compacta (preferida)
 
@@ -388,7 +406,7 @@ JSON/{domain}_{variableId}_{index:03d}.json
 JSON/{domain}_WIND_VECTORS_{index:03d}.json
 ```
 
-Campos: `downsampled_angles`, `downsampled_magnitudes`, `downsampled_linear_indices` (amostragem com stride sobre a grade). Buscado apenas para a variável `wind` (10 m) — `eolico` usa os vetores embutidos nos próprios valores. As setas são posicionadas resolvendo cada `linear_index` via `_layersByLinearIndex` (não por posição no array). `WIND_VECTORS` é a única "variável" por passo sem `series.bin`/`summary.json`.
+Campos: `downsampled_angles`, `downsampled_magnitudes`, `downsampled_linear_indices` (amostragem com stride sobre a grade). Buscado apenas para a variável `wind` (10 m) — `eolico` usa os vetores embutidos nos próprios valores. As setas são posicionadas resolvendo cada `linear_index` via `_layersByLinearIndex` (não por posição no array). `WIND_VECTORS` e `ISOBARS` são as "variáveis" por passo sem `series.bin`/`summary.json`: nenhuma das duas é um campo escalar por célula que renda série ou resumo.
 
 ### Série Binária Por Célula
 
@@ -429,12 +447,12 @@ Este é o contrato que **não** vem do pipeline WRF. São documentos separados p
 `ktkd.json` traz, além de `station`, `period`, `timescale`, `sources` e `filters`:
 
 - `density` — o histograma bidimensional: `kt_edges` e `kd_edges` (arestas, `n+1` valores) e `counts`, **linhas = faixas de Kd, colunas = faixas de Kt**, de modo que `counts[i][j]` cobre `kd_edges[i]..kd_edges[i+1]` por `kt_edges[j]..kt_edges[j+1]`. `max_count` evita varrer a matriz para escalar a cor, e `color_scale_hint` (`"log"` ou `"linear"`) diz qual escala o exportador pretende — a página assume log na falta dele. O renderizador recusa uma matriz cuja altura não case com `kd_edges`: transposta, ela ainda desenharia, espelhando a figura na diagonal em silêncio.
-- `models[]` — cada um com `id`, `kind`, `rmse`, `mbe`, `mae` e `n` medidos contra o Kd observado nesse mesmo período, mais `label` (nome curto, o que a página escreve no botão e ao lado das métricas) e `reference` (citação completa, para a bibliografia). O nome curto é **escolha do produtor**: sem `label` a página cai no `id` com underscores virando espaço, e nunca deriva nome da citação — cortar `reference` para achar um rótulo transformaria edição de bibliografia em gráfico relabelado, falha silenciosa e distante da causa. `kind: "curve"` traz `kt`/`kd` e vira linha; `kind: "band"` traz `kt`, `median`, `p10`, `p90`, `n_per_bin` e `min_samples_per_bin`, e vira envelope sombreado com a mediana por cima. **Nunca desenhe uma banda como linha única**: ela afirmaria um determinismo que o modelo não tem. `median`/`p10`/`p90` são `null` onde a faixa tem menos amostras que `min_samples_per_bin`; **decida por `median === null`, nunca por `n_per_bin === 0`**, porque `n_per_bin` conta as amostras da faixa tenha ela sido resumida ou não — uma faixa suprimida quase sempre tem contagem diferente de zero. Isso não é advertência abstrata: no registro publicado — 25.779 horas, `min_samples_per_bin = 30` — **7 das 9 faixas suprimidas têm `n_per_bin` diferente de zero**, nos dois modelos de banda. Quem decidisse pela contagem desenharia sete faixas que deveriam estar vazias. Faixas suprimidas não são interpoladas nem atribuídas à faixa cheia vizinha: o tooltip diz quantas horas havia ali e quantas o resumo exigia.
-- `sky_conditions` — `kt_upper_bounds`, a citação e as quatro classes com `condition` (1–4), `id` (`i`..`iv`), `name`, `name_pt` e `kt_range`. A página lê os limites daqui; a cópia embutida em `ceu.js` é só o retorno seguro quando o bloco falta.
-- `points[]` — opcional, uma entrada por hora. É a camada de sobreposição, desligada por padrão, e o que sustenta a coloração por condição de céu, o tooltip por observação e a exportação CSV. Sem ela a página desenha só a densidade e o tooltip passa a descrever a célula sob o cursor. Aceita `{t, kt, kd}` ou, preferido, **linha posicional** — sobre dezenas de milhares de horas as três chaves repetidas são a maior parte do arquivo, e o host serve JSON sem compressão (25.779 horas: 939 KB posicional contra ~2 MB com dicionários). A ordem da linha vem declarada em `points_format` (`["kt","kd","t"]` no que se publica hoje) e é **lida de lá**, não presumida: `kt` e `kd` trocados espelhariam a figura na diagonal e ainda pareceriam uma dispersão plausível — o mesmo modo de falha que o teste de altura da densidade existe para pegar. Sem `points_format` vale a ordem histórica `[kt, kd, t]`; uma declaração que não nomeie as duas coordenadas faz a camada **não ser desenhada**, porque cair em posições não declaradas seria adivinhar.
+- `models[]` — cada um com `id`, `kind`, `rmse`, `mbe`, `mae` e `n` medidos contra o Kd observado nesse mesmo período, mais `label` (nome curto, o que a página escreve no botão e ao lado das métricas) e `reference` (citação completa, para a bibliografia). O nome curto é **escolha do produtor**: sem `label` a página cai no `id` com underscores virando espaço, e nunca deriva nome da citação — cortar `reference` para achar um rótulo transformaria edição de bibliografia em gráfico relabelado, falha silenciosa e distante da causa. `kind: "curve"` traz `kt`/`kd` e vira linha; `kind: "band"` traz `kt`, `median`, `p10`, `p90`, `n_per_bin` e `min_samples_per_bin`, e vira envelope sombreado com a mediana por cima. **Nunca desenhe uma banda como linha única**: ela afirmaria um determinismo que o modelo não tem. `median`/`p10`/`p90` são `null` onde a faixa tem menos amostras que `min_samples_per_bin`; **decida por `median === null`, nunca por `n_per_bin === 0`**, porque `n_per_bin` conta as amostras da faixa tenha ela sido resumida ou não — uma faixa suprimida quase sempre tem contagem diferente de zero. Isso não é advertência abstrata: no registro publicado — 23.795 horas, `min_samples_per_bin = 30` — **7 das 9 faixas suprimidas têm `n_per_bin` diferente de zero**, nos dois modelos de banda. Quem decidisse pela contagem desenharia sete faixas que deveriam estar vazias. Faixas suprimidas não são interpoladas nem atribuídas à faixa cheia vizinha: o tooltip diz quantas horas havia ali e quantas o resumo exigia.
+- `sky_conditions` — `kt_upper_bounds`, a citação e as quatro classes com `condition` (1–4), `id` (`i`..`iv`), `name`, `name_pt` e `kt_range`. A página deveria ler os limites daqui, mas `resolveClasses()` procura `sky_conditions.classes` enquanto o produtor publica `sky_conditions.conditions`, então hoje a dispersão sempre usa a cópia embutida em `ceu.js`. A acumulada, no mesmo arquivo, lê `conditions` corretamente — as duas metades da página discordam sobre a mesma chave.
+- `points[]` — opcional, uma entrada por hora. É a camada de sobreposição, desligada por padrão, e o que sustenta a coloração por condição de céu, o tooltip por observação e a exportação CSV. Sem ela a página desenha só a densidade e o tooltip passa a descrever a célula sob o cursor. Aceita `{t, kt, kd}` ou, preferido, **linha posicional** — sobre dezenas de milhares de horas as três chaves repetidas são a maior parte do arquivo, e o host serve JSON sem compressão (23.795 horas: 848 KB posicional contra ~2 MB com dicionários). A ordem da linha vem declarada em `points_format` (`["kt","kd","t"]` no que se publica hoje) e é **lida de lá**, não presumida: `kt` e `kd` trocados espelhariam a figura na diagonal e ainda pareceriam uma dispersão plausível — o mesmo modo de falha que o teste de altura da densidade existe para pegar. Sem `points_format` vale a ordem histórica `[kt, kd, t]`; uma declaração que não nomeie as duas coordenadas faz a camada **não ser desenhada**, porque cair em posições não declaradas seria adivinhar.
 - `caveats[]` — renderizados sob o gráfico como estão.
 
-`kt_cumulative.json` é a distribuição acumulada de Kt, e responde o que a dispersão não responde: não como Kd se comporta num dado Kt, mas **quanto do registro está em cada condição de céu**. Traz `edges` (as mesmas do histograma de Kt da climatologia) e `subsets`, um objeto cujas chaves são os recortes. Como aqui não há manifesto de onde tirar rótulo, **cada subset carrega o seu `label`**; a ordem de inserção é a ordem dos chips, o primeiro é o padrão, e com um recorte só o seletor não aparece. Cada subset traz `n`, `counts`, `cumulative`, `below`, `above`, `stats` e `sky_conditions` — este último com `kt_upper_bounds`, a citação, e as quatro classes com `condition`, `id`, `name_pt`, `kt_range`, `count` e `fraction` **já calculada**: a página não deriva fração de uma F interpolada, que seria um segundo caminho numérico livre para discordar do exportador.
+`kt_cumulative.json` é a distribuição acumulada de Kt, e responde o que a dispersão não responde: não como Kd se comporta num dado Kt, mas **quanto do registro está em cada condição de céu**. Traz `edges` (as mesmas do histograma de Kt da climatologia) e `subsets`, um objeto cujas chaves são os recortes. Como aqui não há manifesto de onde tirar rótulo, **cada subset carrega o seu `label`**; a ordem de inserção é a ordem dos chips, o primeiro é o padrão, e com um recorte só o seletor não aparece. Cada subset traz `n`, `counts`, `cumulative`, `below`, `above` e `sky_conditions` — este último com `kt_upper_bounds`, a citação, e as quatro classes com `condition`, `id`, `name_pt`, `kt_range`, `count` e `fraction` **já calculada**: a página não deriva fração de uma F interpolada, que seria um segundo caminho numérico livre para discordar do exportador.
 
 `cumulative[i]` é F na aresta **superior** do bin `i` — cinquenta valores para cinquenta e uma arestas. É desenhada como **função escada** sobre eixo x linear, constante entre arestas, com âncora em `(edges[0], 0)`. Um eixo de centros de bin deslocaria a curva meio bin dos números a que ela se refere, e uma linha suavizada afirmaria valores intermediários que uma escada não tem. **A página não assume se `below`/`above` entram no denominador**: desenha o publicado, limita o eixo em 1 e nomeia as horas fora das bordas ao lado. Com o produtor atual elas entram, então F para pouco antes de 1 quando há massa fora — o que é informação, não defeito.
 
@@ -444,7 +462,7 @@ Atenção a um `n` que não bate de propósito: a acumulada é gateada só no ca
 
 Os dois quadros mantêm nomes **fixos** e são reescritos no lugar, como os PNGs de `assets/graphs/`. A página anexa `?t=` derivado de `frame.captured_at` (na falta dele, um balde de 5 min), que é o que vence a regra de cache aplicada a imagens no `.htaccess` — e `captured_at` é lido do carimbo que a câmera grava no quadro, não do `Last-Modified` do host, que é balanceado e já reportou hora local rotulada como GMT.
 
-Os dois JSON são buscados direto com `cache: "no-cache"`, fora do `LabmimDataService` (que atende ao WebGIS). Sem nenhum dos dois **e** com os dois quadros ausentes — o estado de um checkout de desenvolvimento e do CI — a página avisa que os dados chegam pelo deploy, em vez de exibir gráfico vazio.
+Os três JSON são buscados direto com `cache: "no-cache"`, fora do `LabmimDataService` (que atende ao WebGIS). Sem `ktkd.json`, sem `frame.json` **e** com os dois quadros ausentes — o estado de um checkout de desenvolvimento e do CI — a página avisa que os dados chegam pelo deploy, em vez de exibir gráfico vazio; a acumulada pode faltar sozinha, e nesse caso só o painel dela some.
 
 Sobre o conteúdo: `kt` é o índice de claridade (global medida na horizontal sobre a irradiação no topo da atmosfera) e `kd` é a **fração difusa** `Hd/H` — difusa sobre global, não sobre a extraterrestre. As quatro condições de céu, por faixas de Kt [Escobedo et al., 2009; nomenclatura de Teramoto e Escobedo, 2012]: I nebuloso (Kt ≤ 0,35); II parcialmente nebuloso com dominância para o difuso (0,35 < Kt ≤ 0,55); III parcialmente nebuloso com dominância para o claro (0,55 < Kt ≤ 0,65); IV claro (Kt > 0,65). Os três modelos são ajustados a médias **horárias**, e só o de Marques Filho et al. (2016) é função de `Kt` sozinho; Lemos et al. (2017) e o BRL de Ridley, Boland e Lauret (2010) dependem também da hora solar aparente, da altitude solar, do Kt diário e da persistência, o que é exatamente a razão de chegarem resumidos em banda.
 
@@ -478,7 +496,9 @@ As variáveis ficam em `VARIABLES_CONFIG` (21 chaves):
 
 As sete entre `shortwaveUp` e `clearnessIndex` são derivadas do balanço de radiação à superfície e chegam prontas do pipeline, como as demais. `clearnessIndex` é a única que produz ausência em volume: o quociente é indefinido abaixo do corte de elevação solar, então os passos de crepúsculo vêm com `null` em parte das células — e, em rodadas geradas antes do portão que os suprime, com `null` em **todas**. Um passo inteiramente vazio é estado possível, não anomalia: a página desenha o mapa sem células e não deve tratá-lo como falha de carregamento.
 
-Cada entrada define ao menos `id`, `label`, `unit`, `colors`, `scaleMin`/`scaleMax` e `specificInfo(value, allValues)`. Campos opcionais: `relatedVariables` (variáveis auxiliares buscadas para a sidebar), `chartCompanions` (séries companheiras carregadas para os gráficos — ex.: temperatura para `solar`/`eolico`), `id_100m`/`id_150m` (eólico), `optionLabel`, `icon`/`faIcon`, `sourceId`, `summary`, e `scaleTicks`/`scaleTickCount` (ticks explícitos da colorbar). A ordem de resolução da escala em `getScaleValues()` é: `scaleTicks` → rampa linear de `scaleMin`/`scaleMax` (`scaleTickCount`, padrão 10) → `metadata.scale_values` do arquivo. (Os antigos `useDynamicScale`/`normalValue` não existem mais.)
+A ordem da tabela acima é editorial e não é a que o usuário vê. `VARIABLE_CONTEXTS.forecast` declara as variáveis de Previsões na ordem do balanço de energia, não por nome — `temperature`, `skinTemperature`, `rain`, `humidity`, `relativeHumidity`, `pressure`, `wind`, `globalRadiation`, `shortwaveUp`, `netShortwave`, `longwave`, `longwaveUp`, `netLongwave`, `netRadiation`, `hfx`, `lh`, `skyEmissivity` e `clearnessIndex` —, e `VARIABLE_CONTEXTS.energy` declara as três de Potenciais Energéticos: `solar`, `eolico` e `windPowerDensity`. É essa ordem que `configureVariableSelect()` reproduz ao montar o `<select>` em runtime. Reordenar a tabela deste documento não muda nada; mexer nos arrays de `variables-config.js` muda a interface.
+
+Cada entrada define ao menos `id`, `label`, `unit`, `colors` e `specificInfo(value, allValues)`. `scaleMin`/`scaleMax` são o caso normal, mas não obrigatórios: `pressure` os omite de propósito (o campo é PSFC, sobre o terreno) e cai no `metadata.scale_values` do arquivo. Campos opcionais: `relatedVariables` (variáveis auxiliares buscadas para a sidebar), `chartCompanions` (séries companheiras carregadas para os gráficos — ex.: temperatura para `solar`/`eolico`), `id_100m`/`id_150m` (eólico), `optionLabel`, `icon`/`faIcon`, `sourceId` e `summary`. A ordem de resolução da escala em `getScaleValues()` (em `map-manager.js`, não em `variables-config.js`) é: rampa linear de `scaleMin`/`scaleMax` com `SCALE_TICK_COUNT` (10, constante do módulo) → `metadata.scale_values` do arquivo. (Os antigos `useDynamicScale`/`normalValue`, e também `scaleTicks`/`scaleTickCount`, não existem mais.)
 
 Parâmetros dos modelos de energia do frontend (editáveis na sidebar, persistidos em `localStorage` `meteoMapCustomParameters`): solar — `panelEfficiency` 18%, `inversorEfficiency` 95%, `noct` 45 °C, `ptc` −0,38%/°C; eólico — `airDensity` 1,225 kg/m³, `rotorDiameter` 40 m, `Cp` 0,4. `specificInfo()` emite itens estruturados com `energyValue`, consumidos pelo gráfico de energia e pelo CSV (nunca por parsing de texto formatado).
 
@@ -498,7 +518,7 @@ Fluxo:
 
 Não existe botão de loop separado; o comportamento de loop é integrado à animação. O slider também dispara um apply debounced (100 ms) e, quando pausado, re-seleciona a célula clicada.
 
-## Wind Layer Toggle
+## Toggle Da Camada De Vento
 
 `windLayerToggle` é controlado por `updateWindLayerToggleVisibility(variableType)`:
 
@@ -549,7 +569,7 @@ Para `solar` e `eolico`, o modal também exibe uma série derivada de energia (c
 - **Charset/erros/redirects**: `AddDefaultCharset UTF-8`; `ErrorDocument 404 /404.html`; somente os redirects declarados em `src/sites/<id>/identity.js` para a publicação selecionada são emitidos.
 - **MIME**: `application/json` para `.json` e `application/geo+json` para `.geojson`.
 - **Compressão**: `mod_deflate` (dentro de `mod_filter`) para HTML, CSS, JS, JSON, GeoJSON e SVG, com bloco paralelo `mod_brotli` para clientes que suportam.
-- **Segurança**: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` (geolocation/camera/microphone desligados) e **CSP** com `script-src 'self'` (sem scripts inline; JSON-LD permitido por não ser executável), `style-src 'self' 'unsafe-inline'` (atributos style do Leaflet), `img-src` liberando tiles OSM e `data:`, `frame-src https://www.google.com` (mapa da equipe) e `upgrade-insecure-requests`.
+- **Segurança**: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` (geolocation/camera/microphone desligados) e **CSP** com `script-src 'self'` (sem scripts inline; JSON-LD em `<script type="application/ld+json">` é permitido por não ser executável), `style-src 'self' 'unsafe-inline'` (atributos style do Leaflet), `img-src` liberando tiles OSM e `data:`, `frame-src https://www.google.com` (mapa da equipe) e `upgrade-insecure-requests`.
 - **Cache-Control** (cascata; blocos `<If>` aplicam por último e vencem os `FilesMatch`):
   - `.json`/`.geojson`/`.bin` **sem** `?v=` → `no-cache` (nomes reutilizados a cada rodada; revalidação 304 barata).
   - `.json`/`.geojson`/`.bin` **com** `?v=` → `public, max-age=86400` (24 h, não 1 ano: teto de estrago para um manifest órfão após rollback do pipeline).
@@ -560,6 +580,16 @@ Para `solar` e `eolico`, o modal também exibe uma série derivada de energia (c
   - imagens e fontes → 7 dias; `assets/graphs/` → `no-cache` (estação regenera nos mesmos nomes).
 
 Nota: `.series.bin` fica deliberadamente **fora** das listas de compressão: o `mod_deflate` não comprime respostas 206, e comprimir o corpo inteiro anularia as leituras parciais (Range, ~300 B) que o site faz nesses arquivos. As leituras Range de produção dependem do suporte nativo do Apache (206).
+
+## Deploy Em Produção
+
+O deploy é manual e desacoplado: código e dados sobem separadamente. O que se publica é a saída de `npm run build -- --site=<id>` em `site/` ou o bundle correspondente em `dist/<id>/`. Regras aprendidas em produção:
+
+- **Publique o site completo junto do `.htaccess`.** Nunca suba o `.htaccess` sozinho sobre uma versão antiga do site: a CSP `script-src 'self'` quebra qualquer página que ainda carregue CDN ou script inline.
+- **Ordem segura para mudança de formato de dados**: publicar o site novo, conferir em produção e só então atualizar o pipeline no servidor de operação e regenerar os dados. Site novo com dados velhos funciona, porque o cliente tem fallback para todos os contratos; o inverso não é garantido.
+- **Rollback do pipeline**: ao voltar para uma versão que não escreve `manifest.json`, delete o manifest órfão do servidor junto — ele congela o `?v=` enquanto os bytes mudam por baixo, e o teto de 24 h do `.htaccess` limita o estrago sem evitá-lo. Pelo mesmo motivo, `series.bin` e `summary.json` vão e voltam junto com o manifest que os anuncia.
+- **O host roda `mod_pagespeed` e reescreve o HTML servido.** Hoje (`Server: Apache/2.4.6 (CloudLinux)`, `X-Mod-Pagespeed: 1.13.35.2-0`) toda resposta HTML volta com dois `<script>` **inline** injetados pelo módulo — `window.mod_pagespeed_start` e o beacon com `data-pagespeed-no-defer` — que não existem em arquivo nenhum deste repositório. Como a CSP publicada é `script-src 'self'`, sem `'unsafe-inline'` e sem nonce, assim que o `.htaccess` entrar o navegador bloqueia os dois blocos e registra a violação em toda página. O estrago hoje é cosmético (é telemetria do módulo), mas os filtros do PageSpeed que embutem ou combinam JS transformariam os nossos próprios scripts em inline — e aí a página para de funcionar. Antes de confiar na CSP em produção, desligue a reescrita dentro de `<IfModule pagespeed_module>`, para não arriscar 500 num host sem o módulo (`src/template/static/htaccess.template` ainda não traz esse bloco), e confirme com `curl -ks https://labmim.if.ufba.br/ | grep -c mod_pagespeed_start` — o esperado é `0`.
+- **Confira se o `.htaccess` realmente entrou**: `curl -ksI https://labmim.if.ufba.br/ | grep -i content-security-policy`. O `-k` é necessário enquanto a cadeia TLS do host estiver quebrada — sem ele o `curl` sai com 60 e não imprime nada. Não use a compressão como sinal: o `mod_deflate` do host comprime por conta própria, então `Content-Encoding: gzip` aparece mesmo com o `.htaccess` ausente. A CSP, ao contrário, só existe se o arquivo estiver ativo.
 
 ## Dependências Externas
 
@@ -578,14 +608,14 @@ Origens externas (fora do caminho crítico de CSS/JS):
 
 > O Bootstrap foi **unificado em uma única versão vendorizada (5.3.8)**; Bootstrap 4, jQuery e Popper foram **removidos**. O Turf.js também foi removido (máscara de recorte por _point-in-polygon_ local).
 
-Dev tooling (em `package.json`, ver também `.nvmrc` = Node 24 LTS):
+Ferramentas de desenvolvimento (em `package.json`, ver também `.nvmrc` = Node 24 LTS):
 
 - ESLint 10 (flat config em `eslint.config.mjs`, com globals do projeto).
 - Stylelint 17 (+ `stylelint-config-standard` 40).
 - Prettier 3.9 (também roda dentro de `npm run build`; os templates HTML em `src/` ficam fora por conterem tokens `{{...}}`).
-- html-validate 10 (`lint:html`, config em `.htmlvalidate.json`) e linkinator (`lint:links`, só links internos).
+- html-validate 11 (`lint:html`, config em `.htmlvalidate.json`) e linkinator (`lint:links`, só links internos).
 - Guards de arquitetura/assets: `scripts/check-site-themes.mjs` (`lint:themes`), `scripts/check-fa-subset.mjs` (`lint:icons`) e `scripts/check-bootstrap-purge.mjs` (`lint:purge`); PurgeCSS (devDependency) regenera o CSS purgado com `scripts/purgecss.config.cjs`.
-- CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:themes`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm audit --audit-level=high`. Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, semanal, PRs agrupados).
+- CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:themes`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm audit --audit-level=high`. Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, mensal, PRs agrupados num único grupo multi-ecossistema).
 
 `make ci` roda os mesmos checks do CI do GitHub (`make lint` inclui `lint:themes`, `lint:icons` e `lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`.
 
@@ -604,7 +634,7 @@ Rodada 2026-06 (overhaul estático):
 
 Rodada 2026-07-09/10 (dieta de assets — `perf/site-assets-and-map-runtime`):
 
-- Bootstrap purgado (~27 KB) com guard de cobertura; subset do Font Awesome (~6 KB) com guard e guia de regeneração; imagens WebP com `<picture>`.
+- Bootstrap purgado (~29 KB) com guard de cobertura; subset do Font Awesome (~6 KB) com guard e guia de regeneração; imagens WebP com `<picture>`.
 - Grade compacta `grid.json` preferida sobre o `.geojson`; manifest de versão de dados; prefetch de playback; cache LRU com TTLs de falha separados.
 
 Rodada 2026-07-18/19 (linha do tempo por manifest — `feat/manifest-timeline-ingest`):
@@ -614,7 +644,7 @@ Rodada 2026-07-18/19 (linha do tempo por manifest — `feat/manifest-timeline-in
 - Ingestão dos artefatos consolidados: `series.bin` (série de célula via HTTP Range) e `summary.json` (resumo de domínio), com fallback para a varredura legada.
 - Cache busting por hash de conteúdo nos assets próprios e nos workers (meta `labmim-asset-hashes`), com regras `immutable` correspondentes no `.htaccess`.
 - Acessibilidade: padrão ARIA de abas completo na documentação do WebGIS (roles, roving tabindex, setas/Home/End), focus trap + devolução de foco no modal de séries, `<span>` no título do seletor de altura (era um `<label>` órfão).
-- Hover da grade delegado ao grupo Leaflet (`e.propagatedFrom`) em vez de 2 closures por célula; tiles OSM movidos para `tile.openstreetmap.org` (host canônico); regras de cache do `.htaccess` estendidas aos `.series.bin`; ano do rodapé gerado no build (`{{YEAR}}`, derivado da data do último commit).
+- Hover da grade delegado ao grupo Leaflet (`e.propagatedFrom`) em vez de 2 closures por célula; tiles OSM movidos para `tile.openstreetmap.org` (host canônico); regras de cache do `.htaccess` estendidas aos `.series.bin`; ano do rodapé gerado no build (`{{YEAR}}`, resolvido do conteúdo do repositório: `BUILD_YEAR` → ano do © já gravado em `site/index.html` → data do último commit, nessa ordem, para que uma reconstrução não divirja da saída commitada).
 - Varredura de código morto (2026-07-19): stub de redirect, diretórios reservados, logos originais órfãos, ~500 linhas de CSS/JS/HTML sem referência e campos de config não lidos removidos; toggles de tema unificados nos atributos `[data-theme-toggle]`; fallback manual de versão dos workers eliminado (URL sem `?v=` quando não há build).
 
 Rodada 2026-07-22 (publicações modulares):
@@ -656,11 +686,12 @@ Não adicione condicionais `if (id === ...)` ao renderer, template ou runtime pa
 1. Garantir que o pipeline exporte `JSON/{domain}_{variableId}_{index}.json` (e idealmente `series.bin`/`summary.json` + entrada em `availability` quando parcial).
 2. Adicionar entrada em `VARIABLES_CONFIG` e associá-la ao contexto correto em `VARIABLE_CONTEXTS` — o `<select>` é montado em runtime, não há lista no HTML para sincronizar.
 3. Definir palheta, unidade, `scaleMin`/`scaleMax` e `specificInfo()` (use `Number.isFinite` para quantidades que podem valer 0); avaliar `relatedVariables`/`chartCompanions`.
-4. Validar sidebar, colorbar, séries temporais e dark mode.
+4. Acrescentar o card da variável na aba **Variáveis** da documentação do WebGIS — `src/template/pages/mapas_interativos.html` ou `src/template/pages/potenciais_energeticos.html`, conforme o contexto. Cada variável tem ali um `<details>` com unidade, id do JSON, fonte no WRF, fórmula e limitações; sem ele a variável entra no mapa sem documentação física.
+5. Validar sidebar, colorbar, séries temporais e dark mode.
 
 ### Alterar Palheta
 
-Atualize `colors` da variável em `variables-config.js`. Para escalas comparáveis entre horários, use `scaleMin`/`scaleMax` (ou `scaleTicks` explícitos); `metadata.scale_values` fica como último fallback.
+Atualize `colors` da variável em `variables-config.js`. Para escalas comparáveis entre horários, use `scaleMin`/`scaleMax`; `metadata.scale_values` fica como último fallback.
 
 ### Alterar Layout Institucional
 
@@ -668,21 +699,22 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 
 ### Evoluir O WebGIS
 
-`map-manager.js` (~2.400 linhas) ainda concentra estado, manifest/linha do tempo, eventos, cache de grade, renderização e sidebar. As extrações de `data-service.js` e dos consumidores de artefatos consolidados em `charts-manager.js` foram os primeiros passos; os próximos candidatos naturais são separar a renderização da grade/vento e o controle de UI/sidebar em módulos próprios. Faça isso com testes manuais cuidadosos.
+`map-manager.js` (~2.900 linhas) ainda concentra estado, manifest/linha do tempo, eventos, cache de grade, renderização, isóbaras e sidebar. As extrações de `data-service.js` e dos consumidores de artefatos consolidados em `charts-manager.js` foram os primeiros passos; os próximos candidatos naturais são separar a renderização da grade/vento e o controle de UI/sidebar em módulos próprios. Faça isso com testes manuais cuidadosos.
 
 ## Cuidados Para Evitar Regressões
 
 - Preserve os IDs usados pelo JS nas páginas WebGIS: `map`, `layerSlider`, `playPauseBtn`, `variableSelect`, `windLayerToggle`, `windLayerCheckbox`, `windVectorCanvas`, `sidebar`, `sidebarContent`, `timeSeriesModal`, `chartCanvasValue`, `chartCanvasEnergy`, `variableOverviewPanel`.
 - Não altere nomes de chaves em `VARIABLES_CONFIG` sem revisar dados, gráficos e sidebar.
 - Não renomeie IDs técnicos de domínio sem coordenar o pipeline; eles fazem parte do contrato dos arquivos. Altere apenas os labels públicos quando a grade subjacente for a mesma.
-- Não mude os formatos anunciados no manifest (`labmim-data-manifest-v2`, `grid-edges-v1`, `grid-bounds-v1`, `domain-summary-v1`, `cell-series-int32-le-v1`) sem versionar um formato novo **e** manter o fallback — site e dados são publicados de forma desacoplada.
+- Não mude os formatos anunciados no manifest (`labmim-data-manifest-v2`, `grid-edges-v1`, `grid-bounds-v1`, `domain-summary-v1`, `cell-series-int32-le-v1`, `isobars-v1`) sem versionar um formato novo **e** manter o fallback — site e dados são publicados de forma desacoplada.
 - `start_local` ancora o **índice 0** dos arquivos, nunca `index_min` — não "corrija" isso ao mexer em `applyManifest`.
 - A variável `humidity` deve aparecer como Vapor d'Água / razão de mistura em `g/kg`; `relativeHumidity` é a umidade relativa em `%`.
 - Não remova `theme-boot.js` do `<head>`.
+- Preserve os nomes globais que os módulos publicam: `window.MeteoMapManager` (`map-manager.js`), `window.ChartsManager` (`charts-manager.js`) e `window.LabmimDataService` (`data-service.js`). Não há bundler nem `import` no runtime do navegador — é por esses nomes que `map-init.js` instancia o mapa e os gráficos e que `MeteoMapManager` cria o serviço de dados —, então renomeá-los quebra a inicialização do WebGIS.
 - Use `LabmimDataService` para buscar JSON; não introduza `fetch` direto que ignore cache/dedup/cache negativo (exceções conscientes existentes: manifest com `cache: "no-cache"`, leitura Range do `series.bin` e o contorno estático da publicação).
 - Ao atualizar uma biblioteca vendorizada, substitua o arquivo e atualize o token `?v=` manual no layout/partial de `src/template/`; CSS/JS próprios, `bootstrap.purged.min.css` e workers são hasheados automaticamente pelo build.
 - Ao mexer em `maps.css`, valide light e dark mode.
-- Ao mexer em `map-manager.js`, valide play/pause (incl. autoplay e pulos por disponibilidade), troca de domínio, troca de variável, troca de rodada (regenerar o manifest local), clique em célula e wind layer.
+- Ao mexer em `map-manager.js`, valide play/pause (incl. autoplay e pulos por disponibilidade), troca de domínio, troca de variável, troca de rodada (regenerar o manifest local), clique em célula e camada de vento.
 - Ao mexer em `charts-manager.js`, valide carregamento via `series.bin` E via fallback (sem manifest), cancelamento, troca de tema e exportação CSV.
 - Os quadros de `Ceu/` (`allsky.jpg` e `mask.png`) reusam os mesmos nomes a cada captura: não remova o `?t=` derivado de `frame.captured_at` nem troque os nomes fixos por nomes versionados sem coordenar o pipeline. Como `ceu.json` é provisório, ao evoluí-lo mantenha uma das duas formas de ponto que o leitor aceita.
 - Não documente dados ou endpoints que não existam no código. Se um novo pipeline mudar contratos de arquivo, atualize este documento junto.

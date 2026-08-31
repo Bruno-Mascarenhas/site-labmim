@@ -60,7 +60,7 @@ docs/onboarding-architecture/
 `labmim-onboarding.pdf` é o nome auxiliar usado em previews históricos; não o compartilhe como fonte de
 verdade sem regenerá-lo a partir do mesmo `slides.md`.
 
-O deck distribuído possui 36 slides. A seção **Tour dos módulos** usa capturas do build local da publicação
+O deck distribuído possui 36 slides. O tour dos módulos usa capturas do build local da publicação
 UFBA para apresentar início, equipe, previsões WRF, potenciais energéticos, monitoramento, climatologia e
 condição do céu. As imagens ficam em `public/module-tour/`, fora do git como os demais gerados: recapture-as
 a partir do build local antes de reexportar o PDF sempre que a interface ou os contratos visuais mudarem.
@@ -98,7 +98,8 @@ O deck acompanha a estrutura final do projeto:
 | produtos WRF                      | `src/datasets/*.js`                                               |
 | receita de manutenção             | `src/sites/README.md`                                             |
 | runtime WebGIS                    | `site/assets/js/map-*.js`, `charts-manager.js`, `data-service.js` |
-| visão completa                    | `Architecture.md`, `README.md` na raiz                            |
+| visão completa                    | `Architecture.md` na raiz                                         |
+| apresentação e porta de entrada   | `README.md` na raiz                                               |
 
 Use sempre os módulos e caminhos atuais; não misture no material convenções da arquitetura anterior.
 
@@ -189,7 +190,7 @@ O PPTX usa imagens de página inteira; o PDF preserva texto selecionável e é p
 
 1. Confirmar a mudança no código real.
 2. Atualizar primeiro `architecture-evidence.md`.
-3. Atualizar slides e speaker notes, com uma ideia principal por slide.
+3. Atualizar slides e notas do apresentador, com uma ideia principal por slide.
 4. Atualizar os `.mmd` afetados e rodar `./regen-diagrams.sh`.
 5. Exportar o PDF distribuído com `npm run export:distribution` e o guia com o gerador Python.
 6. Inspecionar o PDF página por página, procurando corte, sobreposição e diagramas ilegíveis.

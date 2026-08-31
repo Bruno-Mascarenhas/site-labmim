@@ -128,14 +128,22 @@ module.exports = {
     manifest: "JSON/manifest.json",
     values: "JSON",
     grids: "GeoJSON",
+    // Opcional: a janela móvel de 7 dias reescrita a cada hora pelo deploy.
+    // Exigida pela variante interativa da página de monitoramento
+    // (`templateSource("pages/monitoring-live.html")`).
+    monitoring: "Monitoramento",
+    // Opcional: os PNGs da estação. Default `assets/graphs` — o único caminho
+    // de dataset que legitimamente vive sob o `assets/` do build.
+    graphs: "assets/graphs",
     // Opcional: distribuições observadas pré-calculadas da página de
     // climatologia. Como as saídas do WRF, é dado operacional — fica fora do
-    // git e chega pelo deploy. Declarar exige oferecer a página, e vice-versa.
+    // git e chega pelo deploy. Oferecer a página exige declarar este caminho; o
+    // caminho sem a página não é recusado.
     climatology: "Climatologia",
     // Opcional: a imagem da câmera all-sky, a máscara de segmentação prevista
     // sobre ela e o payload do gráfico Kt × Kd da página de condição do céu.
-    // Também é dado operacional, fora do git e entregue no deploy. Declarar
-    // exige oferecer a página, e vice-versa.
+    // Também é dado operacional, fora do git e entregue no deploy. Oferecer a
+    // página exige declarar este caminho; o caminho sem a página não é recusado.
     sky: "Ceu",
   },
   timeline: {
@@ -162,6 +170,8 @@ module.exports = {
 
 `defaultDomain` deve existir em `domains`. Os IDs são parte dos nomes dos arquivos operacionais e não devem ser usados apenas como labels de interface.
 
+Um `paths` que aponte para um diretório de dados novo precisa ganhar a própria regra no `.gitignore`. As regras de hoje nomeiam um a um os diretórios existentes (`site/JSON/*.json`, `site/JSON/*.series.bin`, `site/GeoJSON/*.geojson`, `site/GeoJSON/*.json`, `site/Climatologia/*.json`, `site/Monitoramento/*.json` e `site/Ceu/*`, este por diretório porque ali chegam imagens além de JSON), então um diretório novo **não** é ignorado por herança — e dado operacional do laboratório nunca entra no git. As mecânicas estão em [Organização De Pastas](../../Architecture.md#organização-de-pastas).
+
 Campos opcionais do dataset: `generator` (nome da CLI que produz os dados), `model` (o namelist WRF descrito na documentação do WebGIS) e `observations`, que alimenta a página de monitoramento:
 
 ```js
@@ -170,7 +180,7 @@ observations: {
 },
 ```
 
-Sem `observations`, a página `monitoring` renderiza sem cards de estação — declare o bloco ou não ofereça essa página. Do mesmo modo, `paths.climatology` e a página `climatology` andam juntas: o build recusa uma sem a outra, porque a página sozinha só produziria um 404 no console. Os PNGs são reescritos no lugar pela estação de cada laboratório e ficam fora dos bundles: associe-os no deploy, como os diretórios de `dataset.paths`.
+A rota `monitoring` tem duas implementações e o build cobra a fonte de dados de cada uma. A estática (`pages/monitoring.html`, a fonte padrão de `page("monitoring")`) desenha os PNGs de `observations` e é **recusada** sem `observations.charts`. A interativa (`source: templateSource("pages/monitoring-live.html")`, que é a de ufba) lê `paths.monitoring` e é recusada sem esse caminho. Ou declare a fonte que a variante escolhida exige, ou não ofereça a página. Do mesmo modo, a página `climatology` exige `paths.climatology`: o build recusa a página sem o caminho, porque ela sozinha só produziria um 404 no console. O caminho sem a página é aceito. Os PNGs são reescritos no lugar pela estação de cada laboratório e ficam fora dos bundles: associe-os no deploy, como os diretórios de `dataset.paths`.
 
 ### 4. Páginas
 
@@ -247,7 +257,7 @@ git add src/sites/exemplo site   # o build:check recusa saída gerada não versi
 make ci                          # o que o GitHub Actions roda
 ```
 
-`sites:list` confirma a descoberta. O build individual grava em `site/`; `build:check` percorre todas as publicações, valida o HTML e os dois subsets vendor de cada uma, e restaura a padrão em `site/` ao final. `make ci` é o conjunto completo — `build:check`, `format:check`, os cinco linters, `lint:html` e `lint:links` em todas as publicações, e `npm audit`.
+`sites:list` confirma a descoberta. O build individual grava em `site/`; `build:check` percorre todas as publicações, valida o HTML e os dois subsets vendor de cada uma, e restaura a padrão em `site/` ao final. `make ci` é o conjunto completo — `build:check`, `build:all`, `format:check`, os cinco linters, `lint:html`, `lint:links` (este reconstrói e rastreia todas as publicações) e `npm audit`.
 
 O `git add` não é detalhe: `build:check` recusa saída gerada não versionada e compara `site/` com um build limpo da publicação padrão. Commite `site/` junto com a publicação nova.
 
@@ -260,7 +270,7 @@ npm run purge:bootstrap                  # classe Bootstrap nova
 # ícone novo: siga scripts/subset-fontawesome.md (precisa de Python + fonttools + brotli)
 ```
 
-Regenerar reescreve um arquivo compartilhado, e o `?v=` é hash de conteúdo — então o HTML commitado de **todas** as publicações muda junto. É esperado; commite tudo no mesmo passo. Se preferir evitar, reutilize as classes e os ícones já presentes: `npm run build:check` acusa cada ausência com o nome exato.
+Regenerar o Bootstrap purgado reescreve um arquivo carimbado por hash de conteúdo — então o `?v=` muda e o HTML commitado de **todas** as publicações muda junto. Regenerar o subset do Font Awesome reescreve só `fa-solid-900.woff2` e `subset-glyphs.json`, servidos sem `?v=`, e não altera HTML nenhum. É esperado; commite tudo no mesmo passo. Se preferir evitar, reutilize as classes e os ícones já presentes: `npm run build:check` acusa cada ausência com o nome exato.
 
 ## Criar Uma Página Compartilhada
 

@@ -14,14 +14,17 @@ usado sem estar no subset. Ele roda no CI (step "Check Font Awesome subset
 coverage") e dentro de `npm run lint`/`lint:all` — um glifo faltante
 bloqueia PRs. O que o check varre:
 
-- Classes `fa-<nome>` em `src/**/*.html`, `site/*.html` **e**
-  `site/assets/js/**/*.js` (ícones injetados por strings de JS contam!),
-  ignorando `vendor/` e `node_modules/`. Nomes que não são glifos reais
-  (utilitários como `fa-2x`/`fa-fw`) são filtrados via `all.min.css`.
+- Classes `fa-<nome>` em `src/**/*.html` e `src/**/*.js`, `site/*.html` e
+  `site/assets/js/**/*.js` (ícones injetados por strings de JS contam!) —
+  e, quando os bundles de `npm run build:all` estão no disco, também os
+  `dist/<id>/*.html`, ignorando `vendor/` e `node_modules/`. Nomes que não
+  são glifos reais (utilitários como `fa-2x`/`fa-fw`) são filtrados via
+  `all.min.css`.
 - Codepoints usados direto em CSS: regras `content: "\fXXX"` em
-  `site/assets/css/**/*.css` (ex.: maps.css usa `\f078`). Ao coletar a
-  lista para o pyftsubset, não esqueça desses — só olhar classes HTML
-  deixaria codepoints de CSS fora do subset.
+  `site/assets/css/**/*.css`, em `src/**/*.css` (o CSS por publicação) e
+  nos bundles `dist/<id>/assets/css/**/*.css` (ex.: maps.css usa `\f078`).
+  Ao coletar a lista para o pyftsubset, não esqueça desses — só olhar
+  classes HTML deixaria codepoints de CSS fora do subset.
 
 O check compara o uso contra o manifesto `subset-glyphs.json`, **não**
 contra o binário woff2 — nada verifica que a fonte realmente contém os
@@ -61,10 +64,15 @@ juntos**, sempre.
 
 ## Cache (por que a URL da fonte não tem `?v=`)
 
-A URL da fonte não muda quando o subset muda: o `build.js` estampa hash só
-em atributos `href`/`src` do HTML — ele não consegue reescrever o
+A URL da fonte não muda quando o subset muda: a estampagem de hash
+(`stampAssetVersions`, em `scripts/site-builder/assets.js`, aplicada pelo
+`renderer.js`) só reescreve atributos `href`/`src` do HTML cujo caminho seja
+`assets/css/` ou `assets/js/` de primeira parte — mais o
+`bootstrap.purged.min.css`, único vendor da lista. A webfont fica de fora
+nos dois pontos: o `href` do preload não recebe `?v=`, e o
 `url(../webfonts/fa-solid-900.woff2)` **dentro** do `all.min.css` (que, por
-sua vez, tem token manual `?v=6.4.0` e cache immutable de 1 ano). Por isso
+sua vez, tem token manual `?v=6.4.0` e cache immutable de 1 ano) nem sequer
+é alcançável por esse regex. Por isso
 o `.htaccess` serve `assets/vendor/fontawesome/webfonts/` com a regra de
 7 dias das fontes (e NÃO com o `immutable` de 1 ano do resto do vendor).
 Após um resubset, visitantes recorrentes pegam a fonte nova em até 7 dias.
