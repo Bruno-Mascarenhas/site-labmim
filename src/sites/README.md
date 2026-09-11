@@ -140,7 +140,7 @@ module.exports = {
     // git e chega pelo deploy. Oferecer a página exige declarar este caminho; o
     // caminho sem a página não é recusado.
     climatology: "Climatologia",
-    // Opcional: a imagem da câmera all-sky, a máscara de segmentação prevista
+    // Opcional: a imagem da câmera all-sky, o mapa de sensibilidade da rede
     // sobre ela e o payload do gráfico Kt × Kd da página de condição do céu.
     // Também é dado operacional, fora do git e entregue no deploy. Oferecer a
     // página exige declarar este caminho; o caminho sem a página não é recusado.

@@ -751,7 +751,7 @@ def contract_page(c: Canvas) -> None:
         ("WebGIS", "manifest v2, grade compacta, valores, series.bin, summary.json", BLUE),
         ("Overlays", "WIND_VECTORS e ISOBARS, anunciados por features", TEAL),
         ("Estacao", "labmim-monitoring-v1 e labmim-climatology-v1", GREEN),
-        ("Ceu", "frame, mascara, Kt x Kd e acumulada do indice de claridade", ORANGE),
+        ("Ceu", "frame, sensibilidade, cartao do modelo, Kt x Kd e acumulada do indice de claridade", ORANGE),
     ]
     for i, (title, body, color) in enumerate(contracts):
         info_box(c, MARGIN, top - 205 - i * 72, PAGE_W - 2 * MARGIN, 60, title, body, accent=color, fill=white)

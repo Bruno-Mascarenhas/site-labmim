@@ -32,7 +32,7 @@ O diretório `src/sites/` é o registro. A descoberta ordena os diretórios que 
 | `site/monitoring.html`             | Monitoramento ambiental: gráficos interativos ou PNGs (ver abaixo)    |
 | `site/team.html`                   | Equipe, links e localização incorporada (iframe Google My Maps)       |
 | `site/climatologia.html`           | Distribuições observadas da estação, lidas de `Climatologia/`         |
-| `site/ceu.html`                    | Câmera all-sky, máscara prevista e dispersão Kt × Kd, de `Ceu/`       |
+| `site/ceu.html`                    | Câmera all-sky, sensibilidade à oclusão, cartão do modelo e dispersão Kt × Kd, de `Ceu/` |
 | `site/mapas_interativos.html`      | WebGIS de previsões meteorológicas                                    |
 | `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
 | `site/404.html`                    | Página de erro standalone (caminhos absolutos, `ErrorDocument 404`)   |
@@ -129,7 +129,7 @@ site/                                 # saída compatível; uma publicação por
 ├── JSON/                           # valores, séries, resumos, manifest (git-ignored)
 ├── Climatologia/                   # distribuições observadas da estação (git-ignored)
 ├── Monitoramento/                  # janela móvel de 7 dias da estação (git-ignored)
-└── Ceu/                            # câmera all-sky, máscara e ceu.json (git-ignored)
+└── Ceu/                            # câmera all-sky, frame/timeline/model.json e imagens (git-ignored)
 
 dist/<id>/                           # bundles de frontend gerados em lote
 └── ...                              # não inclui os diretórios de dados de dataset.paths
@@ -204,7 +204,7 @@ Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](
 | `chart-page.js`    | Utilitários compartilhados pelas três páginas de gráfico (`window.labmimChartPage`): formatação pt-BR, carimbos de hora da estação e exportação CSV; carregado antes do módulo de cada página |
 | `monitoramento.js` | Página de monitoramento viva: lê `labmim-monitoring-v1` de `dataset.paths.monitoring` e desenha bruto + horário + WRF                                                                         |
 | `climatologia.js`  | Página de climatologia: lê `labmim-climatology-v1` de `dataset.paths.climatology`, distribuição medida + teórica                                                                              |
-| `ceu.js`           | Página de condição do céu: lê `labmim-ktkd-v1`, `labmim-kt-cumulative-v1` e `labmim-allsky-frame-v1` de `dataset.paths.sky`                                                                   |
+| `ceu.js`           | Página de condição do céu: lê `labmim-ktkd-v1`, `labmim-kt-cumulative-v1`, `labmim-allsky-frame-v2`, `labmim-allsky-timeline-v1` e `labmim-allsky-model-v1` de `dataset.paths.sky`                                                                   |
 
 ### Módulos Do WebGIS
 
@@ -436,10 +436,14 @@ Ver [Manifest De Dados](#manifest-de-dados-e-ciclo-de-vida-da-rodada). Exemplo r
 
 ```text
 Ceu/allsky.jpg          quadro bruto da câmera, nome fixo
-Ceu/mask.png            máscara de segmentação prevista, nome fixo
+Ceu/attribution.png     mapa de sensibilidade à oclusão, nome fixo (cache por hash em frame.json)
 Ceu/ktkd.json           labmim-ktkd-v1 — densidade, modelos e pontos horários
 Ceu/kt_cumulative.json  labmim-kt-cumulative-v1 — acumulada de Kt e horas por condição
-Ceu/frame.json          labmim-allsky-frame-v1 — metadado do quadro atual
+Ceu/frame.json          labmim-allsky-frame-v2 — quadro pontuado atual, previsão, contrafactuais, sensibilidade
+Ceu/timeline.json       labmim-allsky-timeline-v1 — blocos de 5 min dos últimos dias contra o céu claro
+Ceu/model.json          labmim-allsky-model-v1 — cartão do modelo servido: teste contra controles e referências
+Ceu/allsky.jpg          quadro da câmera, nome fixo (cache por hash em frame.json)
+Ceu/input.jpg           exatamente a entrada da rede, nome fixo
 ```
 
 Este é o contrato que **não** vem do pipeline WRF. São documentos separados porque as cadências são diferentes: `frame.json` é reescrito a cada captura, `ktkd.json` e `kt_cumulative.json` a cada reconstrução do acervo. A página busca os três em paralelo e qualquer um pode faltar sem derrubar os outros.
@@ -458,7 +462,7 @@ Este é o contrato que **não** vem do pipeline WRF. São documentos separados p
 
 Atenção a um `n` que não bate de propósito: a acumulada é gateada só no canal global, o `ktkd.json` exige também medida difusa. São populações diferentes com o mesmo nome de campo, e está nos `caveats` de cada um.
 
-`frame.json` traz `captured_at`, `image`, `mask`, `sky_condition` e `cloud_fraction`. Leia a condição por `sky_condition.condition` (1–4) ou por `.id`, **nunca** por um inteiro solto: a classe interna do exportador é 0-based e a literatura numera de I a IV, então um índice cru atravessando essa fronteira é um erro de um a cada vez esperando para acontecer. `cloud_fraction` é `null` até um modelo produzi-la.
+`frame.json` traz `status`, `captured_at`, `image`/`input`/`attribution` (cada um com `sha256_12` para o `?v=`), `solar`, `prediction`, `counterfactuals` e `members`. Leia a condição por `prediction.sky.condition` (1–4) ou por `.id`, **nunca** por um inteiro solto: a classe interna do exportador é 0-based e a literatura numera de I a IV, então um índice cru atravessando essa fronteira é um erro de um a cada vez esperando para acontecer. O produtor e o contrato completo estão em `micrometeorology/docs/allsky-site.md`.
 
 Os dois quadros mantêm nomes **fixos** e são reescritos no lugar, como os PNGs de `assets/graphs/`. A página anexa `?t=` derivado de `frame.captured_at` (na falta dele, um balde de 5 min), que é o que vence a regra de cache aplicada a imagens no `.htaccess` — e `captured_at` é lido do carimbo que a câmera grava no quadro, não do `Last-Modified` do host, que é balanceado e já reportou hora local rotulada como GMT.
 
@@ -716,7 +720,7 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 - Ao mexer em `maps.css`, valide light e dark mode.
 - Ao mexer em `map-manager.js`, valide play/pause (incl. autoplay e pulos por disponibilidade), troca de domínio, troca de variável, troca de rodada (regenerar o manifest local), clique em célula e camada de vento.
 - Ao mexer em `charts-manager.js`, valide carregamento via `series.bin` E via fallback (sem manifest), cancelamento, troca de tema e exportação CSV.
-- Os quadros de `Ceu/` (`allsky.jpg` e `mask.png`) reusam os mesmos nomes a cada captura: não remova o `?t=` derivado de `frame.captured_at` nem troque os nomes fixos por nomes versionados sem coordenar o pipeline. Como `ceu.json` é provisório, ao evoluí-lo mantenha uma das duas formas de ponto que o leitor aceita.
+- As imagens de `Ceu/` (`allsky.jpg`, `input.jpg`, `attribution.png`) reusam os mesmos nomes a cada publicação: o `?v=` vem do `sha256_12` que `frame.json` publica para cada uma; não troque os nomes fixos por nomes versionados sem coordenar o pipeline.
 - Não documente dados ou endpoints que não existam no código. Se um novo pipeline mudar contratos de arquivo, atualize este documento junto.
 
 ## Checklist De Validação
@@ -726,7 +730,7 @@ Use antes de merge/publicação:
 - `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm audit`.
 - Servir `site/` por HTTP local (`make serve`).
 - Abrir páginas institucionais em desktop e mobile; alternar dark mode em cada página.
-- Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade da máscara, alternância das quatro condições, curva de referência, ampliação e CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
+- Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade do mapa de sensibilidade, cartão da previsão, linha do tempo, cartão do modelo, alternância das quatro condições, curva de referência, ampliação e CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
 - Abrir `mapas_interativos.html` e confirmar que Potencial Fotovoltaico não aparece como previsão; `SWDOWN` deve aparecer como Radiação Global.
 - Abrir `potenciais_energeticos.html` e confirmar que só aparecem Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Verificar se Leaflet renderiza (bundle local) e se não há erros no console.
