@@ -655,8 +655,8 @@ não gera `.series.bin` ou `.summary.json`.
   `min_samples_per_bin` vem com `median` nula e não é desenhada nem atribuída à faixa vizinha;
 - cada modelo traz `rmse`, `mbe`, `mae` e `n` medidos no período no payload; a linha junto da
   legenda exibe RMSE e MBE;
-- ao lado do gráfico, o quadro bruto da câmera all-sky e a máscara de segmentação prevista sobre ele,
-  cujo metadado vem de um segundo arquivo, `labmim-allsky-frame-v1`, com cadência própria.
+- ao lado do gráfico, o quadro bruto da câmera all-sky e o mapa de sensibilidade à oclusão da rede sobre ele,
+  cujo metadado vem de um segundo arquivo, `labmim-allsky-frame-v2`, com cadência própria.
 - um terceiro payload, `labmim-kt-cumulative-v1`, alimenta o painel de tempo acumulado em cada condição de
   céu; o painel fica oculto quando esse contrato ainda não chegou, sem bloquear os outros dois.
 
@@ -664,21 +664,22 @@ Confiança: **Confirmado**
 
 Observação:
 O diretório de dados é `dataset.paths.sky` (`site/Ceu/` na UFBA) e chega só com o deploy. Ele traz
-`allsky.jpg` e `mask.png`, de nome fixo e reescritos no lugar — por isso a página desfaz o cache com um
+`allsky.jpg`, `input.jpg` e `attribution.png`, de nome fixo e reescritos no lugar — por isso a página desfaz o cache com um
 `?t=` derivado do horário da captura —, mais três JSON de cadências distintas:
 
 ```js
 ktkd.json   // labmim-ktkd-v1: schema, version, station, period, timescale, sources,
             // filters, sky_conditions, density{kt_edges,kd_edges,counts,max_count,
             // color_scale_hint}, models[], points[] (opcional), caveats[]
-frame.json  // labmim-allsky-frame-v1: captured_at, image, mask,
-            // sky_condition{condition,id,name,name_pt}, cloud_fraction
+frame.json  // labmim-allsky-frame-v2: status, captured_at, image, input, attribution,
+            // solar, prediction{dhi_w_m2,kindex,sky{condition,id,name,name_pt,probabilities}},
+            // counterfactuals, members
 kt_cumulative.json // labmim-kt-cumulative-v1: recortes e distribuição acumulada de Kt
 ```
 
 Em `density.counts`, linhas são faixas de Kd e colunas faixas de Kt; o renderizador recusa uma matriz
 cuja altura não case com `kd_edges`, porque transposta ela desenharia espelhada em silêncio. A condição
-do quadro é lida por `sky_condition.condition` (1–4) ou por `.id`, nunca por um inteiro solto: a classe
+do quadro é lida por `prediction.sky.condition` (1–4) ou por `.id`, nunca por um inteiro solto: a classe
 interna do exportador é 0-based. Declarar a página sem declarar `dataset.paths.sky` reprova o build,
 como em climatologia (`validateSkyHasData()`); o diretório ainda ausente na árvore é só um aviso, o
 normal em CI.
@@ -861,7 +862,7 @@ Mudanças recentes confirmadas:
   do próprio arquivo como schema; o `series_operacional.dat` sem prefixo é o registro v1, convertido
   uma vez por `labmim-wrf-series migrate`;
 - `labmim-monitoring-v1` publica bruto de 5 minutos, média horária e WRF na mesma janela;
-- `labmim-kt-cumulative-v1` complementa `labmim-ktkd-v1` e `labmim-allsky-frame-v1` na página de céu;
+- `labmim-kt-cumulative-v1` complementa `labmim-ktkd-v1`, `labmim-allsky-frame-v2`, `labmim-allsky-timeline-v1` e `labmim-allsky-model-v1` na página de céu;
 - o WebGIS possui 21 campos de base no consumidor (18 de previsão e 3 de energia) e overlays independentes;
 - `ISOBARS` é um work unit/artefato próprio, anunciado em `manifest.features.isobar_overlay`, sem
   `.series.bin` ou `.summary.json`.

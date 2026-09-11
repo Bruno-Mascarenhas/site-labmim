@@ -733,8 +733,9 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
       });
     }
 
-    // Optional: the all-sky frames, the predicted segmentation mask and the radiation
-    // payload of the Kt × Kd chart. Same non-public archive, same deploy-only route.
+    // Optional: the all-sky frame with the network's prediction and occlusion-sensitivity
+    // map, the block timeline, the model card and the radiation payload of the Kt × Kd
+    // chart. Same non-public archive, same deploy-only route.
     if (dataset.paths.sky !== undefined && dataset.paths.sky !== null) {
       validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.sky, "dataset.paths.sky", {
         directory: true,

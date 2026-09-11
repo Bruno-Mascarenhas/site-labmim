@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
+      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a irradiância difusa e a condição de céu que a rede prevê a partir dela com o mapa de sensibilidade à oclusão, os últimos dias contra o piranômetro, o cartão do modelo e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
     />
     <title>LabMiM — Condição do Céu · UFBA</title>
 
@@ -17,7 +17,7 @@
     <meta property="og:title" content="LabMiM — Condição do Céu · UFBA" />
     <meta
       property="og:description"
-      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
+      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a irradiância difusa e a condição de céu que a rede prevê a partir dela com o mapa de sensibilidade à oclusão, os últimos dias contra o piranômetro, o cartão do modelo e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
     />
     <meta property="og:url" content="https://labmim.if.ufba.br/ceu.html" />
     <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
@@ -27,7 +27,7 @@
     <meta name="twitter:title" content="LabMiM — Condição do Céu · UFBA" />
     <meta
       name="twitter:description"
-      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a máscara de segmentação prevista sobre ela e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
+      content="LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a irradiância difusa e a condição de céu que a rede prevê a partir dela com o mapa de sensibilidade à oclusão, os últimos dias contra o piranômetro, o cartão do modelo e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009)."
     />
     <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
 
@@ -57,7 +57,7 @@
     <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
-    <link rel="stylesheet" href="assets/css/components.css?v=f16cc326" />
+    <link rel="stylesheet" href="assets/css/components.css?v=38bc57c5" />
 
     <link rel="stylesheet" href="assets/css/theme.css?v=694b8c88" />
 
@@ -142,14 +142,16 @@
     <main id="main">
       <h1 class="visually-hidden">Condição do Céu</h1>
       <!-- Shared page: any publication declaring `dataset.paths.sky` enables it.
- Everything below is filled at runtime by assets/js/ceu.js — the two frames the
- pipeline rewrites in place in that directory, `labmim-ktkd-v1` behind the Kt × Kd
- chart and `labmim-kt-cumulative-v1` behind the cumulative one. Nothing here is
- specific to LabMiM. -->
+ Everything below is filled at runtime by assets/js/ceu.js — `labmim-allsky-frame-v2`,
+ `labmim-allsky-timeline-v1` and `labmim-allsky-model-v1` behind the camera panels, and
+ `labmim-ktkd-v1` behind the Kt × Kd chart and `labmim-kt-cumulative-v1` behind the
+ cumulative one, all rewritten in place in that directory. Nothing here is specific to LabMiM. -->
       <div class="modern-section" id="ceu" data-sky-base="Ceu">
         <div class="modern-header mb-4">
           <h2><i class="fas fa-cloud me-2"></i>Condição do Céu</h2>
-          <p id="ceuPeriodo">Câmera all-sky, máscara de segmentação e a dispersão do índice de claridade</p>
+          <p id="ceuPeriodo">
+            Câmera all-sky, a irradiância difusa que a rede prevê a partir dela e a dispersão do índice de claridade
+          </p>
         </div>
 
         <div class="text-center mb-3">
@@ -171,10 +173,28 @@
             <div class="explanation-content text-start">
               <p>
                 A página junta <strong>duas leituras da mesma atmosfera</strong>: o que a câmera vê e o que o
-                piranômetro mede. Um dos quadros é a <strong>imagem bruta</strong> da câmera <em>all-sky</em>; o outro,
-                a <strong>máscara de segmentação</strong> que o modelo do laboratório prevê sobre esse mesmo quadro. O
-                controle de opacidade sobrepõe a máscara aos pixels de que ela saiu, para conferir o registro entre as
-                duas.
+                piranômetro mede. Em <strong>Agora</strong>, o quadro bruto da câmera <em>all-sky</em> e a previsão que
+                a rede do laboratório faz <strong>só a partir dele</strong>: a irradiância difusa horizontal, o índice
+                de céu claro k* e a condição de céu. A segunda figura sobrepõe ao quadro um
+                <strong>mapa de sensibilidade à oclusão</strong> — cada janela da imagem é coberta por vez com o nível
+                médio da rede e o mapa registra quanto a previsão muda; o controle de opacidade mostra onde a rede se
+                apoia. Não é uma segmentação nem um mapa de nuvens: a rede não tem cabeça de segmentação e não prevê
+                cobertura. A terceira figura é o recorte quadrado que a rede efetivamente recebeu.
+              </p>
+              <p>
+                Sob os quadros, o cartão da previsão traz dois <strong>contrafactuais</strong>: o que os controles sem
+                imagem — só escalares de geometria solar e vento, ou a média do treino — diriam no mesmo instante, e o
+                que a própria rede diz quando a faixa de texto da câmera (relógio, temperatura, exposição) é
+                neutralizada. Em <strong>Últimos dias</strong>, a difusa prevista bloco a bloco contra a difusa de céu
+                claro e, quando a exportação da estação chega, contra a difusa medida. Em <strong>O modelo</strong>, o
+                cartão do modelo: os erros no teste cronológico, os controles, as referências de céu claro e de
+                persistência, e a proveniência dos pesos servidos.
+              </p>
+              <p>
+                <strong>k* não é K<sub>t</sub>.</strong> O índice que a rede serve é a irradiância global sobre a global
+                de céu claro no mesmo instante; o índice do acervo, abaixo, divide pela irradiação no topo da atmosfera.
+                As quatro condições que a rede prevê são as faixas de K<sub>t</sub> da média de 5 minutos do piranômetro
+                que ela foi treinada a reproduzir, não um rótulo visual.
               </p>
               <p>
                 Abaixo, a dispersão do <strong>índice de claridade</strong> contra a <strong>fração difusa</strong> — o
@@ -209,9 +229,8 @@
               </p>
               <p>
                 K<sub>t</sub> é uma razão entre irradiações do hemisfério inteiro, então descreve o céu de um
-                <em>instante</em>, não de um ponto da imagem: a legenda abaixo do gráfico é a chave das condições, e não
-                das cores da máscara, que são as do modelo de segmentação. A condição que ele prevê para o quadro vem
-                escrita na legenda da própria imagem.
+                <em>instante</em>, não de um ponto da imagem: a legenda abaixo do gráfico é a chave das condições, e as
+                mesmas cores marcam a condição prevista no cartão do quadro e na linha do tempo.
               </p>
               <p>
                 Três modelos empíricos podem ser sobrepostos, e eles não se desenham do mesmo jeito. O de
@@ -231,9 +250,9 @@
                   é por isso que o exportador integra o registro de 5 minutos à grade horária antes de comparar. As
                   horas com chuva e as de sol baixo ficam de fora, assim como as de K<sub>d</sub> fora do intervalo
                   aberto (0, 1) — a convenção dos ajustes publicados, que remove o realce por nuvens e o artefato da
-                  correção de banda de sombreamento. A máscara é o produto do modelo deste laboratório, não um esquema
-                  padronizado de segmentação. As informações são resultados de aquisições de pesquisa, sem garantia para
-                  utilização irrestrita.</small
+                  correção de banda de sombreamento. A rede do quadro é o produto do modelo deste laboratório, e o
+                  cartão em O modelo diz como ela foi escolhida e onde erra. As informações são resultados de aquisições
+                  de pesquisa, sem garantia para utilização irrestrita.</small
                 >
               </p>
             </div>
@@ -249,30 +268,340 @@
           <h3 class="sky-section-title">Agora</h3>
           <div class="monitor-controls" role="group" aria-label="Exibição dos quadros">
             <div class="monitor-control" id="ceuOpacidadeControl">
-              <label class="clima-control-label" for="ceuOpacidade">Opacidade da máscara</label>
-              <input class="sky-range" type="range" id="ceuOpacidade" min="0" max="100" step="5" value="100" />
+              <label class="clima-control-label" for="ceuOpacidade">Opacidade do mapa de sensibilidade</label>
+              <input
+                class="sky-range"
+                type="range"
+                id="ceuOpacidade"
+                min="0"
+                max="100"
+                step="5"
+                value="100"
+                aria-valuetext="100% de opacidade do mapa de sensibilidade"
+              />
             </div>
             <div class="monitor-control monitor-control-meta">
               <span class="monitor-updated" id="ceuAtualizado"></span>
             </div>
           </div>
 
+          <p class="clima-status sky-frame-status" id="ceuQuadroStatus" aria-live="polite"></p>
+
           <div class="sky-frames">
             <figure class="theme-surface sky-frame">
               <div class="sky-frame-media" id="ceuMediaBruto"></div>
               <figcaption class="sky-frame-caption">
-                <span class="sky-frame-title">Imagem bruta</span>
+                <span class="sky-frame-title">Quadro da câmera</span>
                 <span class="sky-frame-note" id="ceuNotaBruto"></span>
               </figcaption>
             </figure>
 
             <figure class="theme-surface sky-frame">
-              <div class="sky-frame-media" id="ceuMediaMascara"></div>
+              <div class="sky-frame-media" id="ceuMediaSensibilidade"></div>
               <figcaption class="sky-frame-caption">
-                <span class="sky-frame-title">Máscara segmentada</span>
-                <span class="sky-frame-note" id="ceuNotaMascara"></span>
+                <span class="sky-frame-title">Sensibilidade à oclusão</span>
+                <span class="sky-frame-note" id="ceuNotaSensibilidade"></span>
               </figcaption>
             </figure>
+
+            <figure class="theme-surface sky-frame">
+              <div class="sky-frame-media" id="ceuMediaEntrada"></div>
+              <figcaption class="sky-frame-caption">
+                <span class="sky-frame-title">O que a rede recebeu</span>
+                <span class="sky-frame-note" id="ceuNotaEntrada"></span>
+              </figcaption>
+            </figure>
+          </div>
+
+          <div class="theme-surface clima-panel sky-prediction" id="ceuPrevisaoPainel" hidden>
+            <div class="clima-panel-head">
+              <h3 class="clima-panel-title">Previsão para este quadro</h3>
+              <p class="clima-legend" id="ceuPrevisaoNota"></p>
+            </div>
+            <div class="clima-stats sky-prediction-stats" id="ceuPrevisaoStats"></div>
+            <div class="sky-prediction-grid">
+              <div class="sky-prediction-block">
+                <h4 class="sky-block-title">Condição prevista</h4>
+                <p class="sky-condition-headline" id="ceuCondicao"></p>
+                <div class="sky-bar" id="ceuProbabilidades" role="img" aria-label="Probabilidades por condição"></div>
+                <ul class="sky-inline-legend" id="ceuProbabilidadesLegenda"></ul>
+              </div>
+              <div class="sky-prediction-block">
+                <h4 class="sky-block-title">Contrafactuais</h4>
+                <dl class="sky-facts" id="ceuContrafactuais"></dl>
+              </div>
+              <div class="sky-prediction-block">
+                <h4 class="sky-block-title">Onde está a sensibilidade</h4>
+                <dl class="sky-facts" id="ceuMassa"></dl>
+                <p class="clima-status" id="ceuAtribuicaoNota"></p>
+              </div>
+              <div class="sky-prediction-block">
+                <h4 class="sky-block-title">Quem pontuou o quadro</h4>
+                <dl class="sky-facts" id="ceuMembros"></dl>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="sky-section-title">Últimos dias</h3>
+          <div class="theme-surface clima-panel" id="ceuLinhaPainel">
+            <div class="clima-panel-head">
+              <h3 class="clima-panel-title">Difusa prevista, bloco a bloco</h3>
+              <p class="clima-legend" id="ceuLinhaNota"></p>
+            </div>
+            <div id="ceuLinhaCorpo">
+              <div class="clima-stats sky-stats-secondary" id="ceuAoVivo" hidden></div>
+              <div class="chart-container clima-chart sky-timeline-chart" id="ceuLinhaChartWrap" hidden>
+                <canvas
+                  id="ceuLinhaCanvas"
+                  role="img"
+                  aria-label="Irradiância difusa prevista nos últimos dias, com a referência de céu claro e a difusa medida quando disponível"
+                ></canvas>
+              </div>
+              <div class="chart-container clima-chart sky-timeline-strip" id="ceuFaixaChartWrap" hidden>
+                <canvas
+                  id="ceuFaixaCanvas"
+                  role="img"
+                  aria-label="Índice de céu claro previsto, colorido pela condição de céu prevista"
+                ></canvas>
+              </div>
+              <ul class="sky-inline-legend" id="ceuLinhaLegenda" hidden></ul>
+              <div class="clima-table-scroll" id="ceuDiasWrap" hidden>
+                <table class="clima-table">
+                  <caption>
+                    Resumo por dia
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Dia</th>
+                      <th scope="col">Blocos pontuados</th>
+                      <th scope="col">Blocos pulados</th>
+                      <th scope="col">Quadros</th>
+                      <th scope="col">Condições previstas (I · II · III · IV)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ceuDiasCorpo"></tbody>
+                </table>
+              </div>
+            </div>
+            <p class="clima-status" id="ceuLinhaStatus" aria-live="polite"></p>
+          </div>
+
+          <h3 class="sky-section-title">O modelo</h3>
+          <div class="theme-surface clima-panel" id="ceuModeloPainel">
+            <div class="clima-panel-head">
+              <h3 class="clima-panel-title">Cartão do modelo</h3>
+              <p class="clima-legend" id="ceuModeloNota"></p>
+            </div>
+            <div id="ceuModeloResumo">
+              <div class="clima-stats" id="ceuModeloStats"></div>
+              <div class="clima-stats sky-stats-secondary" id="ceuModeloSkill"></div>
+            </div>
+            <p class="clima-status" id="ceuModeloStatus" aria-live="polite"></p>
+
+            <div class="text-center mb-3" id="ceuModeloToggleWrap" hidden>
+              <button
+                class="btn btn-sm btn-outline-secondary"
+                type="button"
+                data-ui-toggle="ceuModeloDetalhes"
+                data-label-open="Ocultar detalhes do modelo"
+                data-label-closed="Ver detalhes do modelo"
+                aria-controls="ceuModeloDetalhes"
+                aria-expanded="false"
+              >
+                <i class="fas fa-chevron-down"></i> <span data-toggle-label>Ver detalhes do modelo</span>
+              </button>
+            </div>
+
+            <div id="ceuModeloDetalhes" hidden>
+              <h4 class="sky-block-title">Braços avaliados nas mesmas linhas de teste</h4>
+              <div class="clima-table-scroll">
+                <table class="clima-table">
+                  <caption id="ceuBracosLegenda"></caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Braço</th>
+                      <th scope="col">Papel</th>
+                      <th scope="col">RMSE DHI</th>
+                      <th scope="col">MAE DHI</th>
+                      <th scope="col">MBE DHI</th>
+                      <th scope="col">r²</th>
+                      <th scope="col" id="ceuBracosCabecalhoKindex">MAE k*</th>
+                      <th scope="col">Acurácia</th>
+                      <th scope="col">Acurácia balanceada</th>
+                      <th scope="col">F1 macro</th>
+                      <th scope="col">κ quadrático</th>
+                      <th scope="col">n</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ceuBracosCorpo"></tbody>
+                </table>
+              </div>
+
+              <h4 class="sky-block-title">Referências e habilidade</h4>
+              <div class="clima-table-scroll">
+                <table class="clima-table">
+                  <caption>
+                    Habilidade = 1 − RMSE do modelo / RMSE da referência, sobre as mesmas linhas pareadas
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Referência</th>
+                      <th scope="col">RMSE da referência</th>
+                      <th scope="col">RMSE do modelo (pareado)</th>
+                      <th scope="col">Habilidade</th>
+                      <th scope="col">n</th>
+                      <th scope="col">Detalhe</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ceuReferenciasCorpo"></tbody>
+                </table>
+              </div>
+
+              <h4 class="sky-block-title">Por condição de céu</h4>
+              <div class="sky-two-columns">
+                <div class="clima-table-scroll">
+                  <table class="clima-table">
+                    <caption>
+                      Por condição verdadeira
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Condição</th>
+                        <th scope="col">Revocação</th>
+                        <th scope="col">Precisão</th>
+                        <th scope="col">F1</th>
+                        <th scope="col">n</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ceuClassesCorpo"></tbody>
+                  </table>
+                </div>
+                <div class="clima-table-scroll">
+                  <table class="clima-table sky-confusion">
+                    <caption>
+                      Matriz de confusão — linhas: condição verdadeira; colunas: condição prevista
+                    </caption>
+                    <thead>
+                      <tr id="ceuConfusaoCabecalho">
+                        <th scope="col">Verdadeira ↓ · Prevista →</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ceuConfusaoCorpo"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <h4 class="sky-block-title">Erro da difusa por estrato</h4>
+              <div class="sky-two-columns">
+                <div class="clima-table-scroll">
+                  <table class="clima-table">
+                    <caption id="ceuElevacaoLegenda">
+                      Por faixa de elevação solar
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Elevação solar</th>
+                        <th scope="col">n</th>
+                        <th scope="col">RMSE</th>
+                        <th scope="col">MAE</th>
+                        <th scope="col">MBE</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ceuElevacaoCorpo"></tbody>
+                  </table>
+                </div>
+                <div class="clima-table-scroll">
+                  <table class="clima-table">
+                    <caption>
+                      Por condição de céu verdadeira
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Condição</th>
+                        <th scope="col">n</th>
+                        <th scope="col">RMSE</th>
+                        <th scope="col">MAE</th>
+                        <th scope="col">MBE</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ceuEstratoClasseCorpo"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <h4 class="sky-block-title">Por dia de teste</h4>
+              <div class="clima-table-scroll">
+                <table class="clima-table">
+                  <caption>
+                    RMSE da difusa por dia, do modelo e das duas referências
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Dia</th>
+                      <th scope="col">n</th>
+                      <th scope="col">Condições (I · II · III · IV)</th>
+                      <th scope="col">RMSE do modelo</th>
+                      <th scope="col" id="ceuDiasTestePersistencia">RMSE da persistência</th>
+                      <th scope="col">RMSE do céu claro</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ceuDiasTesteCorpo"></tbody>
+                </table>
+              </div>
+
+              <h4 class="sky-block-title">Curva de treino</h4>
+              <p class="clima-legend" id="ceuCurvaNota"></p>
+              <div class="chart-container clima-chart sky-curve-chart" id="ceuCurvaChartWrap">
+                <canvas
+                  id="ceuCurvaCanvas"
+                  role="img"
+                  aria-label="Erro absoluto médio do índice de céu claro por época, no treino e na validação"
+                ></canvas>
+              </div>
+
+              <h4 class="sky-block-title">Sementes</h4>
+              <div class="clima-table-scroll">
+                <table class="clima-table">
+                  <caption id="ceuSementesLegenda"></caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Membro</th>
+                      <th scope="col">Semente</th>
+                      <th scope="col">Época</th>
+                      <th scope="col">Métrica de parada</th>
+                      <th scope="col">RMSE DHI</th>
+                      <th scope="col">MAE DHI</th>
+                      <th scope="col">MBE DHI</th>
+                      <th scope="col" id="ceuSementesCabecalhoKindex">MAE k*</th>
+                      <th scope="col">Acurácia balanceada</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ceuSementesCorpo"></tbody>
+                </table>
+              </div>
+
+              <h4 class="sky-block-title">Conjunto de dados e divisão</h4>
+              <p class="clima-legend" id="ceuDadosNota"></p>
+              <div class="clima-table-scroll">
+                <table class="clima-table">
+                  <caption id="ceuDivisaoLegenda"></caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Divisão</th>
+                      <th scope="col">Dias</th>
+                      <th scope="col">Período</th>
+                      <th scope="col">Linhas</th>
+                      <th scope="col">Elevação solar</th>
+                      <th scope="col">Condições (I · II · III · IV)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ceuDivisaoCorpo"></tbody>
+                </table>
+              </div>
+
+              <h4 class="sky-block-title">Proveniência</h4>
+              <dl class="sky-facts sky-facts-wide" id="ceuProveniencia"></dl>
+            </div>
           </div>
 
           <h3 class="sky-section-title">O acervo</h3>
@@ -562,7 +891,7 @@
     <script defer src="assets/js/references.js?v=23573fee"></script>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
-    <script defer src="assets/js/chart-page.js?v=aebac3eb"></script>
-    <script defer src="assets/js/ceu.js?v=50dbd33d"></script>
+    <script defer src="assets/js/chart-page.js?v=f40f32a6"></script>
+    <script defer src="assets/js/ceu.js?v=2584ea3e"></script>
   </body>
 </html>

@@ -1,6 +1,6 @@
 /**
- * Sky-condition page: reads `labmim-ktkd-v1` and `labmim-allsky-frame-v1` from
- * `data-sky-base`.
+ * Sky-condition page: reads `labmim-ktkd-v1`, `labmim-kt-cumulative-v1`, `labmim-allsky-frame-v2`,
+ * `labmim-allsky-timeline-v1` and `labmim-allsky-model-v1` from `data-sky-base`.
  *
  * Nothing is recomputed here. The histogram, the model bands and their skill
  * scores arrive from the Python exporter, which owns the filters and the
@@ -16,9 +16,13 @@
 (function () {
   const KTKD_PAYLOAD = "ktkd.json";
   const FRAME_PAYLOAD = "frame.json";
+  const TIMELINE_PAYLOAD = "timeline.json";
+  const MODEL_PAYLOAD = "model.json";
   const CUMULATIVE_PAYLOAD = "kt_cumulative.json";
   const DEFAULT_RAW_FRAME = "allsky.jpg";
-  const DEFAULT_MASK_FRAME = "mask.png";
+  const DEFAULT_ATTRIBUTION_FRAME = "attribution.png";
+  const DEFAULT_INPUT_FRAME = "input.jpg";
+  const FRAME_IMAGE_COUNT = 3;
 
   const ROMAN = ["I", "II", "III", "IV"];
 
@@ -105,6 +109,15 @@
     chartPayload: null,
     chartStatus: "absent",
     framePayload: null,
+    frameStatus: "absent",
+    timelinePayload: null,
+    timelineStatus: "absent",
+    modelPayload: null,
+    modelStatus: "absent",
+    cumulativeStatus: "absent",
+    timelineChart: null,
+    stripChart: null,
+    curveChart: null,
     classes: [],
     models: [],
     points: [],
@@ -119,18 +132,25 @@
     cumulativeChart: null,
   };
 
-  const { el, node, pad, decimal, integer, percent, fade, parseStationTime, downloadCsv } = window.labmimChartPage;
+  const { el, node, statTile, pad, decimal, integer, percent, fade, parseStationTime, downloadCsv } =
+    window.labmimChartPage;
   const formatDay = window.labmimChartPage.formatDayYear;
   const formatStamp = window.labmimChartPage.formatStampYear;
+  const formatShortDay = window.labmimChartPage.formatDay;
+  const formatHour = window.labmimChartPage.formatHour;
 
   function isDark() {
     return document.documentElement.classList.contains("dark-theme");
   }
 
+  function classPalette() {
+    return isDark() ? CLASS_PALETTE.dark : CLASS_PALETTE.light;
+  }
+
   function themeColors() {
     const root = getComputedStyle(document.documentElement);
     return {
-      classes: isDark() ? CLASS_PALETTE.dark : CLASS_PALETTE.light,
+      classes: classPalette(),
       models: isDark() ? MODEL_PALETTE.dark : MODEL_PALETTE.light,
       modelFallback: isDark() ? MODEL_FALLBACK.dark : MODEL_FALLBACK.light,
       ink: isDark() ? DENSITY_INK.dark : DENSITY_INK.light,
@@ -142,6 +162,8 @@
       surface: isDark() ? "#2d2d2d" : "#fff",
       guide: isDark() ? "rgba(255, 255, 255, 0.34)" : "rgba(0, 0, 0, 0.26)",
       crosshair: isDark() ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
+      band: isDark() ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.07)",
+      measured: isDark() ? MODEL_PALETTE.dark.lemos_2017 : MODEL_PALETTE.light.lemos_2017,
     };
   }
 
@@ -242,18 +264,281 @@
     return state.classes.find((entry) => kt <= entry.max) || state.classes[state.classes.length - 1] || null;
   }
 
-  /**
-   * The frame file names its condition twice, as a 1-4 `condition` and as an id,
-   * because the exporter's own class integer is 0-based; reading a bare index
-   * across that boundary is an off-by-one waiting to happen.
-   */
-  function frameClass(frame) {
-    const sky = frame && frame.sky_condition;
-    if (!sky) return null;
-    const byId = state.classes.find((entry) => entry.id === String(sky.id || "").toLowerCase());
-    if (byId) return byId;
-    const condition = Number(sky.condition);
-    return Number.isInteger(condition) ? state.classes[condition - 1] || null : null;
+  const ATTRIBUTION_ALT =
+    "Mapa de sensibilidade à oclusão sobre o quadro all-sky: cor mais intensa onde cobrir a janela mais altera o índice de céu claro previsto";
+
+  const REASON_PT = {
+    fresh: "quadro recente",
+    night: "o sol está abaixo do piso de elevação do modelo; a câmera segue, mas nada é pontuado à noite",
+    no_scored_frame: "nenhum quadro foi pontuado ainda",
+    watch_stale: "há luz do dia, mas a vigília não escreveu uma previsão nos últimos blocos",
+  };
+
+  const REGION_PT = {
+    disc: "disco do céu",
+    overlay_band: "faixa de texto",
+    pad: "borda preta",
+    other: "restante do quadro",
+  };
+  const CLOCK_OFFSET_TOLERANCE_S = 60;
+  const MINUTE_MS = 60000;
+  const HOUR_MS = 3600000;
+  const DAY_MS = 86400000;
+
+  function finite(value) {
+    return typeof value === "number" && Number.isFinite(value);
+  }
+
+  const DAY_STAMP = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+  function parseStationDate(value) {
+    const parts = DAY_STAMP.exec(String(value || "").trim());
+    if (parts) return Date.UTC(+parts[1], +parts[2] - 1, +parts[3]);
+    return parseStationTime(value || "");
+  }
+
+  const ROLE_PT = {
+    all: "todas as cabeças",
+    sky: "condição de céu",
+    dhi: "difusa",
+    kindex: "índice de céu claro",
+    best: "melhor época da validação",
+  };
+
+  function codeVersionText(value) {
+    if (value && typeof value === "object") {
+      const parts = [];
+      if (value.package_version) parts.push(`versão ${value.package_version}`);
+      if (value.git_commit) parts.push(`commit ${shortHash(value.git_commit)}`);
+      return parts.join(", ") || "—";
+    }
+    return text(value);
+  }
+
+  function geometryText(geometry) {
+    if (!geometry || typeof geometry !== "object") return text(geometry, "");
+    const parts = [];
+    const crop = geometry.crop;
+    if (crop && typeof crop === "object" && crop.enabled !== false && finite(crop.width) && finite(crop.height)) {
+      parts.push(
+        `recorte de ${integer(crop.width)} × ${integer(crop.height)} px em (${integer(crop.left)}, ${integer(crop.top)})`
+      );
+    }
+    const padding = geometry.pad;
+    if (padding && typeof padding === "object" && padding.enabled !== false) {
+      const sides = ["top", "right", "bottom", "left"].map((side) => integer(padding[side])).join(" / ");
+      parts.push(`preenchimento ${sides} px${padding.fill !== undefined ? ` com ${padding.fill}` : ""}`);
+    }
+    if (finite(geometry.resize)) parts.push(`redimensionado para ${integer(geometry.resize)} px`);
+    const mask = geometry.mask;
+    if (mask && typeof mask === "object") {
+      parts.push(mask.enabled ? `máscara do disco (limiar ${decimal(mask.threshold, 2)})` : "sem máscara do disco");
+    }
+    return parts.join(" · ");
+  }
+  const HEAD_PT = { dhi: "DHI", kindex: "k*", sky: "condição de céu" };
+
+  function roleLabel(value) {
+    return ROLE_PT[value] || String(value);
+  }
+
+  function headLabel(value) {
+    return HEAD_PT[value] || String(value);
+  }
+
+  function text(value, fallback = "—") {
+    return typeof value === "string" && value.trim() ? value.trim() : fallback;
+  }
+
+  function signed(value, digits) {
+    if (!finite(value)) return "—";
+    if (value < 0) return `−${decimal(Math.abs(value), digits)}`;
+    return `+${decimal(value, digits)}`;
+  }
+
+  function trueMinus(value, digits) {
+    if (!finite(value)) return "—";
+    return value < 0 ? `−${decimal(Math.abs(value), digits)}` : decimal(value, digits);
+  }
+
+  function withUnit(formatted, unit) {
+    return formatted === "—" ? formatted : `${formatted} ${unit}`;
+  }
+
+  function transition(from, to, digits) {
+    return finite(from) ? `${decimal(from, digits)} → ${decimal(to, digits)}` : decimal(to, digits);
+  }
+
+  function unreadableMessage(subject) {
+    return `${subject} chegou incompleto ou ilegível; ele pode estar sendo publicado neste momento.`;
+  }
+
+  function shortHash(value) {
+    return typeof value === "string" && value.trim() ? value.trim().slice(0, 12) : "—";
+  }
+
+  const ENGLISH_CONDITION_NAMES = { i: "cloudy", ii: "partly_cloudy_diffuse", iii: "partly_cloudy_clear", iv: "clear" };
+
+  function declaredConditions(payload) {
+    for (const block of [
+      payload && payload.sky_conditions,
+      payload && payload.evaluation && payload.evaluation.sky_conditions,
+    ]) {
+      if (block && Array.isArray(block.conditions) && block.conditions.length) return block.conditions;
+    }
+    return null;
+  }
+
+  function conditionsOf(payload) {
+    const source = declaredConditions(payload) || FALLBACK_CLASSES;
+    return source
+      .filter((entry) => entry && (entry.id || Number.isInteger(entry.condition)))
+      .map((entry) => {
+        const id = String(entry.id || ROMAN[(entry.condition || 0) - 1] || "").toLowerCase();
+        const condition = Number.isInteger(entry.condition) ? entry.condition : ROMAN.indexOf(id.toUpperCase()) + 1;
+        return {
+          id,
+          condition,
+          english: typeof entry.name === "string" ? entry.name.toLowerCase() : ENGLISH_CONDITION_NAMES[id] || "",
+          roman: ROMAN[condition - 1] || String(condition),
+          name: entry.name_pt || SHORT_LABELS[id] || id,
+          short: SHORT_LABELS[id] || entry.name_pt || id,
+        };
+      })
+      .sort((left, right) => left.condition - right.condition);
+  }
+
+  function resolveCondition(payload, reference) {
+    if (reference === null || reference === undefined) return null;
+    const conditions = conditionsOf(payload);
+    const asObject = typeof reference === "object";
+    const id = String(asObject ? reference.id || "" : typeof reference === "string" ? reference : "").toLowerCase();
+    const declared = Number(asObject ? reference.condition : reference);
+    const number = Number.isInteger(declared) ? declared : /^\d+$/.test(id) ? Number(id) : NaN;
+    return (
+      (id && conditions.find((entry) => entry.id === id)) ||
+      (Number.isInteger(number) && conditions.find((entry) => entry.condition === number)) ||
+      (id && conditions.find((entry) => entry.english === id || entry.name.toLowerCase() === id)) ||
+      null
+    );
+  }
+
+  function conditionSwatch(condition) {
+    const swatch = node("span", "sky-swatch");
+    swatch.style.background = classPalette()[condition.id] || "#888";
+    return swatch;
+  }
+
+  function conditionLabel(condition) {
+    return `${condition.roman} · ${condition.name}`;
+  }
+
+  function conditionShort(condition) {
+    return `${condition.roman} · ${condition.short}`;
+  }
+
+  function conditionCell(condition) {
+    const chip = node("span", "sky-condition-cell");
+    chip.append(conditionSwatch(condition), node("span", null, conditionLabel(condition)));
+    return chip;
+  }
+
+  function legendItem(list, swatch, label) {
+    const mark = swatch instanceof Node ? swatch : node("span", "sky-swatch");
+    if (!(swatch instanceof Node)) Object.assign(mark.style, swatch);
+    const item = node("li");
+    item.append(mark, node("span", null, label));
+    list.appendChild(item);
+  }
+
+  function fillConditionBar(bar, payload, shares) {
+    bar.replaceChildren();
+    const colors = classPalette();
+    const drawn = [];
+    if (shares && typeof shares === "object") {
+      for (const condition of conditionsOf(payload)) {
+        const fraction = shares[condition.id];
+        if (!finite(fraction)) continue;
+        const segment = node("span", "sky-bar-segment");
+        segment.style.width = `${(fraction * 100).toFixed(1)}%`;
+        segment.style.background = colors[condition.id] || "#888";
+        bar.appendChild(segment);
+        drawn.push({ condition, fraction });
+      }
+    }
+    return drawn;
+  }
+
+  function shareLabels(drawn) {
+    return drawn.map(({ condition, fraction }) => `${condition.roman} ${percent(fraction, 0)}`);
+  }
+
+  function utcOffsetHours(payload) {
+    const zone = payload && payload.timezone;
+    if (!zone || typeof zone !== "object") return NaN;
+    for (const key of ["utc_offset_hours", "offset_hours", "utc_offset"]) {
+      if (finite(zone[key])) return zone[key];
+    }
+    return NaN;
+  }
+
+  function stationToUtcMs(payload, localStamp) {
+    const local = parseStationTime(localStamp || "");
+    const offset = utcOffsetHours(payload);
+    if (!Number.isFinite(local) || !Number.isFinite(offset)) return NaN;
+    return local - offset * HOUR_MS;
+  }
+
+  function ageText(elapsedMs) {
+    if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return "";
+    const minutes = Math.floor(elapsedMs / MINUTE_MS);
+    if (minutes < 1) return "há menos de 1 min";
+    if (minutes < 60) return `há ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 48) return `há ${hours} h ${pad(minutes % 60)} min`;
+    return `há ${Math.floor(hours / 24)} dias`;
+  }
+
+  function withAge(payload, localStamp) {
+    const age = ageText(Date.now() - stationToUtcMs(payload, localStamp));
+    return age ? ` (${age})` : "";
+  }
+
+  function clockOffsetText(offsetSeconds) {
+    if (!finite(offsetSeconds) || Math.abs(offsetSeconds) <= CLOCK_OFFSET_TOLERANCE_S) return "";
+    const direction = offsetSeconds > 0 ? "atrasado" : "adiantado";
+    return `relógio da câmera ${direction} ${integer(Math.abs(offsetSeconds))} s`;
+  }
+
+  function targetsGlossary() {
+    const evaluationTargets =
+      state.modelPayload && state.modelPayload.evaluation && state.modelPayload.evaluation.targets;
+    for (const targets of [
+      state.framePayload && state.framePayload.targets,
+      state.timelinePayload && state.timelinePayload.targets,
+      evaluationTargets,
+    ]) {
+      if (targets && typeof targets === "object" && targets.kindex) return targets;
+    }
+    return {};
+  }
+
+  function kindexLabel() {
+    const label = text((targetsGlossary().kindex || {}).label_pt, "índice de céu claro");
+    const symbol = kindexSymbol();
+    return label.includes(symbol) ? label : `${label} ${symbol}`;
+  }
+
+  function kindexSymbol() {
+    return text((targetsGlossary().kindex || {}).symbol, "k*");
+  }
+
+  function dhiLabel() {
+    return text((targetsGlossary().dhi || {}).label_pt, "irradiância difusa horizontal");
+  }
+
+  function dhiUnit() {
+    return text((targetsGlossary().dhi || {}).unit, "W/m²");
   }
 
   function frameToken() {
@@ -263,26 +548,44 @@
     return String(Math.floor(Date.now() / FRAME_BUCKET_MS));
   }
 
-  function frameName(field, fallback) {
-    const declared = state.framePayload ? state.framePayload[field] : null;
-    return typeof declared === "string" && declared.trim() ? declared.trim() : fallback;
+  function frameSection(name) {
+    const block = state.framePayload && state.framePayload[name];
+    return block && typeof block === "object" ? block : null;
   }
 
-  function frameUrl(name) {
-    return `${state.base}/${name}?t=${encodeURIComponent(frameToken())}`;
+  function frameFileName(name, fallback) {
+    const block = frameSection(name);
+    return text(block && block.file, fallback);
   }
 
-  function frameImage(name, alt, className) {
+  function frameCacheToken(name) {
+    const block = frameSection(name);
+    if (block && typeof block.sha256_12 === "string" && block.sha256_12.trim()) {
+      return `v=${encodeURIComponent(block.sha256_12.trim())}`;
+    }
+    return `t=${encodeURIComponent(frameToken())}`;
+  }
+
+  function frameUrl(name, fallback) {
+    return `${state.base}/${frameFileName(name, fallback)}?${frameCacheToken(name)}`;
+  }
+
+  function frameAlt(name, fallback) {
+    const block = frameSection(name);
+    return text(block && block.alt_pt, fallback);
+  }
+
+  function frameImage(url, alt, className) {
     const image = document.createElement("img");
     image.className = className;
     image.alt = alt;
     image.decoding = "async";
-    image.src = frameUrl(name);
+    image.src = url;
     return image;
   }
 
-  function buildFrame(container, name, alt, noteElement, missingMessage) {
-    const image = frameImage(name, alt, "sky-frame-image");
+  function buildFrame(container, url, alt, noteElement, missingMessage) {
+    const image = frameImage(url, alt, "sky-frame-image");
     image.addEventListener("error", () => {
       state.framesMissing += 1;
       container.replaceChildren(node("div", "sky-frame-missing", missingMessage));
@@ -293,75 +596,351 @@
     return image;
   }
 
-  // The state of every dev checkout and of CI, where two placeholders and an
-  // empty chart would read as a broken page rather than as undeployed data.
+  function allPayloadsAbsent() {
+    return [
+      state.chartStatus,
+      state.frameStatus,
+      state.timelineStatus,
+      state.modelStatus,
+      state.cumulativeStatus,
+    ].every((status) => status === "absent");
+  }
+
   function settleEmptyState() {
-    if (state.framesMissing < 2 || state.chartPayload || state.framePayload) return;
+    if (state.framesMissing < FRAME_IMAGE_COUNT || !allPayloadsAbsent()) return;
     showEmpty(
       "Os dados de condição do céu ainda não foram publicados para esta estação. " +
         "Eles são anexados ao site no deploy, separadamente das páginas."
     );
   }
 
-  function applyMaskOpacity() {
-    const mask = el("ceuMediaMascara").querySelector(".sky-frame-mask");
-    if (!mask) return;
-    mask.style.opacity = String(Number(el("ceuOpacidade").value) / 100);
+  function applyOverlayOpacity() {
+    const slider = el("ceuOpacidade");
+    slider.setAttribute("aria-valuetext", `${slider.value}% de opacidade do mapa de sensibilidade`);
+    const overlay = el("ceuMediaSensibilidade").querySelector(".sky-frame-overlay");
+    if (!overlay) return;
+    overlay.style.opacity = String(Number(slider.value) / 100);
   }
 
-  // `object-fit: contain` letterboxes each layer by its OWN ratio, so a square
-  // box under a 4:3 frame would fade the mask over misregistered pixels.
-  function fitFrameBoxes(image) {
+  function fitFrameBox(container, image) {
     if (!image.naturalWidth || !image.naturalHeight) return;
-    const ratio = `${image.naturalWidth} / ${image.naturalHeight}`;
-    el("ceuMediaBruto").style.aspectRatio = ratio;
-    el("ceuMediaMascara").style.aspectRatio = ratio;
+    container.style.aspectRatio = `${image.naturalWidth} / ${image.naturalHeight}`;
+  }
+
+  function frameScored() {
+    const frame = state.framePayload;
+    return Boolean(frame && frame.status && frame.status.scored !== false && frame.prediction);
   }
 
   function renderFrames() {
-    const rawName = frameName("image", DEFAULT_RAW_FRAME);
-    const maskName = frameName("mask", DEFAULT_MASK_FRAME);
-
+    const rawUrl = frameUrl("image", DEFAULT_RAW_FRAME);
     const raw = buildFrame(
       el("ceuMediaBruto"),
-      rawName,
-      "Quadro bruto da câmera all-sky",
+      rawUrl,
+      frameAlt("image", "Quadro bruto da câmera all-sky"),
       el("ceuNotaBruto"),
       "Quadro ainda não publicado."
     );
-    raw.addEventListener("load", () => fitFrameBoxes(raw));
+    raw.addEventListener("load", () => {
+      fitFrameBox(el("ceuMediaBruto"), raw);
+      fitFrameBox(el("ceuMediaSensibilidade"), raw);
+    });
 
-    const container = el("ceuMediaMascara");
-    const mask = buildFrame(
-      container,
-      maskName,
-      "Máscara de segmentação prevista sobre o quadro all-sky",
-      el("ceuNotaMascara"),
-      "Máscara ainda não publicada."
+    const overlayContainer = el("ceuMediaSensibilidade");
+    const overlay = buildFrame(
+      overlayContainer,
+      frameUrl("attribution", DEFAULT_ATTRIBUTION_FRAME),
+      frameAlt("attribution", ATTRIBUTION_ALT),
+      el("ceuNotaSensibilidade"),
+      "Mapa de sensibilidade ainda não publicado."
     );
-    mask.classList.add("sky-frame-mask");
-    // Nothing to fade without a mask, and a control over an absent image reads
-    // as a broken one.
-    mask.addEventListener("error", () => {
+    overlay.classList.add("sky-frame-overlay");
+    overlay.addEventListener("error", () => {
       el("ceuOpacidadeControl").hidden = true;
     });
-    const underlay = frameImage(rawName, "", "sky-frame-image");
+    const underlay = frameImage(rawUrl, "", "sky-frame-image");
     underlay.setAttribute("aria-hidden", "true");
     underlay.addEventListener("error", () => underlay.remove());
-    container.insertBefore(underlay, mask);
-    applyMaskOpacity();
+    overlayContainer.insertBefore(underlay, overlay);
+    applyOverlayOpacity();
 
-    const frame = state.framePayload || {};
+    const input = buildFrame(
+      el("ceuMediaEntrada"),
+      frameUrl("input", DEFAULT_INPUT_FRAME),
+      frameAlt("input", "O recorte quadrado que a rede recebeu"),
+      el("ceuNotaEntrada"),
+      "Entrada da rede ainda não publicada."
+    );
+    input.addEventListener("load", () => fitFrameBox(el("ceuMediaEntrada"), input));
+
+    renderFrameNotes();
+    renderFrameStatus();
+    renderPredictionCard();
+  }
+
+  function renderFrameNotes() {
+    const frame = state.framePayload;
+    if (!frame) return;
+    const image = frameSection("image") || {};
+    const rawParts = [];
     const captured = parseStationTime(frame.captured_at || "");
-    el("ceuNotaBruto").textContent = Number.isFinite(captured) ? `Capturado em ${formatStamp(captured)}` : "";
-
-    const predicted = frameClass(frame);
-    const notes = [];
-    if (predicted) notes.push(`Condição prevista: ${predicted.roman} · ${predicted.label}`);
-    if (Number.isFinite(frame.cloud_fraction)) {
-      notes.push(`cobertura de nuvens ${decimal(frame.cloud_fraction * 100, 0)}%`);
+    if (Number.isFinite(captured)) rawParts.push(`Capturado em ${formatStamp(captured)}`);
+    if (finite(image.width) && finite(image.height)) {
+      const original =
+        finite(image.original_width) && finite(image.original_height)
+          ? `, do original de ${integer(image.original_width)} × ${integer(image.original_height)}`
+          : "";
+      rawParts.push(`${integer(image.width)} × ${integer(image.height)} px${original}`);
     }
-    el("ceuNotaMascara").textContent = notes.join(" — ");
+    el("ceuNotaBruto").textContent = rawParts.join(" · ");
+
+    const attribution = frameSection("attribution") || {};
+    const sensitivityParts = [];
+    if (attribution.summary_pt) sensitivityParts.push(text(attribution.summary_pt).replace(/\.\s*$/, ""));
+    if (finite(attribution.window_px) && finite(attribution.stride_px)) {
+      sensitivityParts.push(
+        `janela de ${integer(attribution.window_px)} px, passo de ${integer(attribution.stride_px)} px, alvo ${kindexSymbol()}`
+      );
+    }
+    el("ceuNotaSensibilidade").textContent = sensitivityParts.join(" · ");
+
+    const input = frameSection("input") || {};
+    const inputParts = [];
+    if (finite(input.size)) inputParts.push(`${integer(input.size)} × ${integer(input.size)} px`);
+    const box = input.content_box;
+    const padded =
+      box && finite(box.width) && finite(box.height) && (box.width < input.size || box.height < input.size);
+    if (padded) {
+      inputParts.push(`${integer(box.width)} × ${integer(box.height)} px de câmera, o resto é preenchimento`);
+    }
+    el("ceuNotaEntrada").textContent = inputParts.join(" — ");
+  }
+
+  function renderFrameStatus() {
+    const status = el("ceuQuadroStatus");
+    if (state.frameStatus === "unreadable") {
+      status.textContent = `${unreadableMessage("O metadado do quadro")} As imagens são as últimas enviadas.`;
+      return;
+    }
+    const frame = state.framePayload;
+    if (!frame) {
+      status.textContent =
+        "O metadado do quadro ainda não foi publicado; as imagens acima são as últimas enviadas, sem carimbo de captura.";
+      return;
+    }
+    const info = frame.status || {};
+    const parts = [];
+    if (info.scored === false) {
+      parts.push(text(info.reason_pt, REASON_PT[info.reason] || "nenhum quadro pontuado"));
+      const latest = parseStationTime(info.latest_scored_at || "");
+      if (Number.isFinite(latest)) {
+        parts.push(`último quadro pontuado em ${formatStamp(latest)}${withAge(frame, info.latest_scored_at)}`);
+      }
+      parts.push("as imagens são as últimas publicadas");
+    } else {
+      const captured = parseStationTime(frame.captured_at || "");
+      if (Number.isFinite(captured)) {
+        parts.push(`quadro capturado em ${formatStamp(captured)}${withAge(frame, frame.captured_at)}`);
+      }
+      if (info.reason && info.reason !== "fresh")
+        parts.push(text(info.reason_pt, REASON_PT[info.reason] || info.reason));
+    }
+    if (finite(info.solar_elevation_deg)) parts.push(`sol a ${decimal(info.solar_elevation_deg, 1)}° de elevação`);
+    if (frame.solar && frame.solar.extrapolation === true) {
+      parts.push("acima da elevação máxima do treino: previsão em extrapolação");
+    }
+    if (info.watch_alive === false) parts.push("a vigília da câmera parece parada");
+    const clock = clockOffsetText(info.camera_clock_drift_s);
+    if (clock) parts.push(clock);
+    status.replaceChildren(withReferences(parts.join(" · ")));
+  }
+
+  function factRow(list, term, detail) {
+    const row = node("div", "clima-fit-row");
+    row.appendChild(node("dt", null, term));
+    const description = node("dd");
+    if (typeof detail === "string") description.textContent = detail;
+    else description.appendChild(detail);
+    row.appendChild(description);
+    list.appendChild(row);
+  }
+
+  function conditionText(payload, reference) {
+    const condition = resolveCondition(payload, reference);
+    return condition ? conditionLabel(condition) : "—";
+  }
+
+  function renderProbabilities(frame, sky) {
+    const bar = el("ceuProbabilidades");
+    const legend = el("ceuProbabilidadesLegenda");
+    legend.replaceChildren();
+    const drawn = fillConditionBar(bar, frame, sky && sky.probabilities);
+    bar.hidden = drawn.length === 0;
+    legend.hidden = bar.hidden;
+    for (const { condition, fraction } of drawn) {
+      legendItem(legend, conditionSwatch(condition), `${conditionShort(condition)} ${percent(fraction, 0)}`);
+    }
+    bar.setAttribute("aria-label", `Probabilidades por condição de céu: ${shareLabels(drawn).join(", ")}`);
+  }
+
+  function counterfactualDetail(frame, entry, base) {
+    const delta = (entry && entry.delta) || {};
+    const from = base || {};
+    const parts = [
+      `DHI ${withUnit(transition(from.dhi_w_m2, entry.dhi_w_m2, 1), dhiUnit())} (${signed(delta.dhi_w_m2, 1)})`,
+      `${kindexSymbol()} ${transition(from.kindex, entry.kindex, 3)} (${signed(delta.kindex, 3)})`,
+    ];
+    if (entry.sky) parts.push(`condição ${conditionText(frame, entry.sky)}`);
+    const test = entry.test;
+    if (test && (finite(test.dhi_rmse) || finite(test.kindex_mae))) {
+      parts.push(
+        `no teste: RMSE DHI ${withUnit(decimal(test.dhi_rmse, 2), dhiUnit())}, MAE ${kindexSymbol()} ${decimal(test.kindex_mae, 4)}`
+      );
+    }
+    return parts.join(" · ");
+  }
+
+  function noImageControls(frame) {
+    const block = frame.counterfactuals && frame.counterfactuals.no_image;
+    if (!block || typeof block !== "object") return [];
+    const labels = {
+      sensor_only: "Sem imagem — controle só com escalares",
+      climatology: "Sem imagem — média do treino",
+    };
+    return Object.entries(block)
+      .filter(([, entry]) => entry && typeof entry === "object")
+      .map(([key, entry]) => ({ label: labels[key] || `Sem imagem — ${key}`, entry }));
+  }
+
+  function renderCounterfactuals(frame) {
+    const list = el("ceuContrafactuais");
+    list.replaceChildren();
+    for (const { label, entry } of noImageControls(frame)) {
+      const member = entry.member ? ` (${entry.member})` : "";
+      factRow(list, `${label}${member}`, counterfactualDetail(frame, entry, null));
+    }
+    const neutralised = frame.counterfactuals && frame.counterfactuals.overlay_neutralised;
+    if (neutralised && typeof neutralised === "object") {
+      const member = neutralised.member ? ` (${neutralised.member})` : "";
+      factRow(
+        list,
+        `Faixa de texto da câmera neutralizada${member}`,
+        counterfactualDetail(frame, neutralised, neutralised.base || null)
+      );
+    }
+    list.parentElement.hidden = list.children.length === 0;
+  }
+
+  function renderAttributionMass(frame) {
+    const list = el("ceuMassa");
+    const note = el("ceuAtribuicaoNota");
+    list.replaceChildren();
+    const attribution = frame.attribution && typeof frame.attribution === "object" ? frame.attribution : null;
+    const mass = attribution && attribution.mass_by_region;
+    if (mass && typeof mass === "object") {
+      for (const key of ["disc", "overlay_band", "pad", "other"]) {
+        if (finite(mass[key])) factRow(list, REGION_PT[key], percent(mass[key], 1));
+      }
+      for (const [key, value] of Object.entries(mass)) {
+        if (!REGION_PT[key] && finite(value)) factRow(list, key, percent(value, 1));
+      }
+    }
+    const parts = [];
+    if (attribution) {
+      if (attribution.method === "occlusion_sensitivity") {
+        parts.push(
+          "Sonda de oclusão: cada janela é substituída pelo nível médio da rede e a célula guarda a variação do alvo"
+        );
+      }
+      const details = [];
+      if (finite(attribution.window_px)) details.push(`janela ${integer(attribution.window_px)} px`);
+      if (finite(attribution.stride_px)) details.push(`passo ${integer(attribution.stride_px)} px`);
+      details.push(
+        `alvo ${attribution.target === "kindex" || !attribution.target ? kindexSymbol() : attribution.target}`
+      );
+      if (finite(attribution.base_value)) details.push(`valor-base ${decimal(attribution.base_value, 3)}`);
+      if (attribution.member) details.push(`membro ${attribution.member}`);
+      const shape = attribution.grid_shape;
+      const peak = attribution.peak;
+      if (peak && finite(peak.row) && finite(peak.col)) {
+        const grid =
+          Array.isArray(shape) && shape.length === 2 ? ` de ${integer(shape[0])} × ${integer(shape[1])}` : "";
+        details.push(`pico na linha ${integer(peak.row)}, coluna ${integer(peak.col)}${grid}`);
+      }
+      parts.push(details.join(", "));
+    }
+    note.textContent = parts.filter(Boolean).join(". ");
+    list.parentElement.hidden = list.children.length === 0 && !note.textContent;
+  }
+
+  function renderMembers(frame) {
+    const list = el("ceuMembros");
+    list.replaceChildren();
+    const members = Array.isArray(frame.members) ? frame.members : [];
+    for (const member of members) {
+      if (!member || typeof member !== "object") continue;
+      const details = [];
+      if (finite(member.seed)) details.push(`semente ${integer(member.seed)}`);
+      if (member.role) details.push(`papel: ${roleLabel(member.role)}`);
+      if (Array.isArray(member.heads) && member.heads.length) {
+        details.push(`cabeças: ${member.heads.map(headLabel).join(", ")}`);
+      }
+      details.push(`pesos ${shortHash(member.checkpoint_sha256)}`);
+      if (member.code_version) details.push(`código: ${codeVersionText(member.code_version)}`);
+      factRow(list, text(member.name, "membro"), details.join(" · "));
+    }
+    list.parentElement.hidden = list.children.length === 0;
+  }
+
+  function renderPredictionCard() {
+    const panel = el("ceuPrevisaoPainel");
+    const frame = state.framePayload;
+    if (!frameScored()) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    const prediction = frame.prediction;
+    const solar = frame.solar || {};
+    const stats = el("ceuPrevisaoStats");
+    stats.replaceChildren();
+    statTile(stats, withUnit(decimal(prediction.dhi_w_m2, 1), dhiUnit()), `${dhiLabel()} prevista`);
+    statTile(
+      stats,
+      withUnit(decimal(solar.clearsky_dhi_w_m2, 1), dhiUnit()),
+      "difusa de céu claro no instante",
+      finite(solar.clearsky_ghi_w_m2) ? `global de céu claro ${decimal(solar.clearsky_ghi_w_m2, 1)} ${dhiUnit()}` : ""
+    );
+    statTile(
+      stats,
+      decimal(prediction.kindex, 3),
+      kindexLabel(),
+      text((targetsGlossary().kindex || {}).definition_pt, "")
+    );
+    const elevationLabel =
+      solar.extrapolation === true ? "elevação solar — acima do máximo do treino" : "elevação solar";
+    statTile(
+      stats,
+      finite(solar.elevation_deg) ? `${decimal(solar.elevation_deg, 1)}°` : "—",
+      elevationLabel,
+      finite(solar.azimuth_deg) ? `azimute ${decimal(solar.azimuth_deg, 1)}°` : ""
+    );
+
+    const condition = resolveCondition(frame, prediction.sky);
+    el("ceuCondicao").replaceChildren(condition ? conditionCell(condition) : "—");
+    renderProbabilities(frame, prediction.sky);
+    renderCounterfactuals(frame);
+    renderAttributionMass(frame);
+    renderMembers(frame);
+
+    const glossary = targetsGlossary().kindex || {};
+    el("ceuPrevisaoNota").replaceChildren(
+      withReferences(
+        `${dhiLabel()} prevista só a partir dos pixels, como razão à difusa de céu claro; ${kindexLabel()}` +
+          (glossary.definition_pt ? ` — ${glossary.definition_pt}` : "") +
+          "."
+      )
+    );
   }
 
   function modelColor(model, theme) {
@@ -955,16 +1534,26 @@
 
   const withReferences = (text) => refs().expand(text);
 
+  function loadedPayloads() {
+    return [
+      state.framePayload,
+      state.timelinePayload,
+      state.modelPayload,
+      state.chartPayload,
+      state.cumulativePayload,
+    ].filter((payload) => payload && typeof payload === "object");
+  }
+
   function registerPayloadReferences() {
-    for (const payload of [state.chartPayload, state.cumulativePayload]) {
-      if (payload && payload.references) refs().register(payload.references);
+    for (const payload of loadedPayloads()) {
+      if (payload.references) refs().register(payload.references);
     }
   }
 
   function caveatTexts() {
-    return [state.chartPayload, state.cumulativePayload]
-      .filter(Boolean)
-      .flatMap((payload) => (Array.isArray(payload.caveats) ? payload.caveats : []));
+    return loadedPayloads().flatMap((payload) =>
+      Array.isArray(payload.caveats) ? payload.caveats.filter((caveat) => typeof caveat === "string") : []
+    );
   }
 
   // Both payloads, deduplicated: they describe the same archive and repeat each other.
@@ -1061,9 +1650,7 @@
   }
 
   function nothingToDrawMessage() {
-    if (state.chartStatus === "unreadable") {
-      return "O documento de Kt × Kd chegou incompleto ou ilegível; ele pode estar sendo publicado neste momento.";
-    }
+    if (state.chartStatus === "unreadable") return unreadableMessage("O documento de Kt × Kd");
     if (state.chartStatus === "absent") {
       return "O documento de Kt × Kd ainda não foi publicado — os quadros acima continuam válidos.";
     }
@@ -1257,7 +1844,8 @@
   }
 
   function renderHeader() {
-    const generated = parseStationTime((state.chartPayload && state.chartPayload.generated_utc) || "");
+    const source = state.framePayload || state.timelinePayload || state.modelPayload || state.chartPayload;
+    const generated = parseStationTime((source && source.generated_utc) || "");
     el("ceuAtualizado").textContent = Number.isFinite(generated) ? `Publicado em ${formatStamp(generated)} UTC` : "";
   }
 
@@ -1557,11 +2145,7 @@
     container.replaceChildren();
     const sky = subset.sky_conditions || {};
     for (const condition of sky.conditions || []) {
-      const tile = node("div", "clima-stat");
-      const value = node("span", "clima-stat-value", percent(condition.fraction, 1));
-      const caption = node("span", "clima-stat-label", cumulativeConditionLabel(condition));
-      tile.append(value, caption);
-      container.appendChild(tile);
+      statTile(container, percent(condition.fraction, 1), cumulativeConditionLabel(condition));
     }
   }
 
@@ -1628,6 +2212,1283 @@
     buildCumulativeSubsetToggles();
   }
 
+  const SOURCE_PT = { frame_aggregate: "agregado dos quadros do bloco", block_model: "modelo de bloco" };
+  const MEASURED_REASON_PT = {
+    ok: "exportação da estação recebida",
+    no_export: "sem exportação da estação",
+    export_stale: "exportação da estação desatualizada",
+  };
+  const SCREENING_PT = { "sentinels + sensor_limits": "passados pelas sentinelas e pelos limites do sensor do acervo" };
+  const BLOCK_STATUS_PT = { scored: "pontuado", skipped: "pulado", pending: "pendente", failed: "falhou" };
+  const ARM_KIND_PT = { served: "servido", ensemble: "conjunto servido", member: "membro", control: "controle" };
+  const SERVED_ARM_KINDS = ["served", "ensemble"];
+  const METRIC_PT = {
+    dhi_rmse: "RMSE DHI",
+    dhi_mae: "MAE DHI",
+    dhi_mbe: "MBE DHI",
+    kindex_mae: "MAE k*",
+    kindex_rmse: "RMSE k*",
+    sky_balanced_accuracy: "acurácia balanceada",
+    sky_accuracy: "acurácia",
+    sky_macro_f1: "F1 macro",
+    sky_kappa_quadratic: "κ quadrático",
+    persistence_skill_dhi: "habilidade contra a persistência (DHI)",
+  };
+  const TRAINING_KEY_PT = {
+    epochs: "épocas",
+    epochs_budget: "orçamento de épocas",
+    batch_size: "lote",
+    learning_rate: "taxa de aprendizado",
+    lr: "taxa de aprendizado",
+    backbone_lr: "taxa de aprendizado do tronco",
+    layer_decay: "decaimento por camada",
+    scheduler: "agendador",
+    patience: "paciência",
+    min_delta: "delta mínimo",
+    monitor: "monitor",
+    early_stopping: "parada antecipada",
+    loss: "função de perda",
+    optimizer: "otimizador",
+    weight_decay: "decaimento de pesos",
+    seed: "semente",
+  };
+  const ROLE_KEY_PT = {
+    frame_sky_role: "condição de céu do quadro",
+    frame_dhi_role: "difusa do quadro",
+    sky: "condição de céu",
+    dhi: "difusa",
+  };
+  const ARCHITECTURE_NAME_PT = { image_only: "só imagem" };
+  const TARGET_SOURCE_PT = { measured: "medido na estação" };
+  const SPLIT_STRATEGY_PT = { chronological: "cronológica por dia" };
+
+  function keyLabel(dictionary, key) {
+    return dictionary[key] || String(key).replace(/_/g, " ");
+  }
+
+  function metricValue(key, value) {
+    if (!finite(value)) return "—";
+    if (key.includes("accuracy")) return percent(value, 1);
+    if (/f1|kappa|skill/.test(key)) return trueMinus(value, 3);
+    if (key.startsWith("dhi")) return trueMinus(value, 2);
+    return decimal(value, 4);
+  }
+  const SPLIT_PT = { train: "treino", val: "validação", test: "teste" };
+  const CONTROL_IDS = ["sensor_only", "climatology"];
+  const TIMELINE_AXIS_WIDTH = 56;
+
+  function timelineAxis() {
+    const axis = state.timelinePayload && state.timelinePayload.axis;
+    const start = parseStationTime((axis && axis.start) || "");
+    const step = axis && finite(axis.step_minutes) ? axis.step_minutes * MINUTE_MS : NaN;
+    if (!Number.isFinite(start) || !(step > 0)) return null;
+    return { start, step };
+  }
+
+  function timelineSeries(id) {
+    const series = state.timelinePayload && state.timelinePayload.series;
+    const values = series && series[id];
+    return Array.isArray(values) ? values : null;
+  }
+
+  function timelineLength() {
+    const series = state.timelinePayload && state.timelinePayload.series;
+    if (!series || typeof series !== "object") return 0;
+    return Object.values(series).reduce(
+      (longest, values) => (Array.isArray(values) ? Math.max(longest, values.length) : longest),
+      0
+    );
+  }
+
+  function timelinePoints(id) {
+    const axis = timelineAxis();
+    const values = timelineSeries(id);
+    if (!axis || !values) return null;
+    let finiteCount = 0;
+    const points = values.map((value, index) => {
+      const y = finite(value) ? value : null;
+      if (y !== null) finiteCount += 1;
+      return { x: axis.start + index * axis.step, y };
+    });
+    return finiteCount ? points : null;
+  }
+
+  function timelineBounds() {
+    const axis = timelineAxis();
+    const length = timelineLength();
+    if (!axis || !length) return null;
+    return { min: axis.start - axis.step / 2, max: axis.start + (length - 1) * axis.step + axis.step / 2 };
+  }
+
+  function blockIndexAt(x) {
+    const axis = timelineAxis();
+    if (!axis) return -1;
+    const index = Math.round((x - axis.start) / axis.step);
+    return index >= 0 && index < timelineLength() ? index : -1;
+  }
+
+  function extrapolationRuns() {
+    const axis = timelineAxis();
+    const flags = timelineSeries("extrapolation");
+    if (!axis || !flags) return [];
+    const runs = [];
+    let open = null;
+    flags.forEach((flag, index) => {
+      const x = axis.start + index * axis.step;
+      if (flag === true) {
+        if (open) open.to = x + axis.step / 2;
+        else open = { from: x - axis.step / 2, to: x + axis.step / 2 };
+      } else if (open) {
+        runs.push(open);
+        open = null;
+      }
+    });
+    if (open) runs.push(open);
+    return runs;
+  }
+
+  const extrapolationBands = {
+    id: "labmimSkyExtrapolation",
+    beforeDatasetsDraw(chart, _args, options) {
+      const runs = options.runs || [];
+      if (!runs.length) return;
+      const { ctx, chartArea, scales } = chart;
+      ctx.save();
+      ctx.fillStyle = options.color;
+      for (const run of runs) {
+        const left = Math.max(chartArea.left, scales.x.getPixelForValue(run.from));
+        const right = Math.min(chartArea.right, scales.x.getPixelForValue(run.to));
+        if (right > left) ctx.fillRect(left, chartArea.top, right - left, chartArea.bottom - chartArea.top);
+      }
+      ctx.restore();
+    },
+  };
+
+  function tickStepMs(spanMs) {
+    if (spanMs <= 1.5 * DAY_MS) return 3 * HOUR_MS;
+    if (spanMs <= 4 * DAY_MS) return 12 * HOUR_MS;
+    if (spanMs <= 10 * DAY_MS) return DAY_MS;
+    return 2 * DAY_MS;
+  }
+
+  function alignedTimeTicks(min, max) {
+    const step = tickStepMs(max - min);
+    const ticks = [];
+    for (let value = Math.ceil(min / step) * step; value <= max; value += step) ticks.push({ value });
+    return ticks;
+  }
+
+  function timeTickLabel(value) {
+    const date = new Date(value);
+    return date.getUTCHours() === 0 && date.getUTCMinutes() === 0 ? formatShortDay(value) : formatHour(value);
+  }
+
+  function timeScale(theme, bounds) {
+    return {
+      type: "linear",
+      min: bounds.min,
+      max: bounds.max,
+      afterBuildTicks: (axis) => {
+        axis.ticks = alignedTimeTicks(axis.min, axis.max);
+      },
+      ticks: { color: theme.textSecondary, autoSkip: false, maxRotation: 0, callback: timeTickLabel },
+      grid: { color: theme.grid },
+    };
+  }
+
+  function fixedWidthAxis(scale) {
+    return { ...scale, afterFit: (axis) => (axis.width = TIMELINE_AXIS_WIDTH) };
+  }
+
+  function sourceLabel(value) {
+    const published = state.timelinePayload && state.timelinePayload.source_labels_pt;
+    if (published && typeof published === "object" && typeof published[value] === "string") return published[value];
+    return SOURCE_PT[value] || (typeof value === "string" ? value : "");
+  }
+
+  function timelineBlockLines(index) {
+    if (index < 0) return [];
+    const at = (id) => {
+      const values = timelineSeries(id);
+      return values ? values[index] : null;
+    };
+    const lines = [];
+    const kindex = at("kindex");
+    if (finite(kindex)) lines.push(`${kindexLabel()}: ${decimal(kindex, 3)}`);
+    const condition = resolveCondition(state.timelinePayload, at("condition"));
+    if (condition) {
+      const probability = at(`p_${condition.id}`);
+      const suffix = finite(probability) ? ` (${percent(probability, 0)})` : "";
+      lines.push(`condição prevista: ${conditionLabel(condition)}${suffix}`);
+    }
+    const frames = at("n_frames");
+    if (finite(frames)) lines.push(`${integer(frames)} ${frames === 1 ? "quadro" : "quadros"} no bloco`);
+    const source = state.timelinePayload.source;
+    const origin = Array.isArray(source) ? sourceLabel(source[index]) : "";
+    if (origin) lines.push(`fonte: ${origin}`);
+    const elevation = at("solar_elevation_deg");
+    if (finite(elevation)) lines.push(`sol a ${decimal(elevation, 1)}°`);
+    if (at("extrapolation") === true) lines.push("acima da elevação máxima do treino (extrapolação)");
+    return lines;
+  }
+
+  function timelineDatasets(theme, series) {
+    const datasets = [];
+    const predicted = series.dhi;
+    if (predicted) {
+      datasets.push({
+        label: `${dhiLabel()} prevista`,
+        data: predicted,
+        borderColor: `rgb(${theme.ink})`,
+        backgroundColor: `rgb(${theme.ink})`,
+        borderWidth: 1.8,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        spanGaps: false,
+        tension: 0,
+        order: 1,
+      });
+    }
+    const clearsky = series.clearsky;
+    if (clearsky) {
+      datasets.push({
+        label: "difusa de céu claro",
+        data: clearsky,
+        borderColor: theme.textSecondary,
+        backgroundColor: theme.textSecondary,
+        borderWidth: 1.2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        spanGaps: false,
+        tension: 0,
+        order: 3,
+      });
+    }
+    const measured = series.measured;
+    if (measured) {
+      datasets.push({
+        label: "difusa medida (PSP)",
+        data: measured,
+        borderColor: theme.measured,
+        backgroundColor: theme.measured,
+        borderWidth: 1.4,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        spanGaps: false,
+        tension: 0,
+        order: 2,
+      });
+    }
+    return datasets;
+  }
+
+  function lineChartBase() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      parsing: false,
+      interaction: { mode: "nearest", axis: "x", intersect: false },
+    };
+  }
+
+  function chartTooltip(theme, callbacks) {
+    return {
+      backgroundColor: theme.tooltipBg,
+      titleColor: theme.tooltipText,
+      bodyColor: theme.tooltipText,
+      borderColor: theme.textSecondary,
+      borderWidth: 1,
+      callbacks,
+    };
+  }
+
+  function timelineChartConfig(theme, bounds, runs, { datasets, yScale, label }) {
+    return {
+      type: "line",
+      data: { datasets },
+      options: {
+        ...lineChartBase(),
+        plugins: {
+          labmimSkyExtrapolation: { runs, color: theme.band },
+          legend: { display: false },
+          tooltip: chartTooltip(theme, {
+            title: (items) => `Bloco até ${formatStamp(items[0].parsed.x)}`,
+            label,
+            afterBody: (items) => timelineBlockLines(blockIndexAt(items[0].parsed.x)),
+          }),
+        },
+        scales: {
+          x: timeScale(theme, bounds),
+          y: fixedWidthAxis({ type: "linear", min: 0, ...yScale, grid: { color: theme.grid } }),
+        },
+      },
+      plugins: [extrapolationBands],
+    };
+  }
+
+  function drawTimelineChart(theme, bounds, runs, series) {
+    const datasets = timelineDatasets(theme, series);
+    const wrap = el("ceuLinhaChartWrap");
+    wrap.hidden = datasets.length === 0;
+    if (!datasets.length) return;
+    state.timelineChart = new Chart(
+      el("ceuLinhaCanvas").getContext("2d"),
+      timelineChartConfig(theme, bounds, runs, {
+        datasets,
+        label: (item) => `${item.dataset.label}: ${withUnit(decimal(item.parsed.y, 1), dhiUnit())}`,
+        yScale: {
+          title: { display: true, text: `${dhiLabel()} (${dhiUnit()})`, color: theme.textSecondary },
+          ticks: { color: theme.textSecondary, maxTicksLimit: 6 },
+        },
+      })
+    );
+  }
+
+  function drawConditionStrip(theme, bounds, runs, points) {
+    const wrap = el("ceuFaixaChartWrap");
+    wrap.hidden = !points;
+    if (!points) return;
+    const payload = state.timelinePayload;
+    const references = timelineSeries("condition") || [];
+    const colorByReference = new Map();
+    const colors = points.map((_point, index) => {
+      const reference = references[index];
+      if (!colorByReference.has(reference)) {
+        const condition = resolveCondition(payload, reference);
+        colorByReference.set(reference, condition ? theme.classes[condition.id] : "transparent");
+      }
+      return colorByReference.get(reference);
+    });
+    const top = Math.max(1, ...points.map((point) => (point.y === null ? 0 : point.y)));
+    state.stripChart = new Chart(
+      el("ceuFaixaCanvas").getContext("2d"),
+      timelineChartConfig(theme, bounds, runs, {
+        datasets: [
+          {
+            label: kindexLabel(),
+            data: points,
+            borderColor: fade(theme.surface === "#fff" ? "#000000" : "#ffffff", 0.28),
+            backgroundColor: colors,
+            borderWidth: 1,
+            pointRadius: 2.4,
+            pointHoverRadius: 4,
+            pointBackgroundColor: colors,
+            pointBorderColor: colors,
+            pointBorderWidth: 0,
+            spanGaps: false,
+            tension: 0,
+          },
+        ],
+        label: () => "",
+        yScale: {
+          max: Math.ceil(top * 10) / 10,
+          title: { display: true, text: kindexSymbol(), color: theme.textSecondary },
+          ticks: { color: theme.textSecondary, maxTicksLimit: 4 },
+        },
+      })
+    );
+  }
+
+  function renderTimelineLegend(theme, runs, series) {
+    const list = el("ceuLinhaLegenda");
+    list.replaceChildren();
+    const hasData = Boolean(series.dhi || series.kindex);
+    list.hidden = !hasData;
+    if (!hasData) return;
+    legendItem(list, { background: `rgb(${theme.ink})`, height: "0.25rem" }, `${dhiLabel()} prevista`);
+    legendItem(
+      list,
+      { background: "transparent", height: "0", borderTop: `2px dashed ${theme.textSecondary}` },
+      "difusa de céu claro"
+    );
+    if (series.measured) {
+      legendItem(list, { background: theme.measured, height: "0.25rem" }, "difusa medida (PSP)");
+    }
+    if (runs.length) {
+      legendItem(
+        list,
+        { background: theme.band, outline: `1px solid ${theme.textSecondary}` },
+        "sol acima do máximo do treino"
+      );
+    }
+    for (const condition of conditionsOf(state.timelinePayload)) {
+      legendItem(list, conditionSwatch(condition), conditionShort(condition));
+    }
+  }
+
+  function shareBar(payload, share) {
+    const wrap = node("span", "sky-share");
+    const bar = node("span", "sky-bar sky-bar-compact");
+    const labels = shareLabels(fillConditionBar(bar, payload, share));
+    wrap.append(bar, node("span", "sky-share-text", labels.join(" · ") || "—"));
+    wrap.title = labels.join(", ");
+    return wrap;
+  }
+
+  function cell(row, value, className) {
+    const element = node("td", className || null);
+    if (value instanceof Node) element.appendChild(value);
+    else element.textContent = value;
+    row.appendChild(element);
+    return element;
+  }
+
+  function renderTimelineDays() {
+    const wrap = el("ceuDiasWrap");
+    const body = el("ceuDiasCorpo");
+    body.replaceChildren();
+    const payload = state.timelinePayload;
+    const days = payload && Array.isArray(payload.days) ? payload.days : [];
+    wrap.hidden = days.length === 0;
+    for (const day of days) {
+      if (!day || typeof day !== "object") continue;
+      const row = node("tr");
+      const date = parseStationTime(day.date || "");
+      cell(row, Number.isFinite(date) ? formatDay(date) : text(day.date));
+      cell(row, integer(day.blocks_scored));
+      cell(row, integer(day.blocks_skipped));
+      cell(row, integer(day.frames));
+      cell(row, shareBar(payload, day.condition_share));
+      body.appendChild(row);
+    }
+  }
+
+  function skippedSummary(payload) {
+    const raw = payload.skipped;
+    const entries = Array.isArray(raw) ? raw : raw && Array.isArray(raw.blocks) ? raw.blocks : [];
+    const labels = payload.reason_labels_pt || (raw && raw.reason_labels_pt) || {};
+    if (!entries.length) return "";
+    const counts = new Map();
+    for (const entry of entries) {
+      const reason = entry && typeof entry.reason === "string" ? entry.reason : "outro";
+      counts.set(reason, (counts.get(reason) || 0) + 1);
+    }
+    const parts = [...counts.entries()]
+      .sort((left, right) => right[1] - left[1])
+      .map(([reason, count]) => `${integer(count)} — ${text(labels[reason], reason)}`);
+    return `Blocos pulados na janela: ${integer(entries.length)} (${parts.join("; ")}).`;
+  }
+
+  function latestSentence(payload) {
+    const latest = payload.latest;
+    if (!latest || typeof latest !== "object") return "";
+    const parts = [];
+    const stamp = parseStationTime(latest.last_scored_block || "");
+    if (Number.isFinite(stamp))
+      parts.push(`Último bloco pontuado: ${formatStamp(stamp)}${withAge(payload, latest.last_scored_block)}`);
+    if (latest.last_block_status && latest.last_block_status !== "scored")
+      parts.push(`estado do último bloco: ${BLOCK_STATUS_PT[latest.last_block_status] || latest.last_block_status}`);
+    const labels = payload.reason_labels_pt || (payload.skipped && payload.skipped.reason_labels_pt) || {};
+    if (latest.reason && latest.reason !== "fresh")
+      parts.push(text(labels[latest.reason], REASON_PT[latest.reason] || latest.reason));
+    return parts.length ? `${parts.join(" · ")}.` : "";
+  }
+
+  function measuredSentence(payload) {
+    const measured = payload.measured;
+    const status = payload.measured_status || {};
+    if (measured && typeof measured === "object") {
+      const source = text(status.source_label, text(measured.source_column, "piranômetro"));
+      const screening = measured.screening ? `, ${SCREENING_PT[measured.screening] || measured.screening}` : "";
+      return `Difusa medida: ${integer(measured.n)} blocos pareados com ${source}${screening}.`;
+    }
+    const lastRow = parseStationTime(status.last_row_at || "");
+    const reason = MEASURED_REASON_PT[status.reason];
+    if (Number.isFinite(lastRow)) {
+      return `A comparação ao vivo com o piranômetro está pendente${reason ? ` (${reason})` : ""}: última leitura da estação disponível em ${formatStamp(lastRow)}.`;
+    }
+    const source = status.source_label ? ` (${status.source_label})` : "";
+    return `A comparação ao vivo com o piranômetro${source} está pendente: ${reason || "sem exportação da estação"}; os números do teste não a substituem.`;
+  }
+
+  function renderLiveStats() {
+    const container = el("ceuAoVivo");
+    container.replaceChildren();
+    const live = state.timelinePayload && state.timelinePayload.live;
+    container.hidden = !live || typeof live !== "object";
+    if (container.hidden) return;
+    const since = parseStationDate(live.since);
+    const window = [];
+    if (finite(live.n_days)) window.push(`${integer(live.n_days)} ${live.n_days === 1 ? "dia" : "dias"}`);
+    if (finite(live.n_blocks)) window.push(`${integer(live.n_blocks)} blocos`);
+    statTile(
+      container,
+      Number.isFinite(since) ? `desde ${formatDay(since)}` : "ao vivo",
+      `contra o piranômetro${window.length ? ` — ${window.join(", ")}` : ""}`,
+      "o único holdout limpo: dias posteriores à decisão do pino, nunca usados em decisão"
+    );
+    const dhi = live.dhi || {};
+    statTile(container, withUnit(decimal(dhi.rmse, 1), dhiUnit()), "RMSE da difusa ao vivo");
+    statTile(container, withUnit(decimal(dhi.mae, 1), dhiUnit()), "MAE da difusa ao vivo");
+    statTile(container, withUnit(signed(dhi.mbe, 1), dhiUnit()), "MBE da difusa ao vivo");
+    if (live.kindex && finite(live.kindex.mae))
+      statTile(container, decimal(live.kindex.mae, 3), `MAE de ${kindexSymbol()} ao vivo`);
+    if (live.sky && finite(live.sky.balanced_accuracy)) {
+      statTile(container, percent(live.sky.balanced_accuracy, 1), "acurácia balanceada ao vivo");
+    }
+  }
+
+  function destroyTimelineCharts() {
+    for (const key of ["timelineChart", "stripChart"]) {
+      if (state[key]) {
+        state[key].destroy();
+        state[key] = null;
+      }
+    }
+  }
+
+  function timelineUnavailableMessage() {
+    if (state.timelineStatus === "unreadable") return unreadableMessage("O documento da linha do tempo");
+    if (state.timelineStatus === "absent") return "A linha do tempo dos últimos dias ainda não foi publicada.";
+    return "O documento da linha do tempo não traz blocos pontuados.";
+  }
+
+  function drawTimeline() {
+    destroyTimelineCharts();
+    const payload = state.timelinePayload;
+    const bounds = payload ? timelineBounds() : null;
+    const theme = themeColors();
+    const body = el("ceuLinhaCorpo");
+    if (!payload || !bounds) {
+      body.hidden = true;
+      el("ceuLinhaNota").textContent = "";
+      el("ceuLinhaStatus").textContent = timelineUnavailableMessage();
+      return;
+    }
+    body.hidden = false;
+    const axis = timelineAxis();
+    const length = timelineLength();
+    const noteParts = [`blocos de ${integer(axis.step / MINUTE_MS)} min`];
+    noteParts.push(`${formatStamp(axis.start)} a ${formatStamp(axis.start + (length - 1) * axis.step)}`);
+    noteParts.push(`${integer(length)} blocos`);
+    el("ceuLinhaNota").textContent = noteParts.join(" · ");
+
+    const runs = extrapolationRuns();
+    const series = {
+      dhi: timelinePoints("dhi_w_m2"),
+      clearsky: timelinePoints("clearsky_dhi_w_m2"),
+      measured: timelinePoints("measured_dhi_w_m2"),
+      kindex: timelinePoints("kindex"),
+    };
+    drawTimelineChart(theme, bounds, runs, series);
+    drawConditionStrip(theme, bounds, runs, series.kindex);
+    renderTimelineLegend(theme, runs, series);
+    renderLiveStats();
+    renderTimelineDays();
+    el("ceuLinhaStatus").replaceChildren(
+      withReferences(
+        [latestSentence(payload), skippedSummary(payload), measuredSentence(payload)].filter(Boolean).join(" ")
+      )
+    );
+  }
+
+  function evaluation() {
+    const block = state.modelPayload && state.modelPayload.evaluation;
+    return block && typeof block === "object" ? block : {};
+  }
+
+  function rowsOf(source, keyField) {
+    if (Array.isArray(source)) return source.filter((row) => row && typeof row === "object");
+    if (source && typeof source === "object") {
+      return Object.entries(source)
+        .filter(([, row]) => row && typeof row === "object")
+        .map(([key, row]) => ({ [keyField]: key, ...row }));
+    }
+    return [];
+  }
+
+  function modelArms() {
+    return rowsOf(evaluation().arms, "id").map((arm) => ({ ...arm, id: String(arm.id || arm.name || "") }));
+  }
+
+  function servedBlock() {
+    const served = state.modelPayload && state.modelPayload.served;
+    return served && typeof served === "object" ? served : {};
+  }
+
+  function armKind(arm) {
+    if (typeof arm.kind === "string") return arm.kind;
+    const served = servedBlock();
+    if ((served.id && arm.id === served.id) || arm.id === "served") return "served";
+    if (CONTROL_IDS.includes(arm.id)) return "control";
+    if (Array.isArray(served.members) && served.members.some((member) => member && member.name === arm.id))
+      return "member";
+    return "";
+  }
+
+  function servedArm() {
+    const arms = modelArms();
+    const served = servedBlock();
+    return (
+      arms.find((arm) => served.id && arm.id === served.id) ||
+      arms.find((arm) => arm.id === "served") ||
+      arms.find((arm) => SERVED_ARM_KINDS.includes(armKind(arm))) ||
+      null
+    );
+  }
+
+  function armById(id) {
+    return modelArms().find((arm) => arm.id === id) || null;
+  }
+
+  function skillEntry(name) {
+    const block = evaluation();
+    const fromSkill = block.skill && (block.skill[name] || block.skill[`vs_${name}`]);
+    const fromReference = block.references && block.references[name];
+    const merged = { ...(fromReference || {}), ...(fromSkill || {}) };
+    return finite(merged.skill) ? merged : null;
+  }
+
+  function renderModelHeadline() {
+    const model = state.modelPayload;
+    const served = servedBlock();
+    const arm = servedArm();
+    const stats = el("ceuModeloStats");
+    const skills = el("ceuModeloSkill");
+    stats.replaceChildren();
+    skills.replaceChildren();
+    const block = evaluation();
+    const dataset = model.dataset || {};
+    const split = (dataset.split && dataset.split[block.split || "test"]) || {};
+    const noteParts = [];
+    if (served.label) noteParts.push(served.label);
+    const splitParts = [];
+    if (finite(split.days)) splitParts.push(`${integer(split.days)} dias`);
+    const start = parseStationDate(split.start);
+    const end = parseStationDate(split.end);
+    if (Number.isFinite(start) && Number.isFinite(end)) splitParts.push(`${formatDay(start)} a ${formatDay(end)}`);
+    if (finite(block.n)) splitParts.push(`${integer(block.n)} linhas`);
+    if (splitParts.length)
+      noteParts.push(`${SPLIT_PT[block.split] || block.split || "teste"} cronológico: ${splitParts.join(", ")}`);
+    const selection = served.selection || {};
+    const decided = parseStationDate(selection.decided_on);
+    if (Number.isFinite(decided)) {
+      noteParts.push(
+        `pino decidido em ${formatDay(decided)} na ${SPLIT_PT[selection.selection_split] || selection.selection_split || "validação"}`
+      );
+    }
+    el("ceuModeloNota").replaceChildren(withReferences(noteParts.join(" · ")));
+
+    if (arm) {
+      const dhi = arm.dhi || {};
+      const kindex = arm.kindex || {};
+      const unit = dhiUnit();
+      statTile(
+        stats,
+        withUnit(decimal(dhi.rmse, 2), unit),
+        "RMSE da difusa no teste",
+        finite(dhi.r2) ? `r² ${decimal(dhi.r2, 3)}` : ""
+      );
+      statTile(stats, withUnit(decimal(dhi.mae, 2), unit), "MAE da difusa no teste");
+      statTile(stats, withUnit(signed(dhi.mbe, 2), unit), "MBE da difusa no teste");
+      const sensor = armById("sensor_only");
+      const climatology = armById("climatology");
+      const controls = [];
+      if (sensor) controls.push(`só escalares ${decimal((sensor.kindex || {}).mae, 4)}`);
+      if (climatology) controls.push(`média do treino ${decimal((climatology.kindex || {}).mae, 4)}`);
+      statTile(
+        stats,
+        decimal(kindex.mae, 4),
+        `MAE de ${kindexSymbol()} no teste${controls.length ? ` — controles: ${controls.join(", ")}` : ""}`
+      );
+      const sky = arm.sky || {};
+      const skyDetails = [];
+      if (finite(sky.accuracy)) skyDetails.push(`acurácia ${percent(sky.accuracy, 1)}`);
+      if (finite(sky.macro_f1)) skyDetails.push(`F1 macro ${decimal(sky.macro_f1, 3)}`);
+      if (finite(sky.kappa_quadratic)) skyDetails.push(`κ quadrático ${decimal(sky.kappa_quadratic, 3)}`);
+      statTile(
+        stats,
+        percent(sky.balanced_accuracy, 1),
+        "acurácia balanceada das condições de céu",
+        skyDetails.join(" · ")
+      );
+    }
+
+    const skillLabels = {
+      clearsky: "habilidade contra o céu claro",
+      persistence: "habilidade contra a persistência",
+      climatology: "habilidade contra a média do treino",
+      sensor_only: "habilidade contra só escalares",
+    };
+    for (const name of ["clearsky", "persistence", "climatology", "sensor_only"]) {
+      const entry = skillEntry(name);
+      if (!entry) continue;
+      const details = [];
+      if (finite(entry.horizon_minutes)) details.push(`de ${integer(entry.horizon_minutes)} min`);
+      if (finite(entry.n)) details.push(`n ${integer(entry.n)}`);
+      if (finite(entry.n_rows)) details.push(`${integer(entry.n_rows)} linhas distintas`);
+      const label = `${skillLabels[name]}${finite(entry.horizon_minutes) ? ` ${details.shift()}` : ""}${details.length ? ` (${details.join(", ")})` : ""}`;
+      statTile(skills, trueMinus(entry.skill, 3), label, text(entry.label, ""));
+    }
+  }
+
+  function persistenceCaveat() {
+    const caveats = Array.isArray(state.modelPayload.caveats) ? state.modelPayload.caveats : [];
+    return caveats.find((caveat) => typeof caveat === "string" && /persist/i.test(caveat)) || "";
+  }
+
+  function armRowLabel(arm) {
+    return text(arm.label, arm.id);
+  }
+
+  function renderArmsTable() {
+    const body = el("ceuBracosCorpo");
+    body.replaceChildren();
+    el("ceuBracosCabecalhoKindex").textContent = `MAE ${kindexSymbol()}`;
+    const block = evaluation();
+    el("ceuBracosLegenda").textContent = finite(block.n)
+      ? `${integer(block.n)} linhas do ${SPLIT_PT[block.split] || block.split || "teste"}; difusa em ${dhiUnit()}`
+      : "";
+    const order = { served: 0, ensemble: 0, member: 1, control: 2 };
+    const arms = modelArms().sort((left, right) => (order[armKind(left)] ?? 3) - (order[armKind(right)] ?? 3));
+    for (const arm of arms) {
+      const row = node("tr");
+      const dhi = arm.dhi || {};
+      const sky = arm.sky || {};
+      const kindex = arm.kindex || {};
+      cell(row, armRowLabel(arm));
+      cell(row, ARM_KIND_PT[armKind(arm)] || armKind(arm) || "—");
+      cell(row, decimal(dhi.rmse, 2));
+      cell(row, decimal(dhi.mae, 2));
+      cell(row, signed(dhi.mbe, 2));
+      cell(row, trueMinus(dhi.r2, 3));
+      cell(row, decimal(kindex.mae, 4));
+      cell(row, percent(sky.accuracy, 1));
+      cell(row, percent(sky.balanced_accuracy, 1));
+      cell(row, decimal(sky.macro_f1, 3));
+      cell(row, decimal(sky.kappa_quadratic, 3));
+      cell(row, integer(dhi.n));
+      body.appendChild(row);
+    }
+  }
+
+  function renderReferencesTable() {
+    const body = el("ceuReferenciasCorpo");
+    body.replaceChildren();
+    const references = evaluation().references || {};
+    const names = { clearsky: "difusa de céu claro", persistence: "persistência" };
+    for (const [key, reference] of Object.entries(references)) {
+      if (!reference || typeof reference !== "object") continue;
+      const row = node("tr");
+      const horizon = finite(reference.horizon_minutes) ? ` de ${integer(reference.horizon_minutes)} min` : "";
+      const label = text(reference.label, `${names[key] || key}${horizon}`);
+      cell(row, label);
+      cell(row, decimal(reference.dhi_rmse, 2));
+      cell(row, decimal(reference.model_rmse_on_paired, 2));
+      cell(row, trueMinus(reference.skill, 3));
+      cell(row, integer(reference.n));
+      const details = [];
+      if (finite(reference.horizon_minutes)) details.push(`horizonte de ${integer(reference.horizon_minutes)} min`);
+      if (finite(reference.n_rows)) details.push(`${integer(reference.n_rows)} linhas distintas do datalogger`);
+      const kindexReference = reference.kindex;
+      if (kindexReference && finite(kindexReference.skill)) {
+        details.push(
+          `${kindexSymbol()}: habilidade ${trueMinus(kindexReference.skill, 3)} (n ${integer(kindexReference.n)})`
+        );
+      }
+      const clear = reference.on_clear_rows;
+      if (clear && typeof clear === "object") {
+        details.push(
+          `nas linhas de céu claro: RMSE ${decimal(clear.rmse, 2)}, MBE ${signed(clear.mbe, 2)}, n ${integer(clear.n)}`
+        );
+      }
+      cell(row, details.join(" · ") || "—");
+      body.appendChild(row);
+    }
+  }
+
+  function renderPerClass() {
+    const body = el("ceuClassesCorpo");
+    body.replaceChildren();
+    const arm = servedArm();
+    const source = evaluation().per_class || (arm && arm.sky && arm.sky.per_class);
+    const rows = rowsOf(source, "id");
+    const model = state.modelPayload;
+    for (const condition of conditionsOf(model)) {
+      const found = rows.find((row) => (resolveCondition(model, row) || {}).id === condition.id);
+      if (!found) continue;
+      const row = node("tr");
+      cell(row, conditionCell(condition));
+      cell(row, percent(found.recall, 1));
+      cell(row, percent(found.precision, 1));
+      cell(row, decimal(found.f1, 3));
+      cell(row, integer(found.n ?? found.support));
+      body.appendChild(row);
+    }
+  }
+
+  function confusionMatrix(arm) {
+    const confusion = arm && arm.sky && arm.sky.confusion;
+    return Array.isArray(confusion) ? confusion : null;
+  }
+
+  function conditionHeader(condition, scope) {
+    const header = node("th", null, condition ? conditionShort(condition) : "—");
+    header.scope = scope;
+    return header;
+  }
+
+  function renderConfusion() {
+    const head = el("ceuConfusaoCabecalho");
+    const body = el("ceuConfusaoCorpo");
+    body.replaceChildren();
+    const model = state.modelPayload;
+    const matrix = confusionMatrix(servedArm());
+    head.closest(".clima-table-scroll").hidden = !matrix;
+    if (!matrix) return;
+    const ordered = conditionsOf(model).slice(0, matrix.length);
+    head.replaceChildren(head.firstElementChild, ...ordered.map((condition) => conditionHeader(condition, "col")));
+    const ink = themeColors().ink;
+    matrix.forEach((values, rowIndex) => {
+      if (!Array.isArray(values)) return;
+      const total = values.reduce((sum, value) => (finite(value) ? sum + value : sum), 0);
+      const row = node("tr");
+      row.appendChild(conditionHeader(ordered[rowIndex], "row"));
+      values.forEach((value, columnIndex) => {
+        const fraction = total > 0 && finite(value) ? value / total : 0;
+        const box = cell(
+          row,
+          finite(value) ? `${integer(value)} (${percent(fraction, 0)})` : "—",
+          "sky-confusion-cell"
+        );
+        box.style.background = `rgba(${ink}, ${(0.05 + 0.6 * fraction).toFixed(3)})`;
+        if (columnIndex === rowIndex) box.classList.add("is-diagonal");
+      });
+      body.appendChild(row);
+    });
+  }
+
+  function bandLabel(row) {
+    const stratum = text(row.stratum, "");
+    const bounds = /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/.exec(stratum);
+    if (bounds) return `${decimal(Number(bounds[1]), 1)}–${decimal(Number(bounds[2]), 1)}°`;
+    return stratum || "—";
+  }
+
+  function errorCells(row, entry) {
+    cell(row, integer(entry.n));
+    cell(row, decimal(entry.rmse, 2));
+    cell(row, decimal(entry.mae, 2));
+    cell(row, signed(entry.mbe, 2));
+  }
+
+  function renderStratified() {
+    const stratified = (state.modelPayload && state.modelPayload.stratified) || {};
+    const model = state.modelPayload;
+    const elevationBody = el("ceuElevacaoCorpo");
+    elevationBody.replaceChildren();
+    el("ceuElevacaoLegenda").textContent = stratified.member
+      ? `Por faixa de elevação solar — membro ${stratified.member}, difusa em ${dhiUnit()}`
+      : `Por faixa de elevação solar, difusa em ${dhiUnit()}`;
+    for (const entry of rowsOf(stratified.solar_elevation, "stratum")) {
+      const row = node("tr");
+      const extrapolated = entry.extrapolation === true ? " — extrapolação" : "";
+      cell(row, `${bandLabel(entry)}${extrapolated}`);
+      errorCells(row, entry);
+      elevationBody.appendChild(row);
+    }
+    const classBody = el("ceuEstratoClasseCorpo");
+    classBody.replaceChildren();
+    const rows = rowsOf(stratified.sky_class, "stratum");
+    for (const condition of conditionsOf(model)) {
+      const entry = rows.find((row) => (resolveCondition(model, row.stratum) || {}).id === condition.id);
+      if (!entry) continue;
+      const row = node("tr");
+      cell(row, conditionCell(condition));
+      errorCells(row, entry);
+      classBody.appendChild(row);
+    }
+  }
+
+  function renderPerDay() {
+    const body = el("ceuDiasTesteCorpo");
+    body.replaceChildren();
+    const model = state.modelPayload;
+    const days = Array.isArray(evaluation().per_day) ? evaluation().per_day : [];
+    const persistence = skillEntry("persistence");
+    el("ceuDiasTestePersistencia").textContent =
+      persistence && finite(persistence.horizon_minutes)
+        ? `RMSE da persistência de ${integer(persistence.horizon_minutes)} min`
+        : "RMSE da persistência";
+    body.closest(".clima-table-scroll").hidden = days.length === 0;
+    for (const day of days) {
+      if (!day || typeof day !== "object") continue;
+      const row = node("tr");
+      const date = parseStationTime(day.date || "");
+      cell(row, Number.isFinite(date) ? formatDay(date) : text(day.date));
+      cell(row, integer(day.n));
+      cell(row, shareBar(model, day.class_share));
+      cell(row, decimal(day.rmse_model, 2));
+      cell(row, decimal(day.rmse_persistence, 2));
+      cell(row, decimal(day.rmse_clearsky, 2));
+      body.appendChild(row);
+    }
+  }
+
+  function curveEpochs(curve) {
+    if (Array.isArray(curve.epochs)) return curve.epochs;
+    const length = Math.max(
+      ...["train_kindex_mae", "val_kindex_mae"].map((key) => (Array.isArray(curve[key]) ? curve[key].length : 0))
+    );
+    return Array.from({ length }, (_value, index) => index + 1);
+  }
+
+  function curveSeries(curve, key, epochs) {
+    const values = Array.isArray(curve[key]) ? curve[key] : null;
+    if (!values) return null;
+    const points = epochs.map((epoch, index) => ({ x: epoch, y: finite(values[index]) ? values[index] : null }));
+    return points.some((point) => point.y !== null) ? points : null;
+  }
+
+  const bestEpochMarker = {
+    id: "labmimSkyBestEpoch",
+    afterDatasetsDraw(chart, _args, options) {
+      if (!finite(options.epoch)) return;
+      const { ctx, chartArea, scales } = chart;
+      const x = scales.x.getPixelForValue(options.epoch);
+      if (x < chartArea.left || x > chartArea.right) return;
+      ctx.save();
+      ctx.strokeStyle = options.color;
+      ctx.fillStyle = options.color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = x > (chartArea.left + chartArea.right) / 2 ? "right" : "left";
+      ctx.fillText(
+        `melhor época: ${integer(options.epoch)}`,
+        x + (ctx.textAlign === "left" ? 4 : -4),
+        chartArea.top + 12
+      );
+      ctx.restore();
+    },
+  };
+
+  function drawTrainingCurve(theme) {
+    if (state.curveChart) {
+      state.curveChart.destroy();
+      state.curveChart = null;
+    }
+    const curve = (state.modelPayload && state.modelPayload.training_curve) || {};
+    const epochs = curveEpochs(curve);
+    const train = curveSeries(curve, "train_kindex_mae", epochs);
+    const validation = curveSeries(curve, "val_kindex_mae", epochs);
+    const wrap = el("ceuCurvaChartWrap");
+    wrap.hidden = !train && !validation;
+    const note = el("ceuCurvaNota");
+    if (wrap.hidden) {
+      note.textContent = "";
+      return;
+    }
+    const noteParts = [`MAE de ${kindexSymbol()} por época, no treino e na validação`];
+    if (finite(curve.best_epoch)) noteParts.push(`a parada antecipada escolheu a época ${integer(curve.best_epoch)}`);
+    const served = servedBlock();
+    if (served.training && finite(served.training.epochs))
+      noteParts.push(`${integer(served.training.epochs)} épocas previstas`);
+    note.textContent = `${noteParts.join(" · ")}.`;
+    const datasets = [];
+    if (train) {
+      datasets.push({
+        label: "treino",
+        data: train,
+        borderColor: theme.textSecondary,
+        backgroundColor: theme.textSecondary,
+        borderWidth: 1.4,
+        borderDash: [5, 4],
+        pointRadius: 0,
+        spanGaps: false,
+        tension: 0,
+      });
+    }
+    if (validation) {
+      datasets.push({
+        label: "validação",
+        data: validation,
+        borderColor: `rgb(${theme.ink})`,
+        backgroundColor: `rgb(${theme.ink})`,
+        borderWidth: 1.8,
+        pointRadius: 0,
+        spanGaps: false,
+        tension: 0,
+      });
+    }
+    state.curveChart = new Chart(el("ceuCurvaCanvas").getContext("2d"), {
+      type: "line",
+      data: { datasets },
+      options: {
+        ...lineChartBase(),
+        plugins: {
+          labmimSkyBestEpoch: { epoch: curve.best_epoch, color: theme.textSecondary },
+          legend: { display: true, position: "top", labels: { color: theme.legendText, boxWidth: 26 } },
+          tooltip: chartTooltip(theme, {
+            title: (items) => `Época ${integer(items[0].parsed.x)}`,
+            label: (item) => `${item.dataset.label}: ${decimal(item.parsed.y, 4)}`,
+          }),
+        },
+        scales: {
+          x: {
+            type: "linear",
+            min: epochs[0],
+            max: epochs[epochs.length - 1],
+            title: { display: true, text: "época", color: theme.textSecondary },
+            ticks: { color: theme.textSecondary, stepSize: 5, maxRotation: 0 },
+            grid: { display: false },
+          },
+          y: {
+            type: "linear",
+            title: { display: true, text: `MAE de ${kindexSymbol()}`, color: theme.textSecondary },
+            ticks: { color: theme.textSecondary, maxTicksLimit: 6 },
+            grid: { color: theme.grid },
+          },
+        },
+      },
+      plugins: [bestEpochMarker],
+    });
+  }
+
+  function bestMetricText(value) {
+    if (value && typeof value === "object") {
+      const name = typeof value.name === "string" ? ` (${keyLabel(METRIC_PT, value.name)})` : "";
+      return `${metricValue(String(value.name || ""), value.value)}${name}`;
+    }
+    return decimal(value, 4);
+  }
+
+  function renderSeeds() {
+    const body = el("ceuSementesCorpo");
+    body.replaceChildren();
+    el("ceuSementesCabecalhoKindex").textContent = `MAE ${kindexSymbol()}`;
+    const seeds = (state.modelPayload && state.modelPayload.seeds) || {};
+    const served = servedBlock();
+    const pinned = Array.isArray(served.members) ? served.members : [];
+    const members = Array.isArray(seeds.members) ? seeds.members : [];
+    const captionParts = [];
+    if (finite(seeds.n_seeds))
+      captionParts.push(`${integer(seeds.n_seeds)} sementes — sem desvio-padrão, só mínimo e máximo`);
+    const range = seeds.range && typeof seeds.range === "object" ? seeds.range : {};
+    const rangeParts = Object.entries(range)
+      .filter(([, bounds]) => bounds && finite(bounds.min) && finite(bounds.max))
+      .map(
+        ([key, bounds]) =>
+          `${keyLabel(METRIC_PT, key)} ${metricValue(key, bounds.min)} a ${metricValue(key, bounds.max)}`
+      );
+    if (rangeParts.length) captionParts.push(`faixa: ${rangeParts.join("; ")}`);
+    el("ceuSementesLegenda").textContent = captionParts.join(" · ");
+    for (const member of members) {
+      if (!member || typeof member !== "object") continue;
+      const pin = pinned.find((entry) => entry && entry.name === member.name) || {};
+      const row = node("tr");
+      cell(row, text(member.name));
+      cell(row, integer(member.seed ?? pin.seed));
+      cell(row, integer(pin.epoch));
+      cell(row, bestMetricText(pin.best_metric));
+      cell(row, decimal(member.dhi_rmse, 2));
+      cell(row, decimal(member.dhi_mae, 2));
+      cell(row, signed(member.dhi_mbe, 2));
+      cell(row, decimal(member.kindex_mae, 4));
+      cell(row, percent(member.sky_balanced_accuracy, 1));
+      body.appendChild(row);
+    }
+    body.closest(".clima-table-scroll").hidden = body.children.length === 0;
+  }
+
+  function renderDataset() {
+    const model = state.modelPayload;
+    const dataset = model.dataset || {};
+    const split = dataset.split || {};
+    const noteParts = [];
+    if (finite(dataset.rows) && finite(dataset.days))
+      noteParts.push(`${integer(dataset.rows)} linhas em ${integer(dataset.days)} dias`);
+    const period = dataset.period || {};
+    const start = parseStationDate(period.start);
+    const end = parseStationDate(period.end);
+    if (Number.isFinite(start) && Number.isFinite(end)) noteParts.push(`${formatDay(start)} a ${formatDay(end)}`);
+    if (dataset.season_note) noteParts.push(dataset.season_note);
+    if (split.strategy) noteParts.push(`divisão ${keyLabel(SPLIT_STRATEGY_PT, split.strategy)}`);
+    if (finite(split.gap_days))
+      noteParts.push(`${integer(split.gap_days)} ${split.gap_days === 1 ? "dia" : "dias"} de intervalo`);
+    if (finite(dataset.min_elevation_deg)) noteParts.push(`piso de elevação ${decimal(dataset.min_elevation_deg, 1)}°`);
+    if (dataset.frames_from) noteParts.push(`quadros de ${dataset.frames_from}`);
+    if (dataset.camera) noteParts.push(dataset.camera);
+    if (dataset.target_source) noteParts.push(`alvo: ${keyLabel(TARGET_SOURCE_PT, dataset.target_source)}`);
+    el("ceuDadosNota").replaceChildren(withReferences(noteParts.join(" · ")));
+    const body = el("ceuDivisaoCorpo");
+    body.replaceChildren();
+    el("ceuDivisaoLegenda").textContent =
+      "Cada divisão com seus dias, linhas, faixa de elevação solar e mistura de condições";
+    for (const key of ["train", "val", "test"]) {
+      const part = split[key];
+      if (!part || typeof part !== "object") continue;
+      const row = node("tr");
+      cell(row, SPLIT_PT[key]);
+      cell(row, integer(part.days));
+      const partStart = parseStationDate(part.start);
+      const partEnd = parseStationDate(part.end);
+      cell(
+        row,
+        Number.isFinite(partStart) && Number.isFinite(partEnd) ? `${formatDay(partStart)} a ${formatDay(partEnd)}` : "—"
+      );
+      cell(row, integer(part.rows));
+      const declared = part.solar_elevation_range_deg;
+      const range = Array.isArray(declared)
+        ? declared
+        : declared && typeof declared === "object"
+          ? [declared.min, declared.max]
+          : [];
+      cell(row, range.length === 2 ? `${decimal(range[0], 1)}° a ${decimal(range[1], 1)}°` : "—");
+      cell(row, shareBar(model, part.class_share));
+      body.appendChild(row);
+    }
+  }
+
+  function renderProvenance() {
+    const list = el("ceuProveniencia");
+    list.replaceChildren();
+    const model = state.modelPayload;
+    const served = servedBlock();
+    const dataset = model.dataset || {};
+    if (served.id) factRow(list, "Braço servido", `${served.id}${served.label ? ` — ${served.label}` : ""}`);
+    const members = Array.isArray(served.members) ? served.members : [];
+    for (const member of members) {
+      if (!member || typeof member !== "object") continue;
+      const details = [];
+      if (finite(member.seed)) details.push(`semente ${integer(member.seed)}`);
+      if (member.role) details.push(`papel: ${roleLabel(member.role)}`);
+      if (finite(member.epoch)) details.push(`época ${integer(member.epoch)}`);
+      details.push(`pesos ${shortHash(member.checkpoint_sha256)}`);
+      factRow(list, `Membro ${text(member.name)}`, details.join(" · "));
+    }
+    const attributionMember = finite(served.attribution_member)
+      ? (members[served.attribution_member] || {}).name
+      : served.attribution_member;
+    if (attributionMember) factRow(list, "Membro do mapa de sensibilidade", text(attributionMember));
+    const roles = served.roles;
+    if (roles && typeof roles === "object") {
+      factRow(
+        list,
+        "Papéis das cabeças",
+        Object.entries(roles)
+          .map(([key, value]) => `${keyLabel(ROLE_KEY_PT, key)}: ${roleLabel(value)}`)
+          .join(" · ")
+      );
+    }
+    if (served.code_version) factRow(list, "Versão do código", codeVersionText(served.code_version));
+    const selection = served.selection || {};
+    if (selection.criterion) factRow(list, "Critério de seleção", withReferences(selection.criterion));
+    if (selection.selection_split)
+      factRow(list, "Divisão da seleção", SPLIT_PT[selection.selection_split] || selection.selection_split);
+    const decided = parseStationDate(selection.decided_on);
+    if (Number.isFinite(decided)) factRow(list, "Decidido em", formatDay(decided));
+    const architecture = served.architecture;
+    if (architecture && typeof architecture === "object") {
+      const details = [];
+      if (architecture.name) details.push(keyLabel(ARCHITECTURE_NAME_PT, architecture.name));
+      if (architecture.backbone) details.push(`tronco ${architecture.backbone}`);
+      if (finite(architecture.image_size)) details.push(`${integer(architecture.image_size)} px`);
+      if (architecture.pooling) details.push(`agregação ${architecture.pooling}`);
+      if (finite(architecture.unfreeze_last_n))
+        details.push(`${integer(architecture.unfreeze_last_n)} blocos ajustados`);
+      if (finite(architecture.trunk_hidden)) details.push(`tronco oculto ${integer(architecture.trunk_hidden)}`);
+      if (finite(architecture.parameters)) details.push(`${integer(architecture.parameters)} parâmetros`);
+      factRow(list, "Arquitetura", withReferences(details.join(" · ")));
+    }
+    const inputs = served.inputs;
+    if (inputs && typeof inputs === "object") {
+      const details = [];
+      const geometry = geometryText(inputs.image_geometry);
+      if (geometry) details.push(geometry);
+      details.push(inputs.scalars_consumed === false ? "não consome escalares" : "consome escalares");
+      if (inputs.radiometry_forbidden === true) details.push("radiometria proibida na entrada");
+      factRow(list, "Entradas", details.join(" · "));
+    }
+    const training = served.training;
+    if (training && typeof training === "object") {
+      const scalarEntry = ([key, value]) =>
+        `${keyLabel(TRAINING_KEY_PT, key)}: ${typeof value === "number" ? decimal(value, value < 1 ? 6 : 0) : value}`;
+      const details = Object.entries(training)
+        .filter(([, value]) => value !== null && typeof value !== "object")
+        .map(scalarEntry);
+      const stopping = training.early_stopping;
+      if (stopping && typeof stopping === "object") {
+        const inner = Object.entries(stopping)
+          .filter(([, value]) => value !== null && typeof value !== "object")
+          .map(scalarEntry);
+        details.push(`parada antecipada — ${inner.join(", ")}`);
+      }
+      if (details.length) factRow(list, "Treino", details.join(" · "));
+    }
+    if (dataset.manifest_sha256) factRow(list, "Manifesto do conjunto", shortHash(dataset.manifest_sha256));
+    if (dataset.split_id) {
+      const id = String(dataset.split_id);
+      factRow(list, "Identificador da divisão", /^[0-9a-f]{32,}$/i.test(id) ? shortHash(id) : id);
+    }
+    if (dataset.dataset_version) factRow(list, "Versão do conjunto", dataset.dataset_version);
+    const attribution = model.attribution_summary;
+    if (attribution && typeof attribution === "object") {
+      const details = [];
+      if (attribution.method === "occlusion_sensitivity") details.push("sensibilidade à oclusão");
+      else if (attribution.method) details.push(attribution.method);
+      if (finite(attribution.window_px)) details.push(`janela ${integer(attribution.window_px)} px`);
+      if (finite(attribution.stride_px)) details.push(`passo ${integer(attribution.stride_px)} px`);
+      if (attribution.target)
+        details.push(`alvo ${attribution.target === "kindex" ? kindexSymbol() : attribution.target}`);
+      factRow(list, "Mapa de sensibilidade", details.join(" · "));
+    }
+    const check = model.domain_check;
+    if (check && typeof check === "object") {
+      const details = [];
+      const day = parseStationDate(check.day);
+      if (Number.isFinite(day)) details.push(formatDay(day));
+      if (finite(check.n)) details.push(`n ${integer(check.n)}`);
+      if (finite(check.dhi_rmse)) details.push(`RMSE DHI ${decimal(check.dhi_rmse, 2)} ${dhiUnit()}`);
+      if (finite(check.dhi_mbe)) details.push(`MBE DHI ${signed(check.dhi_mbe, 2)} ${dhiUnit()}`);
+      if (finite(check.class_agreement)) details.push(`concordância de condição ${percent(check.class_agreement, 1)}`);
+      factRow(list, "Verificação de domínio (JPEG ao vivo × timelapse)", details.join(" · ") || "—");
+    } else {
+      factRow(list, "Verificação de domínio (JPEG ao vivo × timelapse)", "não medido");
+    }
+  }
+
+  function modelUnavailableMessage() {
+    if (state.modelStatus === "unreadable") return unreadableMessage("O cartão do modelo");
+    if (state.modelStatus === "absent") {
+      return "O cartão do modelo ainda não foi publicado — o quadro e a linha do tempo não dependem dele.";
+    }
+    return "O cartão do modelo não traz avaliação.";
+  }
+
+  function drawModelCard() {
+    const model = state.modelPayload;
+    const usable = Boolean(model && typeof model === "object" && (servedArm() || servedBlock().id));
+    el("ceuModeloToggleWrap").hidden = !usable;
+    el("ceuModeloResumo").hidden = !usable;
+    if (!usable) {
+      el("ceuModeloNota").textContent = "";
+      el("ceuModeloDetalhes").hidden = true;
+      el("ceuModeloStatus").textContent = modelUnavailableMessage();
+      return;
+    }
+    renderModelHeadline();
+    const caveat = persistenceCaveat();
+    el("ceuModeloStatus").replaceChildren(withReferences(caveat));
+    renderArmsTable();
+    renderReferencesTable();
+    renderPerClass();
+    renderConfusion();
+    renderStratified();
+    renderPerDay();
+    drawTrainingCurve(themeColors());
+    renderSeeds();
+    renderDataset();
+    renderProvenance();
+  }
+
   async function loadJson(name) {
     let response;
     try {
@@ -1657,6 +3518,9 @@
     buildModelToggles();
     drawChart();
     drawCumulative();
+    renderPredictionCard();
+    drawTimeline();
+    drawModelCard();
   }
 
   async function start() {
@@ -1673,15 +3537,23 @@
     }
 
     el("ceuEmpty").hidden = false;
-    const [chart, frame, cumulative] = await Promise.all([
+    const [chart, frame, timeline, model, cumulative] = await Promise.all([
       loadJson(KTKD_PAYLOAD),
       loadJson(FRAME_PAYLOAD),
+      loadJson(TIMELINE_PAYLOAD),
+      loadJson(MODEL_PAYLOAD),
       loadJson(CUMULATIVE_PAYLOAD),
     ]);
     state.chartPayload = chart.payload;
     state.chartStatus = chart.status;
     state.framePayload = frame.payload;
+    state.frameStatus = frame.status;
+    state.timelinePayload = timeline.payload;
+    state.timelineStatus = timeline.status;
+    state.modelPayload = model.payload;
+    state.modelStatus = model.status;
     state.cumulativePayload = cumulative.payload;
+    state.cumulativeStatus = cumulative.status;
     state.classes = resolveClasses(state.chartPayload);
     state.models = resolveModels(state.chartPayload);
     state.points = readPoints(state.chartPayload);
@@ -1701,18 +3573,19 @@
     buildLayerToggles();
     buildClassToggles();
     buildModelToggles();
-    el("ceuOpacidade").addEventListener("input", applyMaskOpacity);
+    el("ceuOpacidade").addEventListener("input", applyOverlayOpacity);
     el("ceuGuia").addEventListener("click", openGuide);
     el("ceuAmpliar").addEventListener("click", openZoom);
     el("ceuExport").addEventListener("click", exportCsv);
 
     initCumulative();
-    // Last, so it sees every citation the page ended up making — the static prose already decorated by
-    // references.js, plus the markers the two payloads brought in.
-    renderReferences();
-
     el("ceuEmpty").hidden = true;
     el("ceuApp").hidden = false;
+    drawTimeline();
+    drawModelCard();
+    // Last, so it sees every citation the page ended up making — the static prose already decorated by
+    // references.js, plus the markers the payloads brought in.
+    renderReferences();
     drawChart();
     drawCumulative();
 

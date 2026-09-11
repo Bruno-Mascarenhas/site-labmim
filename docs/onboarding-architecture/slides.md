@@ -1025,7 +1025,7 @@ produto WebGIS, diferente de cadastrar território ou publicação.
 
 ### Condição do céu
 
-- imagem all-sky + máscara
+- imagem all-sky + sensibilidade à oclusão
 - Kt x Kd + modelos empíricos
 - acumulada do índice de claridade
 
@@ -1274,7 +1274,7 @@ o produtor publicou a distribuição correspondente.
 </div>
 <div class="text-sm pt-1">
 
-- quadro all-sky atual e máscara de segmentação, quando publicados
+- quadro all-sky atual, sensibilidade à oclusão e cartão do modelo, quando publicados
 - densidade de `Kt` x `Kd` e quatro condições de céu
 - modelos Marques Filho, Lemos e Ridley com métricas
 - acumulada de `Kt` por registro, verão e inverno
@@ -1289,11 +1289,11 @@ O snapshot local contém o acervo estatístico; o quadro “agora” depende de 
 </div>
 
 <!--
-A página combina três cadências. `labmim-allsky-frame-v1` descreve o quadro e a máscara mais recentes;
+A página combina três cadências. `labmim-allsky-frame-v2` descreve o quadro pontuado mais recente, com o mapa de sensibilidade e os contrafactuais;
 `labmim-ktkd-v1` publica a densidade horária de índice de claridade contra fração difusa; e
 `labmim-kt-cumulative-v1` resume quanto tempo o registro passa em cada condição de céu.
 
-O snapshot local não possui o quadro/máscara atuais, por isso a captura registra apenas a seção analítica,
+O snapshot local não possui o quadro atual nem o mapa de sensibilidade, por isso a captura registra apenas a seção analítica,
 que está completa. A densidade pode receber pontos e os três modelos empíricos; a acumulada marca os limites
 de Escobedo e oferece recortes sazonais. Essa separação evita que a ausência de uma imagem recente torne o
 acervo histórico indisponível.
