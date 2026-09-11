@@ -180,7 +180,7 @@
         <div class="sky-prediction-block">
           <h4 class="sky-block-title">Condição prevista</h4>
           <p class="sky-condition-headline" id="ceuCondicao"></p>
-          <div class="sky-probs" id="ceuProbabilidades" role="img" aria-label="Probabilidades por condição"></div>
+          <div class="sky-bar" id="ceuProbabilidades" role="img" aria-label="Probabilidades por condição"></div>
           <ul class="sky-inline-legend" id="ceuProbabilidadesLegenda"></ul>
         </div>
         <div class="sky-prediction-block">
@@ -205,6 +205,7 @@
         <h3 class="clima-panel-title">Difusa prevista, bloco a bloco</h3>
         <p class="clima-legend" id="ceuLinhaNota"></p>
       </div>
+      <div id="ceuLinhaCorpo">
       <div class="clima-stats sky-stats-secondary" id="ceuAoVivo" hidden></div>
       <div class="chart-container clima-chart sky-timeline-chart" id="ceuLinhaChartWrap" hidden>
         <canvas
@@ -236,6 +237,7 @@
           <tbody id="ceuDiasCorpo"></tbody>
         </table>
       </div>
+      </div>
       <p class="clima-status" id="ceuLinhaStatus" aria-live="polite"></p>
     </div>
 
@@ -245,8 +247,10 @@
         <h3 class="clima-panel-title">Cartão do modelo</h3>
         <p class="clima-legend" id="ceuModeloNota"></p>
       </div>
+      <div id="ceuModeloResumo">
       <div class="clima-stats" id="ceuModeloStats"></div>
       <div class="clima-stats sky-stats-secondary" id="ceuModeloSkill"></div>
+      </div>
       <p class="clima-status" id="ceuModeloStatus" aria-live="polite"></p>
 
       <div class="text-center mb-3" id="ceuModeloToggleWrap" hidden>
@@ -329,10 +333,6 @@
               <thead>
                 <tr id="ceuConfusaoCabecalho">
                   <th scope="col">Verdadeira ↓ · Prevista →</th>
-                  <th scope="col"></th>
-                  <th scope="col"></th>
-                  <th scope="col"></th>
-                  <th scope="col"></th>
                 </tr>
               </thead>
               <tbody id="ceuConfusaoCorpo"></tbody>

@@ -566,7 +566,7 @@
 }
 
 .clima-stat-value {
-  font-size: 1.35rem;
+  font-size: var(--clima-stat-size, 1.35rem);
   font-weight: 700;
   line-height: 1.1;
   color: var(--text-primary);
@@ -1351,8 +1351,8 @@
   text-align: center;
 }
 
-.sky-prediction-stats .clima-stat-value {
-  font-size: 1.2rem;
+.sky-prediction-stats {
+  --clima-stat-size: 1.2rem;
 }
 
 .sky-prediction-grid {
@@ -1389,13 +1389,7 @@
   color: var(--text-primary);
 }
 
-.sky-condition-cell {
-  display: inline-flex;
-  gap: 0.4rem;
-  align-items: center;
-}
-
-.sky-probs {
+.sky-bar {
   display: flex;
   height: 0.9rem;
   overflow: hidden;
@@ -1404,7 +1398,7 @@
   border-radius: 6px;
 }
 
-.sky-probs-segment {
+.sky-bar-segment {
   height: 100%;
   min-width: 0;
 }
@@ -1420,7 +1414,8 @@
   list-style: none;
 }
 
-.sky-inline-legend li {
+.sky-inline-legend li,
+.sky-condition-cell {
   display: inline-flex;
   gap: 0.4rem;
   align-items: center;
@@ -1432,27 +1427,13 @@
   margin: 0;
 }
 
-.sky-facts div {
-  display: flex;
+.sky-facts .clima-fit-row {
   flex-wrap: wrap;
   gap: 0.2rem 0.75rem;
-  justify-content: space-between;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.sky-facts dt {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text-secondary);
 }
 
 .sky-facts dd {
   flex: 1 1 12rem;
-  margin: 0;
-  font-size: 0.88rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
   text-align: right;
 }
 
@@ -1460,8 +1441,8 @@
   flex-basis: 24rem;
 }
 
-.sky-stats-secondary .clima-stat-value {
-  font-size: 1.1rem;
+.sky-stats-secondary {
+  --clima-stat-size: 1.1rem;
 }
 
 .sky-timeline-chart {
@@ -1496,18 +1477,11 @@
   align-items: center;
 }
 
-.sky-share-bar {
+.sky-bar-compact {
   display: inline-flex;
   width: 7rem;
   height: 0.7rem;
-  overflow: hidden;
-  border: 1px solid var(--border-color);
   border-radius: 4px;
-}
-
-.sky-share-bar span {
-  display: block;
-  height: 100%;
 }
 
 .sky-share-text {

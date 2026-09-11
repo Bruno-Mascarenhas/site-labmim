@@ -17,6 +17,14 @@
     return element;
   }
 
+  function statTile(container, value, label, title) {
+    const tile = node("div", "clima-stat");
+    tile.append(node("span", "clima-stat-value", value), node("span", "clima-stat-label", label));
+    if (title) tile.title = title;
+    container.appendChild(tile);
+    return tile;
+  }
+
   function decimal(value, digits) {
     if (!Number.isFinite(value)) return "—";
     return new Intl.NumberFormat("pt-BR", {
@@ -86,6 +94,7 @@
   window.labmimChartPage = {
     el,
     node,
+    statTile,
     pad,
     decimal,
     integer,

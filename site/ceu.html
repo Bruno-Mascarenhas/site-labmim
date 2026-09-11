@@ -57,7 +57,7 @@
     <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
     <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
     <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
-    <link rel="stylesheet" href="assets/css/components.css?v=be608003" />
+    <link rel="stylesheet" href="assets/css/components.css?v=38bc57c5" />
 
     <link rel="stylesheet" href="assets/css/theme.css?v=694b8c88" />
 
@@ -323,7 +323,7 @@
               <div class="sky-prediction-block">
                 <h4 class="sky-block-title">Condição prevista</h4>
                 <p class="sky-condition-headline" id="ceuCondicao"></p>
-                <div class="sky-probs" id="ceuProbabilidades" role="img" aria-label="Probabilidades por condição"></div>
+                <div class="sky-bar" id="ceuProbabilidades" role="img" aria-label="Probabilidades por condição"></div>
                 <ul class="sky-inline-legend" id="ceuProbabilidadesLegenda"></ul>
               </div>
               <div class="sky-prediction-block">
@@ -348,38 +348,40 @@
               <h3 class="clima-panel-title">Difusa prevista, bloco a bloco</h3>
               <p class="clima-legend" id="ceuLinhaNota"></p>
             </div>
-            <div class="clima-stats sky-stats-secondary" id="ceuAoVivo" hidden></div>
-            <div class="chart-container clima-chart sky-timeline-chart" id="ceuLinhaChartWrap" hidden>
-              <canvas
-                id="ceuLinhaCanvas"
-                role="img"
-                aria-label="Irradiância difusa prevista nos últimos dias, com a referência de céu claro e a difusa medida quando disponível"
-              ></canvas>
-            </div>
-            <div class="chart-container clima-chart sky-timeline-strip" id="ceuFaixaChartWrap" hidden>
-              <canvas
-                id="ceuFaixaCanvas"
-                role="img"
-                aria-label="Índice de céu claro previsto, colorido pela condição de céu prevista"
-              ></canvas>
-            </div>
-            <ul class="sky-inline-legend" id="ceuLinhaLegenda" hidden></ul>
-            <div class="clima-table-scroll" id="ceuDiasWrap" hidden>
-              <table class="clima-table">
-                <caption>
-                  Resumo por dia
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Dia</th>
-                    <th scope="col">Blocos pontuados</th>
-                    <th scope="col">Blocos pulados</th>
-                    <th scope="col">Quadros</th>
-                    <th scope="col">Condições previstas (I · II · III · IV)</th>
-                  </tr>
-                </thead>
-                <tbody id="ceuDiasCorpo"></tbody>
-              </table>
+            <div id="ceuLinhaCorpo">
+              <div class="clima-stats sky-stats-secondary" id="ceuAoVivo" hidden></div>
+              <div class="chart-container clima-chart sky-timeline-chart" id="ceuLinhaChartWrap" hidden>
+                <canvas
+                  id="ceuLinhaCanvas"
+                  role="img"
+                  aria-label="Irradiância difusa prevista nos últimos dias, com a referência de céu claro e a difusa medida quando disponível"
+                ></canvas>
+              </div>
+              <div class="chart-container clima-chart sky-timeline-strip" id="ceuFaixaChartWrap" hidden>
+                <canvas
+                  id="ceuFaixaCanvas"
+                  role="img"
+                  aria-label="Índice de céu claro previsto, colorido pela condição de céu prevista"
+                ></canvas>
+              </div>
+              <ul class="sky-inline-legend" id="ceuLinhaLegenda" hidden></ul>
+              <div class="clima-table-scroll" id="ceuDiasWrap" hidden>
+                <table class="clima-table">
+                  <caption>
+                    Resumo por dia
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Dia</th>
+                      <th scope="col">Blocos pontuados</th>
+                      <th scope="col">Blocos pulados</th>
+                      <th scope="col">Quadros</th>
+                      <th scope="col">Condições previstas (I · II · III · IV)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ceuDiasCorpo"></tbody>
+                </table>
+              </div>
             </div>
             <p class="clima-status" id="ceuLinhaStatus" aria-live="polite"></p>
           </div>
@@ -390,8 +392,10 @@
               <h3 class="clima-panel-title">Cartão do modelo</h3>
               <p class="clima-legend" id="ceuModeloNota"></p>
             </div>
-            <div class="clima-stats" id="ceuModeloStats"></div>
-            <div class="clima-stats sky-stats-secondary" id="ceuModeloSkill"></div>
+            <div id="ceuModeloResumo">
+              <div class="clima-stats" id="ceuModeloStats"></div>
+              <div class="clima-stats sky-stats-secondary" id="ceuModeloSkill"></div>
+            </div>
             <p class="clima-status" id="ceuModeloStatus" aria-live="polite"></p>
 
             <div class="text-center mb-3" id="ceuModeloToggleWrap" hidden>
@@ -480,10 +484,6 @@
                     <thead>
                       <tr id="ceuConfusaoCabecalho">
                         <th scope="col">Verdadeira ↓ · Prevista →</th>
-                        <th scope="col"></th>
-                        <th scope="col"></th>
-                        <th scope="col"></th>
-                        <th scope="col"></th>
                       </tr>
                     </thead>
                     <tbody id="ceuConfusaoCorpo"></tbody>
@@ -891,7 +891,7 @@
     <script defer src="assets/js/references.js?v=23573fee"></script>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
-    <script defer src="assets/js/chart-page.js?v=aebac3eb"></script>
-    <script defer src="assets/js/ceu.js?v=337de62b"></script>
+    <script defer src="assets/js/chart-page.js?v=f40f32a6"></script>
+    <script defer src="assets/js/ceu.js?v=2584ea3e"></script>
   </body>
 </html>
