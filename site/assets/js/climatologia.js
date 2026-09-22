@@ -782,6 +782,7 @@
   function showEmpty(message) {
     el("climaApp").hidden = true;
     const empty = el("climaEmpty");
+    empty.classList.remove("is-loading");
     empty.hidden = false;
     el("climaEmptyMessage").textContent = message;
   }
@@ -921,7 +922,6 @@
       return;
     }
 
-    el("climaEmpty").hidden = false;
     try {
       state.manifest = await fetchJson(`${state.base}/manifest.json`);
     } catch {

@@ -772,6 +772,10 @@
   margin: 0;
 }
 
+.clima-empty.is-loading {
+  margin-bottom: 100vh;
+}
+
 @media (width <= 768px) {
   .clima-controls {
     align-items: stretch;

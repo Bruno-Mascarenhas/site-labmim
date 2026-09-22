@@ -879,6 +879,7 @@
   function showEmpty(message) {
     el("monitorApp").hidden = true;
     const empty = el("monitorEmpty");
+    empty.classList.remove("is-loading");
     empty.hidden = false;
     el("monitorEmptyMessage").textContent = message;
   }
@@ -941,7 +942,6 @@
       return;
     }
 
-    el("monitorEmpty").hidden = false;
     let response;
     try {
       // No `?v=`: the file is rewritten under the same name hourly, so freshness is

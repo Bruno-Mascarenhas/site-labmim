@@ -3510,6 +3510,7 @@
   function showEmpty(message) {
     el("ceuApp").hidden = true;
     const empty = el("ceuEmpty");
+    empty.classList.remove("is-loading");
     empty.hidden = false;
     el("ceuEmptyMessage").textContent = message;
   }
@@ -3550,7 +3551,6 @@
       return;
     }
 
-    el("ceuEmpty").hidden = false;
     const chartRequest = loadJson(KTKD_PAYLOAD);
     const [frame, timeline, model, cumulative] = await Promise.all([
       loadJson(FRAME_PAYLOAD),
