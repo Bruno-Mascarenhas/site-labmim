@@ -322,10 +322,12 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 <li>A parcela <code>(1 − EMISS) · GLW</code> é a reflexão da onda longa do céu.</li>
               </ul>
               <p>
-                Não é uma aproximação do que o WRF faz — é a própria expressão do modelo: o <code>rtrnmc</code> do RRTMG
-                monta a radiância ascendente como <code>rad0 + reflect · radld</code>, com
-                <code>rad0 = ε·B(Ts)</code> e <code>reflect = 1 − ε</code>, e o ramo urbano do Noah a escreve por
-                extenso. Descartar o termo refletido abriria o fechamento do balanço de energia em cerca de 22 W/m².
+                Não é uma aproximação do que o WRF faz — é a própria expressão do modelo. Os dois esquemas de onda
+                longa montam a radiância ascendente assim: o <code>rtrn</code> do RRTM como
+                <code>raduemit + (1 − semis) · radld</code> e o <code>rtrnmc</code> do RRTMG como
+                <code>rad0 + reflect · radld</code>, ambos com a emissão <code>ε·B(Ts)</code> e a refletância
+                <code>1 − ε</code>; o ramo urbano do Noah a escreve por extenso. Descartar o termo refletido abriria o
+                fechamento do balanço de energia em cerca de 22 W/m².
               </p>
               <p>
                 Cresce com a quarta potência da temperatura da superfície, então acompanha de perto o aquecimento
@@ -508,7 +510,8 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
               </p>
               <ul class="doc-list">
                 <li>
-                  <strong>Forma de corpo cinza:</strong> código-fonte do WRF — <code>rtrnmc</code> do RRTMG em
+                  <strong>Forma de corpo cinza:</strong> código-fonte do WRF — <code>rtrn</code> do RRTM em
+                  <code>phys/module_ra_rrtm.F</code>, <code>rtrnmc</code> do RRTMG em
                   <code>phys/module_ra_rrtmg_lw.F</code> e o ramo urbano do Noah em
                   <code>phys/module_sf_noahdrv.F</code>.
                 </li>
