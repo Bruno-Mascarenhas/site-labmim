@@ -247,12 +247,13 @@
                   >A linha horizontal em K<sub>d</sub> = 0,5 não é decorativa: o limite entre a segunda e a terceira
                   condição é definido justamente onde a componente difusa iguala a direta, o que na superfície
                   corresponde a metade da global. Os três modelos foram ajustados a médias <strong>horárias</strong>, e
-                  é por isso que o exportador integra o registro de 5 minutos à grade horária antes de comparar. As
-                  horas com chuva e as de sol baixo ficam de fora, assim como as de K<sub>d</sub> fora do intervalo
-                  aberto (0, 1) — a convenção dos ajustes publicados, que remove o realce por nuvens e o artefato da
-                  correção de banda de sombreamento. A rede do quadro é o produto do modelo deste laboratório, e o
-                  cartão em O modelo diz como ela foi escolhida e onde erra. As informações são resultados de aquisições
-                  de pesquisa, sem garantia para utilização irrestrita.</small
+                  é por isso que o exportador integra o registro de 5 minutos à grade horária antes de comparar. Entram
+                  as horas com global acima de 50 W/m² e sol acima de 10° durante a hora inteira, com K<sub>t</sub> e
+                  K<sub>d</sub> entre 0 e 1,2; horas de chuva não são excluídas. Como a difusa não pode superar a
+                  global, K<sub>d</sub> acima de 1 é erro de medida: essas horas aparecem na camada de pontos e entram
+                  nas métricas dos modelos. A rede do quadro é o produto do modelo deste laboratório, e o cartão em O
+                  modelo diz como ela foi escolhida e onde erra. As informações são resultados de aquisições de
+                  pesquisa, sem garantia para utilização irrestrita.</small
                 >
               </p>
             </div>
