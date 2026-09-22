@@ -220,6 +220,25 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
       .join("\n");
   }
 
+  function cumulusCoverage() {
+    const parameterized = domains.filter((domain) => domain.cumulusParameterized).map((domain) => domain.label);
+    const explicit = domains.filter((domain) => !domain.cumulusParameterized).map((domain) => domain.label);
+    if (!explicit.length) {
+      return (
+        `Parametriza a convecção sub-grade em todos os domínios (${naturalList(parameterized, "e")}). ` +
+        "Nos de grade mais fina, a microfísica também resolve parte da convecção explicitamente, e a chuva " +
+        "publicada soma as duas parcelas."
+      );
+    }
+    if (!parameterized.length) {
+      return "Desativada em todos os domínios: a convecção é resolvida explicitamente pela grade.";
+    }
+    return (
+      `Parametriza a convecção sub-grade nos domínios ${naturalList(parameterized, "e")}. ` +
+      `Desativada em ${naturalList(explicit, "e")} (Δx < 4 km), onde a convecção é resolvida explicitamente.`
+    );
+  }
+
   function domainDocumentation() {
     return domains
       .map(
@@ -253,18 +272,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     DOMAIN_COUNT: String(domains.length),
     DEFAULT_DOMAIN_LABEL: escapeAttribute(defaultDomain.label),
     DOMAIN_LABELS: escapeAttribute(naturalList(domains.map((domain) => domain.label))),
-    COARSE_DOMAIN_LABELS: escapeAttribute(
-      naturalList(
-        domains.filter((domain) => domain.cumulusParameterized).map((domain) => domain.label),
-        "e"
-      )
-    ),
-    FINE_DOMAIN_LABELS: escapeAttribute(
-      naturalList(
-        domains.filter((domain) => !domain.cumulusParameterized).map((domain) => domain.label),
-        "e"
-      )
-    ),
+    CUMULUS_COVERAGE: escapeAttribute(cumulusCoverage()),
     DOMAIN_DOCUMENTATION: domainDocumentation(),
     TIMELINE_MAX: String(dataset.timeline.defaultMaxLayer),
     TIMELINE_INITIAL_INDEX: String(dataset.timeline.initialIndex),

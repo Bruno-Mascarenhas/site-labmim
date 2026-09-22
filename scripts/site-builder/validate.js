@@ -808,16 +808,6 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
   if (isNonEmptyString(dataset.defaultDomain) && !domainIds.has(dataset.defaultDomain)) {
     errors.push(`dataset.defaultDomain: no matching domain with id ${dataset.defaultDomain}`);
   }
-
-  // A uniform grid is a legitimate (if undocumented) dataset choice, so warn rather than fail.
-  if (Array.isArray(dataset.domains) && dataset.domains.length > 0) {
-    const flags = dataset.domains.map((domain) => domain?.cumulusParameterized === true);
-    if (flags.every(Boolean) || !flags.some(Boolean)) {
-      warnings.push(
-        "dataset.domains: every domain has the same cumulusParameterized value; the WebGIS cumulus sentence will list one side as empty"
-      );
-    }
-  }
 }
 
 function validatePageOutputPath(errors, value, field) {

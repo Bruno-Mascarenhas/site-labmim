@@ -58,9 +58,7 @@
                 calcula fluxos de calor sensível e latente na interface superfície-atmosfera.
               </li>
               <li>
-                <strong>Cumulus ({{MODEL_CUMULUS}}):</strong> Parametriza a convecção sub-grade nos domínios
-                {{COARSE_DOMAIN_LABELS}}. Desativada em {{FINE_DOMAIN_LABELS}} (Δx &lt; 4 km), onde a convecção é
-                resolvida explicitamente.
+                <strong>Cumulus ({{MODEL_CUMULUS}}):</strong> {{CUMULUS_COVERAGE}}
               </li>
             </ul>
 
@@ -102,8 +100,8 @@
                 de superfície.
               </li>
               <li>
-                A resolução do modelo pode não capturar fenômenos convectivos isolados (&lt; Δx) nos domínios
-                {{COARSE_DOMAIN_LABELS}}.
+                A resolução do modelo não captura fenômenos convectivos menores que o espaçamento de grade (Δx), o
+                que pesa mais nos domínios de grade mais grossa.
               </li>
               <li>
                 A assimilação de dados observacionais locais (estações, radiossondas) melhoraria significativamente a

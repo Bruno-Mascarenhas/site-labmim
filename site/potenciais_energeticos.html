@@ -683,8 +683,8 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
                       </li>
                       <li>
                         <strong>Região Metropolitana de Salvador — 3 km:</strong> Escala local. Cobre a Região
-                        Metropolitana de Salvador e o Recôncavo (~300×300 km). Resolução suficiente para resolver
-                        convecção profunda explicitamente (sem parametrização de cumulus).
+                        Metropolitana de Salvador e o Recôncavo (~300×300 km). A grade já resolve parte da convecção
+                        profunda, e a parametrização de cumulus continua ativa.
                       </li>
                       <li>
                         <strong>Salvador — 1 km:</strong> Alta resolução. Cobre Salvador e Região Metropolitana (~85×85
@@ -723,9 +723,9 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
                     calcula fluxos de calor sensível e latente na interface superfície-atmosfera.
                   </li>
                   <li>
-                    <strong>Cumulus (Betts-Miller-Janjić [[bmj]]):</strong> Parametriza a convecção sub-grade nos
-                    domínios BA/NE e BA. Desativada em RMS e SSA (Δx &lt; 4 km), onde a convecção é resolvida
-                    explicitamente.
+                    <strong>Cumulus (Betts-Miller-Janjić [[bmj]]):</strong> Parametriza a convecção sub-grade em todos
+                    os domínios (BA/NE, BA, RMS e SSA). Nos de grade mais fina, a microfísica também resolve parte da
+                    convecção explicitamente, e a chuva publicada soma as duas parcelas.
                   </li>
                 </ul>
 
@@ -768,8 +768,8 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
                     variáveis de superfície.
                   </li>
                   <li>
-                    A resolução do modelo pode não capturar fenômenos convectivos isolados (&lt; Δx) nos domínios BA/NE
-                    e BA.
+                    A resolução do modelo não captura fenômenos convectivos menores que o espaçamento de grade (Δx), o
+                    que pesa mais nos domínios de grade mais grossa.
                   </li>
                   <li>
                     A assimilação de dados observacionais locais (estações, radiossondas) melhoraria significativamente

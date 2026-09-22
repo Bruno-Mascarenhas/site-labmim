@@ -75,8 +75,8 @@ module.exports = {
       zoom: 9,
       resolution: "3 km",
       description:
-        "Escala local. Cobre a Região Metropolitana de Salvador e o Recôncavo (~300×300 km). Resolução suficiente para resolver convecção profunda explicitamente (sem parametrização de cumulus).",
-      cumulusParameterized: false,
+        "Escala local. Cobre a Região Metropolitana de Salvador e o Recôncavo (~300×300 km). A grade já resolve parte da convecção profunda, e a parametrização de cumulus continua ativa.",
+      cumulusParameterized: true,
     },
     {
       id: "D04",
@@ -87,7 +87,7 @@ module.exports = {
       resolution: "1 km",
       description:
         "Alta resolução. Cobre Salvador e Região Metropolitana (~85×85 km). Captura efeitos topográficos, brisa marítima e ilha de calor urbana.",
-      cumulusParameterized: false,
+      cumulusParameterized: true,
     },
   ],
 };
