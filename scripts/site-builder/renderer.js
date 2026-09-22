@@ -226,8 +226,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     if (!explicit.length) {
       return (
         `Parametriza a convecção sub-grade em todos os domínios (${naturalList(parameterized, "e")}). ` +
-        "Nos de grade mais fina, a microfísica também resolve parte da convecção explicitamente, e a chuva " +
-        "publicada soma as duas parcelas."
+        "A chuva publicada soma a parcela do esquema de cumulus e a da microfísica, em escala de grade."
       );
     }
     if (!parameterized.length) {
