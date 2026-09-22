@@ -1647,6 +1647,7 @@
     );
     el("ceuExport").disabled = state.points.length === 0;
     el("ceuAmpliar").disabled = !hasDrawing();
+    el("ceuGuia").disabled = state.chartStatus === "loading";
   }
 
   function nothingToDrawMessage() {
