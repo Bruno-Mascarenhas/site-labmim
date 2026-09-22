@@ -5,8 +5,15 @@ module.exports = {
   attribution: "LabMiM-UFBA",
   // Name of the Python CLI, not derived from the dataset id.
   generator: "labmim-wrf-geojson",
-  // No `model` block: the WRF namelist comes from DEFAULT_MODEL (renderer), and
-  // this simulation diverges from it in no field.
+  model: {
+    verticalLevels:
+      "30 níveis em coordenada híbrida sigma-pressão, com topo em 50 hPa; metade deles no primeiro quilômetro acima do solo, para resolver a camada limite planetária (CLP).",
+    radiation: "RRTM [[rrtm]] na onda longa e RRTMG [[rrtmg]] na onda curta",
+    microphysics: "WSM3 [[wsm3]]",
+    planetaryBoundaryLayer: "YSU [[ysu]]",
+    landSurface: "Noah [[noah]]",
+    cumulus: "Betts-Miller-Janjić [[bmj]]",
+  },
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",

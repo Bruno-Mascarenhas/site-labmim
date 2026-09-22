@@ -1130,31 +1130,32 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                   </li>
                   <li><strong>Resolução Temporal:</strong> Saídas horárias (75 timesteps para 74h de previsão).</li>
                   <li>
-                    <strong>Coordenadas Verticais:</strong> ~40 níveis sigma, com maior concentração na camada limite
-                    planetária (CLP).
+                    <strong>Coordenadas Verticais:</strong> 30 níveis em coordenada híbrida sigma-pressão, com topo em
+                    50 hPa; metade deles no primeiro quilômetro acima do solo, para resolver a camada limite planetária
+                    (CLP).
                   </li>
                 </ul>
 
                 <h4>Parametrizações Físicas</h4>
                 <ul class="doc-list">
                   <li>
-                    <strong>Radiação (RRTMG [[rrtmg]]):</strong> Calcula os fluxos de radiação de onda curta e longa
-                    considerando interação com nuvens, aerossóis e gases atmosféricos.
+                    <strong>Radiação (RRTM [[rrtm]] na onda longa e RRTMG [[rrtmg]] na onda curta):</strong> Calcula os
+                    fluxos de radiação de onda curta e longa considerando a interação com nuvens e gases atmosféricos.
                   </li>
                   <li>
-                    <strong>Microfísica (Thompson [[thompson]] / WSM6 [[wsm6]]):</strong> Simula os processos de
-                    formação e evolução de hidrometeoros (vapor, chuva, neve, graupel, gelo, gotículas de nuvem).
+                    <strong>Microfísica (WSM3 [[wsm3]]):</strong> Simula a formação e a evolução de nuvens e
+                    precipitação a partir do vapor d'água.
                   </li>
                   <li>
-                    <strong>Camada Limite Planetária (YSU [[ysu]] / MYJ [[myj]]):</strong> Parametriza o transporte
-                    turbulento de calor, umidade e momento na CLP.
+                    <strong>Camada Limite Planetária (YSU [[ysu]]):</strong> Parametriza o transporte turbulento de
+                    calor, umidade e momento na CLP.
                   </li>
                   <li>
-                    <strong>Superfície Terrestre (Noah-MP [[noahmp]]):</strong> Modelo acoplado de solo e vegetação que
+                    <strong>Superfície Terrestre (Noah [[noah]]):</strong> Modelo acoplado de solo e vegetação que
                     calcula fluxos de calor sensível e latente na interface superfície-atmosfera.
                   </li>
                   <li>
-                    <strong>Cumulus (Kain-Fritsch [[kainfritsch]]):</strong> Parametriza a convecção sub-grade nos
+                    <strong>Cumulus (Betts-Miller-Janjić [[bmj]]):</strong> Parametriza a convecção sub-grade nos
                     domínios BA/NE e BA. Desativada em RMS e SSA (Δx &lt; 4 km), onde a convecção é resolvida
                     explicitamente.
                   </li>
@@ -1208,7 +1209,7 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                   </li>
                   <li>
                     Variáveis de fluxo de superfície (HFX, LH) são especialmente sensíveis à representação do uso do
-                    solo no modelo Noah-MP [[noahmp]].
+                    solo no modelo Noah [[noah]].
                   </li>
                 </ul>
 
@@ -1297,6 +1298,26 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
           "short": "Iacono et al., 2008",
           "citation": "Iacono, M. J., Delamere, J. S., Mlawer, E. J., Shephard, M. W., Clough, S. A. & Collins, W. D. (2008). Radiative forcing by long-lived greenhouse gases: calculations with the AER radiative transfer models. Journal of Geophysical Research 113, D13103. O esquema RRTMG.",
           "url": "https://search.crossref.org/search/works?q=Radiative%20forcing%20by%20long-lived%20greenhouse%20gases%20AER%20radiative%20transfer%20models&from_ui=yes"
+        },
+        "rrtm": {
+          "short": "Mlawer et al., 1997",
+          "citation": "Mlawer, E. J., Taubman, S. J., Brown, P. D., Iacono, M. J. & Clough, S. A. (1997). Radiative transfer for inhomogeneous atmospheres: RRTM, a validated correlated-k model for the longwave. Journal of Geophysical Research 102(D14), 16663-16682. O esquema RRTM de onda longa.",
+          "url": "https://doi.org/10.1029/97JD00237"
+        },
+        "wsm3": {
+          "short": "Hong, Dudhia e Chen, 2004",
+          "citation": "Hong, S.-Y., Dudhia, J. & Chen, S.-H. (2004). A revised approach to ice microphysical processes for the bulk parameterization of clouds and precipitation. Monthly Weather Review 132(1), 103-120. O esquema WSM3.",
+          "url": "https://doi.org/10.1175/1520-0493(2004)132%3C0103:ARATIM%3E2.0.CO;2"
+        },
+        "noah": {
+          "short": "Chen e Dudhia, 2001",
+          "citation": "Chen, F. & Dudhia, J. (2001). Coupling an advanced land surface-hydrology model with the Penn State-NCAR MM5 modeling system. Part I: model implementation and sensitivity. Monthly Weather Review 129(4), 569-585. O modelo de superfície Noah.",
+          "url": "https://doi.org/10.1175/1520-0493(2001)129%3C0569:CAALSH%3E2.0.CO;2"
+        },
+        "bmj": {
+          "short": "Janjic, 1994",
+          "citation": "Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), 927-945. O esquema Betts-Miller-Janjić de cumulus.",
+          "url": "https://doi.org/10.1175/1520-0493(1994)122%3C0927:TSMECM%3E2.0.CO;2"
         },
         "thompson": {
           "short": "Thompson et al., 2008",

@@ -42,6 +42,37 @@ const SITE_REFERENCES = Object.freeze({
       "transfer models. Journal of Geophysical Research 113, D13103. O esquema RRTMG.",
     url: crossrefTitleSearch("Radiative forcing by long-lived greenhouse gases AER radiative transfer models"),
   },
+  rrtm: {
+    short: "Mlawer et al., 1997",
+    citation:
+      "Mlawer, E. J., Taubman, S. J., Brown, P. D., Iacono, M. J. & Clough, S. A. (1997). Radiative transfer for " +
+      "inhomogeneous atmospheres: RRTM, a validated correlated-k model for the longwave. Journal of Geophysical " +
+      "Research 102(D14), 16663-16682. O esquema RRTM de onda longa.",
+    url: "https://doi.org/10.1029/97JD00237",
+  },
+  wsm3: {
+    short: "Hong, Dudhia e Chen, 2004",
+    citation:
+      "Hong, S.-Y., Dudhia, J. & Chen, S.-H. (2004). A revised approach to ice microphysical processes for the " +
+      "bulk parameterization of clouds and precipitation. Monthly Weather Review 132(1), 103-120. O esquema WSM3.",
+    url: "https://doi.org/10.1175/1520-0493(2004)132%3C0103:ARATIM%3E2.0.CO;2",
+  },
+  noah: {
+    short: "Chen e Dudhia, 2001",
+    citation:
+      "Chen, F. & Dudhia, J. (2001). Coupling an advanced land surface-hydrology model with the Penn State-NCAR " +
+      "MM5 modeling system. Part I: model implementation and sensitivity. Monthly Weather Review 129(4), 569-585. " +
+      "O modelo de superfície Noah.",
+    url: "https://doi.org/10.1175/1520-0493(2001)129%3C0569:CAALSH%3E2.0.CO;2",
+  },
+  bmj: {
+    short: "Janjic, 1994",
+    citation:
+      "Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the " +
+      "convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), " +
+      "927-945. O esquema Betts-Miller-Janjić de cumulus.",
+    url: "https://doi.org/10.1175/1520-0493(1994)122%3C0927:TSMECM%3E2.0.CO;2",
+  },
   thompson: {
     short: "Thompson et al., 2008",
     citation:
