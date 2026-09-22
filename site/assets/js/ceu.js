@@ -1650,6 +1650,7 @@
   }
 
   function nothingToDrawMessage() {
+    if (state.chartStatus === "loading") return "Carregando o documento de Kt × Kd…";
     if (state.chartStatus === "unreadable") return unreadableMessage("O documento de Kt × Kd");
     if (state.chartStatus === "absent") {
       return "O documento de Kt × Kd ainda não foi publicado — os quadros acima continuam válidos.";
@@ -3523,6 +3524,19 @@
     drawModelCard();
   }
 
+  function applyChartPayload(chart) {
+    state.chartPayload = chart.payload;
+    state.chartStatus = chart.status;
+    state.classes = resolveClasses(state.chartPayload);
+    state.models = resolveModels(state.chartPayload);
+    state.points = readPoints(state.chartPayload);
+    state.density = readDensity(state.chartPayload);
+    invalidateVisiblePoints();
+    if (!state.density) state.layers.delete("density");
+    if (!state.density && state.points.length) state.layers.add("points");
+    if (state.models.length) state.activeModels.add(state.models[0].id);
+  }
+
   async function start() {
     const root = document.querySelector("[data-sky-base]");
     if (!root) return;
@@ -3537,15 +3551,14 @@
     }
 
     el("ceuEmpty").hidden = false;
-    const [chart, frame, timeline, model, cumulative] = await Promise.all([
-      loadJson(KTKD_PAYLOAD),
+    const chartRequest = loadJson(KTKD_PAYLOAD);
+    const [frame, timeline, model, cumulative] = await Promise.all([
       loadJson(FRAME_PAYLOAD),
       loadJson(TIMELINE_PAYLOAD),
       loadJson(MODEL_PAYLOAD),
       loadJson(CUMULATIVE_PAYLOAD),
     ]);
-    state.chartPayload = chart.payload;
-    state.chartStatus = chart.status;
+    state.chartStatus = "loading";
     state.framePayload = frame.payload;
     state.frameStatus = frame.status;
     state.timelinePayload = timeline.payload;
@@ -3554,14 +3567,7 @@
     state.modelStatus = model.status;
     state.cumulativePayload = cumulative.payload;
     state.cumulativeStatus = cumulative.status;
-    state.classes = resolveClasses(state.chartPayload);
-    state.models = resolveModels(state.chartPayload);
-    state.points = readPoints(state.chartPayload);
-    state.density = readDensity(state.chartPayload);
-    invalidateVisiblePoints();
-    if (!state.density) state.layers.delete("density");
-    if (!state.density && state.points.length) state.layers.add("points");
-    if (state.models.length) state.activeModels.add(state.models[0].id);
+    state.classes = resolveClasses(null);
 
     // Before anything renders text: a payload bibliography has to be in the registry for the markers in its own
     // caveats to expand into citations instead of staying literal.
@@ -3590,6 +3596,17 @@
     drawCumulative();
 
     window.addEventListener("labmim-theme-change", onThemeChange);
+
+    applyChartPayload(await chartRequest);
+    registerPayloadReferences();
+    renderHeader();
+    buildCaveats();
+    buildLayerToggles();
+    buildClassToggles();
+    buildModelToggles();
+    renderReferences();
+    drawChart();
+    settleEmptyState();
   }
 
   if (document.readyState === "loading") {
