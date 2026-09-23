@@ -312,22 +312,22 @@ class ChartsManager {
     this._clearModalEmptyState();
 
     const isSolarOrWind = variableType === "solar" || variableType === "eolico";
+    const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
 
-    this._updateOrCreateChart(variableType, "value", "chartCanvasValue");
+    this._updateOrCreateChart(
+      "chartCanvasValue",
+      timeData,
+      this._prepareChartData(variableType, "value", config, timeData)
+    );
 
+    const energySeries = isSolarOrWind ? this._prepareChartData(variableType, "energy", config, timeData) : null;
     const energyContainer = this.ui.chartEnergyContainer;
-    if (isSolarOrWind && this._energySeriesHasValues(variableType)) {
+    if (energySeries?.data.some(Number.isFinite)) {
       energyContainer.style.display = "block";
-      this._updateOrCreateChart(variableType, "energy", "chartCanvasEnergy");
+      this._updateOrCreateChart("chartCanvasEnergy", timeData, energySeries);
     } else {
       energyContainer.style.display = "none";
     }
-  }
-
-  _energySeriesHasValues(variableType) {
-    const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
-    const { data } = this._prepareChartData(variableType, "energy", VARIABLES_CONFIG[variableType], timeData);
-    return data.some(Number.isFinite);
   }
 
   reloadChartsWithNewParameters() {
@@ -704,18 +704,7 @@ class ChartsManager {
     return `${numericValue.toFixed(precision)} ${unit}`;
   }
 
-  _updateOrCreateChart(variableType, chartType, canvasId) {
-    if (!this.timeSeriesData?.[variableType]) return;
-
-    const config = VARIABLES_CONFIG[variableType];
-    const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
-    const {
-      data: chartData,
-      label: chartLabel,
-      unit: chartUnit,
-      color: chartColor,
-    } = this._prepareChartData(variableType, chartType, config, timeData);
-
+  _updateOrCreateChart(canvasId, timeData, { data: chartData, label: chartLabel, unit: chartUnit, color: chartColor }) {
     const labels = timeData.map((entry) => {
       if (!entry._formattedLabel) {
         entry._formattedLabel = new Date(entry.timestamp).toLocaleString("pt-BR", {
