@@ -210,13 +210,14 @@
                 </li>
               </ul>
               <p>
-                O gráfico tem duas leituras da mesma amostra, e a que aparece por padrão é a
-                <strong>densidade</strong>: o plano é cortado numa grade e cada célula é pintada pelo
+                O gráfico tem duas leituras <span id="ceuAmostra">da mesma amostra</span>, e a que aparece por padrão é
+                a <strong>densidade</strong>: o plano é cortado numa grade e cada célula é pintada pelo
                 <strong>número de horas do acervo que caíram nela</strong> — quanto mais escura, mais horas. Não é uma
                 nuvem de pontos desbotada; é uma contagem. A escala é logarítmica porque a célula mais cheia concentra
                 dezenas de horas enquanto as bordas têm uma ou duas, e numa escala linear tudo fora do miolo viraria um
                 tom só. Ligando a camada <strong>Pontos</strong>, cada hora medida aparece individualmente, colorida
                 pela condição de céu.
+                <span id="ceuForaDaGrade"></span>
               </p>
               <p>
                 As <strong>quatro condições de céu</strong> são definidas por faixas de K<sub>t</sub> [[escobedo]], na
@@ -915,6 +916,6 @@
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
     <script defer src="assets/js/chart-page.js?v=db35ae7b"></script>
-    <script defer src="assets/js/ceu.js?v=cc9cc644"></script>
+    <script defer src="assets/js/ceu.js?v=cb5c8626"></script>
   </body>
 </html>

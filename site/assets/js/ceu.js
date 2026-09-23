@@ -113,6 +113,8 @@
   // it holds. Finer than any plausible capture interval, coarse enough to cache.
   const FRAME_BUCKET_MS = 300000;
 
+  const GRID_EDGE_FORMAT = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+
   const state = {
     base: "",
     chart: null,
@@ -340,7 +342,31 @@
     // silently mirroring the figure about its diagonal.
     if (grid.counts.length !== grid.kd_edges.length - 1) return null;
     if (grid.counts.some((row) => !Array.isArray(row) || row.length !== grid.kt_edges.length - 1)) return null;
+    if (!grid.counts.every((row) => row.every(Number.isFinite))) return null;
     return grid;
+  }
+
+  function densityGridSpan(grid) {
+    const span = (edges) =>
+      `de ${GRID_EDGE_FORMAT.format(edges[0])} a ${GRID_EDGE_FORMAT.format(edges[edges.length - 1])}`;
+    const kt = span(grid.kt_edges);
+    const kd = span(grid.kd_edges);
+    return kt === kd ? kt : `(Kt ${kt}, Kd ${kd})`;
+  }
+
+  function hoursOutsideDensityGrid() {
+    const grid = state.density;
+    if (!grid || !Number.isInteger(grid.n_outside) || grid.n_outside < 1) return null;
+    const inside = grid.counts.reduce((total, row) => row.reduce((sum, count) => sum + count, total), 0);
+    return { inside, outside: grid.n_outside, span: densityGridSpan(grid) };
+  }
+
+  function densityCoverageSentence(coverage, pointsLayerAvailable) {
+    const rest = coverage.outside === 1 ? "mais uma fica" : `outras ${integer(coverage.outside)} ficam`;
+    const appear = coverage.outside === 1 ? "aparece" : "aparecem";
+    const inside = `${integer(coverage.inside)} ${coverage.inside === 1 ? "hora" : "horas"}`;
+    const where = pointsLayerAvailable ? ` e só ${appear} na camada Pontos` : "";
+    return `A densidade conta ${inside}; ${rest} fora da grade ${coverage.span}${where}.`;
   }
 
   function classOf(kt) {
@@ -1716,6 +1742,12 @@
         `Seleção e cálculo das horas, como o exportador os descreve: ${filters.join("; ")}.`;
     }
 
+    const coverage = hoursOutsideDensityGrid();
+    if (coverage) el("ceuAmostra").textContent = "das horas selecionadas";
+    el("ceuForaDaGrade").textContent = coverage
+      ? densityCoverageSentence(coverage, pointsOffered() && !pointsFailed())
+      : "";
+
     // Each model against the measured Kd over this exact period: the legend says
     // how they perform here instead of implying they are equivalent.
     const metrics = activeModels()
@@ -1823,10 +1855,15 @@
       );
     }
     if (pointsOffered() && !pointsFailed()) {
+      const coverage = hoursOutsideDensityGrid();
       guideDefinition(
         list,
         "Camada Pontos",
-        "Uma marca por hora medida, colorida pela condição de céu daquele Kt. É a mesma amostra da densidade, hora a hora em vez de contada."
+        `Uma marca por hora medida, colorida pela condição de céu daquele Kt. ${
+          coverage
+            ? densityCoverageSentence(coverage, true)
+            : "É a mesma amostra da densidade, hora a hora em vez de contada."
+        }`
       );
     }
     guideDefinition(list, "Condições de céu", (detail) => {
