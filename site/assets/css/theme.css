@@ -115,6 +115,11 @@ input:focus-visible {
   color: var(--white) !important;
 }
 
+.dark-theme .btn-outline-secondary {
+  --bs-btn-color: var(--text-secondary);
+  --bs-btn-border-color: var(--text-secondary);
+}
+
 .dark-theme .site-affiliation-text small {
   color: var(--brand-secondary);
 }
