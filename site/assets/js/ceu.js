@@ -19,6 +19,16 @@
   const TIMELINE_PAYLOAD = "timeline.json";
   const MODEL_PAYLOAD = "model.json";
   const CUMULATIVE_PAYLOAD = "kt_cumulative.json";
+  const POINTS_FILE_SCHEMA = "labmim-ktkd-points-v1";
+  const POINTS_LOADING_MESSAGE = "Carregando os pontos horários…";
+  const POINTS_FAILURE_MESSAGES = {
+    absent: "Os pontos horários não puderam ser baixados.",
+    unreadable: unreadableMessage("O arquivo dos pontos horários"),
+    foreign: "O arquivo dos pontos horários não está no formato que esta página lê.",
+    stale:
+      "Os pontos horários publicados são de outra versão do documento de Kt × Kd, que está sendo atualizado. Recarregue a página em alguns minutos.",
+  };
+  const UNDECLARED_KD_HEADROOM = 0.1;
   const DEFAULT_RAW_FRAME = "allsky.jpg";
   const DEFAULT_ATTRIBUTION_FRAME = "attribution.png";
   const DEFAULT_INPUT_FRAME = "input.jpg";
@@ -121,6 +131,8 @@
     classes: [],
     models: [],
     points: [],
+    pointsRequest: null,
+    pointsStatus: "idle",
     density: null,
     hidden: new Set(),
     layers: new Set(["density"]),
@@ -245,6 +257,77 @@
       points.push({ x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", observed: true });
     }
     return points;
+  }
+
+  function declaredPointCount() {
+    const declared = state.chartPayload && state.chartPayload.points_file;
+    if (!declared || typeof declared.name !== "string" || !declared.name) return 0;
+    return Number.isInteger(declared.n) && declared.n > 0 ? declared.n : 0;
+  }
+
+  function pointsOffered() {
+    return state.points.length > 0 || declaredPointCount() > 0;
+  }
+
+  function pointsFailed() {
+    return POINTS_FAILURE_MESSAGES[state.pointsStatus] !== undefined;
+  }
+
+  function pointsStatusMessage() {
+    if (state.pointsStatus === "loading") return POINTS_LOADING_MESSAGE;
+    return pointsFailed() ? POINTS_FAILURE_MESSAGES[state.pointsStatus] : "";
+  }
+
+  function pointsFileStatus(result) {
+    if (result.status !== "ok") return result.status;
+    const payload = result.payload;
+    if (!payload || payload.schema !== POINTS_FILE_SCHEMA) return "foreign";
+    const version = state.chartPayload.version;
+    if (typeof version !== "string" || !version || payload.version !== version) return "stale";
+    return "ok";
+  }
+
+  function focusedPointsControl() {
+    const focused = document.activeElement;
+    if (!focused) return null;
+    return focused === el("ceuExport") || el("ceuCamadas").contains(focused) ? focused : null;
+  }
+
+  function refocusLayerToggles(control) {
+    if (control.isConnected && !control.disabled) return;
+    const fallback = Array.from(el("ceuCamadas").children).find((button) => !button.disabled);
+    if (fallback) {
+      fallback.focus();
+      return;
+    }
+    const status = el("ceuStatus");
+    status.tabIndex = -1;
+    status.focus();
+  }
+
+  function acceptPointsFile(result) {
+    const focusedControl = focusedPointsControl();
+    const status = pointsFileStatus(result);
+    const points = status === "ok" ? readPoints(result.payload) : [];
+    state.pointsStatus = status === "ok" && !points.length ? "unreadable" : status;
+    state.points = points;
+    invalidateVisiblePoints();
+    if (pointsFailed()) {
+      state.layers.delete("points");
+      buildLayerToggles();
+    }
+    syncClassToggles();
+    drawChart();
+    if (focusedControl) refocusLayerToggles(focusedControl);
+  }
+
+  function ensurePoints() {
+    if (state.points.length || !declaredPointCount()) return Promise.resolve();
+    if (!state.pointsRequest) {
+      state.pointsStatus = "loading";
+      state.pointsRequest = loadJson(state.chartPayload.points_file.name).then(acceptPointsFile);
+    }
+    return state.pointsRequest;
   }
 
   function readDensity(payload) {
@@ -989,9 +1072,7 @@
     const declaredY = (axes.y && axes.y.range) || [0, 1];
     let ktMax = declaredX[1];
     let kdMin = declaredY[0];
-    // Headroom above the declared range: the overcast class piles up against the
-    // top of it, and a ceiling exactly there presses the densest rows into the edge.
-    let kdMax = declaredY[1] + 0.1;
+    let kdMax = axes.y && axes.y.range ? declaredY[1] : declaredY[1] + UNDECLARED_KD_HEADROOM;
     for (const point of state.points) {
       ktMax = Math.max(ktMax, point.x);
       kdMin = Math.min(kdMin, point.y);
@@ -1438,6 +1519,7 @@
       // The Kt band rides on the chip; the legend row it replaced repeated the swatch
       // and the name to add this one column.
       if (entry.range) button.appendChild(node("span", "sky-chip-range", entry.range));
+      if (entry.disabled) button.disabled = true;
       const active = isActive(entry);
       button.setAttribute("aria-pressed", String(active));
       button.classList.toggle("is-active", active);
@@ -1455,11 +1537,15 @@
   function buildLayerToggles() {
     buildToggles(
       el("ceuCamadas"),
-      LAYERS.filter((layer) => (layer.id === "density" ? state.density : state.points.length)),
+      LAYERS.filter((layer) => (layer.id === "density" ? state.density : pointsOffered())).map((layer) => ({
+        ...layer,
+        disabled: layer.id === "points" && pointsFailed(),
+      })),
       (layer) => state.layers.has(layer.id),
       (layer) => {
         if (state.layers.has(layer.id)) state.layers.delete(layer.id);
         else state.layers.add(layer.id);
+        if (state.layers.has("points")) ensurePoints();
         syncClassToggles();
       },
       (layer) =>
@@ -1645,8 +1731,8 @@
         ? `Densidade horária no plano do índice de claridade contra a fração difusa, com os limites das quatro condições de céu. Use o botão CSV para a versão textual.`
         : `Dispersão de ${decimal(shown, 0)} horas no plano do índice de claridade contra a fração difusa.`
     );
-    el("ceuExport").disabled = state.points.length === 0;
-    el("ceuAmpliar").disabled = !hasDrawing();
+    el("ceuExport").disabled = !pointsOffered() || pointsFailed();
+    el("ceuAmpliar").disabled = !hasDrawing() || (state.layers.has("points") && state.pointsStatus === "loading");
     el("ceuGuia").disabled = state.chartStatus === "loading";
   }
 
@@ -1656,7 +1742,9 @@
     if (state.chartStatus === "absent") {
       return "O documento de Kt × Kd ainda não foi publicado — os quadros acima continuam válidos.";
     }
-    if (!state.density && !state.points.length) return "O documento publicado não traz nem densidade nem pontos.";
+    if (!state.density && !pointsOffered()) return "O documento publicado não traz nem densidade nem pontos.";
+    if (state.pointsStatus === "loading") return POINTS_LOADING_MESSAGE;
+    if (pointsFailed() && !state.density) return pointsStatusMessage();
     if (showingPoints() && !visiblePoints().length) {
       return "Nenhuma condição de céu selecionada — ative pelo menos uma acima.";
     }
@@ -1674,6 +1762,7 @@
       return;
     }
     el("ceuStatus").textContent =
+      pointsStatusMessage() ||
       "A linha horizontal marca Kd = 0,5, onde a componente difusa iguala a direta; as verticais são os limites entre as condições de céu.";
     state.chart = new Chart(el("ceuCanvas").getContext("2d"), {
       type: "line",
@@ -1728,7 +1817,7 @@
         "O plano é cortado em células e cada uma é pintada pelo número de horas do acervo que caíram nela: quanto mais escura, mais horas. A escala é logarítmica porque o miolo concentra dezenas de horas e as bordas têm uma ou duas."
       );
     }
-    if (state.points.length) {
+    if (pointsOffered() && !pointsFailed()) {
       guideDefinition(
         list,
         "Camada Pontos",
@@ -1821,7 +1910,10 @@
     }
   }
 
-  function exportCsv() {
+  async function exportCsv() {
+    const request = ensurePoints();
+    if (state.pointsStatus === "loading") drawChart();
+    await request;
     if (!state.points.length) return;
     const rows = ["instante;kt;kd;condicao"];
     for (const point of state.points) {
@@ -3565,7 +3657,7 @@
     state.density = readDensity(state.chartPayload);
     invalidateVisiblePoints();
     if (!state.density) state.layers.delete("density");
-    if (!state.density && state.points.length) state.layers.add("points");
+    if (!state.density && pointsOffered()) state.layers.add("points");
     if (state.models.length) state.activeModels.add(state.models[0].id);
   }
 
@@ -3629,6 +3721,7 @@
     window.addEventListener("labmim-theme-change", onThemeChange);
 
     applyChartPayload(await chartRequest);
+    if (state.layers.has("points")) ensurePoints();
     registerPayloadReferences();
     renderHeader();
     buildCaveats();
