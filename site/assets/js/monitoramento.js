@@ -42,6 +42,7 @@
   };
 
   const RAW_COLOR = { light: "#79818b", dark: "#7b848f" };
+  const RAW_OVER_BAR_COLOR = { light: "#1a1a1a", dark: "#f0f0f0" };
 
   const RAW_LABEL = "Bruto 5 min";
 
@@ -60,6 +61,8 @@
 
   const MINUTE_MS = 60000;
   const DAY_MS = 86400000;
+  const HOURLY_CENTER_OFFSET_MS = 27.5 * MINUTE_MS;
+  const CSV_STAMP_HEADER = "instante (bruto: fim do intervalo de 5 min, horária: agrega os brutos de hh:00 a hh:55)";
 
   const state = {
     base: "",
@@ -90,6 +93,7 @@
     parseStationTime,
     formatDay,
     formatHour,
+    formatClock,
     formatStamp,
     formatStampYear,
     downloadCsv,
@@ -114,6 +118,7 @@
     return {
       series,
       raw: isDark() ? RAW_COLOR.dark : RAW_COLOR.light,
+      rawOverBar: isDark() ? RAW_OVER_BAR_COLOR.dark : RAW_OVER_BAR_COLOR.light,
       textSecondary: root.getPropertyValue("--text-secondary").trim() || "#888",
       legendText: root.getPropertyValue("--chart-legend-color").trim() || "#666",
       grid: root.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
@@ -144,7 +149,7 @@
   // The payload's `null`s are kept as null-valued points rather than dropped: with
   // `spanGaps` off, that is what makes an outage show as a hole instead of a straight
   // segment bridging hours of silence.
-  function layerPoints(layer, seriesId, from) {
+  function layerPoints(layer, seriesId, from, shiftMs = 0) {
     const values = layer && layer.series ? layer.series[seriesId] : null;
     if (!values) return null;
     const start = parseStationTime(layer.axis.start);
@@ -152,11 +157,11 @@
     const points = [];
     let finiteCount = 0;
     for (let index = 0; index < values.length; index += 1) {
-      const x = start + index * step;
-      if (x < from) continue;
+      const stamp = start + index * step;
+      if (stamp < from) continue;
       const y = values[index];
       if (typeof y === "number" && Number.isFinite(y)) finiteCount += 1;
-      points.push({ x, y });
+      points.push({ x: stamp + shiftMs, y });
     }
     // An all-null series must not become a dataset: Chart.js draws nothing under a
     // legend entry, which reads as "the line exists and left the scale" — worse than
@@ -246,7 +251,7 @@
         borderWidth: 1,
         pointRadius: isolatedRadii(points, 1.5),
         pointHoverRadius: 0,
-        order: 6,
+        order: 2,
       });
     }
     return baseDataset({
@@ -275,6 +280,8 @@
         borderWidth: 0,
         borderRadius: 3,
         borderSkipped: "bottom",
+        categoryPercentage: 1,
+        barPercentage: 1,
         order: 3,
       });
     }
@@ -331,24 +338,22 @@
     });
   }
 
-  // Drawing order: raw at the bottom, hourly over it, model on top. In a multi-series
-  // chart the raw layer is the FIRST term's only — five clouds of ~2000 points smear
-  // into a blot — though the CSV still exports the raw data of every term.
+  // In a multi-series chart the raw layer is the FIRST term's only — five clouds of
+  // ~2000 points smear into a blot — though the CSV still exports the raw data of every
+  // term.
   function buildDatasets(chart, theme) {
     const from = windowStart();
     const datasets = [];
     if (state.layers.has("raw")) {
       const points = layerPoints(chart.layers.raw, chart.series[0].id, from);
-      if (points) datasets.push(rawDataset(chart, theme.raw, points));
+      if (points) datasets.push(rawDataset(chart, chart.kind === "bar" ? theme.rawOverBar : theme.raw, points));
     }
     for (const series of chart.series) {
       if (state.layers.has("hourly")) {
-        const points = layerPoints(chart.layers.hourly, series.id, from);
+        const points = layerPoints(chart.layers.hourly, series.id, from, HOURLY_CENTER_OFFSET_MS);
         if (points) {
           const dataset = hourlyDataset(chart, series, seriesColor(chart, series, theme), points);
-          // The only layer stamped by INTERVAL — the stamp is the start of the hour
-          // it summarises. Read by `otherSeriesAt`.
-          dataset.labmimInterval = true;
+          dataset.labmimIntervalMs = chart.layers.hourly.axis.step_minutes * MINUTE_MS;
           datasets.push(dataset);
         }
       }
@@ -442,9 +447,8 @@
   function otherSeriesAt(items, digits, unit) {
     if (!items.length) return [];
     const hovered = items[0];
-    // A Chart.js hit returns EVERY series tied at the smallest distance in x: the
-    // hourly and WRF layers share the 60-minute grid, so on a round hour they all
-    // tie. The tooltip body already prints one line per tied series, so the whole set
+    // A Chart.js hit returns EVERY series tied at the smallest distance in x.
+    // The tooltip body already prints one line per tied series, so the whole set
     // has to stay out — skipping only the first would repeat those values twice.
     const shown = new Set(items.map((item) => item.datasetIndex));
     const stamp = hovered.parsed.x;
@@ -460,22 +464,26 @@
       // A match means the instant falls INSIDE the sample's interval, not that the
       // stamps are equal: the layers run at different cadences (twelve raw points per
       // hourly one) and equality would fail eleven times in twelve.
-      //
-      // Two stamp semantics, hence two rules. The hourly layer summarises an INTERVAL
-      // stamped at its start (the exporter's `resample` labels on the left), so the
-      // containing hour is the FLOOR — rounding would make 05:40 read [06:00, 07:00),
-      // on the rain chart the sum of an hour with no rain. Raw and WRF are
-      // instantaneous and stay on the nearest stamp.
-      const position = dataset.labmimInterval ? Math.floor(offset) : Math.round(offset);
-      const point = points[position];
+      const point = points[Math.round(offset)];
       if (!point || point.y === null) return;
-      const inside = dataset.labmimInterval
-        ? stamp >= point.x && stamp < point.x + step
-        : Math.abs(point.x - stamp) <= step / 2;
-      if (!inside) return;
-      lines.push(`${dataset.label}: ${decimal(point.y, digits)} ${unit}`.trim());
+      if (Math.abs(point.x - stamp) > step / 2) return;
+      const name = dataset.labmimIntervalMs
+        ? `${dataset.label} (${hourlyInterval(point.x, dataset.labmimIntervalMs, formatClock)})`
+        : dataset.label;
+      lines.push(`${name}: ${decimal(point.y, digits)} ${unit}`.trim());
     });
     return lines;
+  }
+
+  function hourlyInterval(center, span, formatStart) {
+    const start = center - HOURLY_CENTER_OFFSET_MS;
+    return `${formatStart(start)}–${formatClock(start + span)}`;
+  }
+
+  function tooltipTitle(item) {
+    const span = item.dataset.labmimIntervalMs;
+    if (!span) return formatStamp(item.parsed.x);
+    return hourlyInterval(item.parsed.x, span, formatStamp);
   }
 
   function tickCallback(value) {
@@ -519,8 +527,8 @@
             labels: {
               color: theme.legendText,
               boxWidth: 26,
-              // Dataset order, not drawing order: `order` pushes raw to the back of
-              // the canvas and would list the model before the measurement it mirrors.
+              // Dataset order, not drawing order: `order` would list the model before
+              // the measurement it mirrors.
               sort: (left, right) => left.datasetIndex - right.datasetIndex,
               generateLabels: legendLabels,
             },
@@ -532,7 +540,7 @@
             borderColor: theme.series.station,
             borderWidth: 1,
             callbacks: {
-              title: (items) => formatStamp(items[0].parsed.x),
+              title: (items) => tooltipTitle(items[0]),
               label: (item) => `${item.dataset.label}: ${decimal(item.parsed.y, digits)} ${chart.unit}`.trim(),
               // Nearest-in-x answers the wrong question on the balance, where what is
               // wanted is the whole instant: five terms and the model side by side.
@@ -602,7 +610,7 @@
     const ordered = [...stamps].sort((left, right) => left - right);
     const lookup = columns.map((column) => new Map(column.points.map((point) => [point.x, point.y])));
 
-    const header = ["instante", ...columns.map((column) => `${column.header} [${chart.unit}]`)];
+    const header = [CSV_STAMP_HEADER, ...columns.map((column) => `${column.header} [${chart.unit}]`)];
     const rows = [header.join(";")];
     for (const stamp of ordered) {
       const date = new Date(stamp);

@@ -104,6 +104,7 @@
     formatDay,
     formatDayYear,
     formatHour,
+    formatClock,
     formatStamp,
     formatStampYear,
     downloadCsv,
