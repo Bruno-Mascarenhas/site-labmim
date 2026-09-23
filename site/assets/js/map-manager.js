@@ -397,7 +397,9 @@ class MeteoMapManager {
   }
 
   getVisibleVariableTypes() {
-    return this.contextConfig.variables.filter((variableType) => VARIABLES_CONFIG[variableType]);
+    return this.contextConfig.variables.filter(
+      (variableType) => VARIABLES_CONFIG[variableType] && this.hasPublishedSteps(variableType)
+    );
   }
 
   /**
@@ -471,6 +473,8 @@ class MeteoMapManager {
       manifest?.availability && typeof manifest.availability === "object" ? manifest.availability : null;
     this.timeline.features = manifest?.features && typeof manifest.features === "object" ? manifest.features : null;
 
+    this.configureVariableSelect();
+    if (this.ui.variableCardsGrid) this.renderVariableGuideCards();
     this.updateIsobarToggleVisibility();
 
     // start_local is the local datetime of FILE INDEX 0, so it always pairs with
@@ -547,12 +551,20 @@ class MeteoMapManager {
     if (Array.isArray(ranges)) {
       return ranges.some((range) => index >= range[0] && index <= range[1]);
     }
+    if (config.publishedOnlyWhenListed) return false;
 
     if (!DAYLIGHT_ONLY_VARIABLE_IDS.has(config.id)) return true;
     const date = this.calculateTargetDateFromIndex(index);
     if (!date) return true;
     const hour = date.getUTCHours();
     return hour >= DAYLIGHT_FALLBACK_FIRST_LOCAL_HOUR && hour <= DAYLIGHT_FALLBACK_LAST_LOCAL_HOUR;
+  }
+
+  hasPublishedSteps(type = this.state.type) {
+    for (let index = this.timeline.indexMin; index <= this.state.maxLayer; index++) {
+      if (this.isIndexAvailable(index, type)) return true;
+    }
+    return false;
   }
 
   /**
@@ -2734,6 +2746,17 @@ class MeteoMapManager {
           value: foundCell.value,
           label: config.label,
           unit: config.unit,
+          metadata: this._currentValueKey === this._loadKey() ? this.currentValueData?.metadata : undefined,
+        };
+        return;
+      }
+
+      if (!this.isIndexAvailable(this.state.index, varType)) {
+        allValues[varType] = {
+          value: null,
+          label: config.label,
+          unit: config.unit,
+          ausente: true,
         };
         return;
       }
@@ -2752,6 +2775,7 @@ class MeteoMapManager {
                 value: loadedValue,
                 label: config.label,
                 unit: config.unit,
+                metadata: valueData.metadata,
               };
             } else {
               allValues[varType] = {

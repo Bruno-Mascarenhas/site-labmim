@@ -40,19 +40,25 @@
             <div class="doc-var-detail-body">
               <div class="doc-var-meta">
                 <span class="doc-var-badge">Unidade base: W/m²</span>
-                <span class="doc-var-badge">JSON id: SWDOWN</span>
+                <span class="doc-var-badge">JSON ids: SWDOWN, SW_IRRAD</span>
                 <span class="doc-var-badge">Estimativa no frontend</span>
               </div>
               <p>
-                O potencial fotovoltaico é estimado a partir da radiação solar incidente na superfície
-                (<code>SWDOWN</code>) e de parâmetros do sistema fotovoltaico definidos no frontend.
+                O potencial fotovoltaico é estimado a partir da radiação solar que chega à superfície e de parâmetros do
+                sistema fotovoltaico definidos no frontend. O mapa mostra o fluxo incidente (<code>SWDOWN</code>); a
+                energia vem de <code>SW_IRRAD</code>, a irradiação do passo que termina no horário, calculada pela
+                diferença do <code>ACSWDNB</code> que o WRF acumula.
               </p>
-              <pre class="doc-formula"><code>SWDOWN = W/m²</code></pre>
-              <pre class="doc-formula"><code>Tcell = Tair + ((NOCT - 20) * SWDOWN) / 800
+              <pre class="doc-formula"><code>E = SW_IRRAD / 3.6                   (kJ/m² para Wh/m²)
+G = SW_IRRAD * 1000 / step_seconds   (fluxo médio no passo, W/m²)
+Tcell = Tair + ((NOCT - 20) * G) / 800
 
-Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
-         (1 + PTC * (Tcell - 25) / 100)</code></pre>
+Energy = E * eta_panel * eta_inverter * (1 + PTC * (Tcell - 25) / 100)</code></pre>
               <ul class="doc-list">
+                <li>
+                  <code>step_seconds</code> é a duração real do passo, que pode ficar alguns segundos ou minutos longe de
+                  1 h. O gráfico e o CSV não a recebem e usam 1 h no fluxo médio, o que só mexe na correção térmica.
+                </li>
                 <li><code>Tcell</code> é a temperatura estimada da célula fotovoltaica.</li>
                 <li><code>Tair</code> é a temperatura do ar.</li>
                 <li><code>NOCT</code> é a temperatura nominal de operação da célula.</li>
@@ -60,6 +66,12 @@ Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
                 <li><code>eta_inverter</code> é a eficiência do inversor.</li>
                 <li><code>PTC</code> é o coeficiente térmico de potência.</li>
               </ul>
+              <p>
+                Quando a rodada não publica <code>SW_IRRAD</code>, o painel volta à estimativa pelo fluxo instantâneo, com
+                <code>E = SWDOWN × 1 h</code> e <code>G = SWDOWN</code>, e rotula os valores assim. O <code>SWDOWN</code>
+                é um fluxo instantâneo, não a média da hora, e essa estimativa erra para mais ou para
+                menos conforme o sol e as nuvens mudam dentro do passo.
+              </p>
               <p>
                 <code>SWDOWN</code> é uma variável meteorológica. A produção fotovoltaica exibida é uma estimativa
                 derivada e depende dos parâmetros assumidos para o sistema. Não substitui estudo técnico de geração

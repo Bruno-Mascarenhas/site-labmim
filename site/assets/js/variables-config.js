@@ -8,7 +8,7 @@
  *   longer than a step are summed in the frontend over the N steps ending at
  *   the selected time.
  * - specificInfo(value, allValues): allValues holds the variable plus its
- *   relatedVariables, each as { value, label, unit }.
+ *   relatedVariables.
  */
 
 const BEAUFORT_FORCE_LOWER_BOUNDS_M_S = [0.3, 1.6, 3.4, 5.5, 8.0, 10.8, 13.9, 17.2, 20.8, 24.5, 28.5, 32.7];
@@ -39,6 +39,24 @@ const VIRTUAL_TEMPERATURE_MIXING_RATIO_FACTOR = 0.61;
 const KELVIN_AT_ZERO_CELSIUS = 273.15;
 const PASCALS_PER_HECTOPASCAL = 100;
 const GRAMS_PER_KILOGRAM = 1000;
+
+const KILOJOULES_PER_WATT_HOUR = 3.6;
+const JOULES_PER_KILOJOULE = 1000;
+const SECONDS_PER_MINUTE = 60;
+const NOMINAL_STEP_SECONDS = 3600;
+const STEP_IRRADIATION_SCALE_MAX_KJ_M2 = 4320;
+
+function stepSecondsOf(irradiation) {
+  const seconds = irradiation?.metadata?.step_seconds;
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
+function formatStepDuration(seconds) {
+  const wholeSeconds = Math.round(seconds);
+  const minutes = Math.floor(wholeSeconds / SECONDS_PER_MINUTE);
+  const rest = wholeSeconds % SECONDS_PER_MINUTE;
+  return rest ? `${minutes} min ${rest} s` : `${minutes} min`;
+}
 
 function getParameter(variableType, paramName, defaultValue) {
   if (typeof app === "undefined" || !app || !app.getCustomParameter) {
@@ -292,6 +310,7 @@ const VARIABLE_CONTEXTS = {
       "pressure",
       "wind",
       "globalRadiation",
+      "shortwaveIrradiation",
       "shortwaveUp",
       "netShortwave",
       "longwave",
@@ -351,8 +370,8 @@ function clearnessSkyItem(kt, solarElevationRad) {
 const VARIABLES_CONFIG = {
   solar: {
     id: "SWDOWN",
-    relatedVariables: ["temperature"],
-    chartCompanions: ["temperature"],
+    relatedVariables: ["temperature", "shortwaveIrradiation"],
+    chartCompanions: ["temperature", "shortwaveIrradiation"],
     label: "Radiação Solar",
     optionLabel: "Potencial Fotovoltaico",
     icon: "☀️",
@@ -376,9 +395,39 @@ const VARIABLES_CONFIG = {
       const noct = getParameter("solar", "noct", 45);
 
       const nominalCellTemp = 25;
-      const cellTemp = airTemp + ((noct - 20) * value) / 800;
-      const energyGen =
-        (value / 1000) * panelEfficiency * inversorEfficiency * (1 + (ptc * (cellTemp - nominalCellTemp)) / 100);
+      const conversionEfficiency = (irradianceWM2) => {
+        const cellTemp = airTemp + ((noct - 20) * irradianceWM2) / 800;
+        return panelEfficiency * inversorEfficiency * (1 + (ptc * (cellTemp - nominalCellTemp)) / 100);
+      };
+
+      const irradiation = allValues.shortwaveIrradiation;
+      if (Number.isFinite(irradiation?.value)) {
+        const stepSeconds = stepSecondsOf(irradiation);
+        const meanIrradianceWM2 = (irradiation.value * JOULES_PER_KILOJOULE) / (stepSeconds ?? NOMINAL_STEP_SECONDS);
+        const stepEnergyWhM2 = (irradiation.value / KILOJOULES_PER_WATT_HOUR) * conversionEfficiency(meanIrradianceWM2);
+        return {
+          title: "Geração Fotovoltaica",
+          items: [
+            {
+              label: stepSeconds
+                ? `Radiação Incidente em ${formatStepDuration(stepSeconds)}`
+                : "Radiação Incidente do Passo",
+              value: irradiation.value.toFixed(2),
+              unit: "kJ/m²",
+              icon: "fa-sun",
+            },
+            {
+              label: "Produção Energética do Passo",
+              value: stepEnergyWhM2.toFixed(2),
+              unit: "Wh/m²",
+              icon: "fa-solar-panel",
+              energyValue: stepEnergyWhM2,
+            },
+          ],
+        };
+      }
+
+      const energyGen = (value / 1000) * conversionEfficiency(value);
 
       return {
         title: "Geração Fotovoltaica",
@@ -802,6 +851,7 @@ const VARIABLES_CONFIG = {
 
   globalRadiation: {
     id: "SWDOWN",
+    relatedVariables: ["shortwaveIrradiation"],
     label: "Radiação Global",
     optionLabel: "Radiação Global",
     icon: "☀️",
@@ -817,6 +867,22 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Radiação Global");
       }
 
+      const irradiation = allValues.shortwaveIrradiation;
+      const stepSeconds = stepSecondsOf(irradiation);
+      const energyItem = Number.isFinite(irradiation?.value)
+        ? {
+            label: stepSeconds ? `Energia em ${formatStepDuration(stepSeconds)}` : "Energia do Passo",
+            value: irradiation.value.toFixed(1),
+            unit: "kJ/m²",
+            icon: "fa-chart-area",
+          }
+        : {
+            label: "Acumulado Estimado (fluxo instantâneo × 1h)",
+            value: (value * 3.6).toFixed(1),
+            unit: "kJ/m²",
+            icon: "fa-chart-area",
+          };
+
       return {
         title: "Radiação Global",
         items: [
@@ -826,12 +892,7 @@ const VARIABLES_CONFIG = {
             unit: "W/m²",
             icon: "fa-sun",
           },
-          {
-            label: "Acumulado Estimado (fluxo instantâneo × 1h)",
-            value: (value * 3.6).toFixed(1),
-            unit: "kJ/m²",
-            icon: "fa-chart-area",
-          },
+          energyItem,
           {
             label: "Condição",
             value: value >= 800 ? "Alta radiação" : value >= 300 ? "Radiação moderada" : "Baixa radiação",
@@ -839,6 +900,46 @@ const VARIABLES_CONFIG = {
           },
         ],
       };
+    },
+  },
+
+  shortwaveIrradiation: {
+    id: "SW_IRRAD",
+    publishedOnlyWhenListed: true,
+    label: "Irradiação Solar do Passo",
+    optionLabel: "Irradiação Solar (energia do passo)",
+    icon: "☀️",
+    faIcon: "sun",
+    unit: "kJ/m²",
+    sourceId: "SW_IRRAD",
+    summary:
+      "Energia solar que chegou à superfície no passo que termina no horário, pela diferença do ACSWDNB acumulado pelo modelo. O passo nem sempre dura 1 h exata: o painel mostra a duração real.",
+    scaleMin: 0,
+    scaleMax: STEP_IRRADIATION_SCALE_MAX_KJ_M2,
+    colors: SHORTWAVE_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.shortwaveIrradiation?.ausente) {
+        return unavailableInfo("Irradiação Solar do Passo");
+      }
+
+      const stepSeconds = stepSecondsOf(allValues.shortwaveIrradiation);
+      const items = [
+        {
+          label: stepSeconds ? `Energia em ${formatStepDuration(stepSeconds)}` : "Energia do Passo",
+          value: value.toFixed(1),
+          unit: "kJ/m²",
+          icon: "fa-sun",
+        },
+      ];
+      if (stepSeconds) {
+        items.push({
+          label: "Fluxo Médio no Passo",
+          value: ((value * JOULES_PER_KILOJOULE) / stepSeconds).toFixed(0),
+          unit: "W/m²",
+          icon: "fa-chart-area",
+        });
+      }
+      return { title: "Irradiação Solar do Passo", items };
     },
   },
 

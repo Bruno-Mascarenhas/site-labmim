@@ -408,6 +408,7 @@ class ChartsManager {
   async _loadDomainMeanSeries(variableType, domain, signal) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config?.id) return null;
+    if (this.app?.hasPublishedSteps && !this.app.hasPublishedSteps(variableType)) return null;
 
     const variableId = this._getVariableId(variableType, config);
     const maxHour = this._getAvailableHourCount();
@@ -947,17 +948,21 @@ class ChartsManager {
     const temperatureByHour = companionByHour("temperature");
     const pressureByHour = companionByHour("pressure");
     const humidityByHour = companionByHour("humidity");
+    const irradiationByHour = companionByHour("shortwaveIrradiation");
+    const stepIrradiationByHour = variableType === "solar" && irradiationByHour.size ? irradiationByHour : null;
     const data = timeData.map((entry) => {
       // Hour with no exported radiation/wind: the catch below would turn
       // `specificInfo`'s unavailable payload into a 0 — invented production
       // where the line should have a hole.
       if (entry.value === null || entry.value === undefined) return null;
+      if (stepIrradiationByHour && !Number.isFinite(stepIrradiationByHour.get(entry.hour))) return null;
       try {
         const info = config.specificInfo(entry.value, {
           [variableType]: { value: entry.value },
           temperature: { value: temperatureByHour.get(entry.hour) },
           pressure: { value: pressureByHour.get(entry.hour) },
           humidity: { value: humidityByHour.get(entry.hour) },
+          shortwaveIrradiation: { value: irradiationByHour.get(entry.hour) },
         });
         // `energyValue` is the raw number; the sibling fields are display text.
         const item = info?.items?.find((it) => Number.isFinite(it.energyValue));
@@ -967,8 +972,9 @@ class ChartsManager {
       }
     });
 
-    const label = variableType === "solar" ? "Produção Estimada (fluxo × 1h)" : "Produção Energética Acumulada (1h)";
-    return { data, label, unit, color };
+    const solarLabel = stepIrradiationByHour ? "Produção Energética do Passo" : "Produção Estimada (fluxo × 1h)";
+    const label = variableType === "solar" ? solarLabel : "Produção Energética Acumulada (1h)";
+    return { data, label, unit, color, stepIrradiationByHour };
   }
 
   _getRequiredVariableKeys(variableType) {
@@ -985,6 +991,7 @@ class ChartsManager {
   async _loadVariableSeries(variableKey, domain, cellIndex, signal) {
     const config = VARIABLES_CONFIG[variableKey];
     if (!config?.id) return null;
+    if (this.app?.hasPublishedSteps && !this.app.hasPublishedSteps(variableKey)) return null;
 
     const variableId = this._getVariableId(variableKey, config);
     const maxHour = this._getAvailableHourCount();
@@ -1131,11 +1138,17 @@ class ChartsManager {
     let csv = `Data,Hora,Latitude,Longitude,Domínio,Variável,Valor(${config.unit})`;
     const isEnergy = type === "solar" || type === "eolico";
     let chartDataEnergy = null;
+    let stepIrradiationByHour = null;
 
     if (isEnergy) {
       const energyConfig = this._prepareChartData(type, "energy", config, timeData);
       chartDataEnergy = energyConfig.data;
-      const energyColumn = type === "solar" ? "Produção em 1h estimada pelo fluxo instantâneo" : "Produção";
+      stepIrradiationByHour = energyConfig.stepIrradiationByHour;
+      if (stepIrradiationByHour) csv += `,Irradiação do passo(${VARIABLES_CONFIG.shortwaveIrradiation.unit})`;
+      const solarColumn = stepIrradiationByHour
+        ? "Produção no passo pela irradiação"
+        : "Produção em 1h estimada pelo fluxo instantâneo";
+      const energyColumn = type === "solar" ? solarColumn : "Produção";
       csv += `,${energyColumn}(${energyConfig.unit})`;
     }
     csv += "\n";
@@ -1152,6 +1165,10 @@ class ChartsManager {
 
       csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${this._stepLabel(config)}",${this._formatCsvValue(Number(chartDataValue[i]))}`;
 
+      if (stepIrradiationByHour) {
+        const irradiation = stepIrradiationByHour.get(entry.hour);
+        csv += Number.isFinite(irradiation) ? `,${this._formatCsvValue(irradiation)}` : ",";
+      }
       if (isEnergy && chartDataEnergy) {
         csv += chartDataEnergy[i] === null ? "," : `,${this._formatCsvValue(Number(chartDataEnergy[i]))}`;
       }

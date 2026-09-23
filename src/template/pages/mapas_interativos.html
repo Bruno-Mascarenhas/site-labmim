@@ -220,6 +220,13 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 Radiação solar de onda curta incidente na superfície. Na página de Previsões, é tratada como variável
                 radiativa meteorológica, sem cálculo de geração fotovoltaica.
               </p>
+              <p>
+                O <code>SWDOWN</code> é um fluxo instantâneo, e não a média da hora:
+                multiplicado por 1 h, erra para mais ou para menos conforme o sol e as nuvens mudam dentro do passo. Por
+                isso, quando a rodada publica a <strong>Irradiação Solar do Passo</strong> (<code>SW_IRRAD</code>), o
+                painel da célula mostra a energia do passo a partir dela, com a duração real. Sem ela, o painel volta à
+                estimativa pelo fluxo instantâneo × 1 h e a rotula assim.
+              </p>
               <pre class="doc-formula"><code>Rn = SWDOWN - SWUP + GLW - LWUP</code></pre>
               <ul class="doc-list">
                 <li><code>Rn</code> é a radiação líquida.</li>
@@ -233,6 +240,44 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 indicam céu mais limpo e maior insolação. Os demais termos da equação acima também são exibidos no mapa
                 — <code>SWUP</code>, <code>SWNET</code>, <code>LWUP</code>, <code>LWNET</code> e o saldo
                 <code>RNET</code>.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>☀️ Irradiação Solar do Passo (SW_IRRAD)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: kJ/m²</span>
+                <span class="doc-var-badge">JSON id: SW_IRRAD</span>
+                <span class="doc-var-badge">Fonte WRF: ACSWDNB</span>
+              </div>
+              <p>
+                Energia solar de onda curta que chegou à superfície durante o passo que termina no horário exibido: o
+                valor das 12h cobre das 11h às 12h, a mesma convenção da precipitação. À noite vale zero.
+              </p>
+              <pre class="doc-formula"><code>SW_IRRAD(t) = (ACSWDNB(t) - ACSWDNB(t-1)) / 1000</code></pre>
+              <ul class="doc-list">
+                <li>
+                  <code>ACSWDNB</code> é a onda curta descendente na superfície que o WRF acumula desde o início da
+                  rodada, em J/m².
+                </li>
+                <li>Dividir por 1000 leva de J/m² a kJ/m²; dividir kJ/m² por 3,6 dá Wh/m².</li>
+              </ul>
+              <p>
+                Ao contrário do <code>SWDOWN</code>, que é um fluxo instantâneo, a diferença do
+                acumulado soma o sol de todo o passo. É dela que o painel tira a energia do passo na Radiação Global e a
+                produção fotovoltaica em Potenciais Energéticos.
+              </p>
+              <p>
+                O passo de integração do modelo nem sempre divide a hora exatamente, então o intervalo entre duas saídas
+                seguidas pode ficar alguns segundos ou minutos acima ou abaixo de 1 h. A duração real de cada horário vem
+                no metadado <code>step_seconds</code>, e o painel a mostra junto da energia e do fluxo médio do passo.
+              </p>
+              <p>
+                Na área coberta por um domínio mais fino, o valor do domínio externo é a energia calculada pelo domínio
+                interno. A escala de cores vai de 0 a 4.320 kJ/m², o equivalente a 1.200 W/m² durante 1 h, o mesmo teto
+                do <code>SWDOWN</code>.
               </p>
             </div>
           </details>
