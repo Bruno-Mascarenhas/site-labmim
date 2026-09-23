@@ -116,8 +116,8 @@ site/                                 # saída compatível; uma publicação por
 │   ├── vendor/                     # bibliotecas vendorizadas localmente
 │   │   ├── bootstrap/              # 5.3.8: bootstrap.purged.min.css (servido, inclusive no 404),
 │   │   │                           #   bootstrap.min.css (só fonte do purge), bundle js
-│   │   ├── fontawesome/            # 6.4.0: all.min.css, subset-glyphs.json, webfonts/
-│   │   │                           #   (fa-solid-900.woff2 = subset; .full.woff2 = original)
+│   │   ├── fontawesome/            # 6.4.0: fa.subset.min.css (servido), all.min.css (só fonte do subset),
+│   │   │                           #   subset-glyphs.json, webfonts/ (fa-solid-900.woff2 = subset; .full.woff2 = original)
 │   │   ├── leaflet/                # 1.9.4 (js, css, images/)
 │   │   └── chartjs/                # 3.9.1
 │   ├── data/
@@ -579,8 +579,8 @@ Para `solar` e `eolico`, o modal também exibe uma série derivada de energia (c
   - `.json`/`.geojson`/`.bin` **com** `?v=` → `public, max-age=86400` (24 h, não 1 ano: teto de estrago para um manifest órfão após rollback do pipeline).
   - `.html` → `no-cache`.
   - `.css`/`.js` sem `?v=` → cache curto com `stale-while-revalidate`.
-  - `.css`/`.js` **com** `?v=` em `assets/css/` e `assets/js/`, mais o `bootstrap.purged.min.css` (os arquivos que `stampAssetVersions` carimba com hash de conteúdo, workers incluídos) → `public, max-age=86400`, sem `immutable`. O hash vive só na query string e o servidor entrega o que houver no caminho: se o HTML novo chegar antes do asset, o `?v=` novo passa a guardar os bytes antigos (ver a ordem do upload em [Deploy Em Produção](#deploy-em-produção)). O teto de 24 h limita esse estrago; tirar só o `immutable` não bastaria, porque quem prende os bytes no cache é o `max-age`. Um arquivo novo em `HASHED_VENDOR_ASSETS` (`scripts/site-builder/assets.js`) precisa entrar também no padrão dessa regra.
-  - `assets/vendor/**` → `immutable` de 1 ano — exceto `fontawesome/webfonts/` (o subset regenera no mesmo nome; regra de 7 dias) e o `bootstrap.purged.min.css` versionado (regra de 24 h acima). As bibliotecas com token manual (`leaflet.js?v=1.9.4`) seguem imutáveis: só mudam numa troca de versão, que sobe na mesma ordem.
+  - `.css`/`.js` **com** `?v=` em `assets/css/` e `assets/js/`, mais o `bootstrap.purged.min.css` e o `fa.subset.min.css` (os arquivos que `stampAssetVersions` carimba com hash de conteúdo, workers incluídos) → `public, max-age=86400`, sem `immutable`. O hash vive só na query string e o servidor entrega o que houver no caminho: se o HTML novo chegar antes do asset, o `?v=` novo passa a guardar os bytes antigos (ver a ordem do upload em [Deploy Em Produção](#deploy-em-produção)). O teto de 24 h limita esse estrago; tirar só o `immutable` não bastaria, porque quem prende os bytes no cache é o `max-age`. Um arquivo novo em `HASHED_VENDOR_ASSETS` (`scripts/site-builder/assets.js`) precisa entrar também no padrão dessa regra.
+  - `assets/vendor/**` → `immutable` de 1 ano — exceto `fontawesome/webfonts/` (o subset regenera no mesmo nome; regra de 7 dias) e os `bootstrap.purged.min.css` e `fa.subset.min.css` versionados (regra de 24 h acima). As bibliotecas com token manual (`leaflet.js?v=1.9.4`) seguem imutáveis: só mudam numa troca de versão, que sobe na mesma ordem.
   - imagens e fontes → 7 dias; `assets/graphs/` → `no-cache` (estação regenera nos mesmos nomes).
 
 Nota: `.series.bin` fica deliberadamente **fora** das listas de compressão: o `mod_deflate` não comprime respostas 206, e comprimir o corpo inteiro anularia as leituras parciais (Range, ~300 B) que o site faz nesses arquivos. As leituras Range de produção dependem do suporte nativo do Apache (206).
@@ -601,7 +601,7 @@ O deploy é manual e desacoplado: código e dados sobem separadamente. O que se 
 Vendorizadas localmente (sem CDN no caminho crítico):
 
 - Bootstrap 5.3.8 — `assets/vendor/bootstrap/` (`bootstrap.purged.min.css` servido às páginas + `bootstrap.bundle.min.js` com `defer` só na variante estática de `monitoring.html`, declarado pela publicação que a usa, para os modais das observações; `bootstrap.min.css` completo mantido apenas como fonte do purge). O menu da navbar abre por `ui-shell.js`, sem o JavaScript do Bootstrap.
-- Font Awesome 6.4.0 — `assets/vendor/fontawesome/` (`css/all.min.css` + subset `fa-solid-900.woff2` com preload; original em `fa-solid-900.full.woff2`; manifesto `subset-glyphs.json`).
+- Font Awesome 6.4.0 — `assets/vendor/fontawesome/` (`css/fa.subset.min.css` servido às páginas + subset `fa-solid-900.woff2` com preload; `css/all.min.css` e `fa-solid-900.full.woff2` completos mantidos apenas como fonte do subset; manifesto `subset-glyphs.json`).
 - Leaflet 1.9.4 — `assets/vendor/leaflet/` (`leaflet.js` com `defer`).
 - Chart.js 3.9.1 — `assets/vendor/chartjs/`.
 - Contornos da Bahia e do Espírito Santo — `assets/data/br_ba.json` e `assets/data/br_es.json`.
@@ -717,7 +717,7 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 - Não remova `theme-boot.js` do `<head>`.
 - Preserve os nomes globais que os módulos publicam: `window.MeteoMapManager` (`map-manager.js`), `window.ChartsManager` (`charts-manager.js`) e `window.LabmimDataService` (`data-service.js`). Não há bundler nem `import` no runtime do navegador — é por esses nomes que `map-init.js` instancia o mapa e os gráficos e que `MeteoMapManager` cria o serviço de dados —, então renomeá-los quebra a inicialização do WebGIS.
 - Use `LabmimDataService` para buscar JSON; não introduza `fetch` direto que ignore cache/dedup/cache negativo (exceções conscientes existentes: manifest com `cache: "no-cache"`, leitura Range do `series.bin` e o contorno estático da publicação).
-- Ao atualizar uma biblioteca vendorizada, substitua o arquivo e atualize o token `?v=` manual no layout/partial de `src/template/`; CSS/JS próprios, `bootstrap.purged.min.css` e workers são hasheados automaticamente pelo build.
+- Ao atualizar uma biblioteca vendorizada, substitua o arquivo e atualize o token `?v=` manual no layout/partial de `src/template/`; CSS/JS próprios, `bootstrap.purged.min.css`, `fa.subset.min.css` e workers são hasheados automaticamente pelo build.
 - Ao mexer em `maps.css`, valide light e dark mode.
 - Ao mexer em `map-manager.js`, valide play/pause (incl. autoplay e pulos por disponibilidade), troca de domínio, troca de variável, troca de rodada (regenerar o manifest local), clique em célula e camada de vento.
 - Ao mexer em `charts-manager.js`, valide carregamento via `series.bin` E via fallback (sem manifest), cancelamento, troca de tema e exportação CSV.

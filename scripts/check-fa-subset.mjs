@@ -79,4 +79,28 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+const subsetCssPath = "site/assets/vendor/fontawesome/css/fa.subset.min.css";
+const subsetCssCodepoints = new Map();
+for (const match of readFileSync(join(root, subsetCssPath), "utf8").matchAll(
+  /((?:\.fa-[a-z0-9-]+:before,?)+)\{content:"\\([0-9a-f]+)"\}/g
+)) {
+  for (const name of match[1].matchAll(/\.(fa-[a-z0-9-]+):before/g)) {
+    subsetCssCodepoints.set(name[1], match[2]);
+  }
+}
+
+const staleSubsetCss = Object.entries(manifest.glyphs)
+  .filter(([name, code]) => subsetCssCodepoints.get(name) !== code.toLowerCase())
+  .map(([name, code]) => `${name} (\\${code})`);
+for (const name of subsetCssCodepoints.keys()) {
+  if (!subsetted.has(name)) staleSubsetCss.push(`${name} (fora do manifesto)`);
+}
+
+if (staleSubsetCss.length > 0) {
+  console.error(`✗ ${subsetCssPath} não acompanha subset-glyphs.json (o ícone não teria regra :before):`);
+  for (const name of staleSubsetCss.sort()) console.error(`  - ${name}`);
+  console.error("\nRegenere o CSS: npm run subset:icons-css (ver scripts/subset-fontawesome.md)");
+  process.exit(1);
+}
+
 console.log(`✓ Subset Font Awesome cobre todos os ${subsetted.size} glifos usados`);

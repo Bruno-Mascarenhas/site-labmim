@@ -7,6 +7,21 @@ completa original está preservada ao lado como `fa-solid-900.full.woff2`.
 `fa-regular-400.woff2`; os `.ttf` e `fa-v4compatibility.*` referenciados
 pelo `all.min.css` não são distribuídos — um glifo de alias v4 daria 404.)
 
+O CSS segue o mesmo corte. As páginas carregam
+`assets/vendor/fontawesome/css/fa.subset.min.css` (~16 KB), gerado por
+`npm run subset:icons-css` (`scripts/subset-fontawesome-css.mjs`) a partir do
+`all.min.css` completo (~102 KB, 1.856 regras de glifo) e do manifesto: ficam
+o cabeçalho de licença, as regras base (`.fa`, `.fas`, tamanhos, animações,
+`.fa-sr-only`), só o `@font-face` do solid 900 e uma regra
+`.fa-<nome>:before` por entrada de `subset-glyphs.json`. O `all.min.css` e o
+`fa-solid-900.full.woff2` continuam no repositório como insumo dos geradores e
+do check (o CSS completo alimenta o `subset:icons-css` e o `lint:icons`; a
+fonte completa, o pyftsubset). O `fa-brands-400.woff2` e o
+`fa-regular-400.woff2` não são insumo de nada: são fontes não usadas, já que
+nenhuma página usa `fab`/`far`. Nenhum dos quatro é carregado por página, e o
+`npm run build:all` os deixa fora de `dist/<id>/` (`buildInputAssets`, em
+`scripts/build-all.mjs`).
+
 ## O check
 
 `npm run lint:icons` (scripts/check-fa-subset.mjs) falha quando um ícone é
@@ -25,6 +40,11 @@ bloqueia PRs. O que o check varre:
   nos bundles `dist/<id>/assets/css/**/*.css` (ex.: maps.css usa `\f078`).
   Ao coletar a lista para o pyftsubset, não esqueça desses — só olhar
   classes HTML deixaria codepoints de CSS fora do subset.
+- O CSS servido: cada entrada do manifesto precisa de uma regra
+  `.fa-<nome>:before` com o mesmo codepoint em `fa.subset.min.css`, e o CSS
+  não pode ter regra de glifo fora do manifesto. Manifesto atualizado sem
+  `npm run subset:icons-css` falha aqui — sem a regra, o ícone não aparece
+  mesmo com o glifo na fonte.
 
 O check compara o uso contra o manifesto `subset-glyphs.json`, **não**
 contra o binário woff2 — nada verifica que a fonte realmente contém os
@@ -60,19 +80,24 @@ juntos**, sempre.
    `"fa-mountain-sun": "e52f"`, não `"mountain-sun"`. Sem o prefixo o
    `lint:icons` continua acusando o ícone como ausente, porque a comparação é
    feita contra o nome da classe.
-5. Rode `npm run lint:icons` para confirmar.
+5. Regenere o CSS: `npm run subset:icons-css`. O script falha se um nome do
+   manifesto não existir no `all.min.css` ou tiver outro codepoint lá. O
+   `fa.subset.min.css` leva hash de conteúdo no `?v=`, então rode
+   `npm run build` e commite `site/` junto: o HTML de todas as publicações
+   muda.
+6. Rode `npm run lint:icons` para confirmar.
 
 ## Cache (por que a URL da fonte não tem `?v=`)
 
 A URL da fonte não muda quando o subset muda: a estampagem de hash
 (`stampAssetVersions`, em `scripts/site-builder/assets.js`, aplicada pelo
 `renderer.js`) só reescreve atributos `href`/`src` do HTML cujo caminho seja
-`assets/css/` ou `assets/js/` de primeira parte — mais o
-`bootstrap.purged.min.css`, único vendor da lista. A webfont fica de fora
-nos dois pontos: o `href` do preload não recebe `?v=`, e o
-`url(../webfonts/fa-solid-900.woff2)` **dentro** do `all.min.css` (que, por
-sua vez, tem token manual `?v=6.4.0` e cache immutable de 1 ano) nem sequer
-é alcançável por esse regex. Por isso
+`assets/css/` ou `assets/js/` de primeira parte — mais os vendors de
+`HASHED_VENDOR_ASSETS` (`bootstrap.purged.min.css` e `fa.subset.min.css`).
+A webfont fica de fora nos dois pontos: o `href` do preload não recebe `?v=`,
+e o `url(../webfonts/fa-solid-900.woff2)` **dentro** do `fa.subset.min.css`
+(que, por sua vez, recebe `?v=` de hash e cache immutable de 1 ano) nem
+sequer é alcançável por esse regex. Por isso
 o `.htaccess` serve `assets/vendor/fontawesome/webfonts/` com a regra de
 7 dias das fontes (e NÃO com o `immutable` de 1 ano do resto do vendor).
 Após um resubset, visitantes recorrentes pegam a fonte nova em até 7 dias.
@@ -81,10 +106,10 @@ Não mover as webfonts de volta para a regra imutável sem também versionar a
 URL da fonte nos DOIS lugares: o preload no `src/template/partials/head.html`
 (`rel=preload as=font crossorigin` — o `crossorigin` é obrigatório mesmo
 same-origin, senão a fonte baixa duas vezes) e o `url()` dentro do
-`all.min.css` (que exigiria bump manual do `?v=` dele).
+`fa.subset.min.css` (que o gerador teria de reescrever).
 
-Observação: brands (`fab`) e regular (`far`) não são usados no site; as
-fontes `fa-brands-400.woff2` / `fa-regular-400.woff2` permanecem completas
-mas nunca são baixadas — o navegador só baixa uma `@font-face` quando algum
-conteúdo renderizado a usa, nada no site usa `fab`/`far` e elas não têm
-preload. (Um único glifo `fab`/`far` renderizado baixaria a fonte inteira.)
+Observação: brands (`fab`) e regular (`far`) não são usados no site. O
+`fa.subset.min.css` não declara o `@font-face` deles, e as fontes
+`fa-brands-400.woff2` / `fa-regular-400.woff2` ficam fora dos bundles. Um
+ícone `fab`/`far` exigiria incluir a `@font-face` correspondente no gerador
+e tirar a fonte de `buildInputAssets`.

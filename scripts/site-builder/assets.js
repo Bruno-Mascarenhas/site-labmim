@@ -4,7 +4,10 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const HASHED_VENDOR_ASSETS = new Set(["assets/vendor/bootstrap/bootstrap.purged.min.css"]);
+const HASHED_VENDOR_ASSETS = new Set([
+  "assets/vendor/bootstrap/bootstrap.purged.min.css",
+  "assets/vendor/fontawesome/css/fa.subset.min.css",
+]);
 
 // Published verbatim under site/assets/: the layout is identical on both sides, so a
 // page's URL is the path the file already has and nothing gets rewritten.

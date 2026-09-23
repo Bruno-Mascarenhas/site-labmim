@@ -270,10 +270,10 @@ O CSS do Bootstrap é purgado e a fonte do Font Awesome é um subset — os dois
 
 ```bash
 npm run purge:bootstrap                  # classe Bootstrap nova
-# ícone novo: siga scripts/subset-fontawesome.md (precisa de Python + fonttools + brotli)
+# ícone novo: siga scripts/subset-fontawesome.md (precisa de Python + fonttools + brotli) e depois npm run subset:icons-css
 ```
 
-Regenerar o Bootstrap purgado reescreve um arquivo carimbado por hash de conteúdo — então o `?v=` muda e o HTML commitado de **todas** as publicações muda junto. Regenerar o subset do Font Awesome reescreve só `fa-solid-900.woff2` e `subset-glyphs.json`, servidos sem `?v=`, e não altera HTML nenhum. É esperado; commite tudo no mesmo passo. Se preferir evitar, reutilize as classes e os ícones já presentes: `npm run build:check` acusa cada ausência com o nome exato.
+Regenerar o Bootstrap purgado reescreve um arquivo carimbado por hash de conteúdo — então o `?v=` muda e o HTML commitado de **todas** as publicações muda junto. Regenerar o subset do Font Awesome reescreve `fa-solid-900.woff2` e `subset-glyphs.json`, servidos sem `?v=`, e `fa.subset.min.css`, que também tem hash de conteúdo — o HTML de todas as publicações muda do mesmo jeito. É esperado; commite tudo no mesmo passo. Se preferir evitar, reutilize as classes e os ícones já presentes: `npm run build:check` acusa cada ausência com o nome exato.
 
 ## Criar Uma Página Compartilhada
 
