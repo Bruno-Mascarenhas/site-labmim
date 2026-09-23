@@ -20,6 +20,16 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-navbar-toggle]").forEach((button) => {
+      const menu = document.getElementById(button.getAttribute("aria-controls"));
+      if (!menu) return;
+
+      button.addEventListener("click", () => {
+        const isOpen = menu.classList.toggle("show");
+        button.setAttribute("aria-expanded", String(isOpen));
+      });
+    });
+
     document.querySelectorAll("[data-ui-toggle]").forEach((button) => {
       const target = document.getElementById(button.dataset.uiToggle);
       if (!target) return;

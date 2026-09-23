@@ -610,6 +610,7 @@ function validateObservations(errors, observations, graphsDirectory) {
 }
 
 const LIVE_MONITORING_TEMPLATE = "pages/monitoring-live.html";
+const BOOTSTRAP_BUNDLE_SCRIPT = "assets/vendor/bootstrap/bootstrap.bundle.min.js";
 
 // Compares the resolved FILE, not the configured string: `pages//monitoring-live.html` is safe and
 // opens the same file, but a textual match would push it down the static branch.
@@ -645,6 +646,13 @@ function validateMonitoringHasData(errors, publication, templateDirectory, publi
   if (!Array.isArray(charts) || charts.length === 0) {
     errors.push(
       "dataset.observations: the static monitoring page requires at least one chart; declare dataset.observations.charts or drop the monitoring page"
+    );
+  }
+
+  const vendorScripts = Array.isArray(monitoring.vendorScripts) ? monitoring.vendorScripts : [];
+  if (!vendorScripts.some((source) => typeof source === "string" && source.split("?")[0] === BOOTSTRAP_BUNDLE_SCRIPT)) {
+    errors.push(
+      `pages.monitoring.vendorScripts: the static monitoring page opens its charts in Bootstrap modals; declare ${BOOTSTRAP_BUNDLE_SCRIPT}?v=5.3.8 in page("monitoring", { vendorScripts: [...] })`
     );
   }
 }

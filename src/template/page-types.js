@@ -113,8 +113,8 @@ const LAYOUT_CONTRACTS = Object.freeze({
   webgis: Object.freeze({
     vendorStyles: Object.freeze(["assets/vendor/leaflet/leaflet.css?v=1.9.4"]),
     styles: Object.freeze(["assets/css/maps.css"]),
-    // Leaflet, Chart.js and the five map scripts are declared in the layout file
-    // itself; the slot stays empty so no tag is emitted twice.
+    // Leaflet and the five map scripts are declared in the layout file itself;
+    // the slot stays empty so no tag is emitted twice.
     vendorScripts: Object.freeze([]),
     scripts: Object.freeze([]),
     required: Object.freeze({

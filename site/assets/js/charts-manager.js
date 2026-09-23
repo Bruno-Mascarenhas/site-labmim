@@ -5,6 +5,7 @@ const CHART_TIMELINE_FIRST_INDEX = 1;
 // CSV must format in UTC too — local time would shift them off the map.
 const CHART_FORECAST_TIME_ZONE = "UTC";
 const DAYLIGHT_ONLY_SHORTWAVE_VARIABLE_IDS = new Set(["SWDOWN", "SWUP", "SWNET"]);
+const CHART_JS_SRC = "assets/vendor/chartjs/chart.min.js?v=3.9.1";
 
 // The two card surfaces a series is drawn on: assets/css/maps.css and the dark override in
 // assets/css/theme.css (.chart-modal-body, div[id^="chartContainer"]).
@@ -40,9 +41,29 @@ class ChartsManager {
     this.domainSummaryCache = new Map();
     this.abortController = null;
     this.previewAbortController = null;
+    this.chartJsLoading = null;
     this.ui = this._cacheUIElements();
 
     this._setupModalListeners();
+  }
+
+  ensureChartJs() {
+    if (typeof Chart !== "undefined") return Promise.resolve();
+    if (!this.chartJsLoading) {
+      this.chartJsLoading = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        const fail = () => {
+          script.remove();
+          this.chartJsLoading = null;
+          reject(new Error(`Chart.js did not load from ${script.src}`));
+        };
+        script.src = CHART_JS_SRC;
+        script.onload = () => (typeof Chart === "undefined" ? fail() : resolve());
+        script.onerror = fail;
+        document.head.appendChild(script);
+      });
+    }
+    return this.chartJsLoading;
   }
 
   _cacheUIElements() {
@@ -126,13 +147,14 @@ class ChartsManager {
     }
   }
 
-  _showModalEmptyState(message) {
+  _showModalEmptyState(message, { exportable = false } = {}) {
     this.charts.forEach((chart) => chart.destroy());
     this.charts.clear();
     if (this.ui.chartEnergyContainer) this.ui.chartEnergyContainer.style.display = "none";
     if (this.ui.exportBtn) {
-      this.ui.exportBtn.disabled = true;
-      this.ui.exportBtn.setAttribute("aria-disabled", "true");
+      this.ui.exportBtn.disabled = !exportable;
+      if (exportable) this.ui.exportBtn.removeAttribute("aria-disabled");
+      else this.ui.exportBtn.setAttribute("aria-disabled", "true");
     }
 
     const body = this.ui.modal?.querySelector(".chart-modal-body");
@@ -259,7 +281,7 @@ class ChartsManager {
     this._returnFocusEl = null;
   }
 
-  renderChartsForVariable(variableType) {
+  async renderChartsForVariable(variableType) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
 
@@ -273,6 +295,19 @@ class ChartsManager {
       this._showModalEmptyState("Sem dados para esta célula nesta variável.");
       return;
     }
+
+    const signal = this.abortController?.signal;
+    try {
+      await this.ensureChartJs();
+    } catch (error) {
+      console.error("[Charts] Error loading Chart.js:", error);
+      if (signal?.aborted) return;
+      this._showModalEmptyState("Não foi possível carregar os gráficos. A série continua disponível no botão CSV.", {
+        exportable: true,
+      });
+      return;
+    }
+    if (signal?.aborted || !this.timeSeriesData?.[variableType]?.data?.length) return;
 
     this._clearModalEmptyState();
 
@@ -354,6 +389,14 @@ class ChartsManager {
 
       const meanCoversDaylightOnly = this._meanCoversDaylightOnly(variableType, config);
       this._renderPreviewStats(statsContainer, result.stats, config, meanCoversDaylightOnly);
+      try {
+        await this.ensureChartJs();
+      } catch (error) {
+        console.error("[Charts] Error loading Chart.js:", error);
+        if (!signal.aborted) this._showPreviewChartNotice(canvasId, "Não foi possível carregar o gráfico.");
+        return;
+      }
+      if (signal.aborted) return;
       this._renderPreviewChart(canvasId, result.series, config, meanCoversDaylightOnly);
     } catch (error) {
       if (error.name === "AbortError") return;
@@ -561,6 +604,7 @@ class ChartsManager {
   _renderPreviewChart(canvasId, series, config, meanCoversDaylightOnly) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
+    this._clearPreviewChartNotice(canvasId);
 
     const gapped = this._seriesWithHourGaps(series);
     const labels = gapped.map((entry) =>
@@ -618,9 +662,32 @@ class ChartsManager {
       chartInstance.destroy();
       this.previewCharts.delete(canvasId);
     }
+    this._clearPreviewChartNotice(canvasId);
     if (statsContainer) {
       statsContainer.innerHTML = `<div class="variable-preview-empty">${message}</div>`;
     }
+  }
+
+  _showPreviewChartNotice(canvasId, message) {
+    const canvas = document.getElementById(canvasId);
+    const area = canvas?.parentElement;
+    if (!area) return;
+    let notice = area.querySelector(".variable-preview-empty");
+    if (!notice) {
+      notice = document.createElement("div");
+      notice.className = "variable-preview-empty";
+      notice.setAttribute("role", "status");
+      area.appendChild(notice);
+    }
+    notice.textContent = message;
+    canvas.hidden = true;
+  }
+
+  _clearPreviewChartNotice(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    canvas.parentElement?.querySelector(".variable-preview-empty")?.remove();
+    canvas.hidden = false;
   }
 
   _formatPreviewValue(value, unit) {

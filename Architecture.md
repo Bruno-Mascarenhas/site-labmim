@@ -188,12 +188,12 @@ O build muda somente o frontend. Os diretórios configurados em `dataset.paths` 
 
 ### Módulos Gerais
 
-| Arquivo           | Responsabilidade                                                                       |
-| ----------------- | -------------------------------------------------------------------------------------- |
-| `theme-boot.js`   | Aplica `.dark-theme` cedo com base em `localStorage` ou preferência do sistema         |
-| `theme-toggle.js` | Controla botões de tema, ícones, `aria-*`, persistência e evento `labmim-theme-change` |
-| `ui-shell.js`     | Toggle genérico `[data-ui-toggle]` (hidden + aria-expanded + chevron + label)          |
-| `references.js`   | Expande os marcadores `[[chave]]` das páginas em links com o registro bibliográfico    |
+| Arquivo           | Responsabilidade                                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `theme-boot.js`   | Aplica `.dark-theme` cedo com base em `localStorage` ou preferência do sistema                                                                  |
+| `theme-toggle.js` | Controla botões de tema, ícones, `aria-*`, persistência e evento `labmim-theme-change`                                                          |
+| `ui-shell.js`     | Toggle genérico `[data-ui-toggle]` (hidden + aria-expanded + chevron + label) e menu da navbar `[data-navbar-toggle]` (`.show` + aria-expanded) |
+| `references.js`   | Expande os marcadores `[[chave]]` das páginas em links com o registro bibliográfico                                                             |
 
 ### Módulos De Página
 
@@ -222,7 +222,7 @@ Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](
 
 ### Ordem De Carregamento (páginas WebGIS)
 
-No `<head>`: `theme-boot.js` (síncrono, para reduzir flash), `theme-toggle.js` e `ui-shell.js` (`defer`); `leaflet.js` (vendorizado) com `defer`. Antes de `</body>`, todos com `defer` e nesta ordem: Bootstrap 5 (vendorizado), `references.js`, Chart.js (vendorizado), `variables-config.js`, `data-service.js`, `charts-manager.js`, `map-manager.js`, `map-init.js`. Todo CSS/JS próprio carrega com `?v=<hash de conteúdo>` estampado pelo build.
+No `<head>`: `theme-boot.js` (síncrono, para reduzir flash), `theme-toggle.js` e `ui-shell.js` (`defer`); `leaflet.js` (vendorizado) com `defer`. Antes de `</body>`, todos com `defer` e nesta ordem: `references.js`, `variables-config.js`, `data-service.js`, `charts-manager.js`, `map-manager.js`, `map-init.js`. O Chart.js (vendorizado) fica fora dessa lista: `ChartsManager.ensureChartJs()` injeta o script na primeira série de célula ou prévia do domínio, para que os 200 KB não atrasem o `DOMContentLoaded` que constrói o mapa. Todo CSS/JS próprio carrega com `?v=<hash de conteúdo>` estampado pelo build.
 
 ## Dark Mode
 
@@ -599,7 +599,7 @@ O deploy é manual e desacoplado: código e dados sobem separadamente. O que se 
 
 Vendorizadas localmente (sem CDN no caminho crítico):
 
-- Bootstrap 5.3.8 — `assets/vendor/bootstrap/` (`bootstrap.purged.min.css` servido às páginas + `bootstrap.bundle.min.js` com `defer`; `bootstrap.min.css` completo mantido apenas como fonte do purge).
+- Bootstrap 5.3.8 — `assets/vendor/bootstrap/` (`bootstrap.purged.min.css` servido às páginas + `bootstrap.bundle.min.js` com `defer` só na variante estática de `monitoring.html`, declarado pela publicação que a usa, para os modais das observações; `bootstrap.min.css` completo mantido apenas como fonte do purge). O menu da navbar abre por `ui-shell.js`, sem o JavaScript do Bootstrap.
 - Font Awesome 6.4.0 — `assets/vendor/fontawesome/` (`css/all.min.css` + subset `fa-solid-900.woff2` com preload; original em `fa-solid-900.full.woff2`; manifesto `subset-glyphs.json`).
 - Leaflet 1.9.4 — `assets/vendor/leaflet/` (`leaflet.js` com `defer`).
 - Chart.js 3.9.1 — `assets/vendor/chartjs/`.

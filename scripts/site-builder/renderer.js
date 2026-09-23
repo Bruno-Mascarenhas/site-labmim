@@ -420,8 +420,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   }
 
   // `defer` scripts run in document order, so vendor-first is what guarantees `Chart` is
-  // defined when the page module runs. The `{{pageScripts}}` slot sits after `{{> scripts}}`
-  // in the layout for the same reason: the Bootstrap bundle must exist before the page JS.
+  // defined when the page module runs.
   function scriptTags(page) {
     return [...page.vendorScripts, ...page.scripts]
       .map((source) => `    <script defer src="${escapeAttribute(source)}"></script>`)

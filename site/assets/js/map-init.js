@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .loadTimeSeriesData(app.state.selectedCell, app.state.domain, app.state.type)
       .then((data) => {
         if (Object.keys(data).length > 0) {
-          chartsManager.renderChartsForVariable(app.state.type);
+          return chartsManager.renderChartsForVariable(app.state.type);
         }
       })
       .catch((err) => {
