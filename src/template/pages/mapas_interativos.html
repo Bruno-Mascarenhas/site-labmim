@@ -254,10 +254,9 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 <code>VEGPARM.TBL</code> do WRF permite (0,08 para água a 0,38 para solo exposto).
               </p>
               <p>
-                Usar <code>ALBEDO · SWDOWN</code> é deliberado: o <code>SWUPB</code> do RRTMG fica congelado na última
-                chamada de radiação (<code>RADT</code> = 30 min), enquanto <code>SWDOWN</code> é reescalado pelo ângulo
-                zenital a cada passo. Reconstruir mantém <code>SWUP</code>, <code>SWNET</code> e <code>RNET</code>
-                coerentes com o <code>SWDOWN</code> publicado ao lado. É publicada apenas na janela diurna.
+                O <code>SWDOWN</code> publicado não é reescalado pelo ângulo zenital entre as chamadas de radiação
+                (<code>RADT</code> = 30 min). Reconstruir como <code>ALBEDO · SWDOWN</code> mantém <code>SWUP</code>,
+                <code>SWNET</code> e <code>RNET</code> coerentes com ele. É publicada apenas na janela diurna.
               </p>
             </div>
           </details>
