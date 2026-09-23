@@ -41,7 +41,7 @@ html.dark-theme {
   background: var(--white) !important;
   border-color: rgba(var(--brand-secondary-rgb), 0.55) !important;
   box-shadow: 0 4px 12px rgba(var(--brand-primary-rgb), 0.18);
-  color: var(--brand-secondary) !important;
+  color: var(--secondary-color-strong) !important;
 }
 
 [data-theme-toggle]:focus-visible,
@@ -74,7 +74,7 @@ input:focus-visible {
 }
 
 .dark-theme [data-theme-toggle]:hover {
-  background: rgba(var(--brand-secondary-rgb), 0.88) !important;
+  background: var(--secondary-color-strong) !important;
   border-color: var(--dark-accent) !important;
   color: var(--white) !important;
 }
@@ -221,6 +221,10 @@ input:focus-visible {
   color: var(--dark-accent) !important;
 }
 
+.dark-theme .page-header i {
+  color: var(--dark-accent);
+}
+
 .dark-theme .partner-logo:hover,
 .dark-theme .feature-card:hover,
 .dark-theme .team-group:hover {
@@ -259,6 +263,10 @@ input:focus-visible {
 
 .dark-theme .doc-tab {
   color: var(--text-secondary) !important;
+}
+
+.dark-theme .doc-tab:hover {
+  background-color: var(--bg-secondary);
 }
 
 .dark-theme .doc-tab.active {

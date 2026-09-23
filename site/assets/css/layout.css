@@ -62,7 +62,7 @@
 }
 
 .page-header i {
-  color: var(--secondary-color);
+  color: var(--secondary-color-strong);
   font-size: 1.8rem;
 }
 
@@ -112,7 +112,8 @@
 
 .footer-nav a:hover,
 .modern-footer a:hover {
-  color: var(--accent-color) !important;
+  color: var(--ink-on-brand-hover, var(--accent-color)) !important;
+  text-decoration: underline;
 }
 
 .footer-bottom-compact {

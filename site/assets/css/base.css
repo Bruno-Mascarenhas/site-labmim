@@ -147,8 +147,8 @@ button {
 }
 
 .navbar-toggler:hover {
-  background-color: var(--brand-secondary) !important;
-  border-color: var(--brand-secondary) !important;
+  background-color: var(--secondary-color-strong) !important;
+  border-color: var(--secondary-color-strong) !important;
   transform: translateY(-1px);
 }
 

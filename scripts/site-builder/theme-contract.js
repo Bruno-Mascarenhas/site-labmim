@@ -97,6 +97,12 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       describes: "linha de copyright do rodapé, sobre --lab-footer-bg",
     },
     {
+      property: "ink-on-brand-hover",
+      consumedBy: "css",
+      fallback: "var(--accent-color)",
+      describes: "links do rodapé sob o cursor, sobre --lab-footer-bg",
+    },
+    {
       property: "ink-on-dark",
       consumedBy: "css",
       fallback: "#f8fbff",

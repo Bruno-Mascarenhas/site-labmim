@@ -3,7 +3,7 @@
   --brand-primary: #5a5b8c;
   --brand-primary-strong: #414269;
   --brand-secondary: #45a9c9;
-  --brand-secondary-strong: #2b7892;
+  --brand-secondary-strong: #29738c;
   --brand-primary-rgb: 90, 91, 140;
   --brand-secondary-rgb: 69, 169, 201;
   --accent-rgb: 178, 231, 233;
@@ -18,6 +18,8 @@
   --lab-footer-dark-bg: linear-gradient(135deg, #414269 0%, #276b80 100%);
   --ink-on-brand-warning: #fffa9e;
   --ink-on-brand-muted: rgba(255, 255, 255, 0.94);
+  --ink-on-brand-hover: #fff;
+  --surface-hover: #f2f6f9;
   --maps-header-bg: #5a5b8c;
   --maps-header-dark-bg: #414269;
   --dark-accent: #73d2e6;
