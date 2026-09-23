@@ -42,6 +42,13 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
         "tom de --brand-secondary que aguenta texto branco em cima ou vira texto: item ativo e hover da navbar e instituição do cabeçalho",
     },
     {
+      property: "brand-primary-strong",
+      consumedBy: "css",
+      fallback: "var(--brand-primary)",
+      describes:
+        "anel de foco do tema claro; com luminância até 0,067 (9:1 contra o branco), o anel e a faixa branca dos toggles do mapa dão 3:1 sobre qualquer fundo",
+    },
+    {
       property: "ink-strong",
       consumedBy: "css",
       fallback: "#172033",
