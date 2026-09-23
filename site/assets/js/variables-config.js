@@ -321,6 +321,7 @@ const VARIABLE_CONTEXTS = {
       "lh",
       "skyEmissivity",
       "clearnessIndex",
+      "clearSkyIndex",
     ],
   },
   energy: {
@@ -347,8 +348,23 @@ function unavailableInfo(title) {
 const DEGREES_PER_RADIAN = 180 / Math.PI;
 const KT_SKY_CLASS_MIN_SOLAR_ELEVATION_DEG = 20;
 const KT_SKY_CLASS_MIN_SOLAR_ELEVATION_RAD = KT_SKY_CLASS_MIN_SOLAR_ELEVATION_DEG / DEGREES_PER_RADIAN;
+const CLEAR_SKY_INDEX_CLEAR_MIN = 0.95;
+const CLEAR_SKY_INDEX_SCALE_STOPS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+const CLEAR_SKY_INDEX_OVERCAST_BELOW = 0.3;
 
-function clearnessSkyItem(kt, solarElevationRad) {
+function clearnessSkyItem(kt, solarElevationRad, clearSkyIndex) {
+  if (Number.isFinite(clearSkyIndex)) {
+    return {
+      label: "Céu",
+      value:
+        clearSkyIndex >= CLEAR_SKY_INDEX_CLEAR_MIN
+          ? "Limpo"
+          : clearSkyIndex < CLEAR_SKY_INDEX_OVERCAST_BELOW
+            ? "Encoberto"
+            : "Parcialmente nublado",
+      icon: "fa-sun",
+    };
+  }
   if (!Number.isFinite(solarElevationRad)) {
     return { label: "Céu", value: "N/D", icon: "fa-sun" };
   }
@@ -1224,6 +1240,7 @@ const VARIABLES_CONFIG = {
 
   clearnessIndex: {
     id: "KT",
+    relatedVariables: ["clearSkyIndex"],
     label: "Índice de Transparência",
     optionLabel: "Índice de Transparência (kt)",
     icon: "🌤️",
@@ -1240,16 +1257,58 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Índice de Transparência");
       }
 
+      const clearSkyIndex = allValues.clearSkyIndex?.value;
+      const items = [
+        {
+          label: "kt",
+          value: value.toFixed(2),
+          unit: "",
+          icon: "fa-cloud-sun",
+        },
+      ];
+      if (Number.isFinite(clearSkyIndex)) {
+        items.push({
+          label: "k*",
+          value: clearSkyIndex.toFixed(2),
+          unit: "",
+          icon: "fa-cloud-sun",
+        });
+      }
+      items.push(clearnessSkyItem(value, solarElevationRad, clearSkyIndex));
+
+      return { title: "Índice de Transparência", items };
+    },
+  },
+
+  clearSkyIndex: {
+    id: "KSTAR",
+    publishedOnlyWhenListed: true,
+    label: "Índice de Céu Claro",
+    optionLabel: "Índice de Céu Claro (k*)",
+    icon: "🌤️",
+    faIcon: "cloud-sun",
+    unit: "",
+    sourceId: "KSTAR",
+    summary:
+      "Radiação global do modelo dividida pela de céu claro da mesma chamada de radiação: vale 1 sem nuvem com o sol alto ou baixo. Publicado apenas com o sol acima de 10° de elevação. Num domínio externo, fica sem valor sobre a área coberta por um domínio mais fino.",
+    scaleMin: 0,
+    scaleMax: 1,
+    scaleStops: CLEAR_SKY_INDEX_SCALE_STOPS,
+    colors: CLEARNESS_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.clearSkyIndex?.ausente) {
+        return unavailableInfo("Índice de Céu Claro");
+      }
+
       return {
-        title: "Índice de Transparência",
+        title: "Índice de Céu Claro",
         items: [
           {
-            label: "kt",
+            label: "k*",
             value: value.toFixed(2),
             unit: "",
             icon: "fa-cloud-sun",
           },
-          clearnessSkyItem(value, solarElevationRad),
         ],
       };
     },

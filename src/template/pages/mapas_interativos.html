@@ -537,11 +537,17 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                 <li><code>cos(z)</code> é o cosseno do ângulo zenital solar (<code>COSZEN</code>).</li>
               </ul>
               <p>
-                O painel classifica acima de 0,65 como céu limpo e até 0,35 como encoberto. Esses limiares supõem o sol
-                alto: com o sol baixo, a luz atravessa mais atmosfera e mesmo o céu sem nuvem pode ficar abaixo de 0,65.
-                Por isso, com o sol abaixo de 20° de elevação, calculada para o centro da célula na hora do passo, o
-                painel mostra um aviso de sol baixo no lugar da classe. Acima de 0,80 há pouquíssimas observações na
-                literatura (Duffie &amp; Beckman). {{RUN_NOTE_KT_HIGH_VALUES}}
+                Onde a rodada publica o <strong>Índice de Céu Claro</strong> (<code>KSTAR</code>), a classe Céu do
+                painel vem dele, e não do <code>kt</code>: limpo a partir de 0,95, encoberto abaixo de 0,3 e parcialmente
+                nublado entre os dois, com o sol alto ou baixo. O painel mostra os dois índices lado a lado.
+              </p>
+              <p>
+                Sem o <code>KSTAR</code>, seja numa rodada que não o publica, seja numa célula ou num passo em que ele
+                fica sem valor, o painel classifica pelo <code>kt</code>: acima de 0,65 como céu limpo e até 0,35 como
+                encoberto. Esses limiares supõem o sol alto: com o sol baixo, a luz atravessa mais atmosfera e mesmo o céu
+                sem nuvem pode ficar abaixo de 0,65. Por isso, nesse caso, com o sol abaixo de 20° de elevação, calculada
+                para o centro da célula na hora do passo, o painel mostra um aviso de sol baixo no lugar da classe. Acima
+                de 0,80 há pouquíssimas observações na literatura (Duffie &amp; Beckman). {{RUN_NOTE_KT_HIGH_VALUES}}
               </p>
               <p>
                 Com o sol muito baixo o denominador tende a zero e o índice fica instável, então só é publicado acima de
@@ -550,6 +556,41 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                 usa a elevação dada pelo <code>COSZEN</code> do próprio modelo, que pode ficar alguns graus distante da
                 que o painel calcula para o centro da célula na hora do passo: por isso o aviso de sol baixo pode
                 mostrar menos de 10° numa célula publicada. Como é uma razão, não tem unidade.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>🌤️ Índice de Céu Claro (KSTAR)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Adimensional</span>
+                <span class="doc-var-badge">JSON id: KSTAR</span>
+                <span class="doc-var-badge">Fonte: SWDOWN + SWDNBC</span>
+                <span class="doc-var-badge">Sol acima de 10°</span>
+              </div>
+              <p>
+                Razão entre a radiação global do modelo e a que ele calcula para o céu sem nuvem na mesma chamada de
+                radiação. O símbolo é <code>k*</code>.
+              </p>
+              <pre class="doc-formula"><code>k* = SWDOWN / SWDNBC</code></pre>
+              <ul class="doc-list">
+                <li>
+                  <code>SWDNBC</code> é a onda curta descendente de céu claro na superfície, que o esquema de radiação
+                  calcula junto com o <code>SWDOWN</code>, para o mesmo sol e a mesma atmosfera, só que sem nuvem.
+                </li>
+              </ul>
+              <p>
+                O <code>kt</code> divide pelo topo da atmosfera e cai com o sol baixo mesmo sem nuvem. O
+                <code>k*</code> compara com o céu claro do próprio modelo na mesma elevação e vale 1 sem nuvem, com o sol
+                alto ou baixo. Por isso a classe Céu do painel do Índice de Transparência vem do <code>k*</code> quando
+                ele existe: limpo a partir de 0,95, encoberto abaixo de 0,3 e parcialmente nublado entre os dois.
+              </p>
+              <p>
+                Fica sem valor com o sol abaixo de 10° de elevação, pelo mesmo corte do <code>kt</code>, no passo
+                inicial da rodada, antes da primeira chamada de radiação, e, num domínio externo, sobre a área coberta por
+                um domínio mais fino. Só aparece quando a saída do modelo traz o <code>SWDNBC</code>. Como é uma razão, não
+                tem unidade.
               </p>
             </div>
           </details>
