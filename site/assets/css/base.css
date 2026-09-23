@@ -133,7 +133,7 @@ button {
 }
 
 .btn-outline-lab:focus-visible {
-  outline: 3px solid var(--primary-color);
+  outline: 3px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 
