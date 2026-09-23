@@ -47,6 +47,7 @@ const declaredFields = (block) =>
 const RUN_NOTE_SLOTS = Object.freeze({
   isobarsResidual: "RUN_NOTE_ISOBARS_RESIDUAL",
   isobarsMassField: "RUN_NOTE_ISOBARS_MASS_FIELD",
+  presMassField: "RUN_NOTE_PRES_MASS_FIELD",
   swupMissingDiagnostics: "RUN_NOTE_SWUP_MISSING_DIAGNOSTICS",
   swupAlbedoRange: "RUN_NOTE_SWUP_ALBEDO_RANGE",
   lwupReflectedTerm: "RUN_NOTE_LWUP_REFLECTED_TERM",
