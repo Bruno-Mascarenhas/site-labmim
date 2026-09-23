@@ -2219,6 +2219,8 @@
     ok: "exportação da estação recebida",
     no_export: "sem exportação da estação",
     export_stale: "exportação da estação desatualizada",
+    no_valid_rows: "exportação da estação sem leitura que passe pela triagem",
+    interval_mismatch: "exportação da estação fora da grade dos blocos",
   };
   const SCREENING_PT = { "sentinels + sensor_limits": "passados pelas sentinelas e pelos limites do sensor do acervo" };
   const CORRECTED_LABEL_SCALE = "corrected";
@@ -2711,25 +2713,29 @@
   function measuredSentence(payload) {
     const measured = payload.measured;
     const status = payload.measured_status || {};
-    if (measured && typeof measured === "object") {
+    if (status.reason === "ok" && measured && typeof measured === "object") {
       const source = text(status.source_label, text(measured.source_column, "piranômetro"));
       const screening = measured.screening ? `, ${SCREENING_PT[measured.screening] || measured.screening}` : "";
       return `Difusa medida: ${integer(measured.n)} blocos pareados com ${source}${screening}.`;
     }
-    const lastRow = parseStationTime(status.last_row_at || "");
-    const reason = MEASURED_REASON_PT[status.reason];
-    if (Number.isFinite(lastRow)) {
-      return `A comparação ao vivo com o piranômetro está pendente${reason ? ` (${reason})` : ""}: última leitura da estação disponível em ${formatStamp(lastRow)}.`;
+    const reason = MEASURED_REASON_PT[status.reason] || text(status.reason, "motivo não informado");
+    if (status.reason === "export_stale") {
+      const lastRow = parseStationTime(status.last_row_at || "");
+      const lastReading = Number.isFinite(lastRow) ? `, com última leitura em ${formatStamp(lastRow)}` : "";
+      return `Sem difusa medida nesta janela: ${reason}${lastReading}; a comparação ao vivo cobre só os blocos que ela alcança.`;
+    }
+    if (status.reason === "no_valid_rows" || status.reason === "interval_mismatch") {
+      return `A difusa medida não está publicada: ${reason}.`;
     }
     const source = status.source_label ? ` (${status.source_label})` : "";
-    return `A comparação ao vivo com o piranômetro${source} está pendente: ${reason || "sem exportação da estação"}; os números do teste não a substituem.`;
+    return `A comparação ao vivo com o piranômetro${source} está pendente: ${reason}; os números do teste não a substituem.`;
   }
 
   function renderLiveStats() {
     const container = el("ceuAoVivo");
     container.replaceChildren();
     const live = state.timelinePayload && state.timelinePayload.live;
-    container.hidden = !live || typeof live !== "object";
+    container.hidden = !live || typeof live !== "object" || !finite(live.n_blocks) || live.n_blocks === 0;
     if (container.hidden) return;
     const since = parseStationDate(live.since);
     const window = [];
