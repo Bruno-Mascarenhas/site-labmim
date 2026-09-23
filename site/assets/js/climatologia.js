@@ -746,13 +746,13 @@
       column.setAttribute("role", "img");
       column.setAttribute(
         "aria-label",
-        hours ? `${entry.year}: ${integer(hours)} horas válidas` : `${entry.year}: sem observação`
+        hours ? `${entry.year}: ${integer(hours)} horas registradas` : `${entry.year}: sem observação`
       );
 
       const bar = document.createElement("div");
       bar.className = "clima-coverage-bar";
       bar.style.height = `${Math.round((hours / (peak || 1)) * 100)}%`;
-      bar.title = `${entry.year}: ${integer(hours)} horas válidas`;
+      bar.title = `${entry.year}: ${integer(hours)} horas registradas`;
 
       const track = document.createElement("div");
       track.className = "clima-coverage-track";
@@ -771,7 +771,7 @@
     // out the same for every variable and contradicts the per-variable bars just above.
     const seasons = (state.manifest.coverage && state.manifest.coverage.seasons) || [];
     const seasonNote = seasons
-      .map((season) => `${season.season}: ${integer((season.hours || {})[state.variableId] || 0)} horas válidas`)
+      .map((season) => `${season.season}: ${integer((season.hours || {})[state.variableId] || 0)} horas registradas`)
       .join(" · ");
     // With the per-variable scale the top of the track means something different for each one, so without the peak
     // written out a sparsely measured variable would look as well covered as temperature.
