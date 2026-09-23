@@ -326,6 +326,29 @@ function unavailableInfo(title) {
   };
 }
 
+const DEGREES_PER_RADIAN = 180 / Math.PI;
+const KT_SKY_CLASS_MIN_SOLAR_ELEVATION_DEG = 20;
+const KT_SKY_CLASS_MIN_SOLAR_ELEVATION_RAD = KT_SKY_CLASS_MIN_SOLAR_ELEVATION_DEG / DEGREES_PER_RADIAN;
+
+function clearnessSkyItem(kt, solarElevationRad) {
+  if (!Number.isFinite(solarElevationRad)) {
+    return { label: "Céu", value: "N/D", icon: "fa-sun" };
+  }
+  if (solarElevationRad < KT_SKY_CLASS_MIN_SOLAR_ELEVATION_RAD) {
+    return {
+      label: "Sol baixo",
+      value: `${Math.floor(solarElevationRad * DEGREES_PER_RADIAN)}°`,
+      unit: "de elevação; céu não classificado",
+      icon: "fa-exclamation-triangle",
+    };
+  }
+  return {
+    label: "Céu",
+    value: kt > 0.65 ? "Limpo" : kt <= 0.35 ? "Encoberto" : "Parcialmente nublado",
+    icon: "fa-sun",
+  };
+}
+
 const VARIABLES_CONFIG = {
   solar: {
     id: "SWDOWN",
@@ -1114,7 +1137,7 @@ const VARIABLES_CONFIG = {
     scaleMin: 0,
     scaleMax: 0.85,
     colors: CLEARNESS_COLORS,
-    specificInfo: (value, allValues = {}) => {
+    specificInfo: (value, allValues = {}, { solarElevationRad = null } = {}) => {
       if (value === null || value === undefined || allValues.clearnessIndex?.ausente) {
         return unavailableInfo("Índice de Transparência");
       }
@@ -1128,11 +1151,7 @@ const VARIABLES_CONFIG = {
             unit: "",
             icon: "fa-cloud-sun",
           },
-          {
-            label: "Céu",
-            value: value > 0.65 ? "Limpo" : value <= 0.35 ? "Encoberto" : "Parcialmente nublado",
-            icon: "fa-sun",
-          },
+          clearnessSkyItem(value, solarElevationRad),
         ],
       };
     },

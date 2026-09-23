@@ -57,6 +57,27 @@ const DOMAIN_CONFIG = MAP_SITE_CONFIG.domains;
 const DEFAULT_MAX_LAYER = DATA_SITE_CONFIG.timeline.defaultMaxLayer;
 const DEFAULT_INITIAL_INDEX = DATA_SITE_CONFIG.timeline.initialIndex;
 const TIMELINE_STEP_HOURS = DATA_SITE_CONFIG.timeline.stepHours;
+const FORECAST_UTC_OFFSET_HOURS = DATA_SITE_CONFIG.timeline.utcOffsetHours;
+const MS_PER_HOUR = 60 * 60 * 1000;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
+const RADIANS_PER_DEGREE = Math.PI / 180;
+const SPENCER_DAYS_PER_YEAR = 365;
+const SOLAR_NOON_DAY_FRACTION = 0.5;
+const SPENCER_DECLINATION_RAD = {
+  constant: 0.006918,
+  harmonics: [
+    [-0.399912, 0.070257],
+    [-0.006758, 0.000907],
+    [-0.002697, 0.00148],
+  ],
+};
+const SPENCER_EQUATION_OF_TIME_RAD = {
+  constant: 0.000075,
+  harmonics: [
+    [0.001868, -0.032077],
+    [-0.014615, -0.040849],
+  ],
+};
 const GRID_VISIBLE_STYLE = {
   fillOpacity: 0.45,
   weight: 0.5,
@@ -72,6 +93,27 @@ const GRID_NODATA_STYLE = {
   ...GRID_VISIBLE_STYLE,
   fillColor: "#cccccc",
 };
+
+function spencerSeries({ constant, harmonics }, fractionalYearRad) {
+  return harmonics.reduce((sum, [cosine, sine], index) => {
+    const angleRad = (index + 1) * fractionalYearRad;
+    return sum + cosine * Math.cos(angleRad) + sine * Math.sin(angleRad);
+  }, constant);
+}
+
+function solarElevationRad(latitudeRad, longitudeRad, utcMs) {
+  const yearStartUtcMs = Date.UTC(new Date(utcMs).getUTCFullYear(), 0, 1);
+  const daysSinceYearStart = (utcMs - yearStartUtcMs) / MS_PER_DAY;
+  const fractionalYearRad = (2 * Math.PI * (daysSinceYearStart - SOLAR_NOON_DAY_FRACTION)) / SPENCER_DAYS_PER_YEAR;
+  const declinationRad = spencerSeries(SPENCER_DECLINATION_RAD, fractionalYearRad);
+  const equationOfTimeRad = spencerSeries(SPENCER_EQUATION_OF_TIME_RAD, fractionalYearRad);
+  const utcDayFraction = daysSinceYearStart - Math.floor(daysSinceYearStart);
+  const hourAngleRad = 2 * Math.PI * (utcDayFraction - SOLAR_NOON_DAY_FRACTION) + longitudeRad + equationOfTimeRad;
+  const sinElevation =
+    Math.sin(latitudeRad) * Math.sin(declinationRad) +
+    Math.cos(latitudeRad) * Math.cos(declinationRad) * Math.cos(hourAngleRad);
+  return Math.asin(Math.min(1, Math.max(-1, sinElevation)));
+}
 
 function _debounce(fn, delay) {
   let timer;
@@ -888,7 +930,11 @@ class MeteoMapManager {
       return;
     }
 
-    const specificInfo = config.specificInfo(this.state.selectedCell.value, this.state.selectedCell.allValues);
+    const specificInfo = config.specificInfo(
+      this.state.selectedCell.value,
+      this.state.selectedCell.allValues,
+      this._specificInfoContext(this.state.selectedCell)
+    );
 
     this.updateSidebarSpecificInfo(specificInfo);
   }
@@ -1527,6 +1573,22 @@ class MeteoMapManager {
     const date = new Date(this.state.initialDateTime.getTime());
     date.setTime(date.getTime() + hoursDiff * 60 * 60 * 1000);
     return date;
+  }
+
+  _specificInfoContext(cell) {
+    const stepLocalDate = this.calculateTargetDateFromIndex(this.state.index);
+    if (!stepLocalDate || !cell?.layer || !Number.isFinite(FORECAST_UTC_OFFSET_HOURS)) {
+      return { solarElevationRad: null };
+    }
+    const centroid = cell.layer.getBounds().getCenter();
+    const stepUtcMs = stepLocalDate.getTime() - FORECAST_UTC_OFFSET_HOURS * MS_PER_HOUR;
+    return {
+      solarElevationRad: solarElevationRad(
+        centroid.lat * RADIANS_PER_DEGREE,
+        centroid.lng * RADIANS_PER_DEGREE,
+        stepUtcMs
+      ),
+    };
   }
 
   calculateDateTimeFromIndex(index) {
@@ -2759,7 +2821,7 @@ class MeteoMapManager {
             </div>
         `;
 
-    const specificInfo = config.specificInfo(cell.value, cell.allValues);
+    const specificInfo = config.specificInfo(cell.value, cell.allValues, this._specificInfoContext(cell));
     if (specificInfo) {
       html += `<div class="info-section variable-specific">${this._specificInfoHtml(specificInfo)}</div>`;
     }

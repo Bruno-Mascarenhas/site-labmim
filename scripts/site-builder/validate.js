@@ -771,6 +771,9 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
       errors.push("dataset.timeline.stepHours: expected a positive number");
     }
     addRequiredString(errors, timeline.label, "dataset.timeline.label");
+    if (!Number.isFinite(timeline.utcOffsetHours)) {
+      errors.push("dataset.timeline.utcOffsetHours: expected a finite number of hours");
+    }
   }
 
   addRequiredString(errors, dataset.defaultDomain, "dataset.defaultDomain");

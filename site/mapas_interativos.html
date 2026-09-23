@@ -71,7 +71,7 @@
          only consumer is map-manager.js; institutional pages skip the bytes. -->
     <meta
       name="site-config"
-      content='{"publicationId":"ufba","brandName":"LabMiM","territory":{"id":"ba","code":"BA","name":"Bahia"},"data":{"manifestPath":"JSON/manifest.json","valuesBase":"JSON","gridsBase":"GeoJSON","timeline":{"defaultMaxLayer":75,"initialIndex":7,"stepHours":1,"label":"Horário local (UTC−03)"}},"map":{"initialCenter":[-12.97,-38.5],"initialZoom":6,"fitBounds":null,"fitMaxZoom":7,"stateCode":"BA","stateName":"Bahia","boundaryAsset":"assets/data/br_ba.json","attribution":"LabMiM-UFBA","defaultDomain":"D01","domains":{"D01":{"label":"BA/NE","center":[-12.97,-38.5],"zoom":5.5},"D02":{"label":"BA","center":[-12.97,-38.5],"zoom":7},"D03":{"label":"RMS","center":[-12.97,-38.5],"zoom":9},"D04":{"label":"SSA","center":[-12.97,-38.5],"zoom":12}}}}'
+      content='{"publicationId":"ufba","brandName":"LabMiM","territory":{"id":"ba","code":"BA","name":"Bahia"},"data":{"manifestPath":"JSON/manifest.json","valuesBase":"JSON","gridsBase":"GeoJSON","timeline":{"defaultMaxLayer":75,"initialIndex":7,"stepHours":1,"label":"Horário local (UTC−03)","utcOffsetHours":-3}},"map":{"initialCenter":[-12.97,-38.5],"initialZoom":6,"fitBounds":null,"fitMaxZoom":7,"stateCode":"BA","stateName":"Bahia","boundaryAsset":"assets/data/br_ba.json","attribution":"LabMiM-UFBA","defaultDomain":"D01","domains":{"D01":{"label":"BA/NE","center":[-12.97,-38.5],"zoom":5.5},"D02":{"label":"BA","center":[-12.97,-38.5],"zoom":7},"D03":{"label":"RMS","center":[-12.97,-38.5],"zoom":9},"D04":{"label":"SSA","center":[-12.97,-38.5],"zoom":12}}}}'
     />
 
     <!-- Worker content hashes stamped by build.js; map-manager.js builds the
@@ -1002,15 +1002,20 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     <li><code>cos(z)</code> é o cosseno do ângulo zenital solar (<code>COSZEN</code>).</li>
                   </ul>
                   <p>
-                    O painel classifica acima de 0,65 como céu limpo e até 0,35 como encoberto. Acima de 0,80 há
-                    pouquíssimas observações na literatura (Duffie &amp; Beckman), o que a rodada confirma: apenas 0,19%
-                    a 3,4% das células passam desse valor.
+                    O painel classifica acima de 0,65 como céu limpo e até 0,35 como encoberto. Esses limiares supõem o
+                    sol alto: com o sol baixo, a luz atravessa mais atmosfera e mesmo o céu sem nuvem pode ficar abaixo
+                    de 0,65. Por isso, com o sol abaixo de 20° de elevação, calculada para o centro da célula na hora do
+                    passo, o painel mostra um aviso de sol baixo no lugar da classe. Acima de 0,80 há pouquíssimas
+                    observações na literatura (Duffie &amp; Beckman), o que a rodada confirma: apenas 0,19% a 3,4% das
+                    células passam desse valor.
                   </p>
                   <p>
                     Com o sol muito baixo o denominador tende a zero e o índice fica instável, então só é publicado
                     acima de 10° de elevação solar (ângulo zenital &lt; 80°, o limiar de dia usado pelo ARM
-                    <code>DOE/SC-ARM/TR-008</code>). Fora dessa faixa as células aparecem como dado indisponível. Como é
-                    uma razão, não tem unidade.
+                    <code>DOE/SC-ARM/TR-008</code>). Fora dessa faixa as células aparecem como dado indisponível. O
+                    corte usa a elevação dada pelo <code>COSZEN</code> do próprio modelo, que pode ficar alguns graus
+                    distante da que o painel calcula para o centro da célula na hora do passo: por isso o aviso de sol
+                    baixo pode mostrar menos de 10° numa célula publicada. Como é uma razão, não tem unidade.
                   </p>
                 </div>
               </details>
@@ -1399,10 +1404,10 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
 
-    <script src="assets/js/variables-config.js?v=d3dd0372" defer></script>
+    <script src="assets/js/variables-config.js?v=629b6ba6" defer></script>
     <script src="assets/js/data-service.js?v=91903943" defer></script>
     <script src="assets/js/charts-manager.js?v=18577c54" defer></script>
-    <script src="assets/js/map-manager.js?v=9c61a070" defer></script>
+    <script src="assets/js/map-manager.js?v=e00271ce" defer></script>
     <script src="assets/js/map-init.js?v=5134fe91" defer></script>
   </body>
 </html>

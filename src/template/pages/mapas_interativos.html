@@ -489,15 +489,20 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                 <li><code>cos(z)</code> é o cosseno do ângulo zenital solar (<code>COSZEN</code>).</li>
               </ul>
               <p>
-                O painel classifica acima de 0,65 como céu limpo e até 0,35 como encoberto. Acima de 0,80 há
-                pouquíssimas observações na literatura (Duffie &amp; Beckman), o que a rodada confirma: apenas 0,19% a
-                3,4% das células passam desse valor.
+                O painel classifica acima de 0,65 como céu limpo e até 0,35 como encoberto. Esses limiares supõem o sol
+                alto: com o sol baixo, a luz atravessa mais atmosfera e mesmo o céu sem nuvem pode ficar abaixo de 0,65.
+                Por isso, com o sol abaixo de 20° de elevação, calculada para o centro da célula na hora do passo, o
+                painel mostra um aviso de sol baixo no lugar da classe. Acima de 0,80 há pouquíssimas observações na
+                literatura (Duffie &amp; Beckman), o que a rodada confirma: apenas 0,19% a 3,4% das células passam desse
+                valor.
               </p>
               <p>
                 Com o sol muito baixo o denominador tende a zero e o índice fica instável, então só é publicado acima de
                 10° de elevação solar (ângulo zenital &lt; 80°, o limiar de dia usado pelo ARM
-                <code>DOE/SC-ARM/TR-008</code>). Fora dessa faixa as células aparecem como dado indisponível. Como é uma
-                razão, não tem unidade.
+                <code>DOE/SC-ARM/TR-008</code>). Fora dessa faixa as células aparecem como dado indisponível. O corte
+                usa a elevação dada pelo <code>COSZEN</code> do próprio modelo, que pode ficar alguns graus distante da
+                que o painel calcula para o centro da célula na hora do passo: por isso o aviso de sol baixo pode
+                mostrar menos de 10° numa célula publicada. Como é uma razão, não tem unidade.
               </p>
             </div>
           </details>
