@@ -777,7 +777,7 @@ class MeteoMapManager {
             <div class="parameters-editor">
                 <div class="parameters-toggle" data-variable="${variableType}">
                     <span class="parameters-toggle-label">
-                        <i class="fas fa-sliders-h"></i> Parâmetros Customizados
+                        <i class="fas fa-sliders-h" aria-hidden="true"></i> Parâmetros Customizados
                     </span>
                     <span class="parameters-toggle-icon">▼</span>
                 </div>
@@ -809,7 +809,7 @@ class MeteoMapManager {
 
     html += `
                     <button class="reset-parameters-btn" data-variable="${variableType}">
-                        <i class="fas fa-redo"></i> Restaurar Padrões
+                        <i class="fas fa-redo" aria-hidden="true"></i> Restaurar Padrões
                     </button>
                 </div>
             </div>
@@ -941,7 +941,7 @@ class MeteoMapManager {
   _specificInfoStatsHtml(specificInfo) {
     let html = `
             <div class="info-section-title">
-                <i class="fas fa-bolt"></i> ${specificInfo.title}
+                <i class="fas fa-bolt" aria-hidden="true"></i> ${specificInfo.title}
             </div>
         `;
 
@@ -949,7 +949,7 @@ class MeteoMapManager {
       html += `
                 <div class="stat-card">
                     <div class="stat-card-label">
-                        <i class="fas ${item.icon}"></i> ${item.label}
+                        <i class="fas ${item.icon}" aria-hidden="true"></i> ${item.label}
                     </div>
                     <div class="stat-card-value">
                         ${item.value}
@@ -1423,7 +1423,7 @@ class MeteoMapManager {
       card.innerHTML = `
         <div class="variable-card-title">
           <span>${config.icon || ""} ${config.optionLabel || config.label}</span>
-          <i class="fas fa-info-circle variable-info-icon" title="${config.summary || config.label}"></i>
+          <i class="fas fa-info-circle variable-info-icon" aria-hidden="true" title="${config.summary || config.label}"></i>
         </div>
         <div class="variable-card-meta">
           ${config.unit ? `<span class="variable-card-chip">${config.unit}</span>` : ""}
@@ -1431,7 +1431,7 @@ class MeteoMapManager {
         </div>
         <p class="variable-card-summary">${config.summary || "Variável disponível no mapa interativo."}</p>
         <button class="variable-card-action" type="button" data-variable="${variableType}">
-          <i class="fas fa-map-location-dot"></i> Abrir no mapa
+          <i class="fas fa-map-location-dot" aria-hidden="true"></i> Abrir no mapa
         </button>
       `;
 
@@ -1516,7 +1516,7 @@ class MeteoMapManager {
         const boundaryFeature = geojson.features[0];
         this.stateEdgeIndex = boundaryFeature ? new StateEdgeIndex(boundaryFeature) : null;
         if (this.ui.clipStateBtn) {
-          this.ui.clipStateBtn.innerHTML = `<i class="fas fa-map"></i> ${stateCode} Off`;
+          this.ui.clipStateBtn.innerHTML = `<i class="fas fa-map" aria-hidden="true"></i> ${stateCode} Off`;
           this.ui.clipStateBtn.style.display = "inline-block";
         }
 
@@ -1624,7 +1624,7 @@ class MeteoMapManager {
     if (shouldPlay) {
       if (this.state.isPlaying && this.state.intervalId) return;
       this.state.isPlaying = true;
-      this.ui.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+      this.ui.playPauseBtn.innerHTML = '<i class="fas fa-pause" aria-hidden="true"></i> Pause';
       this.startAnimation();
     } else {
       if (!this.state.isPlaying && !this.state.intervalId) return;
@@ -1659,8 +1659,8 @@ class MeteoMapManager {
     this.state.isClippedToState = !this.state.isClippedToState;
     const abbr = this.state.stateAbbr;
     btn.innerHTML = this.state.isClippedToState
-      ? `<i class="fas fa-map"></i> ${abbr} On`
-      : `<i class="fas fa-map"></i> ${abbr} Off`;
+      ? `<i class="fas fa-map" aria-hidden="true"></i> ${abbr} On`
+      : `<i class="fas fa-map" aria-hidden="true"></i> ${abbr} Off`;
     btn.classList.toggle("active", this.state.isClippedToState);
 
     if (this.currentGeoJsonLayer) {
@@ -1689,7 +1689,7 @@ class MeteoMapManager {
     clearInterval(this.state.intervalId);
     this.state.intervalId = null;
     this.state.isPlaying = false;
-    this.ui.playPauseBtn.innerHTML = '<i class="fas fa-play"></i> Play';
+    this.ui.playPauseBtn.innerHTML = '<i class="fas fa-play" aria-hidden="true"></i> Play';
   }
 
   /** The synthetic input event is what drives the label, preview and data load. */
@@ -2789,7 +2789,7 @@ class MeteoMapManager {
     let html = `
             <div class="info-section">
                 <div class="info-section-title">
-                    <i class="fas fa-map-pin"></i> Localização
+                    <i class="fas fa-map-pin" aria-hidden="true"></i> Localização
                 </div>
                 <div class="info-item">
                     <span class="info-label">Latitude</span>
@@ -2807,7 +2807,7 @@ class MeteoMapManager {
 
             <div class="info-section">
                 <div class="info-section-title">
-                    <i class="fas fa-chart-line"></i> ${config.label}
+                    <i class="fas fa-chart-line" aria-hidden="true"></i> ${config.label}
                 </div>
                 <div class="info-item">
                     <span class="info-label">Valor</span>

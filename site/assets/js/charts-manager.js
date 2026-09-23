@@ -287,7 +287,7 @@ class ChartsManager {
 
     // Before the no-data return: the header must name the REQUESTED variable
     // even when the answer is "no data".
-    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}"></i> Série Temporal: ${this._stepLabel(config)}`;
+    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}" aria-hidden="true"></i> Série Temporal: ${this._stepLabel(config)}`;
 
     // The requested variable can be missing while a companion series loaded,
     // and the caller only checks whether the payload has any key at all.

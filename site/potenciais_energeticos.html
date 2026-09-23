@@ -215,19 +215,31 @@
       <div class="controls-container">
         <div class="slider-wrapper">
           <label for="layerSlider">Hora:</label>
-          <input type="range" id="layerSlider" min="1" max="75" step="1" value="7" />
+          <input
+            type="range"
+            id="layerSlider"
+            aria-describedby="layerSliderTimezoneNote"
+            min="1"
+            max="75"
+            step="1"
+            value="7"
+          />
           <div class="slider-time-container">
             <span class="slider-time" id="layerLabel">Carregando...</span>
             <i
               class="fas fa-question-circle slider-helper-icon"
+              aria-hidden="true"
               title="Horários convertidos das saídas WRF para Horário local (UTC−03)."
             ></i>
+            <span class="visually-hidden" id="layerSliderTimezoneNote"
+              >Horários convertidos das saídas WRF para Horário local (UTC−03).</span
+            >
           </div>
         </div>
 
         <div class="buttons-group">
           <button type="button" class="control-btn" id="playPauseBtn" title="Reproduzir/Pausar">
-            <i class="fas fa-play"></i> Play
+            <i class="fas fa-play" aria-hidden="true"></i> Play
           </button>
           <button
             type="button"
@@ -236,7 +248,7 @@
             title="Clipar/Recortar Estado"
             style="display: none"
           >
-            <i class="fas fa-map"></i> Clip
+            <i class="fas fa-map" aria-hidden="true"></i> Clip
           </button>
         </div>
 
@@ -302,7 +314,7 @@
             <h2>Sobre as variáveis</h2>
           </div>
           <button type="button" class="variable-overview-toggle" id="variableOverviewToggle" title="Ver detalhes">
-            <i class="fas fa-chevron-down"></i>
+            <i class="fas fa-chevron-down" aria-hidden="true"></i>
             <span>Ver detalhes</span>
           </button>
         </div>
@@ -401,7 +413,8 @@
             >
               <h3>Plataforma WebGIS de Potenciais Energéticos — LabMiM / UFBA</h3>
               <div class="doc-warning">
-                <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
+                <strong><i class="fas fa-exclamation-triangle doc-warning-icon" aria-hidden="true"></i>ATENÇÃO:</strong
+                ><br />
                 Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
                 associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os pesquisadores
                 participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados pela
@@ -838,7 +851,7 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
               id="timeSeriesExportBtn"
               title="Exportar CSV"
             >
-              <i class="fas fa-download"></i> CSV
+              <i class="fas fa-download" aria-hidden="true"></i> CSV
             </button>
             <button
               type="button"
@@ -976,8 +989,8 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
 
     <script src="assets/js/variables-config.js?v=629b6ba6" defer></script>
     <script src="assets/js/data-service.js?v=91903943" defer></script>
-    <script src="assets/js/charts-manager.js?v=f86560de" defer></script>
-    <script src="assets/js/map-manager.js?v=5aa0def4" defer></script>
+    <script src="assets/js/charts-manager.js?v=6206b9cc" defer></script>
+    <script src="assets/js/map-manager.js?v=17eba7c4" defer></script>
     <script src="assets/js/map-init.js?v=be4de7fe" defer></script>
   </body>
 </html>
