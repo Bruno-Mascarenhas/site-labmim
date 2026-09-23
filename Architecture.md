@@ -265,6 +265,7 @@ O pipeline publica `JSON/manifest.json` (formato `labmim-data-manifest-v2`) junt
 | `start_local`             | Data/hora local do **índice 0** dos arquivos (nunca de `index_min`) → âncora dos rótulos                                                                  |
 | `timezone`                | Informativo (`America/Bahia`; o site exibe os dígitos de hora local como recebidos)                                                                       |
 | `availability`            | Mapa `variableId → [[início, fim], ...]` (inclusivo) → passos exibíveis/puláveis por variável                                                             |
+| `domain_availability`     | Mapa `domínio → variableId → [[início, fim], ...]`, só com as variáveis cuja faixa no domínio não é a cheia → vence `availability` no domínio exibido; domínio ou variável ausente → `availability` |
 | `features.domain_summary` | Descritor `{format: "domain-summary-v1", template}` → habilita o resumo consolidado                                                                       |
 | `features.cell_series`    | Descritor `{format: "cell-series-int32-le-v1", template, dtype, byte_order, scale, missing, index_min, index_max}` → habilita a leitura binária de séries |
 | `features.isobar_overlay` | Descritor `{format: "isobars-v1", variable: "ISOBARS", draw_over[]}` → habilita a camada de isóbaras ao nível do mar sobre as variáveis de `draw_over`    |
@@ -308,7 +309,7 @@ O primeiro carregamento espera a corrida do manifest e então `applyManifest` �
 - `initialDateTime`, `initialIndex`
 - `selectedCell`
 
-Campos de instância relevantes fora de `this.state`: `dataVersion` e `timeline` (`indexMin`/`indexMax`/`availability`/`features`/`startLocal`/`radiationInstant` — o contrato vindo do manifest), `windHeight` (50/100/150), `currentValueData` e `_currentValueKey` (dados atuais e a chave `(versão, domínio, variável, hora)` que eles representam), `_currentApply` (carga em voo), `gridLayers` (cache de grade por domínio) e `dataService`. Elementos de DOM usados com frequência são cacheados em `this.ui`.
+Campos de instância relevantes fora de `this.state`: `dataVersion` e `timeline` (`indexMin`/`indexMax`/`availability`/`domainAvailability`/`features`/`startLocal`/`radiationInstant` — o contrato vindo do manifest), `windHeight` (50/100/150), `currentValueData` e `_currentValueKey` (dados atuais e a chave `(versão, domínio, variável, hora)` que eles representam), `_currentApply` (carga em voo), `gridLayers` (cache de grade por domínio) e `dataService`. Elementos de DOM usados com frequência são cacheados em `this.ui`.
 
 O painel "Sobre as variáveis" é controlado por `setupVariableOverview()`; inicia com `is-collapsed` e só carrega a prévia visual quando expandido (prévia usa o resumo de domínio, com refresh debounced de 250 ms).
 
@@ -318,7 +319,7 @@ O painel "Sobre as variáveis" é controlado por `setupVariableOverview()`; inic
 
 Os produtos atuais usam IDs técnicos `D01`–`D04`, mas apresentam labels geográficos próprios: LabMiM usa `BA/NE`, `BA`, `RMS` e `SSA`; LEAL usa `S/SE/NE`, `Sudeste`, `ES` e `Grande Vitória`. O ID técnico continua nos nomes dos arquivos, cache e estado e não deve ser inferido do label.
 
-Os botões `.domain-btn` atualizam `this.state.domain` e recarregam dados. O cache de grade **não** é limpo na troca de domínio/variável/altura — a grade depende só do domínio (só `handleManifestUpdate` descarta grades, na troca de rodada). O domínio não troca automaticamente por zoom.
+Os botões `.domain-btn` atualizam `this.state.domain` e recarregam dados. Se o passo exibido existia no domínio anterior e não existe no novo (faixas próprias do `domain_availability`), ele avança para o próximo passo publicado, como na troca de variável. O cache de grade **não** é limpo na troca de domínio/variável/altura — a grade depende só do domínio (só `handleManifestUpdate` descarta grades, na troca de rodada). O domínio não troca automaticamente por zoom.
 
 ### Carregamento De Dados
 
@@ -338,11 +339,11 @@ Resultados de carga são descartados se a chave (`_loadKey` = versão:domínio:v
 
 ### Disponibilidade E Playback
 
-`isIndexAvailable(index, type)`:
+`isIndexAvailable(index, type, domain)` (domínio padrão: o exibido):
 
 1. Com manifest v2, índices fora de `[indexMin, indexMax]` são indisponíveis.
-2. Se `availability` traz faixas para o ID resolvido da variável, o índice precisa cair em alguma faixa (vale para qualquer variável, não só `SWDOWN`).
-   Variáveis com `publishedOnlyWhenListed` (hoje `shortwaveIrradiation`, id `SW_IRRAD`, e `clearSkyIndex`, id `KSTAR`) param aqui: sem faixas no `availability`, seja por manifesto antigo, por falta de manifesto v2 ou por rodada sem RRTMG, ficam indisponíveis em todos os passos. `hasPublishedSteps()` as tira do seletor e dos cartões, e nenhum arquivo delas é pedido, nem como variável auxiliar do painel (`loadAllVariableValuesForCell()` pula o passo indisponível) nem como série do modal ou da prévia.
+2. `availabilityRanges(variableId, domain)` devolve as faixas de `domain_availability[domínio][variableId]` e, na falta delas, as de `availability[variableId]`. Se há faixas para o ID resolvido da variável, o índice precisa cair em alguma (vale para qualquer variável, não só `SWDOWN`). `availability` é a interseção dos domínios; as faixas por domínio liberam os passos que só aquele domínio escreveu (o `KT` do D01 às 06 h e às 17 h na rodada de 08/08/2026). O rótulo "Média diurna" da prévia e o filtro de variáveis sem passo do modal e da prévia (`hasPublishedSteps(type, domain)`) leem as mesmas faixas do domínio.
+   Variáveis com `publishedOnlyWhenListed` (hoje `shortwaveIrradiation`, id `SW_IRRAD`, e `clearSkyIndex`, id `KSTAR`) param aqui: sem faixas no domínio nem no `availability`, seja por manifesto antigo, por falta de manifesto v2 ou por rodada sem RRTMG, ficam indisponíveis em todos os passos. `hasPublishedSteps()` as tira do seletor e dos cartões, e nenhum arquivo delas é pedido, nem como variável auxiliar do painel (`loadAllVariableValuesForCell()` pula o passo indisponível) nem como série do modal ou da prévia. Isso exige que o produtor liste as duas em `availability` sempre que a rodada as publica, mesmo quando a faixa é a cheia `[index_min, index_max]`, e escreva `[]` quando não há passo, que o site já lê como indisponível. Pela regra geral, que omite a faixa cheia, uma rodada com `index_min` ≥ 1 tiraria o `SW_IRRAD` do `availability`, e a Radiação Global e o solar voltariam à estimativa pelo fluxo × 1 h com os arquivos no disco; hoje ele só aparece porque `index_min` é 0.
 3. Fallback legado: só os IDs diurnos (`DAYLIGHT_ONLY_VARIABLE_IDS` = `SWDOWN`, `SWUP`, `SWNET`, `KT`, espelhando `DAYLIGHT_ONLY_VARIABLES` do pipeline) são gatados à janela 6h–18h **derivada da âncora de data** (`calculateTargetDateFromIndex`) — não existe mais a heurística `(index-1)%24`; sem âncora, o índice é permitido de forma otimista.
 
 `nextPlayableIndex()` avança pulando passos indisponíveis e dá a volta para `timeline.indexMin`. A animação (`startAnimation`, tick de 800 ms) usa esse mecanismo; durante o playback, um 404 inesperado dispara `_maybeFastSkipEmptyFrame` (pulo em 50 ms, com guarda de streak para o modo degradado sem manifest).

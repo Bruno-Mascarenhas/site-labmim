@@ -324,6 +324,7 @@ class MeteoMapManager {
       indexMin: 1,
       indexMax: null,
       availability: null,
+      domainAvailability: null,
       features: null,
       startLocal: null,
       radiationInstant: null,
@@ -474,6 +475,10 @@ class MeteoMapManager {
 
     this.timeline.availability =
       manifest?.availability && typeof manifest.availability === "object" ? manifest.availability : null;
+    this.timeline.domainAvailability =
+      manifest?.domain_availability && typeof manifest.domain_availability === "object"
+        ? manifest.domain_availability
+        : null;
     this.timeline.features = manifest?.features && typeof manifest.features === "object" ? manifest.features : null;
     const radiationInstant = manifest?.radiation_instant;
     this.timeline.radiationInstant =
@@ -549,7 +554,7 @@ class MeteoMapManager {
    * legacy fallback optimistically allows the index when no anchor is known yet — a
    * miss is a handled 404, never a wrong blank.
    */
-  isIndexAvailable(index, type = this.state.type) {
+  isIndexAvailable(index, type = this.state.type, domain = this.state.domain) {
     const config = VARIABLES_CONFIG[type];
     if (!config) return true;
 
@@ -558,7 +563,7 @@ class MeteoMapManager {
       return false;
     }
 
-    const ranges = this.timeline.availability?.[this.getVariableId(type)];
+    const ranges = this.availabilityRanges(this.getVariableId(type), domain);
     if (Array.isArray(ranges)) {
       return ranges.some((range) => index >= range[0] && index <= range[1]);
     }
@@ -571,9 +576,14 @@ class MeteoMapManager {
     return hour >= DAYLIGHT_FALLBACK_FIRST_LOCAL_HOUR && hour <= DAYLIGHT_FALLBACK_LAST_LOCAL_HOUR;
   }
 
-  hasPublishedSteps(type = this.state.type) {
+  availabilityRanges(variableId, domain = this.state.domain) {
+    const domainRanges = this.timeline.domainAvailability?.[domain]?.[variableId];
+    return Array.isArray(domainRanges) ? domainRanges : this.timeline.availability?.[variableId];
+  }
+
+  hasPublishedSteps(type = this.state.type, domain = this.state.domain) {
     for (let index = this.timeline.indexMin; index <= this.state.maxLayer; index++) {
-      if (this.isIndexAvailable(index, type)) return true;
+      if (this.isIndexAvailable(index, type, domain)) return true;
     }
     return false;
   }
@@ -2150,7 +2160,10 @@ class MeteoMapManager {
         if (!config) return;
         const targetZoom = parseFloat(button.dataset.zoom) || config.zoom;
 
+        const stepWasAvailable = this.isIndexAvailable(this.state.index);
         this.state.domain = selectedDomain;
+        if (stepWasAvailable) this._snapIndexToAvailable();
+        this.updateDateTime();
         this.updateDomainIndicator();
         this.refreshVariableOverviewPreview();
 

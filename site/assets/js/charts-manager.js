@@ -387,7 +387,7 @@ class ChartsManager {
         return;
       }
 
-      const meanCoversDaylightOnly = this._meanCoversDaylightOnly(variableType, config);
+      const meanCoversDaylightOnly = this._meanCoversDaylightOnly(variableType, config, domain);
       this._renderPreviewStats(statsContainer, result.stats, config, meanCoversDaylightOnly);
       try {
         await this.ensureChartJs();
@@ -408,7 +408,7 @@ class ChartsManager {
   async _loadDomainMeanSeries(variableType, domain, signal) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config?.id) return null;
-    if (this.app?.hasPublishedSteps && !this.app.hasPublishedSteps(variableType)) return null;
+    if (this.app?.hasPublishedSteps && !this.app.hasPublishedSteps(variableType, domain)) return null;
 
     const variableId = this._getVariableId(variableType, config);
     const maxHour = this._getAvailableHourCount();
@@ -568,11 +568,11 @@ class ChartsManager {
     return { current: current ? current.value : null, mean, min, max };
   }
 
-  _meanCoversDaylightOnly(variableType, config) {
+  _meanCoversDaylightOnly(variableType, config, domain) {
     const variableId = this._getVariableId(variableType, config);
     if (!DAYLIGHT_ONLY_SHORTWAVE_VARIABLE_IDS.has(variableId)) return false;
 
-    const ranges = this.app?.timeline?.availability?.[variableId];
+    const ranges = this.app?.availabilityRanges?.(variableId, domain);
     if (!Array.isArray(ranges)) return true;
 
     const publishedSteps = ranges.reduce((sum, [first, last]) => sum + last - first + 1, 0);
@@ -991,7 +991,7 @@ class ChartsManager {
   async _loadVariableSeries(variableKey, domain, cellIndex, signal) {
     const config = VARIABLES_CONFIG[variableKey];
     if (!config?.id) return null;
-    if (this.app?.hasPublishedSteps && !this.app.hasPublishedSteps(variableKey)) return null;
+    if (this.app?.hasPublishedSteps && !this.app.hasPublishedSteps(variableKey, domain)) return null;
 
     const variableId = this._getVariableId(variableKey, config);
     const maxHour = this._getAvailableHourCount();
