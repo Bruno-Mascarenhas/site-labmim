@@ -97,6 +97,7 @@
     fade,
     parseStationTime,
     formatDay,
+    formatDayYear,
     formatHour,
     formatClock,
     formatStamp,
@@ -852,7 +853,7 @@
     }
   }
 
-  function buildCard(chart) {
+  function buildCard(chart, modelAbsent) {
     const card = node("div", "theme-surface monitor-card");
     card.id = `monitor-card-${chart.id}`;
 
@@ -903,7 +904,7 @@
 
     // Naming what the model does not deliver yet: otherwise a missing layer is
     // indistinguishable from a loading error.
-    const pending = Object.keys(chart.wrf_pending || {});
+    const pending = modelAbsent ? [] : Object.keys(chart.wrf_pending || {});
     if (pending.length) {
       const labels = chart.series.filter((series) => pending.includes(series.id)).map((series) => series.label);
       card.appendChild(
@@ -927,9 +928,33 @@
     return card;
   }
 
-  function buildLayerToggles() {
+  function declaredModel(model) {
+    if (model === undefined) return null;
+    const valid =
+      model !== null &&
+      typeof model.loaded === "boolean" &&
+      Number.isInteger(model.hours_in_window) &&
+      model.hours_in_window >= 0 &&
+      (model.end === null || Number.isFinite(parseStationTime(model.end)));
+    if (!valid) throw new Error(`model inválido: ${JSON.stringify(model)}`);
+    return model;
+  }
+
+  function modelAbsenceNote(payloadModel) {
+    const model = declaredModel(payloadModel);
+    if (model === null || model.hours_in_window > 0) return null;
+    if (!model.loaded || model.end === null) return "Modelo WRF sem dados nesta janela.";
+    const end = parseStationTime(model.end);
+    return `Modelo WRF sem dados nesta janela (o registro do modelo termina em ${formatDayYear(end)} às ${formatHour(end)}).`;
+  }
+
+  function buildLayerToggles(modelAbsence) {
     const group = el("monitorCamadas");
     group.replaceChildren();
+    const note = el("monitorModelo");
+    note.textContent = modelAbsence || "";
+    note.hidden = !modelAbsence;
+    if (modelAbsence) state.layers.delete("wrf");
     for (const layer of LAYERS) {
       const button = node("button", "clima-segmented-btn", layer.label);
       button.type = "button";
@@ -937,6 +962,10 @@
       const active = state.layers.has(layer.id);
       button.setAttribute("aria-pressed", String(active));
       button.classList.toggle("is-active", active);
+      if (modelAbsence && layer.id === "wrf") {
+        button.disabled = true;
+        button.setAttribute("aria-describedby", note.id);
+      }
       button.addEventListener("click", () => {
         if (state.layers.has(layer.id)) state.layers.delete(layer.id);
         else state.layers.add(layer.id);
@@ -1072,6 +1101,7 @@
       }
     }
     stationEndUtcMs(payload.window || {});
+    declaredModel(payload.model);
   }
 
   async function start() {
@@ -1131,12 +1161,13 @@
     }
 
     renderHeader();
-    buildLayerToggles();
+    const modelAbsence = modelAbsenceNote(state.payload.model);
+    buildLayerToggles(modelAbsence);
     buildWindowChips();
 
     const grid = el("monitorGrid");
     grid.replaceChildren();
-    for (const chart of state.payload.charts) grid.appendChild(buildCard(chart));
+    for (const chart of state.payload.charts) grid.appendChild(buildCard(chart, Boolean(modelAbsence)));
 
     el("monitorEmpty").hidden = true;
     el("monitorApp").hidden = false;

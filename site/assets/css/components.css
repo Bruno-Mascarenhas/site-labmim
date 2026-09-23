@@ -508,6 +508,13 @@
   outline-offset: 1px;
 }
 
+.clima-segmented-btn:disabled {
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  background: transparent;
+  opacity: 0.5;
+}
+
 .clima-panel {
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.5rem;
@@ -849,6 +856,14 @@
 }
 
 .monitor-updated {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.monitor-model-note {
+  width: 0;
+  min-width: 100%;
+  margin: 0;
   font-size: 0.8rem;
   color: var(--text-secondary);
 }
