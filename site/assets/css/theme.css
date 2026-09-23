@@ -91,6 +91,14 @@ input:focus-visible {
   color: var(--bg-primary) !important;
 }
 
+.dark-theme .btn-outline-lab:focus-visible {
+  outline-color: var(--dark-accent);
+}
+
+.dark-theme .navbar .btn-outline-lab:focus-visible {
+  outline-color: var(--ink-on-dark, #f8fbff);
+}
+
 .dark-theme .navbar .btn-outline-lab {
   background-color: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.48) !important;
