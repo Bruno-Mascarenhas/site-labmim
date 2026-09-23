@@ -548,7 +548,8 @@ class ChartsManager {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
 
-    const labels = series.map((entry) =>
+    const gapped = this._seriesWithHourGaps(series);
+    const labels = gapped.map((entry) =>
       new Date(entry.timestamp).toLocaleString("pt-BR", {
         timeZone: CHART_FORECAST_TIME_ZONE,
         day: "2-digit",
@@ -556,7 +557,7 @@ class ChartsManager {
         hour: "2-digit",
       })
     );
-    const chartData = series.map((entry) => entry.value);
+    const chartData = gapped.map((entry) => entry.value);
     const chartColor = themeInvariantSeriesColor(config.colors);
     const chartLabel = `Média do domínio · ${this._stepLabel(config)}`;
     const tooltipLabel = (ctx) => this._formatPreviewValue(ctx.parsed.y, config.unit);
