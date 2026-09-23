@@ -78,6 +78,18 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       describes: "links e texto do rodapé, que fica sobre --lab-footer-bg",
     },
     {
+      property: "ink-on-brand-warning",
+      consumedBy: "css",
+      fallback: "#f7dc6f",
+      describes: "aviso de resultado acadêmico no rodapé, sobre --lab-footer-bg",
+    },
+    {
+      property: "ink-on-brand-muted",
+      consumedBy: "css",
+      fallback: "rgba(255, 255, 255, 0.86)",
+      describes: "linha de copyright do rodapé, sobre --lab-footer-bg",
+    },
+    {
       property: "ink-on-dark",
       consumedBy: "css",
       fallback: "#f8fbff",
