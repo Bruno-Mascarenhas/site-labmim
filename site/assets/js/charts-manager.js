@@ -943,13 +943,14 @@ class ChartsManager {
 
     const unit = variableType === "solar" ? "Wh/m²" : "kWh";
     const color = variableType === "solar" ? "#b16d00" : "#4783a9";
-    const companionByHour = (key) =>
-      new Map((this.timeSeriesData?.[key]?.data || []).map((entry) => [entry.hour, entry.value]));
-    const temperatureByHour = companionByHour("temperature");
-    const pressureByHour = companionByHour("pressure");
-    const humidityByHour = companionByHour("humidity");
-    const irradiationByHour = companionByHour("shortwaveIrradiation");
-    const stepIrradiationByHour = variableType === "solar" && irradiationByHour.size ? irradiationByHour : null;
+    const companionValuesByHour = new Map(
+      (config.chartCompanions || []).map((key) => [
+        key,
+        new Map((this.timeSeriesData?.[key]?.data || []).map((entry) => [entry.hour, entry.value])),
+      ])
+    );
+    const irradiationByHour = companionValuesByHour.get("shortwaveIrradiation");
+    const stepIrradiationByHour = variableType === "solar" && irradiationByHour?.size ? irradiationByHour : null;
     const data = timeData.map((entry) => {
       // Hour with no exported radiation/wind: the catch below would turn
       // `specificInfo`'s unavailable payload into a 0 — invented production
@@ -957,13 +958,11 @@ class ChartsManager {
       if (entry.value === null || entry.value === undefined) return null;
       if (stepIrradiationByHour && !Number.isFinite(stepIrradiationByHour.get(entry.hour))) return null;
       try {
-        const info = config.specificInfo(entry.value, {
-          [variableType]: { value: entry.value },
-          temperature: { value: temperatureByHour.get(entry.hour) },
-          pressure: { value: pressureByHour.get(entry.hour) },
-          humidity: { value: humidityByHour.get(entry.hour) },
-          shortwaveIrradiation: { value: irradiationByHour.get(entry.hour) },
+        const allValues = { [variableType]: { value: entry.value } };
+        companionValuesByHour.forEach((valueByHour, key) => {
+          allValues[key] = { value: valueByHour.get(entry.hour) };
         });
+        const info = config.specificInfo(entry.value, allValues);
         // `energyValue` is the raw number; the sibling fields are display text.
         const item = info?.items?.find((it) => Number.isFinite(it.energyValue));
         return item ? item.energyValue : null;
