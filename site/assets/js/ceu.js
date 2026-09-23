@@ -3716,6 +3716,13 @@
     if (state.models.length) state.activeModels.add(state.models[0].id);
   }
 
+  function buildCaveatsAndToggles() {
+    buildCaveats();
+    buildLayerToggles();
+    buildClassToggles();
+    buildModelToggles();
+  }
+
   async function start() {
     const root = document.querySelector("[data-sky-base]");
     if (!root) return;
@@ -3753,10 +3760,7 @@
 
     renderHeader();
     renderFrames();
-    buildCaveats();
-    buildLayerToggles();
-    buildClassToggles();
-    buildModelToggles();
+    buildCaveatsAndToggles();
     el("ceuOpacidade").addEventListener("input", applyOverlayOpacity);
     el("ceuGuia").addEventListener("click", openGuide);
     el("ceuAmpliar").addEventListener("click", openZoom);
@@ -3779,10 +3783,7 @@
     if (state.layers.has("points")) ensurePoints();
     registerPayloadReferences();
     renderHeader();
-    buildCaveats();
-    buildLayerToggles();
-    buildClassToggles();
-    buildModelToggles();
+    buildCaveatsAndToggles();
     renderReferences();
     drawChart();
     settleEmptyState();
