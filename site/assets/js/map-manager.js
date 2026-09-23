@@ -8,6 +8,7 @@ const DAYLIGHT_ONLY_VARIABLE_IDS = new Set(["SWDOWN", "SWUP", "SWNET", "KT"]);
 const DAYLIGHT_FALLBACK_FIRST_LOCAL_HOUR = 6;
 const DAYLIGHT_FALLBACK_LAST_LOCAL_HOUR = 18;
 const SCALE_TICK_COUNT = 10;
+const SCALE_STOP_DECIMALS = 2;
 const CANVAS_PADDING_VIEWPORT_FRACTION = 0.1;
 
 function workerScriptUrl(fileName) {
@@ -626,7 +627,7 @@ class MeteoMapManager {
       // On a shortened window, announcing a 1h total as a 3h one is a wrong reading.
       label:
         steps < option.hours ? `${config.label} (${steps}h de ${option.hours}h)` : option.variableLabel || config.label,
-      scaleStops: Array.isArray(option.scaleStops) ? option.scaleStops : config.scaleStops,
+      scaleStops: config.scaleStops?.map((hourlyStop) => Number((hourlyStop * steps).toFixed(SCALE_STOP_DECIMALS))),
     };
   }
 

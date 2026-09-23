@@ -525,7 +525,8 @@
               <ul class="doc-list">
                 <li>
                   <strong>Seletor Acumulado:</strong> Com a precipitação selecionada, escolha entre o acumulado de 1h
-                  (passo do modelo) e o de 3h (soma dos três passos que terminam no horário exibido).
+                  (passo do modelo) e o de 3h (soma dos três passos que terminam no horário exibido). Nas duas primeiras
+                  horas da rodada, o 3h soma só os passos disponíveis e o rótulo mostra (1h de 3h) ou (2h de 3h).
                 </li>
                 <li>
                   <strong>Escala:</strong> Cada janela tem sua própria barra de cores, então o 3h não satura na faixa
@@ -727,8 +728,10 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                   <p>
                     No mapa, o seletor <strong>Acumulado</strong> escolhe a janela exibida: <code>1h</code> mostra o
                     passo horário do modelo e <code>3h</code> soma os três passos que terminam no horário selecionado.
-                    Células com menos de <code>0,01 mm</code> na janela escolhida ficam transparentes, para que só
-                    apareça onde efetivamente chove.
+                    Nas duas primeiras horas da rodada ainda não há três passos: a soma usa os disponíveis, o rótulo
+                    mostra <code>(1h de 3h)</code> ou <code>(2h de 3h)</code> e a barra de cores acompanha as horas
+                    somadas. Células com menos de <code>0,01 mm</code> na janela escolhida ficam transparentes, para que
+                    só apareça onde efetivamente chove.
                   </p>
                 </div>
               </details>
@@ -1419,10 +1422,10 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
  scripts: the climatology page uses window.labmimReferences. -->
     <script defer src="assets/js/references.js?v=23573fee"></script>
 
-    <script src="assets/js/variables-config.js?v=629b6ba6" defer></script>
+    <script src="assets/js/variables-config.js?v=a5e3ad48" defer></script>
     <script src="assets/js/data-service.js?v=91903943" defer></script>
     <script src="assets/js/charts-manager.js?v=6206b9cc" defer></script>
-    <script src="assets/js/map-manager.js?v=17eba7c4" defer></script>
+    <script src="assets/js/map-manager.js?v=a24fa43c" defer></script>
     <script src="assets/js/map-init.js?v=be4de7fe" defer></script>
   </body>
 </html>
