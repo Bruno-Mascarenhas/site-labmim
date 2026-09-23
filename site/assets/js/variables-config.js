@@ -58,6 +58,19 @@ function formatStepDuration(seconds) {
   return rest ? `${minutes} min ${rest} s` : `${minutes} min`;
 }
 
+function stepEnergyItem(energyKjM2, stepSeconds, icon) {
+  return {
+    label: stepSeconds ? `Energia em ${formatStepDuration(stepSeconds)}` : "Energia do Passo",
+    value: energyKjM2.toFixed(1),
+    unit: "kJ/m²",
+    icon,
+  };
+}
+
+function stepMeanFluxWM2(energyKjM2, stepSeconds) {
+  return (energyKjM2 * JOULES_PER_KILOJOULE) / stepSeconds;
+}
+
 function getParameter(variableType, paramName, defaultValue) {
   if (typeof app === "undefined" || !app || !app.getCustomParameter) {
     return defaultValue;
@@ -419,7 +432,7 @@ const VARIABLES_CONFIG = {
       const irradiation = allValues.shortwaveIrradiation;
       if (Number.isFinite(irradiation?.value)) {
         const stepSeconds = stepSecondsOf(irradiation);
-        const meanIrradianceWM2 = (irradiation.value * JOULES_PER_KILOJOULE) / (stepSeconds ?? NOMINAL_STEP_SECONDS);
+        const meanIrradianceWM2 = stepMeanFluxWM2(irradiation.value, stepSeconds ?? NOMINAL_STEP_SECONDS);
         const stepEnergyWhM2 = (irradiation.value / KILOJOULES_PER_WATT_HOUR) * conversionEfficiency(meanIrradianceWM2);
         return {
           title: "Geração Fotovoltaica",
@@ -886,15 +899,10 @@ const VARIABLES_CONFIG = {
       const irradiation = allValues.shortwaveIrradiation;
       const stepSeconds = stepSecondsOf(irradiation);
       const energyItem = Number.isFinite(irradiation?.value)
-        ? {
-            label: stepSeconds ? `Energia em ${formatStepDuration(stepSeconds)}` : "Energia do Passo",
-            value: irradiation.value.toFixed(1),
-            unit: "kJ/m²",
-            icon: "fa-chart-area",
-          }
+        ? stepEnergyItem(irradiation.value, stepSeconds, "fa-chart-area")
         : {
             label: "Acumulado Estimado (fluxo instantâneo × 1h)",
-            value: (value * 3.6).toFixed(1),
+            value: (value * KILOJOULES_PER_WATT_HOUR).toFixed(1),
             unit: "kJ/m²",
             icon: "fa-chart-area",
           };
@@ -939,18 +947,11 @@ const VARIABLES_CONFIG = {
       }
 
       const stepSeconds = stepSecondsOf(allValues.shortwaveIrradiation);
-      const items = [
-        {
-          label: stepSeconds ? `Energia em ${formatStepDuration(stepSeconds)}` : "Energia do Passo",
-          value: value.toFixed(1),
-          unit: "kJ/m²",
-          icon: "fa-sun",
-        },
-      ];
+      const items = [stepEnergyItem(value, stepSeconds, "fa-sun")];
       if (stepSeconds) {
         items.push({
           label: "Fluxo Médio no Passo",
-          value: ((value * JOULES_PER_KILOJOULE) / stepSeconds).toFixed(0),
+          value: stepMeanFluxWM2(value, stepSeconds).toFixed(0),
           unit: "W/m²",
           icon: "fa-chart-area",
         });
