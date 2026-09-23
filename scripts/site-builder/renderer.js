@@ -47,6 +47,12 @@ const declaredFields = (block) =>
 const RUN_NOTE_SLOTS = Object.freeze({
   isobarsResidual: "RUN_NOTE_ISOBARS_RESIDUAL",
   isobarsMassField: "RUN_NOTE_ISOBARS_MASS_FIELD",
+  swupMissingDiagnostics: "RUN_NOTE_SWUP_MISSING_DIAGNOSTICS",
+  swupAlbedoRange: "RUN_NOTE_SWUP_ALBEDO_RANGE",
+  lwupReflectedTerm: "RUN_NOTE_LWUP_REFLECTED_TERM",
+  lwnetLandCells: "RUN_NOTE_LWNET_LAND_CELLS",
+  rnetClosure: "RUN_NOTE_RNET_CLOSURE",
+  ktHighValues: "RUN_NOTE_KT_HIGH_VALUES",
 });
 
 const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";

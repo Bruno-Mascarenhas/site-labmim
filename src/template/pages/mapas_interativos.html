@@ -247,14 +247,14 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
               <p>
                 Parcela da radiação solar incidente devolvida pela superfície. O <code>wrfout</code> traz os fluxos
                 incidentes diretamente, mas os ascendentes só quando os diagnósticos de fundo de atmosfera do RRTMG
-                estão ligados — <code>SWUPB</code>/<code>LWUPB</code> não existem em nenhuma grade da rodada
-                operacional, então o backend os reconstrói a partir de campos que toda rodada carrega.
+                estão ligados. {{RUN_NOTE_SWUP_MISSING_DIAGNOSTICS}} Por isso o backend os reconstrói a partir de
+                campos que toda rodada carrega.
               </p>
               <pre class="doc-formula"><code>SWUP = ALBEDO * SWDOWN</code></pre>
               <p>
                 O albedo depende do uso do solo: água e vegetação densa refletem pouco, solo exposto e áreas urbanas
-                refletem mais. Nesta rodada os valores implícitos ficam entre 0,08 e 0,28, dentro da faixa que o
-                <code>VEGPARM.TBL</code> do WRF permite (0,08 para água a 0,38 para solo exposto).
+                refletem mais. A faixa que o <code>VEGPARM.TBL</code> do WRF permite vai de 0,08 para água a 0,38 para
+                solo exposto. {{RUN_NOTE_SWUP_ALBEDO_RANGE}}
               </p>
               <p>
                 O <code>SWDOWN</code> publicado não é reescalado pelo ângulo zenital entre as chamadas de radiação
@@ -329,7 +329,7 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 <code>raduemit + (1 − semis) · radld</code> e o <code>rtrnmc</code> do RRTMG como
                 <code>rad0 + reflect · radld</code>, ambos com a emissão <code>ε·B(Ts)</code> e a refletância
                 <code>1 − ε</code>; o ramo urbano do Noah a escreve por extenso. Descartar o termo refletido abriria o
-                fechamento do balanço de energia em cerca de 22 W/m².
+                fechamento do balanço de energia. {{RUN_NOTE_LWUP_REFLECTED_TERM}}
               </p>
               <p>
                 Cresce com a quarta potência da temperatura da superfície, então acompanha de perto o aquecimento
@@ -354,8 +354,7 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 aproxima o saldo de zero.
               </p>
               <p>
-                Nesta rodada o saldo é negativo em 99,5% a 99,9% das células de terra, com magnitude mediana de 53 a
-                61 W/m², coerente com a faixa de 75 a 125 W/m² que Oke (1987) dá para o valor típico.
+                Oke (1987) dá a faixa de 75 a 125 W/m² para o valor típico da perda. {{RUN_NOTE_LWNET_LAND_CELLS}}
               </p>
             </div>
           </details>
@@ -389,8 +388,7 @@ RNET = H + LE + G</code></pre>
               </p>
               <p>
                 O fechamento do balanço é o que valida os termos reconstruídos nas grades que não trazem
-                <code>LWUPB</code>: mediado sobre três dias inteiros, <code>Rn + G = H + LE</code> fecha com resíduo de
-                0,6 a 1,4 W/m² nos quatro domínios.
+                <code>LWUPB</code>. {{RUN_NOTE_RNET_CLOSURE}}
               </p>
             </div>
           </details>
@@ -496,8 +494,7 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                 alto: com o sol baixo, a luz atravessa mais atmosfera e mesmo o céu sem nuvem pode ficar abaixo de 0,65.
                 Por isso, com o sol abaixo de 20° de elevação, calculada para o centro da célula na hora do passo, o
                 painel mostra um aviso de sol baixo no lugar da classe. Acima de 0,80 há pouquíssimas observações na
-                literatura (Duffie &amp; Beckman), o que a rodada confirma: apenas 0,19% a 3,4% das células passam desse
-                valor.
+                literatura (Duffie &amp; Beckman). {{RUN_NOTE_KT_HIGH_VALUES}}
               </p>
               <p>
                 Com o sol muito baixo o denominador tende a zero e o índice fica instável, então só é publicado acima de
