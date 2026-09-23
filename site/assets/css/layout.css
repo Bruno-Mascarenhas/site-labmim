@@ -72,6 +72,8 @@
 }
 
 .modern-footer {
+  --focus-ring-color: var(--white);
+
   margin-top: 2rem;
   padding: 1.5rem 1rem;
   background: var(--lab-footer-bg);

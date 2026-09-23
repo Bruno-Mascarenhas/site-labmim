@@ -499,7 +499,7 @@
 }
 
 .clima-segmented-btn:focus-visible {
-  outline: 3px solid var(--accent-color);
+  outline: 3px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 
@@ -1127,7 +1127,7 @@
 }
 
 .sky-guide-open:focus-visible {
-  outline: 3px solid var(--accent-color);
+  outline: 3px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 

@@ -10,6 +10,7 @@ html.dark-theme {
   --chart-legend-color: var(--chart-legend-dark-color, #fff);
   --lab-header-bg: var(--lab-header-dark-bg);
   --lab-footer-bg: var(--lab-footer-dark-bg);
+  --focus-ring-color: var(--dark-accent);
 }
 
 [data-theme-toggle] {
@@ -47,8 +48,8 @@ html.dark-theme {
 .control-btn:focus-visible,
 .sidebar-close-btn:focus-visible,
 input:focus-visible {
-  outline: 3px solid rgba(var(--brand-secondary-rgb), 0.35);
-  outline-offset: 3px;
+  outline: 3px solid var(--focus-ring-color);
+  outline-offset: 2px;
 }
 
 .dark-theme body,
