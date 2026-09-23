@@ -1043,9 +1043,9 @@ const VARIABLES_CONFIG = {
           icon: "fa-scale-balanced",
         },
         {
-          label: "Período",
-          value: value > 0 ? "Ganho (diurno)" : "Perda (noturno)",
-          icon: value > 0 ? "fa-sun" : "fa-moon",
+          label: "Balanço",
+          value: value < 0 ? "Perda radiativa" : "Ganho radiativo",
+          icon: "fa-scale-balanced",
         },
       ];
 
