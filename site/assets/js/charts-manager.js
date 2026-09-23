@@ -883,7 +883,8 @@ class ChartsManager {
       }
     });
 
-    return { data, label: "Produção Energética Acumulada (1h)", unit, color };
+    const label = variableType === "solar" ? "Produção Estimada (fluxo × 1h)" : "Produção Energética Acumulada (1h)";
+    return { data, label, unit, color };
   }
 
   _getRequiredVariableKeys(variableType) {
@@ -1050,7 +1051,8 @@ class ChartsManager {
     if (isEnergy) {
       const energyConfig = this._prepareChartData(type, "energy", config, timeData);
       chartDataEnergy = energyConfig.data;
-      csv += `,Produção(${energyConfig.unit})`;
+      const energyColumn = type === "solar" ? "Produção em 1h estimada pelo fluxo instantâneo" : "Produção";
+      csv += `,${energyColumn}(${energyConfig.unit})`;
     }
     csv += "\n";
 

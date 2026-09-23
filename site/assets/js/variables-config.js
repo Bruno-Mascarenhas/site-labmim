@@ -359,13 +359,13 @@ const VARIABLES_CONFIG = {
         title: "Geração Fotovoltaica",
         items: [
           {
-            label: "Radiação Incidente Acumulada (1h)",
+            label: "Radiação Incidente Estimada (fluxo instantâneo × 1h)",
             value: (value * 3.6).toFixed(2),
             unit: "kJ/m²",
             icon: "fa-sun",
           },
           {
-            label: "Produção Energética Acumulada (1h)",
+            label: "Produção Energética Estimada (fluxo instantâneo × 1h)",
             value: (energyGen * 1000).toFixed(2),
             unit: "Wh/m²",
             icon: "fa-solar-panel",
@@ -805,7 +805,7 @@ const VARIABLES_CONFIG = {
             icon: "fa-sun",
           },
           {
-            label: "Acumulado Estimado (1h)",
+            label: "Acumulado Estimado (fluxo instantâneo × 1h)",
             value: (value * 3.6).toFixed(1),
             unit: "kJ/m²",
             icon: "fa-chart-area",
