@@ -2509,8 +2509,12 @@ class MeteoMapManager {
     return config.colors[config.colors.length - 1];
   }
 
+  hasExplicitScaleStops(config) {
+    return Array.isArray(config.scaleStops) && config.scaleStops.length >= 2;
+  }
+
   getScaleValues(config, valueData = this.currentValueData) {
-    if (Array.isArray(config.scaleStops) && config.scaleStops.length >= 2) {
+    if (this.hasExplicitScaleStops(config)) {
       return config.scaleStops;
     }
 
@@ -2633,7 +2637,7 @@ class MeteoMapManager {
     const labelsContainer = this.ui.colorbarLabels;
     labelsContainer.innerHTML = "";
 
-    const labelsAreExplicitStops = scaleValues === config.scaleStops;
+    const labelsAreExplicitStops = this.hasExplicitScaleStops(config);
     const decimals = this.colorbarDecimals(scaleValues);
     for (let i = scaleValues.length - 1; i >= 0; i--) {
       const label = document.createElement("div");
