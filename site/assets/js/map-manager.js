@@ -1506,11 +1506,9 @@ class MeteoMapManager {
     if (this.ui.layerLabel) {
       const hasData = this.isIndexAvailable(this.state.index);
       const targetDate = this.calculateTargetDateFromIndex(this.state.index);
-      // With nothing published there is no instant to stamp.
-      const label =
-        !targetDate && this._noPublishedDataNotice
-          ? this._noPublishedDataNotice
-          : this.formatForecastDateTimeLabel(targetDate, hasData);
+      const label = this._noPublishedDataNotice
+        ? this._noPublishedDataNotice
+        : this.formatForecastDateTimeLabel(targetDate, hasData);
       this.ui.layerLabel.textContent = label;
       // The slider value is a WRF timestep index: assistive tech would say "10 of 75".
       if (this.ui.slider) this.ui.slider.setAttribute("aria-valuetext", label);
@@ -1949,6 +1947,7 @@ class MeteoMapManager {
 
         this.currentValueData = valueData;
         this._currentValueKey = loadKey;
+        this._noPublishedDataNotice = null;
         this._emptyFrameStreak = 0;
         this.applyValuesToGrid(gridLayer, valueData);
 

@@ -71,10 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
   manifestPromise.then((manifest) => {
     if (manifest) app.applyManifest(manifest);
     app.applyMapChanges().then((values) => {
-      // Values or an anchor, never "did the manifest arrive": a partial FTP
-      // upload can leave the manifest as the only file online, and a v1 manifest
-      // carries no `start_local`, hence no anchor at all.
-      if (values || app.state.initialDateTime) {
+      if (values) {
         app.startInitialPlayback();
         return;
       }
