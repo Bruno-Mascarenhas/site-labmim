@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { inspectPublicationThemeCss } = require("./theme-contract");
-const { observationModalId, DEFAULT_MODEL } = require("./renderer");
+const { observationModalId, DEFAULT_MODEL, RUN_NOTE_SLOTS } = require("./renderer");
 const { DEFAULT_GRAPHS_DIRECTORY } = require("./operational-paths");
 const { closestKey, LAYOUT_CONTRACTS } = require("../../src/template/page-types");
 
@@ -692,6 +692,23 @@ function validateModel(errors, model) {
   }
 }
 
+function validateRunNotes(errors, runNotes) {
+  if (runNotes === undefined || runNotes === null) return;
+  if (!addRequiredObject(errors, runNotes, "dataset.runNotes")) return;
+  const slots = Object.keys(RUN_NOTE_SLOTS);
+  for (const key of Object.keys(runNotes)) {
+    if (slots.includes(key)) {
+      addRequiredString(errors, runNotes[key], `dataset.runNotes.${key}`);
+      continue;
+    }
+    const suggestion = closestKey(key, slots);
+    errors.push(
+      `dataset.runNotes.${key}: unknown field${suggestion ? `; did you mean "${suggestion}"?` : "."} ` +
+        `Valid fields: ${slots.join(", ")}`
+    );
+  }
+}
+
 function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBounds) {
   if (!addRequiredObject(errors, dataset, "dataset")) return;
   addRequiredString(errors, dataset.id, "dataset.id");
@@ -701,6 +718,7 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
     addRequiredString(errors, dataset.generator, "dataset.generator");
   }
   validateModel(errors, dataset.model);
+  validateRunNotes(errors, dataset.runNotes);
 
   if (addRequiredObject(errors, dataset.paths, "dataset.paths")) {
     validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.manifest, "dataset.paths.manifest");

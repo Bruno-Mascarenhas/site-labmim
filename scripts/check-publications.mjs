@@ -103,6 +103,47 @@ function assertLocalReferences(publication) {
   }
 }
 
+function readableText(html) {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function assertRunNotesStayWithTheirDataset(publication) {
+  const pages = [...publication.pages.map((page) => page.file), "404.html"].map((pageFile) => ({
+    pageFile,
+    text: readableText(fs.readFileSync(path.join(root, "site", pageFile), "utf8")),
+  }));
+  const ownNotes = Object.entries(publication.dataset.runNotes ?? {}).map(([key, note]) => [key, readableText(note)]);
+  const ownTexts = new Set(ownNotes.map(([, text]) => text));
+  const problems = [];
+
+  for (const [key, text] of ownNotes) {
+    if (!pages.some((page) => page.text.includes(text))) {
+      problems.push(`dataset ${publication.dataset.id} runNotes.${key} appears on no page`);
+    }
+  }
+  for (const other of publications) {
+    if (other.dataset.id === publication.dataset.id) continue;
+    for (const [key, note] of Object.entries(other.dataset.runNotes ?? {})) {
+      const text = readableText(note);
+      if (ownTexts.has(text)) continue;
+      for (const page of pages.filter((candidate) => candidate.text.includes(text))) {
+        problems.push(`${page.pageFile}: carries runNotes.${key} of dataset ${other.dataset.id}`);
+      }
+    }
+  }
+
+  if (problems.length) {
+    throw new Error(
+      `Run notes of ${publication.id} do not match its dataset (${publication.dataset.id}):\n` +
+        problems.map((item) => `  - ${item}`).join("\n") +
+        "\nRun-specific text belongs in dataset.runNotes, rendered through a RUN_NOTE_* slot, never in a shared template."
+    );
+  }
+}
+
 function assertNoUntrackedOutput(publication) {
   const result = spawnSync("git", ["ls-files", "--others", "--exclude-standard", "--", "site"], {
     cwd: root,
@@ -168,6 +209,7 @@ function buildAndValidate(publication) {
   }
   if (/\{\{[^}]+\}\}/.test(index)) throw new Error(`Generated index for ${publication.id} contains unresolved tokens`);
   assertLocalReferences(publication);
+  assertRunNotesStayWithTheirDataset(publication);
 }
 
 const restoreDefault = makeRestore({

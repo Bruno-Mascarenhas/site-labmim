@@ -14,6 +14,12 @@ module.exports = {
     landSurface: "Noah [[noah]]",
     cumulus: "Betts-Miller-Janjić [[bmj]]",
   },
+  runNotes: {
+    isobarsResidual:
+      "<p>Essa estimativa é uma ficção abaixo do solo e, sobre terreno alto, deixa um resíduo com ciclo diário: medida no domínio de 9 km, a diferença de pressão entre a serra e o litoral oscila cerca de <strong>2,0 hPa</strong> entre a madrugada e a tarde. A diferença média diária entre serra e litoral, essa é real.</p>",
+    isobarsMassField:
+      "Na rodada de 3 de maio de 2026, que é a publicada aqui, a pressão média do domínio muda cerca de <strong>2,8 hPa por hora</strong>, contra 0,20 hPa/h de uma rodada de controle e 0,59 hPa/h do barômetro da estação. O deslocamento é espacialmente uniforme, aparece nos quatro domínios com a mesma fase e já está na massa de ar seca prognóstica do modelo: entra pelas condições de contorno, e não pela redução ao nível do mar, que responde por no máximo 1,4% do salto horário.",
+  },
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",

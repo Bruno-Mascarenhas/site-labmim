@@ -44,6 +44,11 @@ const DEFAULT_MODEL = Object.freeze({
 const declaredFields = (block) =>
   Object.fromEntries(Object.entries(block || {}).filter(([, value]) => value !== undefined));
 
+const RUN_NOTE_SLOTS = Object.freeze({
+  isobarsResidual: "RUN_NOTE_ISOBARS_RESIDUAL",
+  isobarsMassField: "RUN_NOTE_ISOBARS_MASS_FIELD",
+});
+
 const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";
 
 const OBSERVATION_CHART_WIDTH = 800;
@@ -298,6 +303,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     SITE_REFERENCES: JSON.stringify(SITE_REFERENCES).replace(/</g, "\\u003c"),
     MONITORING_BASE: escapeAttribute(dataset.paths.monitoring ?? ""),
     SKY_BASE: escapeAttribute(dataset.paths.sky ?? ""),
+    ...Object.fromEntries(Object.entries(RUN_NOTE_SLOTS).map(([key, token]) => [token, dataset.runNotes?.[key] ?? ""])),
   };
 
   function applySiteTokens(html) {
@@ -556,4 +562,4 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
 
 // observationModalId and DEFAULT_MODEL travel to validate.js so it checks chart-id
 // collisions and unknown `dataset.model` keys against exactly what this file emits.
-module.exports = { renderPublication, observationModalId, DEFAULT_MODEL };
+module.exports = { renderPublication, observationModalId, DEFAULT_MODEL, RUN_NOTE_SLOTS };
