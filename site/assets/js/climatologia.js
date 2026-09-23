@@ -4,8 +4,7 @@
  *
  * Nothing is computed here. Bins, fit, theoretical curve and goodness-of-fit arrive ready from the Python exporter
  * (`labmim-climatology`), curve already rescaled by one minus the atom mass; a second numerical path in JavaScript
- * would be free to diverge from the parameters printed beside it. The curve is sampled AT THE BIN CENTERS, one value
- * per bar, so bars and line share one categorical axis with no interpolation — logarithmic rainfall bins included.
+ * would be free to diverge from the parameters printed beside it.
  *
  * Nothing is publication-specific: every label comes from the JSON. The directory holds operational data, so in a
  * development checkout and in CI it is empty and the page has to say so instead of breaking.
@@ -546,9 +545,15 @@
     for (const [label, value] of parameterRows(subset.fit)) {
       grid.appendChild(fitRow(label, value));
     }
+    if (Number.isFinite(subset.fit.truncation)) {
+      const unit = state.variable.unit ? ` ${state.variable.unit}` : "";
+      grid.appendChild(fitRow("Condicionada a partir de", `${decimal(subset.fit.truncation, 3)}${unit}`));
+    }
 
     const quality = subset.quality || {};
-    if (quality.ks_distance !== undefined && quality.ks_distance !== null) {
+    if (quality.lattice_ks_distance !== undefined && quality.lattice_ks_distance !== null) {
+      grid.appendChild(fitRow("KS na grade da báscula", percent(quality.lattice_ks_distance, 2)));
+    } else if (quality.ks_distance !== undefined && quality.ks_distance !== null) {
       grid.appendChild(fitRow("Maior discrepância acumulada (KS)", percent(quality.ks_distance, 2)));
     }
     if (quality.quantile_gap !== undefined && quality.quantile_gap !== null) {
