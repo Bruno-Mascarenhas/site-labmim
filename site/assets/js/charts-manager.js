@@ -48,17 +48,18 @@ class ChartsManager {
   }
 
   ensureChartJs() {
-    if (typeof Chart !== "undefined") return Promise.resolve();
+    if (typeof Chart !== "undefined") return Promise.resolve(true);
     if (!this.chartJsLoading) {
-      this.chartJsLoading = new Promise((resolve, reject) => {
+      this.chartJsLoading = new Promise((resolve) => {
         const script = document.createElement("script");
         const fail = () => {
           script.remove();
           this.chartJsLoading = null;
-          reject(new Error(`Chart.js did not load from ${script.src}`));
+          console.error("[Charts] Error loading Chart.js:", new Error(`Chart.js did not load from ${script.src}`));
+          resolve(false);
         };
         script.src = CHART_JS_SRC;
-        script.onload = () => (typeof Chart === "undefined" ? fail() : resolve());
+        script.onload = () => (typeof Chart === "undefined" ? fail() : resolve(true));
         script.onerror = fail;
         document.head.appendChild(script);
       });
@@ -297,10 +298,7 @@ class ChartsManager {
     }
 
     const signal = this.abortController?.signal;
-    try {
-      await this.ensureChartJs();
-    } catch (error) {
-      console.error("[Charts] Error loading Chart.js:", error);
+    if (!(await this.ensureChartJs())) {
       if (signal?.aborted) return;
       this._showModalEmptyState("Não foi possível carregar os gráficos. A série continua disponível no botão CSV.", {
         exportable: true,
@@ -389,10 +387,7 @@ class ChartsManager {
 
       const meanCoversDaylightOnly = this._meanCoversDaylightOnly(variableType, config, domain);
       this._renderPreviewStats(statsContainer, result.stats, config, meanCoversDaylightOnly);
-      try {
-        await this.ensureChartJs();
-      } catch (error) {
-        console.error("[Charts] Error loading Chart.js:", error);
+      if (!(await this.ensureChartJs())) {
         if (!signal.aborted) this._showPreviewChartNotice(canvasId, "Não foi possível carregar o gráfico.");
         return;
       }
