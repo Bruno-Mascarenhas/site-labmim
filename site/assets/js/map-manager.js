@@ -1838,6 +1838,8 @@ class MeteoMapManager {
     this._currentValueKey = null;
     this.removeCurrentLayer();
     this.clearWindVectors();
+    this._isobarRequestKey = null;
+    this.clearIsobars();
   }
 
   applyMapChanges() {
