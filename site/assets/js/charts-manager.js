@@ -42,6 +42,7 @@ class ChartsManager {
     this.abortController = null;
     this.previewAbortController = null;
     this.chartJsLoading = null;
+    this.modalChartJsPrefetch = null;
     this.ui = this._cacheUIElements();
 
     this._setupModalListeners();
@@ -238,6 +239,7 @@ class ChartsManager {
   }
 
   openModal() {
+    this.modalChartJsPrefetch = this.ensureChartJs();
     if (this.ui.modal) {
       this._returnFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       this.ui.modal.style.display = "flex";
@@ -298,7 +300,9 @@ class ChartsManager {
     }
 
     const signal = this.abortController?.signal;
-    if (!(await this.ensureChartJs())) {
+    const chartJsReady = this.modalChartJsPrefetch ?? this.ensureChartJs();
+    this.modalChartJsPrefetch = null;
+    if (!(await chartJsReady)) {
       if (signal?.aborted) return;
       this._showModalEmptyState("Não foi possível carregar os gráficos. A série continua disponível no botão CSV.", {
         exportable: true,
@@ -347,6 +351,7 @@ class ChartsManager {
   async renderDomainSummary(variableType, domain, elements = {}) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
+    const chartJsReady = this.ensureChartJs();
 
     if (this.previewAbortController) {
       this.previewAbortController.abort();
@@ -387,7 +392,7 @@ class ChartsManager {
 
       const meanCoversDaylightOnly = this._meanCoversDaylightOnly(variableType, config, domain);
       this._renderPreviewStats(statsContainer, result.stats, config, meanCoversDaylightOnly);
-      if (!(await this.ensureChartJs())) {
+      if (!(await chartJsReady)) {
         if (!signal.aborted) this._showPreviewChartNotice(canvasId, "Não foi possível carregar o gráfico.");
         return;
       }

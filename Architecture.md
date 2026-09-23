@@ -222,7 +222,7 @@ Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](
 
 ### Ordem De Carregamento (páginas WebGIS)
 
-No `<head>`: `theme-boot.js` (síncrono, para reduzir flash), `theme-toggle.js` e `ui-shell.js` (`defer`); `leaflet.js` (vendorizado) com `defer`. Antes de `</body>`, todos com `defer` e nesta ordem: `references.js`, `variables-config.js`, `data-service.js`, `charts-manager.js`, `map-manager.js`, `map-init.js`. O Chart.js (vendorizado) fica fora dessa lista: `ChartsManager.ensureChartJs()` injeta o script na primeira série de célula ou prévia do domínio, para que os 200 KB não atrasem o `DOMContentLoaded` que constrói o mapa. Todo CSS/JS próprio carrega com `?v=<hash de conteúdo>` estampado pelo build.
+No `<head>`: `theme-boot.js` (síncrono, para reduzir flash), `theme-toggle.js` e `ui-shell.js` (`defer`); `leaflet.js` (vendorizado) com `defer`. Antes de `</body>`, todos com `defer` e nesta ordem: `references.js`, `variables-config.js`, `data-service.js`, `charts-manager.js`, `map-manager.js`, `map-init.js`. O Chart.js (vendorizado) fica fora dessa lista: `ChartsManager.ensureChartJs()` injeta o script quando o modal de série da célula abre ou a prévia do domínio começa a carregar, em paralelo com o download dos dados, para que os 200 KB não atrasem o `DOMContentLoaded` que constrói o mapa. Todo CSS/JS próprio carrega com `?v=<hash de conteúdo>` estampado pelo build.
 
 ## Dark Mode
 
