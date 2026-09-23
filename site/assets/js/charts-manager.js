@@ -4,6 +4,7 @@ const CHART_TIMELINE_FIRST_INDEX = 1;
 // (see app.parseDateTime) and the map label prints those digits, so charts and
 // CSV must format in UTC too — local time would shift them off the map.
 const CHART_FORECAST_TIME_ZONE = "UTC";
+const DAYLIGHT_ONLY_SHORTWAVE_VARIABLE_IDS = new Set(["SWDOWN", "SWUP", "SWNET"]);
 
 // The two card surfaces a series is drawn on: assets/css/maps.css and the dark override in
 // assets/css/theme.css (.chart-modal-body, div[id^="chartContainer"]).
@@ -351,8 +352,9 @@ class ChartsManager {
         return;
       }
 
-      this._renderPreviewStats(statsContainer, result.stats, config);
-      this._renderPreviewChart(canvasId, result.series, config);
+      const meanCoversDaylightOnly = this._meanCoversDaylightOnly(variableType, config);
+      this._renderPreviewStats(statsContainer, result.stats, config, meanCoversDaylightOnly);
+      this._renderPreviewChart(canvasId, result.series, config, meanCoversDaylightOnly);
     } catch (error) {
       if (error.name === "AbortError") return;
       console.error("[Charts] Error rendering domain summary:", error);
@@ -522,12 +524,24 @@ class ChartsManager {
     return { current: current ? current.value : null, mean, min, max };
   }
 
-  _renderPreviewStats(container, stats, config) {
+  _meanCoversDaylightOnly(variableType, config) {
+    const variableId = this._getVariableId(variableType, config);
+    if (!DAYLIGHT_ONLY_SHORTWAVE_VARIABLE_IDS.has(variableId)) return false;
+
+    const ranges = this.app?.timeline?.availability?.[variableId];
+    if (!Array.isArray(ranges)) return true;
+
+    const publishedSteps = ranges.reduce((sum, [first, last]) => sum + last - first + 1, 0);
+    const firstIndex = this.app?.timeline?.indexMin ?? CHART_TIMELINE_FIRST_INDEX;
+    return publishedSteps < this._getAvailableHourCount() - firstIndex + 1;
+  }
+
+  _renderPreviewStats(container, stats, config, meanCoversDaylightOnly) {
     if (!container || !stats) return;
 
     const items = [
       ["Atual", stats.current],
-      ["Média", stats.mean],
+      [meanCoversDaylightOnly ? "Média diurna" : "Média", stats.mean],
       ["Mín", stats.min],
       ["Máx", stats.max],
     ];
@@ -544,7 +558,7 @@ class ChartsManager {
       .join("");
   }
 
-  _renderPreviewChart(canvasId, series, config) {
+  _renderPreviewChart(canvasId, series, config, meanCoversDaylightOnly) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
 
@@ -569,7 +583,9 @@ class ChartsManager {
         "aria-label",
         `Média do domínio para ${this._stepLabel(config)}${config.unit ? ` em ${config.unit}` : ""}, ` +
           `de ${labels[0]} a ${labels[labels.length - 1]}. ` +
-          "As estatísticas do período estão no resumo desta prévia."
+          (meanCoversDaylightOnly
+            ? "As estatísticas do resumo desta prévia cobrem só as horas diurnas publicadas; a noite não entra na média."
+            : "As estatísticas do período estão no resumo desta prévia.")
       );
     }
 
