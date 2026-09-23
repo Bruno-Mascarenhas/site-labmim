@@ -585,7 +585,7 @@ class MeteoMapManager {
       // On a shortened window, announcing a 1h total as a 3h one is a wrong reading.
       label:
         steps < option.hours ? `${config.label} (${steps}h de ${option.hours}h)` : option.variableLabel || config.label,
-      scaleMax: Number.isFinite(option.scaleMax) ? option.scaleMax : config.scaleMax,
+      scaleStops: Array.isArray(option.scaleStops) ? option.scaleStops : config.scaleStops,
     };
   }
 
@@ -2388,6 +2388,10 @@ class MeteoMapManager {
   }
 
   getScaleValues(config, valueData = this.currentValueData) {
+    if (Array.isArray(config.scaleStops) && config.scaleStops.length >= 2) {
+      return config.scaleStops;
+    }
+
     if (Number.isFinite(config.scaleMin) && Number.isFinite(config.scaleMax) && config.scaleMin < config.scaleMax) {
       const values = [];
       for (let i = 0; i < SCALE_TICK_COUNT; i++) {
@@ -2507,11 +2511,14 @@ class MeteoMapManager {
     const labelsContainer = this.ui.colorbarLabels;
     labelsContainer.innerHTML = "";
 
+    const labelsAreExplicitStops = scaleValues === config.scaleStops;
     const decimals = this.colorbarDecimals(scaleValues);
     for (let i = scaleValues.length - 1; i >= 0; i--) {
       const label = document.createElement("div");
       label.className = "colorbar-label";
-      label.textContent = this.formatColorbarValue(scaleValues[i], decimals);
+      label.textContent = labelsAreExplicitStops
+        ? String(scaleValues[i])
+        : this.formatColorbarValue(scaleValues[i], decimals);
       labelsContainer.appendChild(label);
     }
   }

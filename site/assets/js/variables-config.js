@@ -28,6 +28,9 @@ const BEAUFORT_FORCE_DESIGNATIONS = [
   "Furacão",
 ];
 
+const RAIN_HOURLY_SCALE_STOPS_MM = [0.1, 0.5, 1, 2.5, 5, 10, 20, 30, 50];
+const RAIN_THREE_HOUR_SCALE_STOPS_MM = [0.3, 1.5, 3, 7.5, 15, 30, 60, 90, 150];
+
 const TURBINE_CUT_IN_SPEED_M_S = 3;
 const TURBINE_RATED_SPEED_M_S = 12;
 const TURBINE_CUT_OUT_SPEED_M_S = 25;
@@ -685,8 +688,7 @@ const VARIABLES_CONFIG = {
     sourceId: "RAIN",
     summary:
       "Precipitação acumulada no timestep do modelo, somada na janela escolhida (1h ou 3h). Células sem chuva (< 0,01 mm) não são pintadas.",
-    scaleMin: 0,
-    scaleMax: 30,
+    scaleStops: RAIN_HOURLY_SCALE_STOPS_MM,
     // Below 0.01 mm WRF writes zeros over almost the whole grid.
     hideBelow: 0.01,
     accumulation: {
@@ -696,13 +698,13 @@ const VARIABLES_CONFIG = {
         {
           hours: 1,
           label: "1h",
-          scaleMax: 30,
+          scaleStops: RAIN_HOURLY_SCALE_STOPS_MM,
           variableLabel: "Precipitação (1h)",
         },
         {
           hours: 3,
           label: "3h",
-          scaleMax: 60,
+          scaleStops: RAIN_THREE_HOUR_SCALE_STOPS_MM,
           variableLabel: "Precipitação acumulada (3h)",
         },
       ],
