@@ -296,4 +296,5 @@ module.exports = {
   OPTIONAL_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTY_NAMES,
   inspectPublicationThemeCss,
+  parseHexColor,
 };
