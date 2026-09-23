@@ -37,7 +37,8 @@ function readSiteConfig() {
       !parsed?.data?.manifestPath ||
       !parsed?.data?.valuesBase ||
       !parsed?.data?.gridsBase ||
-      !parsed?.data?.timeline
+      !parsed?.data?.timeline ||
+      !Number.isFinite(parsed.data.timeline.utcOffsetHours)
     ) {
       throw new Error("incomplete publication, map, or dataset configuration");
     }
@@ -1631,7 +1632,7 @@ class MeteoMapManager {
 
   _specificInfoContext(cell) {
     const stepLocalDate = this.calculateTargetDateFromIndex(this.state.index);
-    if (!stepLocalDate || !cell?.layer || !Number.isFinite(FORECAST_UTC_OFFSET_HOURS)) {
+    if (!stepLocalDate || !cell?.layer) {
       return { solarElevationRad: null };
     }
     const centroid = cell.layer.getBounds().getCenter();
