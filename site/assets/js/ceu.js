@@ -2358,6 +2358,8 @@
   };
   const SCREENING_PT = { "sentinels + sensor_limits": "passados pelas sentinelas e pelos limites do sensor do acervo" };
   const CORRECTED_LABEL_SCALE = "corrected";
+  const RAW_LABEL_SCALE = "raw";
+  const DECLARED_LABEL_SCALES = new Set([RAW_LABEL_SCALE, CORRECTED_LABEL_SCALE]);
   const RAW_SCALE_LIVE_NOTE =
     "a difusa prevista está na escala crua do rótulo de treino e a medida, na escala corrigida: RMSE, MAE e MBE incluem essa diferença de escala, não só o erro do modelo";
   const BLOCK_STATUS_PT = { scored: "pontuado", skipped: "pulado", pending: "pendente", failed: "falhou" };
@@ -2573,8 +2575,19 @@
     return lines;
   }
 
+  function declaredLabelScale(value) {
+    return DECLARED_LABEL_SCALES.has(value) ? value : null;
+  }
+
+  function predictionLabelScale() {
+    return (
+      declaredLabelScale(state.timelinePayload?.label_scale) ??
+      declaredLabelScale(state.modelPayload?.dataset?.label_scale)
+    );
+  }
+
   function predictionOnRawScale() {
-    return state.modelPayload?.dataset?.label_scale !== CORRECTED_LABEL_SCALE;
+    return predictionLabelScale() !== CORRECTED_LABEL_SCALE;
   }
 
   function comparedWithStation(series) {
