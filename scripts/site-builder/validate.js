@@ -679,42 +679,32 @@ function validateSkyHasData(errors, publication) {
   }
 }
 
+function validateClosedStringRecord(errors, record, field, keys) {
+  if (record === undefined || record === null) return;
+  if (!addRequiredObject(errors, record, field)) return;
+  for (const key of Object.keys(record)) {
+    if (keys.includes(key)) {
+      addRequiredString(errors, record[key], `${field}.${key}`);
+      continue;
+    }
+    const suggestion = closestKey(key, keys);
+    errors.push(
+      `${field}.${key}: unknown field${suggestion ? `; did you mean "${suggestion}"?` : "."} ` +
+        `Valid fields: ${keys.join(", ")}`
+    );
+  }
+}
+
 // Optional WRF namelist block, layered by the renderer over DEFAULT_MODEL: an unknown key is inert
 // — the page keeps publishing the default scheme and crediting its paper — hence the closed key
 // list. An empty string publishes an empty parenthesis where the scheme belongs, and an explicit
 // `undefined` wipes the default through the renderer's spread and publishes the word "undefined".
 function validateModel(errors, model) {
-  if (model === undefined || model === null) return;
-  if (!addRequiredObject(errors, model, "dataset.model")) return;
-  const fields = Object.keys(DEFAULT_MODEL);
-  for (const key of Object.keys(model)) {
-    if (fields.includes(key)) {
-      addRequiredString(errors, model[key], `dataset.model.${key}`);
-      continue;
-    }
-    const suggestion = closestKey(key, fields);
-    errors.push(
-      `dataset.model.${key}: unknown field${suggestion ? `; did you mean "${suggestion}"?` : "."} ` +
-        `Valid fields: ${fields.join(", ")}`
-    );
-  }
+  validateClosedStringRecord(errors, model, "dataset.model", Object.keys(DEFAULT_MODEL));
 }
 
 function validateRunNotes(errors, runNotes) {
-  if (runNotes === undefined || runNotes === null) return;
-  if (!addRequiredObject(errors, runNotes, "dataset.runNotes")) return;
-  const slots = Object.keys(RUN_NOTE_SLOTS);
-  for (const key of Object.keys(runNotes)) {
-    if (slots.includes(key)) {
-      addRequiredString(errors, runNotes[key], `dataset.runNotes.${key}`);
-      continue;
-    }
-    const suggestion = closestKey(key, slots);
-    errors.push(
-      `dataset.runNotes.${key}: unknown field${suggestion ? `; did you mean "${suggestion}"?` : "."} ` +
-        `Valid fields: ${slots.join(", ")}`
-    );
-  }
+  validateClosedStringRecord(errors, runNotes, "dataset.runNotes", Object.keys(RUN_NOTE_SLOTS));
 }
 
 function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBounds) {
