@@ -11,6 +11,23 @@
  *   relatedVariables, each as { value, label, unit }.
  */
 
+const BEAUFORT_FORCE_LOWER_BOUNDS_M_S = [0.3, 1.6, 3.4, 5.5, 8.0, 10.8, 13.9, 17.2, 20.8, 24.5, 28.5, 32.7];
+const BEAUFORT_FORCE_DESIGNATIONS = [
+  "Calmaria",
+  "Bafagem",
+  "Aragem",
+  "Fraco",
+  "Moderado",
+  "Fresco",
+  "Muito Fresco",
+  "Forte",
+  "Muito Forte",
+  "Duro",
+  "Muito Duro",
+  "Tempestuoso",
+  "Furacão",
+];
+
 function getParameter(variableType, paramName, defaultValue) {
   if (typeof app === "undefined" || !app || !app.getCustomParameter) {
     return defaultValue;
@@ -713,8 +730,8 @@ const VARIABLES_CONFIG = {
         title: "Informações do Vento",
         items: [
           {
-            label: "Categoria do Vento",
-            value: getWindCategory(value),
+            label: "Escala Beaufort",
+            ...describeBeaufortForce(value),
             icon: "fa-wind",
           },
           {
@@ -1223,6 +1240,12 @@ function getWindCategory(speed) {
   if (speed < 8) return "Forte";
   if (speed < 10) return "Muito Forte";
   return "Extremo";
+}
+
+function describeBeaufortForce(speedMs) {
+  if (!Number.isFinite(speedMs) || speedMs < 0) return { value: "N/D", unit: "" };
+  const force = BEAUFORT_FORCE_LOWER_BOUNDS_M_S.filter((lowerBound) => speedMs >= lowerBound).length;
+  return { value: BEAUFORT_FORCE_DESIGNATIONS[force], unit: `força ${force}` };
 }
 
 function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
