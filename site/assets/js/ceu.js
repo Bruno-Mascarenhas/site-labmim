@@ -2221,6 +2221,9 @@
     export_stale: "exportação da estação desatualizada",
   };
   const SCREENING_PT = { "sentinels + sensor_limits": "passados pelas sentinelas e pelos limites do sensor do acervo" };
+  const CORRECTED_LABEL_SCALE = "corrected";
+  const RAW_SCALE_LIVE_NOTE =
+    "a difusa prevista está na escala crua do rótulo de treino e a medida, na escala corrigida: RMSE, MAE e MBE incluem essa diferença de escala, não só o erro do modelo";
   const BLOCK_STATUS_PT = { scored: "pontuado", skipped: "pulado", pending: "pendente", failed: "falhou" };
   const ARM_KIND_PT = { served: "servido", ensemble: "conjunto servido", member: "membro", control: "controle" };
   const SERVED_ARM_KINDS = ["served", "ensemble"];
@@ -2434,12 +2437,29 @@
     return lines;
   }
 
+  function predictionOnRawScale() {
+    return state.modelPayload?.dataset?.label_scale !== CORRECTED_LABEL_SCALE;
+  }
+
+  function comparedWithStation(series) {
+    const live = state.timelinePayload && state.timelinePayload.live;
+    return (
+      Boolean(series.measured) ||
+      Boolean(live && typeof live === "object" && finite(live.n_blocks) && live.n_blocks > 0)
+    );
+  }
+
+  function predictedDhiLabel(series) {
+    const label = `${dhiLabel()} prevista`;
+    return comparedWithStation(series) && predictionOnRawScale() ? `${label} (escala crua)` : label;
+  }
+
   function timelineDatasets(theme, series) {
     const datasets = [];
     const predicted = series.dhi;
     if (predicted) {
       datasets.push({
-        label: `${dhiLabel()} prevista`,
+        label: predictedDhiLabel(series),
         data: predicted,
         borderColor: `rgb(${theme.ink})`,
         backgroundColor: `rgb(${theme.ink})`,
@@ -2599,7 +2619,7 @@
     const hasData = Boolean(series.dhi || series.kindex);
     list.hidden = !hasData;
     if (!hasData) return;
-    legendItem(list, { background: `rgb(${theme.ink})`, height: "0.25rem" }, `${dhiLabel()} prevista`);
+    legendItem(list, { background: `rgb(${theme.ink})`, height: "0.25rem" }, predictedDhiLabel(series));
     legendItem(
       list,
       { background: "transparent", height: "0", borderTop: `2px dashed ${theme.textSecondary}` },
@@ -2715,16 +2735,20 @@
     const window = [];
     if (finite(live.n_days)) window.push(`${integer(live.n_days)} ${live.n_days === 1 ? "dia" : "dias"}`);
     if (finite(live.n_blocks)) window.push(`${integer(live.n_blocks)} blocos`);
+    const rawScale = predictionOnRawScale();
     statTile(
       container,
       Number.isFinite(since) ? `desde ${formatDay(since)}` : "ao vivo",
       `contra o piranômetro${window.length ? ` — ${window.join(", ")}` : ""}`,
-      "o único holdout limpo: dias posteriores à decisão do pino, nunca usados em decisão"
+      rawScale
+        ? RAW_SCALE_LIVE_NOTE
+        : "o único holdout limpo: dias posteriores à decisão do pino, nunca usados em decisão"
     );
     const dhi = live.dhi || {};
-    statTile(container, withUnit(decimal(dhi.rmse, 1), dhiUnit()), "RMSE da difusa ao vivo");
-    statTile(container, withUnit(decimal(dhi.mae, 1), dhiUnit()), "MAE da difusa ao vivo");
-    statTile(container, withUnit(signed(dhi.mbe, 1), dhiUnit()), "MBE da difusa ao vivo");
+    const scaleNote = rawScale ? " (inclui a diferença de escala)" : "";
+    statTile(container, withUnit(decimal(dhi.rmse, 1), dhiUnit()), `RMSE da difusa ao vivo${scaleNote}`);
+    statTile(container, withUnit(decimal(dhi.mae, 1), dhiUnit()), `MAE da difusa ao vivo${scaleNote}`);
+    statTile(container, withUnit(signed(dhi.mbe, 1), dhiUnit()), `MBE da difusa ao vivo${scaleNote}`);
     if (live.kindex && finite(live.kindex.mae))
       statTile(container, decimal(live.kindex.mae, 3), `MAE de ${kindexSymbol()} ao vivo`);
     if (live.sky && finite(live.sky.balanced_accuracy)) {
