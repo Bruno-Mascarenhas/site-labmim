@@ -1232,7 +1232,7 @@ const VARIABLES_CONFIG = {
     sourceId: "WIND_POWER_DENSITY_10M",
     summary: "Densidade de potência disponível no vento a 10 metros. Não é geração real de turbina.",
     scaleMin: 0,
-    scaleMax: 1500,
+    scaleMax: 600,
     colors: WIND_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.windPowerDensity?.ausente) {
