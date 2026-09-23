@@ -115,6 +115,10 @@ input:focus-visible {
   color: var(--white) !important;
 }
 
+.dark-theme .site-affiliation-text small {
+  color: var(--brand-secondary);
+}
+
 .dark-theme h1,
 .dark-theme h2,
 .dark-theme h3,

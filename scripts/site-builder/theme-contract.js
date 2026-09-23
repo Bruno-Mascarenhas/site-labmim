@@ -35,6 +35,13 @@ const REQUIRED_THEME_PROPERTIES = Object.freeze([
 const OPTIONAL_THEME_PROPERTIES = Object.freeze(
   [
     {
+      property: "brand-secondary-strong",
+      consumedBy: "css",
+      fallback: "var(--brand-secondary)",
+      describes:
+        "tom de --brand-secondary que aguenta texto branco em cima ou vira texto: item ativo e hover da navbar e instituição do cabeçalho",
+    },
+    {
       property: "ink-strong",
       consumedBy: "css",
       fallback: "#172033",

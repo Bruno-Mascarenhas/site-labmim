@@ -245,7 +245,7 @@ header.maps-header {
 .stat-card-value {
   font-size: 1.3rem;
   font-weight: 700;
-  color: var(--map-accent);
+  color: var(--map-accent-strong);
   margin: 5px 0;
 }
 
@@ -717,7 +717,7 @@ header.maps-header {
 .domain-btn.active {
   background: var(--map-accent-gradient);
   color: white;
-  border-color: var(--map-accent);
+  border-color: var(--map-accent-strong);
   box-shadow: 0 4px 12px rgba(var(--map-accent-rgb), 0.3);
 }
 
@@ -1462,7 +1462,7 @@ header.maps-header {
 
 .parameters-toggle-label {
   font-weight: 600;
-  color: var(--map-accent);
+  color: var(--ink-strong, #172033);
   display: flex;
   align-items: center;
   gap: 8px;
