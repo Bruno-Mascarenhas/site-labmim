@@ -241,6 +241,13 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 — <code>SWUP</code>, <code>SWNET</code>, <code>LWUP</code>, <code>LWNET</code> e o saldo
                 <code>RNET</code>.
               </p>
+              <p>
+                Quando a rodada usa <code>SWINT_OPT = 0</code>, o <code>SWDOWN</code> de cada horário é o da última
+                chamada de radiação do domínio, calculada para o sol de um instante que pode ficar vários minutos antes ou
+                depois do horário e que muda de um domínio para outro. Se a rodada informa esse instante, o painel da
+                célula o mostra em <strong>Cálculo da radiação</strong>, também para <code>SWUP</code>,
+                <code>SWNET</code>, <code>RNET</code>, <code>KT</code> e <code>KSTAR</code>.
+              </p>
             </div>
           </details>
 
@@ -546,7 +553,8 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                 fica sem valor, o painel classifica pelo <code>kt</code>: acima de 0,65 como céu limpo e até 0,35 como
                 encoberto. Esses limiares supõem o sol alto: com o sol baixo, a luz atravessa mais atmosfera e mesmo o céu
                 sem nuvem pode ficar abaixo de 0,65. Por isso, nesse caso, com o sol abaixo de 20° de elevação, calculada
-                para o centro da célula na hora do passo, o painel mostra um aviso de sol baixo no lugar da classe. Acima
+                para o centro da célula no instante mostrado em <strong>Cálculo da radiação</strong> ou, quando a rodada
+                não o informa, na hora do passo, o painel mostra um aviso de sol baixo no lugar da classe. Acima
                 de 0,80 há pouquíssimas observações na literatura (Duffie &amp; Beckman). {{RUN_NOTE_KT_HIGH_VALUES}}
               </p>
               <p>
@@ -554,7 +562,8 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                 10° de elevação solar (ângulo zenital &lt; 80°, o limiar de dia usado pelo ARM
                 <code>DOE/SC-ARM/TR-008</code>). Fora dessa faixa as células aparecem como dado indisponível. O corte
                 usa a elevação dada pelo <code>COSZEN</code> do próprio modelo, que pode ficar alguns graus distante da
-                que o painel calcula para o centro da célula na hora do passo: por isso o aviso de sol baixo pode
+                que o painel calcula para o centro da célula na hora do passo, quando a rodada não informa o instante do
+                cálculo da radiação: por isso o aviso de sol baixo pode
                 mostrar menos de 10° numa célula publicada. Como é uma razão, não tem unidade.
               </p>
             </div>

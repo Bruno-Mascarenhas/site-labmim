@@ -268,6 +268,7 @@ O pipeline publica `JSON/manifest.json` (formato `labmim-data-manifest-v2`) junt
 | `features.domain_summary` | Descritor `{format: "domain-summary-v1", template}` → habilita o resumo consolidado                                                                       |
 | `features.cell_series`    | Descritor `{format: "cell-series-int32-le-v1", template, dtype, byte_order, scale, missing, index_min, index_max}` → habilita a leitura binária de séries |
 | `features.isobar_overlay` | Descritor `{format: "isobars-v1", variable: "ISOBARS", draw_over[]}` → habilita a camada de isóbaras ao nível do mar sobre as variáveis de `draw_over`    |
+| `radiation_instant`       | `{format: "radiation-instant-v1", variables[], offset_minutes{domínio: [min \| null por índice]}}` → minutos do rótulo do passo ao sol dos campos de onda curta; nas variáveis de `variables`, o painel da célula mostra "Cálculo da radiação" e o aviso de sol baixo do `KT` usa a elevação desse instante; ausente, com outro `format`, sem o domínio ou `null` no índice → só o rótulo |
 
 Ciclo de vida (`map-init.js`):
 
@@ -307,7 +308,7 @@ O primeiro carregamento espera a corrida do manifest e então `applyManifest` �
 - `initialDateTime`, `initialIndex`
 - `selectedCell`
 
-Campos de instância relevantes fora de `this.state`: `dataVersion` e `timeline` (`indexMin`/`indexMax`/`availability`/`features`/`startLocal` — o contrato vindo do manifest), `windHeight` (50/100/150), `currentValueData` e `_currentValueKey` (dados atuais e a chave `(versão, domínio, variável, hora)` que eles representam), `_currentApply` (carga em voo), `gridLayers` (cache de grade por domínio) e `dataService`. Elementos de DOM usados com frequência são cacheados em `this.ui`.
+Campos de instância relevantes fora de `this.state`: `dataVersion` e `timeline` (`indexMin`/`indexMax`/`availability`/`features`/`startLocal`/`radiationInstant` — o contrato vindo do manifest), `windHeight` (50/100/150), `currentValueData` e `_currentValueKey` (dados atuais e a chave `(versão, domínio, variável, hora)` que eles representam), `_currentApply` (carga em voo), `gridLayers` (cache de grade por domínio) e `dataService`. Elementos de DOM usados com frequência são cacheados em `this.ui`.
 
 O painel "Sobre as variáveis" é controlado por `setupVariableOverview()`; inicia com `is-collapsed` e só carrega a prévia visual quando expandido (prévia usa o resumo de domínio, com refresh debounced de 250 ms).
 

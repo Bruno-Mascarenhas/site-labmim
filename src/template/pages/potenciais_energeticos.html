@@ -73,6 +73,11 @@ Energy = E * eta_panel * eta_inverter * (1 + PTC * (Tcell - 25) / 100)</code></p
                 menos conforme o sol e as nuvens mudam dentro do passo.
               </p>
               <p>
+                Quando a rodada informa o instante da chamada de radiação que produziu o <code>SWDOWN</code> do
+                horário, o painel da célula o mostra em <strong>Cálculo da radiação</strong>. Ele vale para o fluxo
+                mostrado em Valor, não para a energia do passo, que vem do <code>SW_IRRAD</code>.
+              </p>
+              <p>
                 <code>SWDOWN</code> é uma variável meteorológica. A produção fotovoltaica exibida é uma estimativa
                 derivada e depende dos parâmetros assumidos para o sistema. Não substitui estudo técnico de geração
                 real.

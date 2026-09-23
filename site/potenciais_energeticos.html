@@ -598,6 +598,11 @@ Energy = E * eta_panel * eta_inverter * (1 + PTC * (Tcell - 25) / 100)</code></p
                     o sol e as nuvens mudam dentro do passo.
                   </p>
                   <p>
+                    Quando a rodada informa o instante da chamada de radiação que produziu o <code>SWDOWN</code> do
+                    horário, o painel da célula o mostra em <strong>Cálculo da radiação</strong>. Ele vale para o fluxo
+                    mostrado em Valor, não para a energia do passo, que vem do <code>SW_IRRAD</code>.
+                  </p>
+                  <p>
                     <code>SWDOWN</code> é uma variável meteorológica. A produção fotovoltaica exibida é uma estimativa
                     derivada e depende dos parâmetros assumidos para o sistema. Não substitui estudo técnico de geração
                     real.
@@ -1005,7 +1010,7 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
     <script src="assets/js/variables-config.js?v=d9f837b5" defer></script>
     <script src="assets/js/data-service.js?v=91903943" defer></script>
     <script src="assets/js/charts-manager.js?v=70099427" defer></script>
-    <script src="assets/js/map-manager.js?v=8817aeab" defer></script>
+    <script src="assets/js/map-manager.js?v=405e4591" defer></script>
     <script src="assets/js/map-init.js?v=be4de7fe" defer></script>
   </body>
 </html>

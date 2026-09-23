@@ -59,6 +59,8 @@ const DEFAULT_INITIAL_INDEX = DATA_SITE_CONFIG.timeline.initialIndex;
 const TIMELINE_STEP_HOURS = DATA_SITE_CONFIG.timeline.stepHours;
 const FORECAST_UTC_OFFSET_HOURS = DATA_SITE_CONFIG.timeline.utcOffsetHours;
 const MS_PER_HOUR = 60 * 60 * 1000;
+const MS_PER_MINUTE = 60 * 1000;
+const RADIATION_INSTANT_FORMAT = "radiation-instant-v1";
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const RADIANS_PER_DEGREE = Math.PI / 180;
 const SPENCER_DAYS_PER_YEAR = 365;
@@ -324,6 +326,7 @@ class MeteoMapManager {
       availability: null,
       features: null,
       startLocal: null,
+      radiationInstant: null,
     };
 
     this._colorWorker = null;
@@ -472,6 +475,14 @@ class MeteoMapManager {
     this.timeline.availability =
       manifest?.availability && typeof manifest.availability === "object" ? manifest.availability : null;
     this.timeline.features = manifest?.features && typeof manifest.features === "object" ? manifest.features : null;
+    const radiationInstant = manifest?.radiation_instant;
+    this.timeline.radiationInstant =
+      radiationInstant?.format === RADIATION_INSTANT_FORMAT &&
+      Array.isArray(radiationInstant.variables) &&
+      radiationInstant.offset_minutes !== null &&
+      typeof radiationInstant.offset_minutes === "object"
+        ? radiationInstant
+        : null;
 
     this.configureVariableSelect();
     if (this.ui.variableCardsGrid) this.renderVariableGuideCards();
@@ -1587,6 +1598,27 @@ class MeteoMapManager {
     return date;
   }
 
+  radiationOffsetMinutes() {
+    const instant = this.timeline.radiationInstant;
+    if (!instant?.variables.includes(this.getVariableId(this.state.type))) return null;
+    const offsetMinutes = instant.offset_minutes[this.state.domain]?.[this.state.index];
+    return Number.isFinite(offsetMinutes) ? offsetMinutes : null;
+  }
+
+  formatRadiationSun(offsetMinutes) {
+    const roundedMinutes = Math.sign(offsetMinutes) * Math.round(Math.abs(offsetMinutes));
+    const relation =
+      roundedMinutes === 0
+        ? "no horário"
+        : `${Math.abs(roundedMinutes)} min ${roundedMinutes < 0 ? "antes do" : "depois do"} horário`;
+    const stepLocalDate = this.calculateTargetDateFromIndex(this.state.index);
+    if (!stepLocalDate) return relation;
+    const sunLocalDate = new Date(stepLocalDate.getTime() + roundedMinutes * MS_PER_MINUTE);
+    const hours = String(sunLocalDate.getUTCHours()).padStart(2, "0");
+    const minutes = String(sunLocalDate.getUTCMinutes()).padStart(2, "0");
+    return `${hours}:${minutes} (${relation})`;
+  }
+
   _specificInfoContext(cell) {
     const stepLocalDate = this.calculateTargetDateFromIndex(this.state.index);
     if (!stepLocalDate || !cell?.layer || !Number.isFinite(FORECAST_UTC_OFFSET_HOURS)) {
@@ -1594,11 +1626,13 @@ class MeteoMapManager {
     }
     const centroid = cell.layer.getBounds().getCenter();
     const stepUtcMs = stepLocalDate.getTime() - FORECAST_UTC_OFFSET_HOURS * MS_PER_HOUR;
+    const sunOffsetMinutes = this.radiationOffsetMinutes();
+    const sunUtcMs = sunOffsetMinutes === null ? stepUtcMs : stepUtcMs + sunOffsetMinutes * MS_PER_MINUTE;
     return {
       solarElevationRad: solarElevationRad(
         centroid.lat * RADIANS_PER_DEGREE,
         centroid.lng * RADIANS_PER_DEGREE,
-        stepUtcMs
+        sunUtcMs
       ),
     };
   }
@@ -2810,6 +2844,14 @@ class MeteoMapManager {
     const config = this.getVariableConfig();
     const sidebar = this.ui.sidebar;
     const content = this.ui.sidebarContent;
+    const sunOffsetMinutes = this.radiationOffsetMinutes();
+    const sunItemHtml =
+      sunOffsetMinutes === null
+        ? ""
+        : `<div class="info-item">
+                    <span class="info-label">Cálculo da radiação</span>
+                    <span class="info-value">${this.formatRadiationSun(sunOffsetMinutes)}</span>
+                </div>`;
 
     let html = `
             <div class="info-section">
@@ -2842,6 +2884,7 @@ class MeteoMapManager {
                     <span class="info-label">Data/Hora</span>
                     <span class="info-value">${this.calculateDateTimeFromIndex(this.state.index)}</span>
                 </div>
+                ${sunItemHtml}
             </div>
         `;
 
