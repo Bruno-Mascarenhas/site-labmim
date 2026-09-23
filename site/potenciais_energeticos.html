@@ -595,7 +595,8 @@ Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
                     é estimada a partir da densidade do ar, área do rotor e coeficiente de potência.
                   </p>
                   <pre class="doc-formula"><code>P_density = 0.5 * rho * v³</code></pre>
-                  <pre class="doc-formula"><code>P = 0.5 * rho * A * Cp * v³</code></pre>
+                  <pre class="doc-formula"><code>P = 0.5 * rho * A * Cp * min(v, 12)³   se 3 ≤ v ≤ 25 m/s
+P = 0                                  fora dessa faixa</code></pre>
                   <ul class="doc-list">
                     <li><code>rho</code> é a densidade do ar.</li>
                     <li><code>v</code> é a velocidade do vento.</li>
@@ -603,7 +604,10 @@ Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
                     <li><code>Cp</code> é o coeficiente de potência.</li>
                   </ul>
                   <p>
-                    A estimativa não considera curva real de potência da turbina, velocidades de cut-in/rated/cut-out,
+                    A produção segue uma curva de potência simplificada, com as faixas do item Faixa de Operação do
+                    painel: zero abaixo da partida (3 m/s) e acima do corte (25 m/s), cresce com v³ até a velocidade
+                    nominal (12 m/s) e fica constante daí até o corte. A densidade de potência não passa por essa curva:
+                    mostra o recurso disponível no vento. A estimativa não considera a curva real de cada turbina,
                     perdas elétricas, disponibilidade, rugosidade local ou micrositing. Deve ser usada como triagem
                     espacial preliminar.
                   </p>
@@ -962,7 +966,7 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
 
-    <script src="assets/js/variables-config.js?v=ef95bd29" defer></script>
+    <script src="assets/js/variables-config.js?v=9e70dbdf" defer></script>
     <script src="assets/js/data-service.js?v=91903943" defer></script>
     <script src="assets/js/charts-manager.js?v=c65c9f83" defer></script>
     <script src="assets/js/map-manager.js?v=314472a1" defer></script>

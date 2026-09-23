@@ -28,6 +28,10 @@ const BEAUFORT_FORCE_DESIGNATIONS = [
   "Furacão",
 ];
 
+const TURBINE_CUT_IN_SPEED_M_S = 3;
+const TURBINE_RATED_SPEED_M_S = 12;
+const TURBINE_CUT_OUT_SPEED_M_S = 25;
+
 function getParameter(variableType, paramName, defaultValue) {
   if (typeof app === "undefined" || !app || !app.getCustomParameter) {
     return defaultValue;
@@ -402,8 +406,8 @@ const VARIABLES_CONFIG = {
         title: "Geração Eólica",
         items: [
           {
-            label: "Categoria do Vento",
-            value: getWindCategory(value),
+            label: "Faixa de Operação (turbina típica)",
+            ...describeTurbineOperatingRange(value),
             icon: "fa-wind",
           },
           {
@@ -414,11 +418,11 @@ const VARIABLES_CONFIG = {
           },
           {
             label: `Produção Energética Acumulada (1h)`,
-            value: ((0.5 * airDensityAtTemp * Math.pow(value, 3) * rotorArea * Cp) / 1000).toFixed(1),
+            value: (simplifiedTurbinePowerW(airDensityAtTemp, rotorArea, Cp, value) / 1000).toFixed(1),
             unit: "kWh",
             icon: "fa-wind",
             // Raw number for charts/CSV; `value` above is display-only.
-            energyValue: (0.5 * airDensityAtTemp * Math.pow(value, 3) * rotorArea * Cp) / 1000,
+            energyValue: simplifiedTurbinePowerW(airDensityAtTemp, rotorArea, Cp, value) / 1000,
           },
         ],
       };
@@ -1233,19 +1237,30 @@ const VARIABLES_CONFIG = {
   },
 };
 
-function getWindCategory(speed) {
-  if (speed < 2) return "Muito Fraco";
-  if (speed < 4) return "Fraco";
-  if (speed < 6) return "Moderado";
-  if (speed < 8) return "Forte";
-  if (speed < 10) return "Muito Forte";
-  return "Extremo";
-}
-
 function describeBeaufortForce(speedMs) {
   if (!Number.isFinite(speedMs) || speedMs < 0) return { value: "N/D", unit: "" };
   const force = BEAUFORT_FORCE_LOWER_BOUNDS_M_S.filter((lowerBound) => speedMs >= lowerBound).length;
   return { value: BEAUFORT_FORCE_DESIGNATIONS[force], unit: `força ${force}` };
+}
+
+function simplifiedTurbinePowerW(airDensityKgM3, rotorAreaM2, powerCoefficient, speedMs) {
+  if (speedMs < TURBINE_CUT_IN_SPEED_M_S || speedMs > TURBINE_CUT_OUT_SPEED_M_S) return 0;
+  const poweredSpeedMs = Math.min(speedMs, TURBINE_RATED_SPEED_M_S);
+  return 0.5 * airDensityKgM3 * rotorAreaM2 * powerCoefficient * Math.pow(poweredSpeedMs, 3);
+}
+
+function describeTurbineOperatingRange(speedMs) {
+  if (!Number.isFinite(speedMs) || speedMs < 0) return { value: "N/D", unit: "" };
+  if (speedMs < TURBINE_CUT_IN_SPEED_M_S) {
+    return { value: "Abaixo da partida", unit: `< ${TURBINE_CUT_IN_SPEED_M_S} m/s` };
+  }
+  if (speedMs < TURBINE_RATED_SPEED_M_S) {
+    return { value: "Carga parcial", unit: `${TURBINE_CUT_IN_SPEED_M_S} a ${TURBINE_RATED_SPEED_M_S} m/s` };
+  }
+  if (speedMs <= TURBINE_CUT_OUT_SPEED_M_S) {
+    return { value: "Potência nominal", unit: `${TURBINE_RATED_SPEED_M_S} a ${TURBINE_CUT_OUT_SPEED_M_S} m/s` };
+  }
+  return { value: "Acima do corte", unit: `> ${TURBINE_CUT_OUT_SPEED_M_S} m/s` };
 }
 
 function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
