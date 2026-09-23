@@ -251,7 +251,7 @@ header.maps-header {
 
 .stat-card-unit {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-secondary);
 }
 
 /* Leaflet's attribution sits in the corner the 80px control bar occupies, and it was
@@ -661,7 +661,7 @@ header.maps-header {
   text-align: center;
   margin-top: 8px;
   font-size: 0.85rem;
-  color: #888;
+  color: var(--text-secondary);
   font-weight: 500;
   border-top: 1px solid #e9ecef;
   padding-top: 8px;
