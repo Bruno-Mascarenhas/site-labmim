@@ -32,6 +32,12 @@ const TURBINE_CUT_IN_SPEED_M_S = 3;
 const TURBINE_RATED_SPEED_M_S = 12;
 const TURBINE_CUT_OUT_SPEED_M_S = 25;
 
+const DRY_AIR_GAS_CONSTANT_J_KG_K = 287.05;
+const VIRTUAL_TEMPERATURE_MIXING_RATIO_FACTOR = 0.61;
+const KELVIN_AT_ZERO_CELSIUS = 273.15;
+const PASCALS_PER_HECTOPASCAL = 100;
+const GRAMS_PER_KILOGRAM = 1000;
+
 function getParameter(variableType, paramName, defaultValue) {
   if (typeof app === "undefined" || !app || !app.getCustomParameter) {
     return defaultValue;
@@ -373,8 +379,8 @@ const VARIABLES_CONFIG = {
 
   eolico: {
     id: "POT_EOLICO_50M",
-    relatedVariables: ["temperature"],
-    chartCompanions: ["temperature"],
+    relatedVariables: ["temperature", "pressure", "humidity"],
+    chartCompanions: ["temperature", "pressure", "humidity"],
     id_100m: "POT_EOLICO_100M",
     id_150m: "POT_EOLICO_150M",
     label: "Velocidade do Vento",
@@ -393,36 +399,59 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Geração Eólica");
       }
 
-      const tempValue = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 15;
-
-      const airDensity = getParameter("eolico", "airDensity", 1.225);
+      const airDensityKgM3 = moistAirDensityKgM3(
+        allValues.pressure?.value,
+        allValues.temperature?.value,
+        allValues.humidity?.value
+      );
       const rotorDiameter = getParameter("eolico", "rotorDiameter", 40);
       const Cp = getParameter("eolico", "Cp", getParameter("eolico", "powerCoefficient", 0.4));
 
-      const airDensityAtTemp = airDensity * (288 / (273 + tempValue));
       const rotorArea = Math.PI * Math.pow(rotorDiameter / 2, 2);
+      const operatingRange = {
+        label: "Faixa de Operação (turbina típica)",
+        ...describeTurbineOperatingRange(value),
+        icon: "fa-wind",
+      };
+
+      if (airDensityKgM3 === null) {
+        return {
+          title: "Geração Eólica",
+          items: [
+            operatingRange,
+            { label: "Densidade do Ar", value: "N/D", unit: "", icon: "fa-scale-balanced" },
+            { label: "Densidade de Potência", value: "N/D", unit: "", icon: "fa-fan" },
+            { label: "Produção Energética Acumulada (1h)", value: "N/D", unit: "", icon: "fa-wind" },
+          ],
+        };
+      }
+
+      const powerDensityWM2 = 0.5 * airDensityKgM3 * Math.pow(value, 3);
+      const energyKWh = simplifiedTurbinePowerW(airDensityKgM3, rotorArea, Cp, value) / 1000;
 
       return {
         title: "Geração Eólica",
         items: [
+          operatingRange,
           {
-            label: "Faixa de Operação (turbina típica)",
-            ...describeTurbineOperatingRange(value),
-            icon: "fa-wind",
+            label: "Densidade do Ar",
+            value: airDensityKgM3.toFixed(3),
+            unit: "kg/m³",
+            icon: "fa-scale-balanced",
           },
           {
             label: "Densidade de Potência",
-            value: (0.5 * airDensityAtTemp * Math.pow(value, 3)).toFixed(0),
+            value: powerDensityWM2.toFixed(0),
             unit: "W/m²",
             icon: "fa-fan",
           },
           {
             label: `Produção Energética Acumulada (1h)`,
-            value: (simplifiedTurbinePowerW(airDensityAtTemp, rotorArea, Cp, value) / 1000).toFixed(1),
+            value: energyKWh.toFixed(1),
             unit: "kWh",
             icon: "fa-wind",
             // Raw number for charts/CSV; `value` above is display-only.
-            energyValue: simplifiedTurbinePowerW(airDensityAtTemp, rotorArea, Cp, value) / 1000,
+            energyValue: energyKWh,
           },
         ],
       };
@@ -1261,6 +1290,14 @@ function describeTurbineOperatingRange(speedMs) {
     return { value: "Potência nominal", unit: `${TURBINE_RATED_SPEED_M_S} a ${TURBINE_CUT_OUT_SPEED_M_S} m/s` };
   }
   return { value: "Acima do corte", unit: `> ${TURBINE_CUT_OUT_SPEED_M_S} m/s` };
+}
+
+function moistAirDensityKgM3(surfacePressureHpa, temperatureC, vaporMixingRatioGKg) {
+  if (![surfacePressureHpa, temperatureC, vaporMixingRatioGKg].every(Number.isFinite)) return null;
+  const vaporMixingRatioKgKg = vaporMixingRatioGKg / GRAMS_PER_KILOGRAM;
+  const virtualTemperatureK =
+    (temperatureC + KELVIN_AT_ZERO_CELSIUS) * (1 + VIRTUAL_TEMPERATURE_MIXING_RATIO_FACTOR * vaporMixingRatioKgKg);
+  return (surfacePressureHpa * PASCALS_PER_HECTOPASCAL) / (DRY_AIR_GAS_CONSTANT_J_KG_K * virtualTemperatureK);
 }
 
 function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {

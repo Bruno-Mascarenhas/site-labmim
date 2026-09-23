@@ -84,15 +84,27 @@ Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
                 A velocidade do vento é a variável primária exibida no mapa. A produção energética exibida no painel é
                 estimada a partir da densidade do ar, área do rotor e coeficiente de potência.
               </p>
+              <pre class="doc-formula"><code>Tv = T2 * (1 + 0.61 * Q2)
+
+rho = PSFC / (287.05 * Tv)</code></pre>
               <pre class="doc-formula"><code>P_density = 0.5 * rho * v³</code></pre>
               <pre class="doc-formula"><code>P = 0.5 * rho * A * Cp * min(v, 12)³   se 3 ≤ v ≤ 25 m/s
 P = 0                                  fora dessa faixa</code></pre>
               <ul class="doc-list">
-                <li><code>rho</code> é a densidade do ar.</li>
+                <li>
+                  <code>rho</code> é a densidade do ar úmido na própria célula, em kg/m³, calculada com a pressão na
+                  superfície (<code>PSFC</code>, em Pa), a temperatura a 2 m (<code>T2</code>, em K) e o vapor d'água a
+                  2 m (<code>Q2</code>, em kg/kg), a mesma conta da densidade de potência a 10 m. Sem um desses três
+                  campos, a densidade, a potência e a produção aparecem como N/D.
+                </li>
                 <li><code>v</code> é a velocidade do vento.</li>
                 <li><code>A</code> é a área varrida pelo rotor.</li>
                 <li><code>Cp</code> é o coeficiente de potência.</li>
               </ul>
+              <p>
+                A densidade é a do ar a 2 m, não a da altura do rotor. Ela cai cerca de 1% a cada 100 m de altura, e a
+                potência e a produção saem altas nessa proporção, até cerca de 1,5% a 150 m.
+              </p>
               <p>
                 A produção segue uma curva de potência simplificada, com as faixas do item Faixa de Operação do painel:
                 zero abaixo da partida (3 m/s) e acima do corte (25 m/s), cresce com v³ até a velocidade nominal (12 m/s)

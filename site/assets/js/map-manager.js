@@ -708,12 +708,6 @@ class MeteoMapManager {
       ],
       eolico: [
         {
-          name: "airDensity",
-          label: "Densidade do Ar",
-          unit: "kg/m³",
-          default: 1.225,
-        },
-        {
           name: "rotorDiameter",
           label: "Diâmetro do Rotor",
           unit: "m",

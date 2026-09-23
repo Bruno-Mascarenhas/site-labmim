@@ -280,12 +280,18 @@ class ChartsManager {
     this._updateOrCreateChart(variableType, "value", "chartCanvasValue");
 
     const energyContainer = this.ui.chartEnergyContainer;
-    if (isSolarOrWind) {
+    if (isSolarOrWind && this._energySeriesHasValues(variableType)) {
       energyContainer.style.display = "block";
       this._updateOrCreateChart(variableType, "energy", "chartCanvasEnergy");
     } else {
       energyContainer.style.display = "none";
     }
+  }
+
+  _energySeriesHasValues(variableType) {
+    const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
+    const { data } = this._prepareChartData(variableType, "energy", VARIABLES_CONFIG[variableType], timeData);
+    return data.some(Number.isFinite);
   }
 
   reloadChartsWithNewParameters() {
@@ -852,8 +858,11 @@ class ChartsManager {
 
     const unit = variableType === "solar" ? "Wh/m²" : "kWh";
     const color = variableType === "solar" ? "#b16d00" : "#4783a9";
-    const temperatureSeries = this.timeSeriesData?.temperature?.data || [];
-    const temperatureByHour = new Map(temperatureSeries.map((entry) => [entry.hour, entry.value]));
+    const companionByHour = (key) =>
+      new Map((this.timeSeriesData?.[key]?.data || []).map((entry) => [entry.hour, entry.value]));
+    const temperatureByHour = companionByHour("temperature");
+    const pressureByHour = companionByHour("pressure");
+    const humidityByHour = companionByHour("humidity");
     const data = timeData.map((entry) => {
       // Hour with no exported radiation/wind: the catch below would turn
       // `specificInfo`'s unavailable payload into a 0 — invented production
@@ -863,10 +872,12 @@ class ChartsManager {
         const info = config.specificInfo(entry.value, {
           [variableType]: { value: entry.value },
           temperature: { value: temperatureByHour.get(entry.hour) },
+          pressure: { value: pressureByHour.get(entry.hour) },
+          humidity: { value: humidityByHour.get(entry.hour) },
         });
         // `energyValue` is the raw number; the sibling fields are display text.
         const item = info?.items?.find((it) => Number.isFinite(it.energyValue));
-        return item ? item.energyValue : 0;
+        return item ? item.energyValue : null;
       } catch {
         return 0;
       }
@@ -1056,7 +1067,7 @@ class ChartsManager {
       csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${this._stepLabel(config)}",${this._formatCsvValue(Number(chartDataValue[i]))}`;
 
       if (isEnergy && chartDataEnergy) {
-        csv += `,${this._formatCsvValue(Number(chartDataEnergy[i]))}`;
+        csv += chartDataEnergy[i] === null ? "," : `,${this._formatCsvValue(Number(chartDataEnergy[i]))}`;
       }
       csv += "\n";
     });
