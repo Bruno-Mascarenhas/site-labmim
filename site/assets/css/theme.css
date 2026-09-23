@@ -116,9 +116,18 @@ input:focus-visible {
   color: var(--white) !important;
 }
 
-.dark-theme .btn-outline-secondary {
+.btn-outline-secondary {
   --bs-btn-color: var(--text-secondary);
   --bs-btn-border-color: var(--text-secondary);
+}
+
+.dark-theme .btn-outline-secondary {
+  --bs-btn-hover-bg: var(--text-secondary);
+  --bs-btn-hover-border-color: var(--text-secondary);
+  --bs-btn-hover-color: var(--bg-primary);
+  --bs-btn-active-bg: var(--text-secondary);
+  --bs-btn-active-border-color: var(--text-secondary);
+  --bs-btn-active-color: var(--bg-primary);
 }
 
 .dark-theme .site-affiliation-text small {
