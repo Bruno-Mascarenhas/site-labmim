@@ -2584,12 +2584,13 @@
     return declared !== CORRECTED_LABEL_SCALE;
   }
 
-  function comparedWithStation(series) {
+  function liveWithBlocks() {
     const live = state.timelinePayload && state.timelinePayload.live;
-    return (
-      Boolean(series.measured) ||
-      Boolean(live && typeof live === "object" && finite(live.n_blocks) && live.n_blocks > 0)
-    );
+    return live && typeof live === "object" && finite(live.n_blocks) && live.n_blocks > 0 ? live : null;
+  }
+
+  function comparedWithStation(series) {
+    return Boolean(series.measured) || liveWithBlocks() !== null;
   }
 
   function predictedDhiLabel(series) {
@@ -2875,18 +2876,18 @@
   function renderLiveStats() {
     const container = el("ceuAoVivo");
     container.replaceChildren();
-    const live = state.timelinePayload && state.timelinePayload.live;
-    container.hidden = !live || typeof live !== "object" || !finite(live.n_blocks) || live.n_blocks === 0;
+    const live = liveWithBlocks();
+    container.hidden = !live;
     if (container.hidden) return;
     const since = parseStationDate(live.since);
     const window = [];
     if (finite(live.n_days)) window.push(`${integer(live.n_days)} ${live.n_days === 1 ? "dia" : "dias"}`);
-    if (finite(live.n_blocks)) window.push(`${integer(live.n_blocks)} blocos`);
+    window.push(`${integer(live.n_blocks)} blocos`);
     const rawScale = predictionOnRawScale();
     statTile(
       container,
       Number.isFinite(since) ? `desde ${formatDay(since)}` : "ao vivo",
-      `contra o piranômetro${window.length ? ` — ${window.join(", ")}` : ""}`,
+      `contra o piranômetro — ${window.join(", ")}`,
       rawScale
         ? RAW_SCALE_LIVE_NOTE
         : "o único holdout limpo: dias posteriores à decisão do pino, nunca usados em decisão"
