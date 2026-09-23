@@ -1130,7 +1130,7 @@ const VARIABLES_CONFIG = {
           },
           {
             label: "Céu",
-            value: value > 0.65 ? "Limpo" : value < 0.35 ? "Encoberto" : "Parcialmente nublado",
+            value: value > 0.65 ? "Limpo" : value <= 0.35 ? "Encoberto" : "Parcialmente nublado",
             icon: "fa-sun",
           },
         ],
