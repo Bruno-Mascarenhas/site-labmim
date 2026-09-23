@@ -1178,7 +1178,10 @@ function validateRedirects(errors, redirects, pageOutputs) {
       sources.set(redirect.from, index);
     }
 
-    if (!addRequiredString(errors, redirect.to, `${field}.to`) || !isSafeRedirectPath(redirect.to)) {
+    if (
+      !addRequiredString(errors, redirect.to, `${field}.to`) ||
+      !(redirect.to === "/" || isSafeRedirectPath(redirect.to))
+    ) {
       if (isNonEmptyString(redirect.to)) errors.push(`${field}.to: expected a safe internal destination path`);
     } else {
       const target = redirectTargetOutput(redirect.to);
