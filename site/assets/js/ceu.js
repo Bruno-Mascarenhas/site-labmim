@@ -2577,19 +2577,11 @@
     return lines;
   }
 
-  function declaredLabelScale(value) {
-    return DECLARED_LABEL_SCALES.has(value) ? value : null;
-  }
-
-  function predictionLabelScale() {
-    return (
-      declaredLabelScale(state.timelinePayload?.label_scale) ??
-      declaredLabelScale(state.modelPayload?.dataset?.label_scale)
-    );
-  }
-
   function predictionOnRawScale() {
-    return predictionLabelScale() !== CORRECTED_LABEL_SCALE;
+    const declared = [state.timelinePayload?.label_scale, state.modelPayload?.dataset?.label_scale].find((scale) =>
+      DECLARED_LABEL_SCALES.has(scale)
+    );
+    return declared !== CORRECTED_LABEL_SCALE;
   }
 
   function comparedWithStation(series) {
