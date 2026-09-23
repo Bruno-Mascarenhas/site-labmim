@@ -60,9 +60,12 @@
   ];
 
   const MINUTE_MS = 60000;
+  const HOUR_MS = 3600000;
   const DAY_MS = 86400000;
   const HOURLY_CENTER_OFFSET_MS = 27.5 * MINUTE_MS;
-  const STALE_RECORD_AFTER_MS = DAY_MS;
+  const STALE_NAIVE_RECORD_AFTER_MS = DAY_MS;
+  const STALE_UTC_RECORD_AFTER_MS = 3 * HOUR_MS;
+  const UTC_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
   const CSV_STAMP_HEADER = "instante (bruto: fim do intervalo de 5 min, horária: agrega os brutos de hh:00 a hh:55)";
   const UNPLACED = Object.freeze({ shiftMs: 0, intervalMs: null, pairsByInterval: false });
 
@@ -558,7 +561,6 @@
   // Fixed rather than automatic: Chart.js would pick round multiples of
   // milliseconds, which land on broken hours. A seven-day axis has to tick midnight.
   const TICK_HOURS = { "7d": 24, "3d": 12, "1d": 3 };
-  const HOUR_MS = 3600000;
 
   function alignedTicks(min, max) {
     const step = (TICK_HOURS[state.windowId] || 24) * HOUR_MS;
@@ -997,20 +999,42 @@
     for (const card of el("monitorGrid").children) observer.observe(card);
   }
 
-  function renderStaleRecordNotice(stationEnd) {
+  function stationEndUtcMs(windowInfo) {
+    const utcEnd = windowInfo.station_end_utc;
+    if (utcEnd === undefined) return null;
+    if (!UTC_STAMP.test(utcEnd)) throw new Error(`station_end_utc inválido: ${JSON.stringify(utcEnd)}`);
+    return parseStationTime(utcEnd);
+  }
+
+  function stationSilence(windowInfo, stationEnd) {
+    const utcEndMs = stationEndUtcMs(windowInfo);
+    if (utcEndMs === null) {
+      return { silenceMs: Date.now() - stationEnd, staleAfterMs: STALE_NAIVE_RECORD_AFTER_MS };
+    }
+    return { silenceMs: Date.now() - utcEndMs, staleAfterMs: STALE_UTC_RECORD_AFTER_MS };
+  }
+
+  function formatSilence(silenceMs) {
+    if (silenceMs < DAY_MS) {
+      const hours = Math.floor(silenceMs / HOUR_MS);
+      return `${hours} ${hours === 1 ? "hora" : "horas"}`;
+    }
+    const days = Math.floor(silenceMs / DAY_MS);
+    return `${days} ${days === 1 ? "dia" : "dias"}`;
+  }
+
+  function renderStaleRecordNotice(stationEnd, { silenceMs, staleAfterMs }) {
     const region = el("monitorAtraso");
-    const silenceMs = Date.now() - stationEnd;
-    if (!Number.isFinite(silenceMs) || silenceMs < STALE_RECORD_AFTER_MS) {
+    if (!Number.isFinite(silenceMs) || silenceMs < staleAfterMs) {
       region.replaceChildren();
       return;
     }
-    const silentDays = Math.floor(silenceMs / DAY_MS);
     const notice = node("div", "doc-warning max-w-1000 mx-auto");
     const icon = node("i", "fas fa-exclamation-triangle doc-warning-icon");
     icon.setAttribute("aria-hidden", "true");
     notice.append(
       icon,
-      `Última amostra em ${formatStampYear(stationEnd)} (horário local), há ${silentDays} ${silentDays === 1 ? "dia" : "dias"} sem novos dados. Os gráficos mostram o último período registrado pela estação.`
+      `Última amostra em ${formatStampYear(stationEnd)} (horário local), há ${formatSilence(silenceMs)} sem novos dados. Os gráficos mostram o último período registrado pela estação.`
     );
     region.replaceChildren(notice);
   }
@@ -1034,7 +1058,7 @@
           ? `${recordText}; modelo até ${formatStampYear(end)}`
           : recordText;
     }
-    renderStaleRecordNotice(stationEnd);
+    renderStaleRecordNotice(stationEnd, stationSilence(windowInfo, stationEnd));
     const generated = parseStationTime(state.payload.generated_utc || "");
     el("monitorAtualizado").textContent = Number.isFinite(generated)
       ? `Publicado em ${formatStampYear(generated)} UTC`
@@ -1047,6 +1071,7 @@
         if (chart.layers[id]) declaredCovers(chart.layers[id], id);
       }
     }
+    stationEndUtcMs(payload.window || {});
   }
 
   async function start() {

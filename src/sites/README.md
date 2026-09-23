@@ -221,7 +221,7 @@ page("monitoring", {
   append: [siteSource("fragments/funding.html")],
   seo: {
     title: "LAB — Monitoramento Ambiental · UE",
-    description: "Monitoramento ambiental em tempo quase real.",
+    description: "Monitoramento ambiental da última semana registrada pela estação.",
   },
 });
 ```
