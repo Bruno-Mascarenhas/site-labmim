@@ -1697,7 +1697,6 @@
   function syncChartText() {
     const payload = state.chartPayload || {};
     const period = payload.period || {};
-    const filters = payload.filters || {};
     const parts = [];
     if (payload.timescale && payload.timescale.label) parts.push(payload.timescale.label);
     const start = parseStationTime(period.start || "");
@@ -1705,11 +1704,17 @@
     if (Number.isFinite(start) && Number.isFinite(end)) {
       parts.push(`${formatDay(start)} a ${formatDay(end)}`);
     }
-    if (Number.isFinite(period.hours)) {
-      const kept = `${decimal(period.hours, 0)} horas`;
-      parts.push(Number.isFinite(filters.n_input) ? `${kept} de ${decimal(filters.n_input, 0)}` : kept);
-    }
+    if (Number.isFinite(period.hours)) parts.push(`${decimal(period.hours, 0)} horas`);
     el("ceuGraficoNota").textContent = parts.join(" · ");
+
+    const filtersWrittenForReaders = Boolean(payload.points_file) && Array.isArray(payload.filters);
+    const filters = filtersWrittenForReaders
+      ? payload.filters.filter((filter) => typeof filter === "string" && filter.trim())
+      : [];
+    if (filters.length) {
+      el("ceuFiltros").textContent =
+        `Seleção e cálculo das horas, como o exportador os descreve: ${filters.join("; ")}.`;
+    }
 
     // Each model against the measured Kd over this exact period: the legend says
     // how they perform here instead of implying they are equivalent.
