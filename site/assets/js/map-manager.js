@@ -8,6 +8,7 @@ const DAYLIGHT_ONLY_VARIABLE_IDS = new Set(["SWDOWN", "SWUP", "SWNET", "KT"]);
 const DAYLIGHT_FALLBACK_FIRST_LOCAL_HOUR = 6;
 const DAYLIGHT_FALLBACK_LAST_LOCAL_HOUR = 18;
 const SCALE_TICK_COUNT = 10;
+const CANVAS_PADDING_VIEWPORT_FRACTION = 0.1;
 
 function workerScriptUrl(fileName) {
   if (!workerScriptUrl._hashes) {
@@ -971,7 +972,7 @@ class MeteoMapManager {
   }
 
   initMap() {
-    this._canvasRenderer = L.canvas({ padding: 0.5 });
+    this._canvasRenderer = L.canvas({ padding: CANVAS_PADDING_VIEWPORT_FRACTION });
 
     this.map = L.map("map", {
       fadeAnimation: true,
