@@ -21,7 +21,6 @@ function workerScriptUrl(fileName) {
     workerScriptUrl._hashes = hashes;
   }
   const version = workerScriptUrl._hashes[fileName];
-  // A fixed fallback token would be frozen as immutable by the .htaccess rule and pin an old worker.
   return version ? `assets/js/workers/${fileName}?v=${encodeURIComponent(version)}` : `assets/js/workers/${fileName}`;
 }
 function readSiteConfig() {

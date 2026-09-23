@@ -112,8 +112,8 @@ ErrorDocument 404 /404.html
   # configuration is merged, which is what lets this override the short CSS/JS
   # rule. Web Workers are included: without the labmim-asset-hashes meta tag
   # their URL comes out with no ?v= and falls back to that short rule.
-  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(css|js)$#">
-    Header set Cache-Control "public, max-age=31536000, immutable"
+  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#^/assets/((css|js)/.+\.(css|js)|vendor/bootstrap/bootstrap\.purged\.min\.css)$#">
+    Header set Cache-Control "public, max-age=86400"
   </If>
 
   # Versioned forecast data: 24h rather than a year, so the ceiling limits the
