@@ -741,7 +741,8 @@
   }
 
   function syncCardText(chart, drawnCount) {
-    const labels = drawnLayers(chart).map((layer) => layerLabel(chart, layer));
+    const drawn = drawnLayers(chart);
+    const labels = drawn.map((layer) => layerLabel(chart, layer));
     const span = state.layerLabels.get(chart.id);
     if (span) span.textContent = labels.join(" · ");
 
@@ -776,7 +777,11 @@
     if (empty) empty.hidden = !barren;
 
     const caveats = state.caveats.get(chart.id);
-    if (caveats) caveats.hidden = barren;
+    if (caveats) {
+      const modelDrawn = drawn.some((layer) => layer.id === "wrf");
+      for (const item of caveats.children) item.hidden = item.dataset.caveat === "model" && !modelDrawn;
+      caveats.hidden = barren || [...caveats.children].every((item) => item.hidden);
+    }
 
     const zoom = state.zooms.get(chart.id);
     if (zoom) {
@@ -853,6 +858,16 @@
     }
   }
 
+  function modelCaveatIndices(chart) {
+    const indices = chart.model_caveat_indices;
+    if (indices === undefined) return new Set();
+    const caveatCount = chart.caveats ? chart.caveats.length : 0;
+    const valid =
+      Array.isArray(indices) && indices.every((index) => Number.isInteger(index) && index >= 0 && index < caveatCount);
+    if (!valid) throw new Error(`model_caveat_indices inválido no gráfico ${chart.id}: ${JSON.stringify(indices)}`);
+    return new Set(indices);
+  }
+
   function buildCard(chart, modelAbsent) {
     const card = node("div", "theme-surface monitor-card");
     card.id = `monitor-card-${chart.id}`;
@@ -916,9 +931,14 @@
       );
     }
 
+    const modelCaveats = modelCaveatIndices(chart);
     if (chart.caveats && chart.caveats.length) {
       const list = node("ul", "clima-caveats");
-      for (const caveat of chart.caveats) list.appendChild(node("li", null, caveat));
+      chart.caveats.forEach((caveat, index) => {
+        const item = node("li", null, caveat);
+        if (modelCaveats.has(index)) item.dataset.caveat = "model";
+        list.appendChild(item);
+      });
       card.appendChild(list);
       state.caveats.set(chart.id, list);
     }
@@ -1099,6 +1119,7 @@
       for (const { id } of LAYERS) {
         if (chart.layers[id]) declaredCovers(chart.layers[id], id);
       }
+      modelCaveatIndices(chart);
     }
     stationEndUtcMs(payload.window || {});
     declaredModel(payload.model);
