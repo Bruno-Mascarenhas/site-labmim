@@ -388,32 +388,30 @@
   function buildDatasets(chart, theme) {
     const from = windowStart();
     const datasets = [];
+    const pushPlacedDataset = (layerId, seriesId, makeDataset) => {
+      const placed = placedLayerPoints(chart, layerId, seriesId, from);
+      if (!placed) return;
+      const dataset = makeDataset(placed.points);
+      dataset.labmimPlacement = placed.placement;
+      datasets.push(dataset);
+    };
     if (state.layers.has("raw")) {
-      const placed = placedLayerPoints(chart, "raw", chart.series[0].id, from);
-      if (placed) {
-        const dataset = rawDataset(chart, chart.kind === "bar" ? theme.rawOverBar : theme.raw, placed.points);
-        dataset.labmimPlacement = placed.placement;
-        datasets.push(dataset);
-      }
+      pushPlacedDataset("raw", chart.series[0].id, (points) =>
+        rawDataset(chart, chart.kind === "bar" ? theme.rawOverBar : theme.raw, points)
+      );
     }
     for (const series of chart.series) {
       if (state.layers.has("hourly")) {
-        const placed = placedLayerPoints(chart, "hourly", series.id, from);
-        if (placed) {
-          const dataset = hourlyDataset(chart, series, seriesColor(chart, series, theme), placed.points);
-          dataset.labmimPlacement = placed.placement;
-          datasets.push(dataset);
-        }
+        pushPlacedDataset("hourly", series.id, (points) =>
+          hourlyDataset(chart, series, seriesColor(chart, series, theme), points)
+        );
       }
     }
     for (const series of chart.series) {
       if (state.layers.has("wrf")) {
-        const placed = placedLayerPoints(chart, "wrf", series.id, from);
-        if (placed) {
-          const dataset = wrfDataset(chart, series, modelColor(chart, series, theme), placed.points);
-          dataset.labmimPlacement = placed.placement;
-          datasets.push(dataset);
-        }
+        pushPlacedDataset("wrf", series.id, (points) =>
+          wrfDataset(chart, series, modelColor(chart, series, theme), points)
+        );
       }
     }
     return datasets;
