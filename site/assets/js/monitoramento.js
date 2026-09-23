@@ -64,6 +64,7 @@
   const HOURLY_CENTER_OFFSET_MS = 27.5 * MINUTE_MS;
   const STALE_RECORD_AFTER_MS = DAY_MS;
   const CSV_STAMP_HEADER = "instante (bruto: fim do intervalo de 5 min, horária: agrega os brutos de hh:00 a hh:55)";
+  const UNPLACED = Object.freeze({ shiftMs: 0, intervalMs: null, pairsByInterval: false });
 
   const state = {
     base: "",
@@ -168,6 +169,44 @@
     // legend entry, which reads as "the line exists and left the scale" — worse than
     // a declared absence. `points.length` cannot tell the two apart; it counts nulls.
     return finiteCount ? points : null;
+  }
+
+  function declaredCovers(layer, layerId) {
+    const covers = layer.axis.covers_minutes;
+    if (covers === undefined) return null;
+    const valid =
+      Array.isArray(covers) && covers.length === 2 && covers.every(Number.isFinite) && covers[0] <= covers[1];
+    if (!valid) throw new Error(`covers_minutes inválido na camada ${layerId}: ${JSON.stringify(covers)}`);
+    return covers;
+  }
+
+  function layerPlacement(layer, layerId) {
+    const covers = declaredCovers(layer, layerId);
+    if (covers) {
+      const [fromMs, toMs] = covers.map((minutes) => minutes * MINUTE_MS);
+      const isInterval = covers[0] !== covers[1];
+      return {
+        shiftMs: (fromMs + toMs) / 2,
+        intervalMs: isInterval ? [fromMs, toMs] : null,
+        pairsByInterval: isInterval,
+      };
+    }
+    if (layerId === "hourly") {
+      return {
+        shiftMs: HOURLY_CENTER_OFFSET_MS,
+        intervalMs: [0, layer.axis.step_minutes * MINUTE_MS],
+        pairsByInterval: false,
+      };
+    }
+    return UNPLACED;
+  }
+
+  function placedLayerPoints(chart, layerId, seriesId, from) {
+    const layer = chart.layers[layerId];
+    if (!layer) return null;
+    const placement = layerPlacement(layer, layerId);
+    const points = layerPoints(layer, seriesId, from, placement.shiftMs);
+    return points ? { points, placement } : null;
   }
 
   function layerHasData(layer, seriesId, from) {
@@ -346,23 +385,31 @@
     const from = windowStart();
     const datasets = [];
     if (state.layers.has("raw")) {
-      const points = layerPoints(chart.layers.raw, chart.series[0].id, from);
-      if (points) datasets.push(rawDataset(chart, chart.kind === "bar" ? theme.rawOverBar : theme.raw, points));
+      const placed = placedLayerPoints(chart, "raw", chart.series[0].id, from);
+      if (placed) {
+        const dataset = rawDataset(chart, chart.kind === "bar" ? theme.rawOverBar : theme.raw, placed.points);
+        dataset.labmimPlacement = placed.placement;
+        datasets.push(dataset);
+      }
     }
     for (const series of chart.series) {
       if (state.layers.has("hourly")) {
-        const points = layerPoints(chart.layers.hourly, series.id, from, HOURLY_CENTER_OFFSET_MS);
-        if (points) {
-          const dataset = hourlyDataset(chart, series, seriesColor(chart, series, theme), points);
-          dataset.labmimIntervalMs = chart.layers.hourly.axis.step_minutes * MINUTE_MS;
+        const placed = placedLayerPoints(chart, "hourly", series.id, from);
+        if (placed) {
+          const dataset = hourlyDataset(chart, series, seriesColor(chart, series, theme), placed.points);
+          dataset.labmimPlacement = placed.placement;
           datasets.push(dataset);
         }
       }
     }
     for (const series of chart.series) {
       if (state.layers.has("wrf")) {
-        const points = layerPoints(chart.layers.wrf, series.id, from);
-        if (points) datasets.push(wrfDataset(chart, series, modelColor(chart, series, theme), points));
+        const placed = placedLayerPoints(chart, "wrf", series.id, from);
+        if (placed) {
+          const dataset = wrfDataset(chart, series, modelColor(chart, series, theme), placed.points);
+          dataset.labmimPlacement = placed.placement;
+          datasets.push(dataset);
+        }
       }
     }
     return datasets;
@@ -461,30 +508,46 @@
       if (!points.length) return;
       const step = points.length > 1 ? points[1].x - points[0].x : 0;
       if (!step) return;
-      const offset = (stamp - points[0].x) / step;
+      const placement = dataset.labmimPlacement;
       // A match means the instant falls INSIDE the sample's interval, not that the
       // stamps are equal: the layers run at different cadences (twelve raw points per
       // hourly one) and equality would fail eleven times in twelve.
-      const point = points[Math.round(offset)];
+      const point = placement.pairsByInterval
+        ? sampleCovering(points, placement, stamp, step)
+        : nearestSample(points, stamp, step);
       if (!point || point.y === null) return;
-      if (Math.abs(point.x - stamp) > step / 2) return;
-      const name = dataset.labmimIntervalMs
-        ? `${dataset.label} (${hourlyInterval(point.x, dataset.labmimIntervalMs, formatClock)})`
+      const name = placement.intervalMs
+        ? `${dataset.label} (${coveredInterval(point.x, placement, formatClock)})`
         : dataset.label;
       lines.push(`${name}: ${decimal(point.y, digits)} ${unit}`.trim());
     });
     return lines;
   }
 
-  function hourlyInterval(center, span, formatStart) {
-    const start = center - HOURLY_CENTER_OFFSET_MS;
-    return `${formatStart(start)}–${formatClock(start + span)}`;
+  function nearestSample(points, instant, step) {
+    const point = points[Math.round((instant - points[0].x) / step)];
+    return point && Math.abs(point.x - instant) <= step / 2 ? point : null;
+  }
+
+  function sampleCovering(points, placement, instant, step) {
+    const [fromMs, toMs] = placement.intervalMs;
+    const firstStamp = points[0].x - placement.shiftMs;
+    const point = points[Math.ceil((instant - firstStamp - toMs) / step)];
+    if (!point) return null;
+    const stamp = point.x - placement.shiftMs;
+    return instant > stamp + fromMs && instant <= stamp + toMs ? point : null;
+  }
+
+  function coveredInterval(x, placement, formatStart) {
+    const stamp = x - placement.shiftMs;
+    const [fromMs, toMs] = placement.intervalMs;
+    return `${formatStart(stamp + fromMs)}–${formatClock(stamp + toMs)}`;
   }
 
   function tooltipTitle(item) {
-    const span = item.dataset.labmimIntervalMs;
-    if (!span) return formatStamp(item.parsed.x);
-    return hourlyInterval(item.parsed.x, span, formatStamp);
+    const placement = item.dataset.labmimPlacement;
+    if (!placement.intervalMs) return formatStamp(item.parsed.x - placement.shiftMs);
+    return coveredInterval(item.parsed.x, placement, formatStamp);
   }
 
   function tickCallback(value) {
@@ -593,6 +656,23 @@
     }
   }
 
+  function stampOffsetText(minutes) {
+    if (minutes === 0) return "t";
+    return `t${minutes > 0 ? "+" : "−"}${String(Math.abs(minutes)).replace(".", ",")} min`;
+  }
+
+  function coversText([fromMinutes, toMinutes]) {
+    if (fromMinutes === toMinutes) return `no instante ${stampOffsetText(fromMinutes)}`;
+    return `de ${stampOffsetText(fromMinutes)} a ${stampOffsetText(toMinutes)}`;
+  }
+
+  function csvStampHeader(chart, layers) {
+    const conventions = layers.map((layer) => ({ layer, covers: declaredCovers(chart.layers[layer.id], layer.id) }));
+    if (conventions.some(({ covers }) => !covers)) return CSV_STAMP_HEADER;
+    const parts = conventions.map(({ layer, covers }) => `${layerLabel(chart, layer)}: ${coversText(covers)}`);
+    return `instante t (${parts.join(", ")})`;
+  }
+
   // The chart's text alternative, and the only route to the raw layers the drawing
   // leaves out: one row per instant, one column per series/layer.
   function exportCsv(chart) {
@@ -601,17 +681,21 @@
     for (const series of chart.series) {
       for (const layer of LAYERS) {
         const points = layerPoints(chart.layers[layer.id], series.id, from);
-        if (points) columns.push({ header: `${series.label} (${layerLabel(chart, layer)})`, points });
+        if (points) columns.push({ header: `${series.label} (${layerLabel(chart, layer)})`, points, layer });
       }
     }
     if (!columns.length) return;
+    const exportedLayers = LAYERS.filter((layer) => columns.some((column) => column.layer === layer));
 
     const stamps = new Set();
     for (const column of columns) for (const point of column.points) stamps.add(point.x);
     const ordered = [...stamps].sort((left, right) => left - right);
     const lookup = columns.map((column) => new Map(column.points.map((point) => [point.x, point.y])));
 
-    const header = [CSV_STAMP_HEADER, ...columns.map((column) => `${column.header} [${chart.unit}]`)];
+    const header = [
+      csvStampHeader(chart, exportedLayers),
+      ...columns.map((column) => `${column.header} [${chart.unit}]`),
+    ];
     const rows = [header.join(";")];
     for (const stamp of ordered) {
       const date = new Date(stamp);
@@ -957,6 +1041,14 @@
       : "";
   }
 
+  function assertDeclaredFields(payload) {
+    for (const chart of payload.charts) {
+      for (const { id } of LAYERS) {
+        if (chart.layers[id]) declaredCovers(chart.layers[id], id);
+      }
+    }
+  }
+
   async function start() {
     const root = document.querySelector("[data-monitoring-base]");
     if (!root) return;
@@ -1002,6 +1094,14 @@
 
     if (!state.payload.charts || !state.payload.charts.length) {
       showEmpty("O documento publicado não declara nenhum gráfico.");
+      return;
+    }
+
+    try {
+      assertDeclaredFields(state.payload);
+    } catch (error) {
+      console.error(error);
+      showEmpty("O documento de monitoramento publicado tem um campo fora do formato esperado.");
       return;
     }
 
