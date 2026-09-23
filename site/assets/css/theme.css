@@ -171,6 +171,15 @@ input:focus-visible {
   color: var(--text-primary) !important;
 }
 
+.dark-theme .control-btn.active {
+  background: var(--map-accent-strong) !important;
+  border-color: var(--map-accent) !important;
+}
+
+.dark-theme .segmented-btn.active {
+  border-color: var(--map-accent);
+}
+
 .dark-theme .partner-logo-text,
 .dark-theme .partner-logo-text small {
   color: var(--text-primary) !important;

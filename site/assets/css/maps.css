@@ -405,9 +405,9 @@ header.maps-header {
 }
 
 .control-btn.active {
-  background: var(--map-accent);
+  background: var(--map-accent-strong);
   color: white;
-  border-color: var(--map-accent);
+  border-color: var(--map-accent-strong);
 }
 
 .variable-selector-wrapper {
@@ -515,9 +515,9 @@ header.maps-header {
 }
 
 .segmented-btn.active {
-  background: var(--map-accent);
+  background: var(--map-accent-strong);
   color: white;
-  border-color: var(--map-accent);
+  border-color: var(--map-accent-strong);
 }
 
 .wind-layer-toggle {

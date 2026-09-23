@@ -20,6 +20,7 @@ const REQUIRED_THEME_PROPERTIES = Object.freeze([
   "map-accent",
   "map-accent-2",
   "map-accent-rgb",
+  "map-accent-strong",
   "lab-header-bg",
   "lab-header-dark-bg",
   "lab-footer-bg",
