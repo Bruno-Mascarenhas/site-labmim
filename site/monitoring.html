@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LabMiM — Monitoramento Ambiental: variáveis meteorológicas medidas em tempo quase real por estações micrometeorológicas em Salvador, Bahia."
+      content="LabMiM — Monitoramento Ambiental: variáveis meteorológicas da última semana registrada por estações micrometeorológicas em Salvador, Bahia."
     />
     <title>LabMiM — Monitoramento Ambiental · UFBA</title>
 
@@ -17,7 +17,7 @@
     <meta property="og:title" content="LabMiM — Monitoramento Ambiental · UFBA" />
     <meta
       property="og:description"
-      content="LabMiM — Monitoramento Ambiental: variáveis meteorológicas medidas em tempo quase real por estações micrometeorológicas em Salvador, Bahia."
+      content="LabMiM — Monitoramento Ambiental: variáveis meteorológicas da última semana registrada por estações micrometeorológicas em Salvador, Bahia."
     />
     <meta property="og:url" content="https://labmim.if.ufba.br/monitoring.html" />
     <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
@@ -27,7 +27,7 @@
     <meta name="twitter:title" content="LabMiM — Monitoramento Ambiental · UFBA" />
     <meta
       name="twitter:description"
-      content="LabMiM — Monitoramento Ambiental: variáveis meteorológicas medidas em tempo quase real por estações micrometeorológicas em Salvador, Bahia."
+      content="LabMiM — Monitoramento Ambiental: variáveis meteorológicas da última semana registrada por estações micrometeorológicas em Salvador, Bahia."
     />
     <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
 
@@ -151,6 +151,8 @@
           <p id="monitorPeriodo">Janela móvel de 7 dias — atualização a cada 1h</p>
         </div>
 
+        <div id="monitorAtraso" role="status"></div>
+
         <div class="text-center mb-3">
           <button
             class="btn btn-sm btn-outline-secondary"
@@ -189,10 +191,11 @@
               </p>
               <p class="compact-note">
                 <small
-                  >As informações são recebidas em tempo quase real e processadas diretamente para visualização. Os
-                  dados são resultados de aquisições de pesquisa, não havendo garantia total para utilização irrestrita.
-                  Clique em um item da legenda para ocultar aquela camada; passe o cursor sobre o gráfico para ler os
-                  valores instantâneos das camadas visíveis.</small
+                  >Em operação normal, as informações chegam em tempo quase real e são processadas diretamente para
+                  visualização; quando a estação passa mais de um dia sem enviar dados, um aviso no topo da página diz
+                  desde quando. Os dados são resultados de aquisições de pesquisa, não havendo garantia total para
+                  utilização irrestrita. Clique em um item da legenda para ocultar aquela camada; passe o cursor sobre o
+                  gráfico para ler os valores instantâneos das camadas visíveis.</small
                 >
               </p>
             </div>
@@ -450,6 +453,6 @@
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
     <script defer src="assets/js/chart-page.js?v=db35ae7b"></script>
-    <script defer src="assets/js/monitoramento.js?v=5d400242"></script>
+    <script defer src="assets/js/monitoramento.js?v=c48f9c7e"></script>
   </body>
 </html>

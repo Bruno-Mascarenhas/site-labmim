@@ -62,6 +62,7 @@
   const MINUTE_MS = 60000;
   const DAY_MS = 86400000;
   const HOURLY_CENTER_OFFSET_MS = 27.5 * MINUTE_MS;
+  const STALE_RECORD_AFTER_MS = DAY_MS;
   const CSV_STAMP_HEADER = "instante (bruto: fim do intervalo de 5 min, horária: agrega os brutos de hh:00 a hh:55)";
 
   const state = {
@@ -912,6 +913,24 @@
     for (const card of el("monitorGrid").children) observer.observe(card);
   }
 
+  function renderStaleRecordNotice(stationEnd) {
+    const region = el("monitorAtraso");
+    const silenceMs = Date.now() - stationEnd;
+    if (!Number.isFinite(silenceMs) || silenceMs < STALE_RECORD_AFTER_MS) {
+      region.replaceChildren();
+      return;
+    }
+    const silentDays = Math.floor(silenceMs / DAY_MS);
+    const notice = node("div", "doc-warning max-w-1000 mx-auto");
+    const icon = node("i", "fas fa-exclamation-triangle doc-warning-icon");
+    icon.setAttribute("aria-hidden", "true");
+    notice.append(
+      icon,
+      `Última amostra em ${formatStampYear(stationEnd)} (horário local), há ${silentDays} ${silentDays === 1 ? "dia" : "dias"} sem novos dados. Os gráficos mostram o último período registrado pela estação.`
+    );
+    region.replaceChildren(notice);
+  }
+
   function renderHeader() {
     const windowInfo = state.payload.window || {};
     const start = parseStationTime(windowInfo.start);
@@ -931,6 +950,7 @@
           ? `${recordText}; modelo até ${formatStampYear(end)}`
           : recordText;
     }
+    renderStaleRecordNotice(stationEnd);
     const generated = parseStationTime(state.payload.generated_utc || "");
     el("monitorAtualizado").textContent = Number.isFinite(generated)
       ? `Publicado em ${formatStampYear(generated)} UTC`
