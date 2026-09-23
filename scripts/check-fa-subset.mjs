@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { collectFiles, htmlFilesIn, bundleDirs } = require("./site-builder/corpus.js");
+const { glyphCodepoints } = require("./site-builder/fontawesome-glyphs.js");
 
 // site/ holds one publication at a time; dist/<id>/ (npm run build:all) holds all of
 // them, so the check covers every publication whenever the bundles are around.
@@ -53,12 +54,7 @@ for (const file of cssDirs.flatMap((dir) => collectFiles(root, dir, [".css"]))) 
 // A real glyph has a :before{content:"\f..."} rule; utility classes (fa-2x, fa-fw)
 // match the fa- scan above but have none.
 const faCss = readFileSync(join(root, "site/assets/vendor/fontawesome/css/all.min.css"), "utf8");
-const glyphNames = new Set();
-for (const match of faCss.matchAll(/((?:\.fa-[a-z0-9-]+:before,?)+)\{content:"\\[0-9a-f]+"\}/g)) {
-  for (const name of match[1].matchAll(/\.(fa-[a-z0-9-]+):before/g)) {
-    glyphNames.add(name[1]);
-  }
-}
+const glyphNames = new Set(glyphCodepoints(faCss).keys());
 
 const manifest = JSON.parse(readFileSync(join(root, "site/assets/vendor/fontawesome/subset-glyphs.json"), "utf8"));
 const subsetted = new Set(Object.keys(manifest.glyphs));
@@ -80,14 +76,7 @@ if (missing.length > 0) {
 }
 
 const subsetCssPath = "site/assets/vendor/fontawesome/css/fa.subset.min.css";
-const subsetCssCodepoints = new Map();
-for (const match of readFileSync(join(root, subsetCssPath), "utf8").matchAll(
-  /((?:\.fa-[a-z0-9-]+:before,?)+)\{content:"\\([0-9a-f]+)"\}/g
-)) {
-  for (const name of match[1].matchAll(/\.(fa-[a-z0-9-]+):before/g)) {
-    subsetCssCodepoints.set(name[1], match[2]);
-  }
-}
+const subsetCssCodepoints = glyphCodepoints(readFileSync(join(root, subsetCssPath), "utf8"));
 
 const staleSubsetCss = Object.entries(manifest.glyphs)
   .filter(([name, code]) => subsetCssCodepoints.get(name) !== code.toLowerCase())

@@ -59,6 +59,7 @@ scripts/
 │   ├── assets.js                    # tema da publicação e hashes de conteúdo
 │   ├── operational-paths.js         # o que é dado de deploy: por publicação x na árvore
 │   ├── corpus.js                    # corpus de HTML/CSS/JS que os checks de asset varrem
+│   ├── fontawesome-glyphs.js        # regras :before do Font Awesome, lidas pelo subset e pelo lint:icons
 │   ├── references.js                # extração de href/src/url() usada pelos checks
 │   ├── theme-contract.js            # tokens obrigatórios e limites do tema por publicação
 │   └── cli.js                       # restauração da publicação padrão e saída de erro

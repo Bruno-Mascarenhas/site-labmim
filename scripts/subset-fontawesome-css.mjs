@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+const require = createRequire(import.meta.url);
+const { GLYPH_RULE, glyphCodepoints } = require("./site-builder/fontawesome-glyphs.js");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fontAwesomeDir = path.join(root, "site", "assets", "vendor", "fontawesome");
@@ -11,7 +15,6 @@ const target = path.join(fontAwesomeDir, "css", "fa.subset.min.css");
 const manifestPath = path.join(fontAwesomeDir, "subset-glyphs.json");
 
 const LICENSE_BANNER = /^\/\*![\s\S]*?\*\//;
-const GLYPH_RULE = /^((?:\.fa-[a-z0-9-]+:before,?)+)\{content:"\\([0-9a-f]+)"\}$/;
 const SUBSET_FONT_FACE_FAMILY = 'font-family:"Font Awesome 6 Free"';
 const SUBSET_FONT_FACE_WEIGHT = "font-weight:900";
 
@@ -39,16 +42,6 @@ function isSubsetFontFace(rule) {
   return rule.includes(SUBSET_FONT_FACE_FAMILY) && rule.includes(SUBSET_FONT_FACE_WEIGHT);
 }
 
-function glyphCodepoints(rules) {
-  const codepoints = new Map();
-  for (const rule of rules) {
-    const match = GLYPH_RULE.exec(rule);
-    if (!match) continue;
-    for (const name of match[1].matchAll(/\.(fa-[a-z0-9-]+):before/g)) codepoints.set(name[1], match[2]);
-  }
-  return codepoints;
-}
-
 function manifestGlyphRules(manifest, codepoints) {
   const problems = [];
   const rules = Object.entries(manifest.glyphs)
@@ -72,7 +65,8 @@ function subsetCss(fullCss, manifest) {
   const banner = LICENSE_BANNER.exec(fullCss);
   if (!banner) throw new Error(`${path.relative(root, source)} lost its /*! license banner`);
   const rules = topLevelRules(fullCss.slice(banner[0].length));
-  const glyphRules = manifestGlyphRules(manifest, glyphCodepoints(rules));
+  const topLevelGlyphRules = rules.filter((rule) => GLYPH_RULE.test(rule)).join("");
+  const glyphRules = manifestGlyphRules(manifest, glyphCodepoints(topLevelGlyphRules));
 
   const kept = [];
   let glyphsPlaced = false;
