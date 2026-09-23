@@ -92,6 +92,10 @@ input:focus-visible {
   color: var(--bg-primary) !important;
 }
 
+.dark-theme .navbar [data-theme-toggle] {
+  --focus-ring-color: var(--ink-on-dark, #f8fbff);
+}
+
 .dark-theme .navbar .btn-outline-lab {
   --focus-ring-color: var(--ink-on-dark, #f8fbff);
 
