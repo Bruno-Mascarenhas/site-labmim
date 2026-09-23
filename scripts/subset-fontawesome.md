@@ -96,8 +96,8 @@ A URL da fonte não muda quando o subset muda: a estampagem de hash
 `HASHED_VENDOR_ASSETS` (`bootstrap.purged.min.css` e `fa.subset.min.css`).
 A webfont fica de fora nos dois pontos: o `href` do preload não recebe `?v=`,
 e o `url(../webfonts/fa-solid-900.woff2)` **dentro** do `fa.subset.min.css`
-(que, por sua vez, recebe `?v=` de hash e cache immutable de 1 ano) nem
-sequer é alcançável por esse regex. Por isso
+(que, por sua vez, recebe `?v=` de hash e a regra de 24 h do `.htaccess`
+para URLs carimbadas) nem sequer é alcançável por esse regex. Por isso
 o `.htaccess` serve `assets/vendor/fontawesome/webfonts/` com a regra de
 7 dias das fontes (e NÃO com o `immutable` de 1 ano do resto do vendor).
 Após um resubset, visitantes recorrentes pegam a fonte nova em até 7 dias.

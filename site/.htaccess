@@ -112,7 +112,7 @@ ErrorDocument 404 /404.html
   # configuration is merged, which is what lets this override the short CSS/JS
   # rule. Web Workers are included: without the labmim-asset-hashes meta tag
   # their URL comes out with no ?v= and falls back to that short rule.
-  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#^/assets/((css|js)/.+\.(css|js)|vendor/(bootstrap/bootstrap\.purged\.min\.css|fontawesome/css/fa\.subset\.min\.css))$#">
+  <If "%{QUERY_STRING} =~ /(^|&)v=[0-9a-f]{8}(&|$)/ && %{REQUEST_URI} =~ m#^/assets/.+\.(css|js)$#">
     Header set Cache-Control "public, max-age=86400"
   </If>
 
