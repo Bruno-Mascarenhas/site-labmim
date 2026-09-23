@@ -275,6 +275,10 @@
     return POINTS_FAILURE_MESSAGES[state.pointsStatus] !== undefined;
   }
 
+  function pointsUsable() {
+    return pointsOffered() && !pointsFailed();
+  }
+
   function pointsStatusMessage() {
     if (state.pointsStatus === "loading") return POINTS_LOADING_MESSAGE;
     return pointsFailed() ? POINTS_FAILURE_MESSAGES[state.pointsStatus] : "";
@@ -1744,9 +1748,7 @@
 
     const coverage = hoursOutsideDensityGrid();
     if (coverage) el("ceuAmostra").textContent = "das horas selecionadas";
-    el("ceuForaDaGrade").textContent = coverage
-      ? densityCoverageSentence(coverage, pointsOffered() && !pointsFailed())
-      : "";
+    el("ceuForaDaGrade").textContent = coverage ? densityCoverageSentence(coverage, pointsUsable()) : "";
 
     // Each model against the measured Kd over this exact period: the legend says
     // how they perform here instead of implying they are equivalent.
@@ -1768,7 +1770,7 @@
         ? `Densidade horária no plano do índice de claridade contra a fração difusa, com os limites das quatro condições de céu. Use o botão CSV para a versão textual.`
         : `Dispersão de ${decimal(shown, 0)} horas no plano do índice de claridade contra a fração difusa.`
     );
-    el("ceuExport").disabled = !pointsOffered() || pointsFailed();
+    el("ceuExport").disabled = !pointsUsable();
     el("ceuAmpliar").disabled = !hasDrawing() || (state.layers.has("points") && state.pointsStatus === "loading");
     el("ceuGuia").disabled = state.chartStatus === "loading";
   }
@@ -1854,7 +1856,7 @@
         "O plano é cortado em células e cada uma é pintada pelo número de horas do acervo que caíram nela: quanto mais escura, mais horas. A escala é logarítmica porque o miolo concentra dezenas de horas e as bordas têm uma ou duas."
       );
     }
-    if (pointsOffered() && !pointsFailed()) {
+    if (pointsUsable()) {
       const coverage = hoursOutsideDensityGrid();
       guideDefinition(
         list,
