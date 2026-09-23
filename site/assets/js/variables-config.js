@@ -718,11 +718,6 @@ const VARIABLES_CONFIG = {
             icon: "fa-wind",
           },
           {
-            label: "Direção",
-            value: "Variável",
-            icon: "fa-compass",
-          },
-          {
             label: "Rajadas (est.)",
             value: (value * 1.3).toFixed(1),
             unit: "m/s",
