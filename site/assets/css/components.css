@@ -500,7 +500,12 @@
 
 .clima-segmented-btn:focus-visible {
   outline: 3px solid var(--focus-ring-color);
-  outline-offset: 2px;
+  outline-offset: 0;
+}
+
+.clima-segmented-btn.is-active:focus-visible {
+  outline-width: 2px;
+  outline-offset: 1px;
 }
 
 .clima-panel {
