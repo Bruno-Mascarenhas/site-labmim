@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { createAssetPipeline, writePublicationTheme } = require("./assets");
+const { I_TAG, hasFontAwesomeClass } = require("./fontawesome-glyphs");
 const { publicationOperationalPaths } = require("./operational-paths");
 const { SITE_REFERENCES } = require("../../src/template/references");
 
@@ -19,15 +20,10 @@ const writeOutput = (filePath, content) => {
 const escapeAttribute = (value) =>
   String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-const FONT_AWESOME_CLASS = /^fa(?:[srbl]?$|-)/;
-
 function hideDecorativeIcons(html) {
-  return html.replace(/<i\b((?:[^>"']|"[^"]*"|'[^']*')*)>/g, (tag, attributes) => {
-    const classAttribute = attributes.match(/(?<![\w-])class\s*=\s*(?:"([^"]*)"|'([^']*)')/);
-    const classes = (classAttribute?.[1] ?? classAttribute?.[2] ?? "").split(/\s+/);
-    const isIcon = classes.some((name) => FONT_AWESOME_CLASS.test(name));
+  return html.replace(I_TAG, (tag, attributes) => {
     const declaresAria = /(?<![\w-])aria-[a-z]+\s*=/.test(attributes);
-    return isIcon && !declaresAria ? `<i${attributes.trimEnd()} aria-hidden="true">` : tag;
+    return hasFontAwesomeClass(attributes) && !declaresAria ? `<i${attributes.trimEnd()} aria-hidden="true">` : tag;
   });
 }
 

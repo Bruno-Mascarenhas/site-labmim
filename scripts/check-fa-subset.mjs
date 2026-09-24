@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { collectFiles, htmlFilesIn, bundleDirs } = require("./site-builder/corpus.js");
-const { glyphCodepoints } = require("./site-builder/fontawesome-glyphs.js");
+const { I_TAG, glyphCodepoints, hasFontAwesomeClass } = require("./site-builder/fontawesome-glyphs.js");
 
 // site/ holds one publication at a time; dist/<id>/ (npm run build:all) holds all of
 // them, so the check covers every publication whenever the bundles are around.
@@ -125,15 +125,12 @@ if (staleSubsetCss.length > 0) {
   process.exit(1);
 }
 
-const FONT_AWESOME_CLASS = /^fa(?:[srbl]?$|-)/;
 let scriptIconCount = 0;
 const scriptIconsWithoutAriaHidden = [];
 for (const file of collectFiles(root, "site/assets/js", [".js"])) {
   const text = readFileSync(join(root, file), "utf8");
-  for (const tag of text.matchAll(/<i\b((?:[^>"']|"[^"]*"|'[^']*')*)>/g)) {
-    const classAttribute = tag[1].match(/(?<![\w-])class\s*=\s*(?:"([^"]*)"|'([^']*)')/);
-    const classes = (classAttribute?.[1] ?? classAttribute?.[2] ?? "").split(/\s+/);
-    if (!classes.some((name) => FONT_AWESOME_CLASS.test(name))) continue;
+  for (const tag of text.matchAll(I_TAG)) {
+    if (!hasFontAwesomeClass(tag[1])) continue;
     scriptIconCount += 1;
     if (/(?<![\w-])aria-hidden\s*=\s*["']true["']/.test(tag[1])) continue;
     const line = text.slice(0, tag.index).split("\n").length;
