@@ -185,9 +185,14 @@
     return finiteCount ? points : null;
   }
 
-  function layerCovers(layer, layerId) {
+  function undeclaredCovers(chart, layer, layerId) {
+    if (layerId === "wrf" && chart.kind === "bar") return [-layer.axis.step_minutes, 0];
+    return UNDECLARED_COVERS_MINUTES[layerId];
+  }
+
+  function layerCovers(chart, layer, layerId) {
     const covers = layer.axis.covers_minutes;
-    if (covers === undefined) return UNDECLARED_COVERS_MINUTES[layerId];
+    if (covers === undefined) return undeclaredCovers(chart, layer, layerId);
     const valid =
       Array.isArray(covers) && covers.length === 2 && covers.every(Number.isFinite) && covers[0] <= covers[1];
     if (!valid) throw new Error(`covers_minutes inválido na camada ${layerId}: ${JSON.stringify(covers)}`);
@@ -1112,7 +1117,7 @@
     for (const chart of payload.charts) {
       for (const { id } of LAYERS) {
         const layer = chart.layers[id];
-        if (layer) state.placements.set(layer, layerPlacement(layerCovers(layer, id)));
+        if (layer) state.placements.set(layer, layerPlacement(layerCovers(chart, layer, id)));
       }
       state.modelCaveats.set(chart.id, modelCaveatIndices(chart));
     }
