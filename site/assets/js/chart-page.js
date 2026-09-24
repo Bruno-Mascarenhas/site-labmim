@@ -50,6 +50,10 @@
     return INTEGER_FORMAT.format(Math.round(value));
   }
 
+  function countNoun(count, singular, plural) {
+    return `${integer(count)} ${count === 1 ? singular : plural}`;
+  }
+
   function percent(fraction, digits = 1) {
     if (!Number.isFinite(fraction)) return "—";
     return `${decimal(fraction * 100, digits)}%`;
@@ -93,6 +97,14 @@
     return `${formatDayYear(ms)} ${formatClock(ms)}`;
   }
 
+  function showEmpty(prefix, message) {
+    el(`${prefix}App`).hidden = true;
+    const empty = el(`${prefix}Empty`);
+    empty.classList.remove("is-loading");
+    empty.hidden = false;
+    el(`${prefix}EmptyMessage`).textContent = message;
+  }
+
   function downloadCsv(fileName, rows) {
     const blob = new Blob([`${EXCEL_UTF8_BOM}${rows.join("\n")}\n`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -110,6 +122,7 @@
     pad,
     decimal,
     integer,
+    countNoun,
     percent,
     fade,
     parseStationTime,
@@ -119,6 +132,7 @@
     formatClock,
     formatStamp,
     formatStampYear,
+    showEmpty,
     downloadCsv,
   };
 })();

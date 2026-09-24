@@ -102,6 +102,8 @@
     formatClock,
     formatStamp,
     formatStampYear,
+    countNoun,
+    showEmpty,
     downloadCsv,
   } = window.labmimChartPage;
 
@@ -1027,14 +1029,6 @@
     }
   }
 
-  function showEmpty(message) {
-    el("monitorApp").hidden = true;
-    const empty = el("monitorEmpty");
-    empty.classList.remove("is-loading");
-    empty.hidden = false;
-    el("monitorEmptyMessage").textContent = message;
-  }
-
   // Charts are born only when their card reaches the screen: nine canvases of ~2000
   // points built on load freeze the page for seconds on a phone. The same observer
   // drives the cards' fade-in, which is pure CSS.
@@ -1079,12 +1073,8 @@
   }
 
   function formatSilence(silenceMs) {
-    if (silenceMs < DAY_MS) {
-      const hours = Math.floor(silenceMs / HOUR_MS);
-      return `${hours} ${hours === 1 ? "hora" : "horas"}`;
-    }
-    const days = Math.floor(silenceMs / DAY_MS);
-    return `${days} ${days === 1 ? "dia" : "dias"}`;
+    if (silenceMs < DAY_MS) return countNoun(Math.floor(silenceMs / HOUR_MS), "hora", "horas");
+    return countNoun(Math.floor(silenceMs / DAY_MS), "dia", "dias");
   }
 
   function renderStaleRecordNotice(stationEnd, { silenceMs, staleAfterMs }) {
@@ -1116,7 +1106,7 @@
       // two only agree on the exporter's default path, and with an explicit `--end`
       // the field would start contradicting the dates beside it.
       const dayCount = Math.max(1, Math.round((stationEnd - start) / DAY_MS));
-      const recordText = `Janela móvel de ${dayCount} ${dayCount === 1 ? "dia" : "dias"} — ${formatStampYear(start)} a ${formatStampYear(stationEnd)} (horário local)`;
+      const recordText = `Janela móvel de ${countNoun(dayCount, "dia", "dias")} — ${formatStampYear(start)} a ${formatStampYear(stationEnd)} (horário local)`;
       el("monitorPeriodo").textContent =
         Number.isFinite(stationEnd) && end > stationEnd
           ? `${recordText}; modelo até ${formatStampYear(end)}`
@@ -1145,11 +1135,11 @@
     if (!root) return;
     state.base = (root.dataset.monitoringBase || "").replace(/\/$/, "");
     if (!state.base) {
-      showEmpty("Esta publicação ainda não declara um diretório de monitoramento.");
+      showEmpty("monitor", "Esta publicação ainda não declara um diretório de monitoramento.");
       return;
     }
     if (typeof Chart === "undefined") {
-      showEmpty("A biblioteca de gráficos não carregou.");
+      showEmpty("monitor", "A biblioteca de gráficos não carregou.");
       return;
     }
 
@@ -1161,6 +1151,7 @@
       if (!response.ok) throw new Error(String(response.status));
     } catch {
       showEmpty(
+        "monitor",
         "Os dados de monitoramento ainda não foram publicados para esta estação. " +
           "Eles são anexados ao site no deploy, separadamente das páginas."
       );
@@ -1177,6 +1168,7 @@
       // The engine's message is what tells a truncated body from a corrupted one.
       console.error(error);
       showEmpty(
+        "monitor",
         "O documento de monitoramento chegou incompleto ou ilegível; o arquivo pode estar sendo " +
           "publicado neste momento. Recarregar a página em alguns minutos deve resolver."
       );
@@ -1184,7 +1176,7 @@
     }
 
     if (!state.payload.charts || !state.payload.charts.length) {
-      showEmpty("O documento publicado não declara nenhum gráfico.");
+      showEmpty("monitor", "O documento publicado não declara nenhum gráfico.");
       return;
     }
 
@@ -1192,7 +1184,7 @@
       assertDeclaredFields(state.payload);
     } catch (error) {
       console.error(error);
-      showEmpty("O documento de monitoramento publicado tem um campo fora do formato esperado.");
+      showEmpty("monitor", "O documento de monitoramento publicado tem um campo fora do formato esperado.");
       return;
     }
 

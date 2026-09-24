@@ -34,7 +34,7 @@
     seq: 0,
   };
 
-  const { el, decimal, integer, percent, downloadCsv } = window.labmimChartPage;
+  const { el, decimal, integer, percent, showEmpty, downloadCsv } = window.labmimChartPage;
 
   function digitsToDistinguishBins(edges) {
     let smallest = Infinity;
@@ -831,14 +831,6 @@
     }
   }
 
-  function showEmpty(message) {
-    el("climaApp").hidden = true;
-    const empty = el("climaEmpty");
-    empty.classList.remove("is-loading");
-    empty.hidden = false;
-    el("climaEmptyMessage").textContent = message;
-  }
-
   function render() {
     const subset = currentSubset();
     const isRose = state.variable.chart === "rose";
@@ -974,11 +966,11 @@
     if (!root) return;
     state.base = (root.dataset.climatologyBase || "").replace(/\/$/, "");
     if (!state.base) {
-      showEmpty("Esta publicação ainda não declara um diretório de climatologia.");
+      showEmpty("clima", "Esta publicação ainda não declara um diretório de climatologia.");
       return;
     }
     if (typeof Chart === "undefined") {
-      showEmpty("A biblioteca de gráficos não carregou.");
+      showEmpty("clima", "A biblioteca de gráficos não carregou.");
       return;
     }
 
@@ -986,6 +978,7 @@
       state.manifest = await fetchJson(`${state.base}/manifest.json`);
     } catch {
       showEmpty(
+        "clima",
         "Os dados de climatologia ainda não foram publicados para esta região. " +
           "Eles são anexados ao site no deploy, separadamente das páginas."
       );
@@ -996,7 +989,7 @@
     refs().register(state.manifest.references);
 
     if (!state.manifest.variables || !state.manifest.variables.length) {
-      showEmpty("O conjunto publicado não declara nenhuma variável.");
+      showEmpty("clima", "O conjunto publicado não declara nenhuma variável.");
       return;
     }
     showFamilyExplanations();

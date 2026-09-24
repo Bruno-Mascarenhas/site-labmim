@@ -153,8 +153,20 @@
     cumulativeChart: null,
   };
 
-  const { el, node, statTile, pad, decimal, integer, percent, fade, parseStationTime, downloadCsv } =
-    window.labmimChartPage;
+  const {
+    el,
+    node,
+    statTile,
+    pad,
+    decimal,
+    integer,
+    countNoun,
+    percent,
+    fade,
+    parseStationTime,
+    showEmpty,
+    downloadCsv,
+  } = window.labmimChartPage;
   const formatDay = window.labmimChartPage.formatDayYear;
   const formatStamp = window.labmimChartPage.formatStampYear;
   const formatShortDay = window.labmimChartPage.formatDay;
@@ -390,13 +402,13 @@
   function densestCellHours() {
     const count = state.density ? state.density.max_count : null;
     if (!Number.isInteger(count) || count < 1) return "muitas horas";
-    return `${integer(count)} ${count === 1 ? "hora" : "horas"}`;
+    return countNoun(count, "hora", "horas");
   }
 
   function densityCoverageSentence(coverage, pointsLayerAvailable) {
     const rest = coverage.outside === 1 ? "mais uma fica" : `outras ${integer(coverage.outside)} ficam`;
     const appear = coverage.outside === 1 ? "aparece" : "aparecem";
-    const inside = `${integer(coverage.inside)} ${coverage.inside === 1 ? "hora" : "horas"}`;
+    const inside = countNoun(coverage.inside, "hora", "horas");
     const where = pointsLayerAvailable ? ` e só ${appear} na camada Pontos` : "";
     return `A densidade conta ${inside}; ${rest} fora da grade ${coverage.span}${where}.`;
   }
@@ -773,6 +785,7 @@
   function settleEmptyState() {
     if (state.framesMissing < FRAME_IMAGE_COUNT || !allPayloadsAbsent()) return;
     showEmpty(
+      "ceu",
       "Os dados de condição do céu ainda não foram publicados para esta estação. " +
         "Eles são anexados ao site no deploy, separadamente das páginas."
     );
@@ -1367,7 +1380,7 @@
     if (observation) return `Kt ${decimal(observation.x, 3)}`;
     const cell = state.hoverCell;
     if (!cell) return `Kt ${decimal(items[0].parsed.x, 3)}`;
-    const hours = `${decimal(cell.count, 0)} ${cell.count === 1 ? "hora" : "horas"}`;
+    const hours = countNoun(cell.count, "hora", "horas");
     return `Kt ${decimal(cell.kt[0], 3)}–${decimal(cell.kt[1], 3)} · Kd ${decimal(cell.kd[0], 3)}–${decimal(cell.kd[1], 3)} · ${hours}`;
   }
 
@@ -2621,7 +2634,7 @@
       lines.push(`condição prevista: ${conditionLabel(condition)}${suffix}`);
     }
     const frames = at("n_frames");
-    if (finite(frames)) lines.push(`${integer(frames)} ${frames === 1 ? "quadro" : "quadros"} no bloco`);
+    if (finite(frames)) lines.push(`${countNoun(frames, "quadro", "quadros")} no bloco`);
     const source = state.timelinePayload.source;
     const origin = Array.isArray(source) ? sourceLabel(source[index]) : "";
     if (origin) lines.push(`fonte: ${origin}`);
@@ -2935,7 +2948,7 @@
     if (container.hidden) return;
     const since = parseStationDate(live.since);
     const window = [];
-    if (finite(live.n_days)) window.push(`${integer(live.n_days)} ${live.n_days === 1 ? "dia" : "dias"}`);
+    if (finite(live.n_days)) window.push(countNoun(live.n_days, "dia", "dias"));
     window.push(`${integer(live.n_blocks)} blocos`);
     const rawScale = predictionOnRawScale();
     statTile(
@@ -3613,8 +3626,7 @@
     if (Number.isFinite(start) && Number.isFinite(end)) noteParts.push(`${formatDay(start)} a ${formatDay(end)}`);
     if (dataset.season_note) noteParts.push(dataset.season_note);
     if (split.strategy) noteParts.push(`divisão ${keyLabel(SPLIT_STRATEGY_PT, split.strategy)}`);
-    if (finite(split.gap_days))
-      noteParts.push(`${integer(split.gap_days)} ${split.gap_days === 1 ? "dia" : "dias"} de intervalo`);
+    if (finite(split.gap_days)) noteParts.push(`${countNoun(split.gap_days, "dia", "dias")} de intervalo`);
     if (finite(dataset.min_elevation_deg)) noteParts.push(`piso de elevação ${decimal(dataset.min_elevation_deg, 1)}°`);
     if (dataset.frames_from) noteParts.push(`quadros de ${dataset.frames_from}`);
     if (dataset.camera) noteParts.push(dataset.camera);
@@ -3814,14 +3826,6 @@
     }
   }
 
-  function showEmpty(message) {
-    el("ceuApp").hidden = true;
-    const empty = el("ceuEmpty");
-    empty.classList.remove("is-loading");
-    empty.hidden = false;
-    el("ceuEmptyMessage").textContent = message;
-  }
-
   function afterNextPaint() {
     if (document.hidden) return new Promise((resolve) => setTimeout(resolve, 0));
     return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
@@ -3957,11 +3961,11 @@
     if (!root) return;
     state.base = (root.dataset.skyBase || "").replace(/\/$/, "");
     if (!state.base) {
-      showEmpty("Esta publicação ainda não declara um diretório de condição do céu.");
+      showEmpty("ceu", "Esta publicação ainda não declara um diretório de condição do céu.");
       return;
     }
     if (typeof Chart === "undefined") {
-      showEmpty("A biblioteca de gráficos não carregou.");
+      showEmpty("ceu", "A biblioteca de gráficos não carregou.");
       return;
     }
 
