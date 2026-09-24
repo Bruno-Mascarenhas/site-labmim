@@ -248,7 +248,7 @@ Cuidados:
 
 Responsabilidades:
 
-- **Cache LRU em memória**: limite base `DATA_SERVICE_CACHE_LIMIT` (400 entradas), recência renovada a cada hit; `ensureCacheLimit()` **cresce** o limite (nunca encolhe) quando o manifest anuncia uma rodada mais longa (`ceil(index_max * 5.5)`), para o loop de playback + vento + modal aberto caberem residentes.
+- **Cache LRU em memória**: limite base `DATA_SERVICE_CACHE_LIMIT` (400 entradas), recência renovada a cada hit; `ensureCacheLimit()` **cresce** o limite (nunca encolhe) quando o manifest anuncia uma rodada mais longa (`ceil(index_max * 5.5)`), para o loop de playback + vento + modal aberto caberem residentes. Além do teto de entradas, o cache despeja pelo LRU enquanto a soma estimada passar de `DATA_SERVICE_CACHE_BUDGET_BYTES` (32 MiB), a `RETAINED_BYTES_PER_JSON_NUMBER` (16 B, custo retido medido após o parse no worker) por número do payload; a entrada que acabou de entrar fica, mesmo que sozinha passe do orçamento. O orçamento em bytes não cresce com `ensureCacheLimit()`.
 - **Deduplicação de requisições em voo**: chamadas concorrentes à mesma URL compartilham um único `fetch` + parse; um `signal` abortado afeta apenas aquele chamador, não o fetch compartilhado.
 - **Cache negativo em dois níveis**: `DATA_SERVICE_FAILURE_TTL_MS` (60 s) para ausência determinística (`notFound`: 404/403/410) e `DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS` (4 s) para falhas transitórias (rede/5xx), que podem se recuperar rápido.
 - **Parsing em Web Worker** (`json-parser.worker.js`) com _fallback_ transparente para a thread principal se o worker falhar (o serviço trata `onerror`/`onmessageerror`, rejeita as chamadas pendentes e as reencaminha; o worker repassa o `status` HTTP).

@@ -1,18 +1,27 @@
-// ~47KB per parsed payload: 400 entries hold one full playback loop (73 steps
-// + wind overlays) plus an open time-series modal. map-manager raises it via
-// ensureCacheLimit() when the manifest advertises a longer timeline.
 const DATA_SERVICE_CACHE_LIMIT = 400;
+const DATA_SERVICE_CACHE_BUDGET_BYTES = 32 * 1024 * 1024;
+const RETAINED_BYTES_PER_JSON_NUMBER = 16;
 // Deterministic 404s (files the pipeline never exports) stay cached for a full
 // minute; transient failures may recover at any moment.
 const DATA_SERVICE_FAILURE_TTL_MS = 60000;
 const DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS = 4000;
 
+function countJsonNumbers(node) {
+  if (typeof node === "number") return 1;
+  if (node === null || typeof node !== "object") return 0;
+  let count = 0;
+  for (const child of Array.isArray(node) ? node : Object.values(node)) count += countJsonNumbers(child);
+  return count;
+}
+
 class LabmimDataService {
   constructor(options = {}) {
     this.cacheLimit = DATA_SERVICE_CACHE_LIMIT;
+    this.cacheBudgetBytes = DATA_SERVICE_CACHE_BUDGET_BYTES;
     this.failureTtlMs = DATA_SERVICE_FAILURE_TTL_MS;
     this.transientFailureTtlMs = DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS;
     this._cache = new Map();
+    this._cacheBytes = 0;
     this._inflight = new Map();
     this._failedAt = new Map();
 
@@ -97,7 +106,7 @@ class LabmimDataService {
       const cached = this._cache.get(url);
       this._cache.delete(url);
       this._cache.set(url, cached);
-      return Promise.resolve(cached);
+      return Promise.resolve(cached.data);
     }
 
     const failure = this._failedAt.get(url);
@@ -179,11 +188,20 @@ class LabmimDataService {
   }
 
   _storeInCache(url, data) {
-    if (this._cache.size >= this.cacheLimit) {
-      const firstKey = this._cache.keys().next().value;
-      this._cache.delete(firstKey);
+    const bytes = countJsonNumbers(data) * RETAINED_BYTES_PER_JSON_NUMBER;
+    this._removeFromCache(url);
+    this._cache.set(url, { data, bytes });
+    this._cacheBytes += bytes;
+    while (this._cache.size > 1 && (this._cache.size > this.cacheLimit || this._cacheBytes > this.cacheBudgetBytes)) {
+      this._removeFromCache(this._cache.keys().next().value);
     }
-    this._cache.set(url, data);
+  }
+
+  _removeFromCache(url) {
+    const entry = this._cache.get(url);
+    if (!entry) return;
+    this._cache.delete(url);
+    this._cacheBytes -= entry.bytes;
   }
 
   ensureCacheLimit(limit) {
@@ -198,6 +216,7 @@ class LabmimDataService {
    */
   clear() {
     this._cache.clear();
+    this._cacheBytes = 0;
     this._failedAt.clear();
   }
 }
