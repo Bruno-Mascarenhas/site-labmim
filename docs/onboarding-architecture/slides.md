@@ -566,7 +566,7 @@ module.exports = {
     defaultMaxLayer: 75,
     initialIndex: 7,
     stepHours: 1,
-    label: "Horário local (UTC-03)",
+    utcOffsetHours: -3,
   },
   defaultDomain: "D01",
   domains: [/* id, label, centro, zoom, resolução */],
@@ -587,8 +587,8 @@ contorno de outro estado por engano.
 No dataset, `defaultDomain` precisa existir no array. Os IDs D01 etc. fazem parte dos nomes dos arquivos e
 não são apenas labels. `monitoring`, `climatology` e `sky` só devem existir quando a publicação oferece as
 páginas correspondentes; o build valida esses pares. Reutilize módulos existentes quando o produto ou
-território for realmente o mesmo. `stepHours` torna a frequência explícita; horizonte e quantidade textual de passos são derivados, não
-hardcoded no template.
+território for realmente o mesmo. `stepHours` torna a frequência explícita e `utcOffsetHours` gera o rótulo de fuso; horizonte, quantidade textual de passos e
+rótulo são derivados, não hardcoded no template.
 
 [Sources]
 - site-labmim, checkout local de 18-08-2026: README.md, Architecture.md, src/sites/README.md e arquivos citados neste slide.
