@@ -11,6 +11,10 @@ const CHART_JS_SRC = "assets/vendor/chartjs/chart.min.js?v=3.9.1";
 const CHART_SURFACES = ["#ffffff", "#161b22"];
 const CHART_SERIES_FALLBACK = "#0d6efd";
 
+const PARTIAL_COVERAGE_POINT_RADIUS_PX = 5;
+const PARTIAL_COVERAGE_POINT_BORDER_WIDTH_PX = 2;
+const HOLLOW_POINT_FILL = "rgba(0, 0, 0, 0)";
+
 function relativeLuminance(hex) {
   const channel = (offset) => {
     const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
@@ -447,6 +451,8 @@ class ChartsManager {
           value: summary.mean,
           min: summary.min,
           max: summary.max,
+          finiteCells: summary.count,
+          totalCells: data.values.length,
           timestamp: this._timestampForHour(hour, data),
         };
       }
@@ -488,6 +494,8 @@ class ChartsManager {
           value,
           min: Number.isFinite(data.min?.[i]) ? data.min[i] : value,
           max: Number.isFinite(data.max?.[i]) ? data.max[i] : value,
+          finiteCells: Number.isInteger(data.finite_cells?.[i]) ? data.finite_cells[i] : null,
+          totalCells: Number.isInteger(data.cells) ? data.cells : null,
           timestamp: this._timestampForHour(hour, { metadata: { date_time: data.date_times?.[i] } }),
         });
       }
@@ -556,7 +564,7 @@ class ChartsManager {
     });
 
     if (!count) return null;
-    return { mean: sum / count, min, max };
+    return { mean: sum / count, min, max, count };
   }
 
   _aggregateSeriesStats(series, currentHour) {
@@ -566,11 +574,36 @@ class ChartsManager {
     // "Atual" is genuinely unavailable; another hour's value would read as a
     // measurement next to a map that says "sem dados".
     const current = series.find((entry) => entry.hour === currentHour) || null;
-    const mean = series.reduce((sum, entry) => sum + entry.value, 0) / series.length;
+    const weightedByFiniteCells = series.every((entry) => Number.isInteger(entry.finiteCells) && entry.finiteCells > 0);
+    const mean = weightedByFiniteCells
+      ? series.reduce((sum, entry) => sum + entry.value * entry.finiteCells, 0) /
+        series.reduce((sum, entry) => sum + entry.finiteCells, 0)
+      : series.reduce((sum, entry) => sum + entry.value, 0) / series.length;
     const min = Math.min(...series.map((entry) => entry.min));
     const max = Math.max(...series.map((entry) => entry.max));
+    const meanWeightsPartialSteps = weightedByFiniteCells && series.some((entry) => this._coversPartOfDomain(entry));
 
-    return { current: current ? current.value : null, mean, min, max };
+    return { current: current ? current.value : null, mean, min, max, meanWeightsPartialSteps };
+  }
+
+  _coversPartOfDomain(entry) {
+    return (
+      Number.isInteger(entry?.finiteCells) && Number.isInteger(entry.totalCells) && entry.finiteCells < entry.totalCells
+    );
+  }
+
+  _domainCoverageLabel(entry) {
+    const coveredPercent = Math.floor((100 * entry.finiteCells) / entry.totalCells);
+    return coveredPercent < 1 ? "menos de 1% das células com valor" : `${coveredPercent}% das células com valor`;
+  }
+
+  _applyPreviewPoints(chartOrConfig, series, color) {
+    const dataset = chartOrConfig.data.datasets[0];
+    const coversPart = series.map((entry) => this._coversPartOfDomain(entry));
+    dataset.pointRadius = coversPart.map((partial) => (partial ? PARTIAL_COVERAGE_POINT_RADIUS_PX : 0));
+    dataset.pointBorderWidth = coversPart.map((partial) => (partial ? PARTIAL_COVERAGE_POINT_BORDER_WIDTH_PX : 0));
+    dataset.pointBackgroundColor = coversPart.map((partial) => (partial ? HOLLOW_POINT_FILL : color));
+    dataset.pointBorderColor = color;
   }
 
   _meanCoversDaylightOnly(variableType, config, domain) {
@@ -605,6 +638,13 @@ class ChartsManager {
         `
       )
       .join("");
+    if (stats.meanWeightsPartialSteps) {
+      container.insertAdjacentHTML(
+        "beforeend",
+        '<p class="variable-preview-note">A média pesa cada passo pelo número de células com valor. ' +
+          "Os pontos vazados marcam os passos em que só parte das células tem valor.</p>"
+      );
+    }
   }
 
   _renderPreviewChart(canvasId, series, config, meanCoversDaylightOnly) {
@@ -624,7 +664,11 @@ class ChartsManager {
     const chartData = gapped.map((entry) => entry.value);
     const chartColor = themeInvariantSeriesColor(config.colors);
     const chartLabel = `Média do domínio · ${this._stepLabel(config)}`;
-    const tooltipLabel = (ctx) => this._formatPreviewValue(ctx.parsed.y, config.unit);
+    const tooltipLabel = (ctx) => {
+      const value = this._formatPreviewValue(ctx.parsed.y, config.unit);
+      const entry = gapped[ctx.dataIndex];
+      return this._coversPartOfDomain(entry) ? [value, this._domainCoverageLabel(entry)] : value;
+    };
 
     // A <canvas> exposes no content to the accessibility tree (WCAG 1.1.1).
     if (labels.length) {
@@ -645,15 +689,15 @@ class ChartsManager {
       this._applySeriesToChart(chartInstance, labels, chartData, chartLabel, chartColor);
       chartInstance.options.scales.y.title.text = config.unit;
       chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
+      this._applyPreviewPoints(chartInstance, gapped, chartColor);
       this._applyChartTheme(chartInstance, chartColor);
       chartInstance.update("none");
       return;
     }
 
-    chartInstance = new Chart(
-      canvas.getContext("2d"),
-      this._buildChartConfig(chartData, labels, chartLabel, chartColor, config.unit)
-    );
+    const previewConfig = this._buildChartConfig(chartData, labels, chartLabel, chartColor, config.unit);
+    this._applyPreviewPoints(previewConfig, gapped, chartColor);
+    chartInstance = new Chart(canvas.getContext("2d"), previewConfig);
     chartInstance.options.plugins.legend.display = false;
     chartInstance.options.scales.x.ticks.maxTicksLimit = 6;
     chartInstance.options.elements = { point: { radius: 0 } };
