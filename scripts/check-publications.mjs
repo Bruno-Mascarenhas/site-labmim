@@ -197,10 +197,17 @@ function assertNoUntrackedOutput(publication) {
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error("could not inspect untracked generated output");
 
-  const untracked = result.stdout
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .filter((file) => !isOperationalDataPath(publication, file.replace(/^site\//, "")));
+  const untracked = result.stdout.split(/\r?\n/).filter(Boolean);
+  const unignoredOperational = untracked.filter((file) =>
+    isOperationalDataPath(publication, file.replace(/^site\//, ""))
+  );
+  if (unignoredOperational.length > 0) {
+    throw new Error(
+      `Operational data directory holds files .gitignore does not cover:\n${unignoredOperational
+        .map((file) => `  - ${file}`)
+        .join("\n")}\nIgnore it by directory: "site/<directory>/*" plus "!site/<directory>/.keep".`
+    );
+  }
   if (untracked.length > 0) {
     throw new Error(
       `Generated output is untracked; add it to the change or ignore operational data:\n${untracked
