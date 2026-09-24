@@ -311,6 +311,7 @@ class MeteoMapManager {
     this._currentValueKey = null;
     // The in-flight applyMapChanges() load, tagged with the view it targets.
     this._currentApply = null;
+    this._failedLoad = null;
     this.gridLayers = {};
     this._gridLayerPromises = new Map();
     this.dataService = new LabmimDataService({
@@ -2043,6 +2044,7 @@ class MeteoMapManager {
 
         // Grid fetch failed while values succeeded: still a no-data state.
         if (!gridLayer) {
+          this._failedLoad = { key: loadKey, notFound: false };
           this._clearCurrentData();
           return null;
         }
@@ -2058,6 +2060,7 @@ class MeteoMapManager {
 
         this.currentValueData = valueData;
         this._currentValueKey = loadKey;
+        this._failedLoad = null;
         this._noPublishedDataNotice = null;
         this._emptyFrameStreak = 0;
         this.applyValuesToGrid(gridLayer, valueData);
@@ -2080,6 +2083,7 @@ class MeteoMapManager {
         // Honest no-data state, but only while this load is still the current view:
         // a superseded rejection must not wipe the freshly painted newer one.
         if (loadKey === this._currentApply?.key) {
+          this._failedLoad = { key: loadKey, notFound: err?.notFound === true };
           this._clearCurrentData();
           this._maybeFastSkipEmptyFrame(err);
         }
@@ -2668,6 +2672,13 @@ class MeteoMapManager {
     return value.toFixed(decimals);
   }
 
+  _emptyMapClickMessage() {
+    if (this._noPublishedDataNotice) return "Dados do modelo ainda não publicados";
+    if (!this.isIndexAvailable(this.state.index)) return "Sem dados neste horário";
+    if (this._failedLoad?.key !== this._loadKey()) return null;
+    return this._failedLoad.notFound ? "Sem dados neste horário" : "Erro ao carregar informações";
+  }
+
   async handleMapClick(e, options = {}) {
     // The user may have clicked mid-drag: wait for the matching in-flight load so the
     // sidebar reflects the selected view. Bounded; a residual mismatch reads no-data.
@@ -2683,6 +2694,8 @@ class MeteoMapManager {
     }
 
     if (!this.currentGeoJsonLayer) {
+      const message = options.userInitiated ? this._emptyMapClickMessage() : null;
+      if (message) this.showErrorMessage(message);
       return Promise.reject(new Error("No GeoJSON layer available"));
     }
 
