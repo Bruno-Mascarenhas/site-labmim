@@ -524,7 +524,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     return publication.redirects
       .map(
         (redirect) =>
-          `  Redirect ${redirect.status} "${redirect.from}" "${redirect.to}${redirect.hash ? `#${redirect.hash}` : ""}"`
+          `  Redirect ${redirect.status} "${redirect.from}" "${redirect.to}${redirect.hash ? `?#${redirect.hash}` : ""}"`
       )
       .join("\n");
   }
