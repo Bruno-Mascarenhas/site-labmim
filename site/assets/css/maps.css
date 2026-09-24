@@ -823,21 +823,6 @@ header.maps-header {
 
   .sidebar {
     box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.15);
-    z-index: var(--z-sidebar);
-    visibility: hidden;
-    pointer-events: none;
-  }
-
-  .sidebar.active {
-    transform: translateY(0);
-    visibility: visible;
-    pointer-events: auto;
-  }
-
-  .sidebar-logo-header {
-    display: none;
-    height: 0;
-    padding: 0;
   }
 
   .sidebar-header {
@@ -845,11 +830,6 @@ header.maps-header {
     position: sticky;
     top: 0;
     z-index: 10;
-  }
-
-  .sidebar-content {
-    overflow-y: auto;
-    padding: 0;
   }
 
   .controls-container {
@@ -2313,11 +2293,8 @@ header.maps-header {
     display: none;
     width: auto;
     max-width: none;
-    height: auto;
-    max-height: none;
     margin: 10px;
     border-radius: 8px;
-    transform: none;
   }
 
   .sidebar.active {
@@ -2326,10 +2303,6 @@ header.maps-header {
 
   .sidebar-logo-header {
     display: none;
-  }
-
-  .sidebar-content {
-    max-height: none;
   }
 }
 
