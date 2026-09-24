@@ -3449,6 +3449,24 @@
     return matches.length === 1 && typeof matches[0].name === "string" ? matches[0].name : null;
   }
 
+  function curveProvenance(curve) {
+    if (Object.hasOwn(curve, "member")) {
+      if (typeof curve.member !== "string" || !curve.member) return { member: null, budget: null, patience: null };
+      return {
+        member: curve.member,
+        budget: finite(curve.epochs_budget) ? curve.epochs_budget : null,
+        patience: finite(curve.patience) ? curve.patience : null,
+      };
+    }
+    const member = finite(curve.best_epoch) ? curveMemberName(curve.best_epoch) : null;
+    const training = servedBlock().training;
+    if (!member || member !== attributionMemberName() || !training || typeof training !== "object")
+      return { member, budget: null, patience: null };
+    const budget = training.epochs_budget ?? training.epochs;
+    const patience = training.early_stopping?.patience;
+    return { member, budget: finite(budget) ? budget : null, patience: finite(patience) ? patience : null };
+  }
+
   function drawTrainingCurve(theme) {
     if (state.curveChart) {
       state.curveChart.destroy();
@@ -3465,7 +3483,7 @@
       note.textContent = "";
       return;
     }
-    const member = finite(curve.best_epoch) ? curveMemberName(curve.best_epoch) : null;
+    const { member, budget, patience } = curveProvenance(curve);
     const noteParts = [
       `MAE de ${kindexSymbol()} por época${member ? ` do membro ${member}` : ""}, no treino e na validação`,
     ];
@@ -3473,9 +3491,8 @@
       noteParts.push(
         `o checkpoint servido ${member ? "desse membro " : ""}é o da melhor época na validação (${integer(curve.best_epoch)})`
       );
-    const served = servedBlock();
-    const budget = served.training?.epochs_budget ?? served.training?.epochs;
-    if (finite(budget)) noteParts.push(`orçamento de ${integer(budget)} épocas`);
+    if (budget !== null) noteParts.push(`orçamento de ${integer(budget)} épocas`);
+    if (patience !== null) noteParts.push(`paciência de ${integer(patience)} épocas`);
     note.textContent = `${noteParts.join(" · ")}.`;
     const datasets = [];
     if (train) {
