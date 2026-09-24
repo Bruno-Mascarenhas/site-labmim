@@ -1731,6 +1731,7 @@ class MeteoMapManager {
         this.applyValuesToGrid(this.currentGeoJsonLayer, this.currentValueData);
       }
     }
+    if (this.state.isClippedToState && this.state.selectedCell?.layer?._inStateMask === false) this.closeSidebar();
     if (this.ui.isobarCheckbox?.checked) this.renderIsobars();
   }
 
@@ -2721,6 +2722,11 @@ class MeteoMapManager {
         };
         break;
       }
+    }
+
+    if (this.state.isClippedToState && foundCell?.layer._inStateMask === false) {
+      if (options.userInitiated) this.showErrorMessage(`Fora do recorte do estado (${this.state.stateAbbr})`);
+      return Promise.reject(new Error("Cell is outside the state clip"));
     }
 
     if (!foundCell || foundCell.value === null) {
