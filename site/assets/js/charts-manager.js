@@ -1121,7 +1121,6 @@ class ChartsManager {
   async _loadVariableSeries(variableKey, domain, cellIndex, signal, { rangeReadOnly = false } = {}) {
     const config = VARIABLES_CONFIG[variableKey];
     if (!config?.id) return null;
-    if (!this._variablePublished(variableKey, domain)) return null;
 
     const variableId = this._getVariableId(variableKey, config);
     const maxHour = this._getAvailableHourCount();
@@ -1129,6 +1128,7 @@ class ChartsManager {
     const cacheKey = `${this.app?.dataVersion || "v0"}:${domain}:${variableId}:${cellIndex}:${maxHour}`;
     const cached = this._cachedTimeSeries(cacheKey);
     if (cached) return cached;
+    if (!this._variablePublished(variableKey, domain)) return null;
 
     // One ~300-byte Range request instead of dozens of full-domain JSONs read
     // for a single cell each.
