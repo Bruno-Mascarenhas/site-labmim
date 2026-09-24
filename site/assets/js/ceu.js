@@ -293,14 +293,14 @@
     return points;
   }
 
-  function declaredPointCount() {
+  function pointsFileDeclared() {
     const declared = state.chartPayload && state.chartPayload.points_file;
-    if (!declared || typeof declared.name !== "string" || !declared.name) return 0;
-    return Number.isInteger(declared.n) && declared.n > 0 ? declared.n : 0;
+    if (!declared || typeof declared.name !== "string" || !declared.name) return false;
+    return Number.isInteger(declared.n) && declared.n > 0;
   }
 
   function pointsOffered() {
-    return state.points.length > 0 || declaredPointCount() > 0;
+    return state.points.length > 0 || pointsFileDeclared();
   }
 
   function pointsFailed() {
@@ -360,7 +360,7 @@
   }
 
   function ensurePoints() {
-    if (state.points.length || !declaredPointCount()) return Promise.resolve();
+    if (state.points.length || !pointsFileDeclared()) return Promise.resolve();
     if (!state.pointsRequest) {
       state.pointsStatus = "loading";
       state.pointsRequest = loadJson(state.chartPayload.points_file.name).then(acceptPointsFile);
@@ -3371,12 +3371,9 @@
     const elevationBody = el("ceuElevacaoCorpo");
     elevationBody.replaceChildren();
     const member = stratified.member || attributionMemberName();
-    el("ceuElevacaoLegenda").textContent = member
-      ? `Por faixa de elevação solar — membro ${member}, difusa em ${dhiUnit()}`
-      : `Por faixa de elevação solar, difusa em ${dhiUnit()}`;
-    el("ceuEstratoClasseLegenda").textContent = member
-      ? `Por condição de céu verdadeira — membro ${member}, difusa em ${dhiUnit()}`
-      : `Por condição de céu verdadeira, difusa em ${dhiUnit()}`;
+    const stratumLegend = (title) => `${title}${member ? ` — membro ${member}` : ""}, difusa em ${dhiUnit()}`;
+    el("ceuElevacaoLegenda").textContent = stratumLegend("Por faixa de elevação solar");
+    el("ceuEstratoClasseLegenda").textContent = stratumLegend("Por condição de céu verdadeira");
     const trainMaxDeg = trainElevationMaxDeg();
     for (const entry of rowsOf(stratified.solar_elevation, "stratum")) {
       const row = node("tr");
