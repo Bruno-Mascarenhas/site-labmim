@@ -142,6 +142,14 @@
     return layer.label;
   }
 
+  function rawLabel(chart) {
+    return chart.series.length > 1 ? `${chart.series[0].label} — ${RAW_LABEL}` : RAW_LABEL;
+  }
+
+  function drawnLayerLabel(chart, layer) {
+    return layer.id === "raw" ? rawLabel(chart) : layerLabel(chart, layer);
+  }
+
   function windowStart() {
     const selected = WINDOWS.find((entry) => entry.id === state.windowId) || WINDOWS[0];
     // Anchored at the end of the STATION RECORD. `window.end` runs ahead of the
@@ -288,7 +296,7 @@
     if (chart.kind === "bar") {
       return baseDataset({
         type: "line",
-        label: RAW_LABEL,
+        label: rawLabel(chart),
         data: points,
         borderColor: color,
         backgroundColor: color,
@@ -300,7 +308,7 @@
     }
     return baseDataset({
       type: "line",
-      label: RAW_LABEL,
+      label: rawLabel(chart),
       data: points,
       borderColor: "transparent",
       backgroundColor: fade(color, 0.85),
@@ -740,7 +748,7 @@
 
   function syncCardText(chart, drawnCount) {
     const drawn = drawnLayers(chart);
-    const labels = drawn.map((layer) => layerLabel(chart, layer));
+    const labels = drawn.map((layer) => drawnLayerLabel(chart, layer));
     const span = state.layerLabels.get(chart.id);
     if (span) span.textContent = labels.join(" · ");
 
@@ -828,7 +836,7 @@
       "aria-label",
       `${chart.title} ampliado — camadas ${
         drawnLayers(chart)
-          .map((layer) => layerLabel(chart, layer))
+          .map((layer) => drawnLayerLabel(chart, layer))
           .join(", ") || "nenhuma"
       }. Use o botão CSV do cartão para a versão textual.`
     );
