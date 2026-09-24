@@ -1498,11 +1498,13 @@ class MeteoMapManager {
   }
 
   updateVariablePreviewShell(variableType = this.state.type) {
-    const config = this.getVariableConfig(variableType);
+    const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
 
     if (this.ui.variablePreviewTitle) {
-      this.ui.variablePreviewTitle.textContent = config.optionLabel || config.label;
+      this.ui.variablePreviewTitle.textContent = config.accumulation
+        ? this.chartsManager._stepLabel(config)
+        : config.optionLabel || config.label;
     }
     if (this.ui.variablePreviewLabel) {
       // Dimensionless variables declare no unit, so the separator would dangle.
