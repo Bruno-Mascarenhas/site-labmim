@@ -32,6 +32,8 @@ module.exports = {
     rnetClosure:
       "Nesta rodada o WRF grava o <code>GRDFLX</code> positivo para cima, então <code>G = −GRDFLX</code>. Mediado sobre três dias inteiros nas células de terra, o resíduo <code>RNET − H − LE − G</code> fica entre −0,6 e −1,4 W/m² nos quatro domínios.",
     ktHighValues: "A rodada confirma: apenas 0,19% a 3,4% das células passam desse valor.",
+    epsSkyClearCells:
+      "Nesta rodada, conforme o domínio, 71% a 93% das células que o <code>kt</code> classifica como céu limpo ficam entre 0,80 e 0,90.",
   },
   paths: {
     manifest: "JSON/manifest.json",

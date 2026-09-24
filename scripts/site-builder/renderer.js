@@ -67,6 +67,7 @@ const RUN_NOTE_SLOTS = Object.freeze({
   lwnetLandCells: "RUN_NOTE_LWNET_LAND_CELLS",
   rnetClosure: "RUN_NOTE_RNET_CLOSURE",
   ktHighValues: "RUN_NOTE_KT_HIGH_VALUES",
+  epsSkyClearCells: "RUN_NOTE_EPS_SKY_CLEAR_CELLS",
 });
 
 const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";

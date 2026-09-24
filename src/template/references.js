@@ -165,6 +165,22 @@ const SITE_REFERENCES = Object.freeze({
       "solar aparente, elevação solar, índice de claridade diário e persistência.",
     url: "https://doi.org/10.1016/j.renene.2009.07.018",
   },
+  prata1996: {
+    short: "Prata, 1996",
+    citation:
+      "Prata, A. J. (1996). A new long-wave formula for estimating downward clear-sky radiation at the surface. " +
+      "Quarterly Journal of the Royal Meteorological Society 122(533), 1127-1151. A emissividade de céu limpo " +
+      "em função da temperatura e do vapor d'água junto à superfície.",
+    url: "https://doi.org/10.1002/qj.49712253306",
+  },
+  herrero2012: {
+    short: "Herrero e Polo, 2012",
+    citation:
+      "Herrero, J. & Polo, M. J. (2012). Parameterization of atmospheric longwave emissivity in a mountainous " +
+      "site for all sky conditions. Hydrology and Earth System Sciences 16(9), 3139-3147. Medidas de uma estação " +
+      "a 2.500 m de altitude na Sierra Nevada, Espanha.",
+    url: "https://doi.org/10.5194/hess-16-3139-2012",
+  },
   codata2018: {
     short: "CODATA 2018",
     citation:

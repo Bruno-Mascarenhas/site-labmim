@@ -377,6 +377,8 @@ const KT_SKY_CLASS_MIN_SOLAR_ELEVATION_RAD = KT_SKY_CLASS_MIN_SOLAR_ELEVATION_DE
 const CLEAR_SKY_INDEX_CLEAR_MIN = 0.95;
 const CLEAR_SKY_INDEX_SCALE_STOPS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 const CLEAR_SKY_INDEX_OVERCAST_BELOW = 0.3;
+const SKY_EMISSIVITY_DRY_BELOW = 0.8;
+const SKY_EMISSIVITY_OVERCAST_OR_HUMID_ABOVE = 0.9;
 
 function clearnessSkyItem(kt, solarElevationRad, clearSkyIndex) {
   if (Number.isFinite(clearSkyIndex)) {
@@ -1229,7 +1231,7 @@ const VARIABLES_CONFIG = {
     faIcon: "cloud",
     unit: "",
     sourceId: "EPS_SKY",
-    summary: "Emissividade efetiva do céu; sobe com umidade e nebulosidade, servindo de indicador de cobertura.",
+    summary: "Emissividade efetiva do céu; sobe com a umidade e com a nebulosidade.",
     scaleMin: 0.6,
     scaleMax: 1,
     colors: EMISSIVITY_COLORS,
@@ -1249,7 +1251,12 @@ const VARIABLES_CONFIG = {
           },
           {
             label: "Céu",
-            value: value > 0.9 ? "Encoberto/úmido" : value < 0.8 ? "Mais limpo" : "Intermediário",
+            value:
+              value > SKY_EMISSIVITY_OVERCAST_OR_HUMID_ABOVE
+                ? "Encoberto/úmido"
+                : value < SKY_EMISSIVITY_DRY_BELOW
+                  ? "Seco"
+                  : "Intermediário",
             icon: "fa-cloud-sun",
           },
         ],

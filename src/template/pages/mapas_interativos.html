@@ -520,10 +520,17 @@ RNET = H + LE + G</code></pre>
                 temperatura do ar em abrigo — no denominador, e não a temperatura da superfície.
               </p>
               <p>
-                Sobe com umidade e nebulosidade, o que a torna um indicador prático de cobertura do céu; o painel
-                classifica acima de 0,90 como encoberto ou ar muito úmido e abaixo de 0,80 como céu mais limpo. Para
-                comparação, Herrero &amp; Polo (2012) medem média de 0,68 em céu limpo e acima de 0,95 em céu encoberto,
-                chegando a 1. Como é uma razão, não tem unidade.
+                Sobe com a umidade e com a nebulosidade. O painel classifica acima de 0,90 como encoberto ou ar muito
+                úmido e abaixo de 0,80 como céu seco. A faixa do meio não separa céu limpo de céu com nuvens: pela
+                fórmula de [[prata1996]], com a temperatura e a umidade típicas do litoral tropical, a emissividade de
+                céu limpo fica entre cerca de 0,84 e 0,88, dentro da faixa do meio. {{RUN_NOTE_EPS_SKY_CLEAR_CELLS}}
+                Como é uma razão, não tem unidade.
+              </p>
+              <p>
+                A média de 0,68 em céu limpo, medida por [[herrero2012]], vem de uma estação a 2.500 m de altitude na
+                Sierra Nevada, na Espanha, em clima mediterrâneo. Lá há muito menos vapor d'água acima do sensor, e o
+                céu limpo emite bem menos que num litoral tropical úmido. No mesmo trabalho, o céu encoberto passa de
+                0,95.
               </p>
             </div>
           </details>
@@ -643,7 +650,8 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                   (define ε = DLR/σTa⁴); Herrero, J. &amp; Polo, M. J. (2012), <em>Hydrol. Earth Syst. Sci.</em> 16,
                   3139-3147,
                   <a href="https://doi.org/10.5194/hess-16-3139-2012" rel="noopener" target="_blank">doi:10.5194/hess-16-3139-2012</a>;
-                  Brutsaert, W. (1975), <em>Water Resour. Res.</em> 11(5), 742-744, para a curva de céu limpo.
+                  Brutsaert, W. (1975), <em>Water Resour. Res.</em> 11(5), 742-744, para a curva de céu limpo;
+                  [[prata1996]], para a emissividade de céu limpo do litoral úmido.
                 </li>
                 <li>
                   <strong>Índice de transparência:</strong> Duffie, J. A. &amp; Beckman, W. A.
