@@ -72,12 +72,22 @@ const RUN_NOTE_SLOTS = Object.freeze({
 
 const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";
 
+const MINUTES_PER_HOUR = 60;
+
 const OBSERVATION_CHART_WIDTH = 800;
 const OBSERVATION_CHART_HEIGHT = 400;
 
 function faviconHref(emoji) {
   const glyph = escapeAttribute(emoji);
   return `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${glyph}</text></svg>`;
+}
+
+function utcOffsetLabel(hours) {
+  const totalMinutes = Math.round(Math.abs(hours) * MINUTES_PER_HOUR);
+  const sign = hours < 0 ? "−" : "+";
+  const wholeHours = String(Math.floor(totalMinutes / MINUTES_PER_HOUR)).padStart(2, "0");
+  const minutes = totalMinutes % MINUTES_PER_HOUR;
+  return `UTC${sign}${wholeHours}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;
 }
 
 function observationModalId(chartId) {
@@ -304,7 +314,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     TIMELINE_STEP_COUNT: String(dataset.timeline.defaultMaxLayer),
     FORECAST_HORIZON_HOURS: String(forecastHorizonHours).replace(".", ","),
     TIMELINE_OUTPUT_FREQUENCY: timelineFrequency,
-    TIMEZONE_LABEL: escapeAttribute(dataset.timeline.label),
+    TIMEZONE_LABEL: escapeAttribute(`Horário local (${utcOffsetLabel(dataset.timeline.utcOffsetHours)})`),
     DATA_PIPELINE_NAME: escapeAttribute(dataset.generator ?? DEFAULT_DATA_PIPELINE),
     MODEL_INITIAL_CONDITIONS: escapeAttribute(model.initialConditions),
     MODEL_VERTICAL_LEVELS: escapeAttribute(model.verticalLevels),

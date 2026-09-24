@@ -150,7 +150,6 @@ module.exports = {
     defaultMaxLayer: 72,
     initialIndex: 7,
     stepHours: 1,
-    label: "Horário local (UTC−03)",
     utcOffsetHours: -3,
   },
   defaultDomain: "D01",
