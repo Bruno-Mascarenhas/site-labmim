@@ -72,7 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Waiting here buys the ?v= version and the availability contract for the very
   // first fetches; without it every first-frame file would be fetched twice.
   manifestPromise.then((manifest) => {
-    if (manifest) app.applyManifest(manifest);
+    app.applyManifest(manifest);
     app.applyMapChanges().then((values) => {
       if (values) {
         app.startInitialPlayback();

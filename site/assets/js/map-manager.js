@@ -510,8 +510,9 @@ class MeteoMapManager {
         ? stepSeconds.seconds
         : null;
 
-    this.configureVariableSelect();
-    if (this.ui.variableCardsGrid) this.renderVariableGuideCards();
+    const visibleTypes = this.getVisibleVariableTypes();
+    this.configureVariableSelect(visibleTypes);
+    if (this.ui.variableCardsGrid) this.renderVariableGuideCards(visibleTypes);
     this.updateIsobarToggleVisibility();
 
     // start_local is the local datetime of FILE INDEX 0, so it always pairs with
@@ -1173,7 +1174,6 @@ class MeteoMapManager {
 
   setupEventListeners() {
     this.cacheUIElements();
-    this.configureVariableSelect();
     this.configureAccumulationSelector();
 
     // The document ships the legend with a sample unit and only a successful load
@@ -1262,11 +1262,10 @@ class MeteoMapManager {
     this.setupDocumentationListeners();
   }
 
-  configureVariableSelect() {
+  configureVariableSelect(allowedVariables) {
     if (!this.ui.variableSelect) return;
 
     const currentValue = this.ui.variableSelect.value;
-    const allowedVariables = this.getVisibleVariableTypes();
     const selectedVariable = allowedVariables.includes(currentValue)
       ? currentValue
       : this.contextConfig.defaultVariable;
@@ -1444,7 +1443,6 @@ class MeteoMapManager {
 
     if (!this.ui.variableOverviewPanel || !this.ui.variableCardsGrid) return;
 
-    this.renderVariableGuideCards();
     this._debouncedPreviewRefresh = _debounce(() => this.refreshVariableOverviewPreview(), 250);
     this.updateVariableOverviewToggle();
 
@@ -1470,10 +1468,10 @@ class MeteoMapManager {
     toggle.setAttribute("aria-expanded", String(!isCollapsed));
   }
 
-  renderVariableGuideCards() {
+  renderVariableGuideCards(visibleTypes) {
     const fragment = document.createDocumentFragment();
 
-    this.getVisibleVariableTypes().forEach((variableType) => {
+    visibleTypes.forEach((variableType) => {
       const config = VARIABLES_CONFIG[variableType];
       if (!config) return;
 
