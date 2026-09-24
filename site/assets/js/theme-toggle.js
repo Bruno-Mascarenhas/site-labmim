@@ -5,17 +5,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!themeToggleBtns.length) return;
 
   function updateIcon(isDark) {
-    const label = isDark ? "Alternar para tema claro" : "Alternar para tema escuro";
-
     themeIcons.forEach((themeIcon) => {
       themeIcon.classList.toggle("fa-sun", isDark);
       themeIcon.classList.toggle("fa-moon", !isDark);
     });
 
     themeToggleBtns.forEach((themeToggleBtn) => {
-      themeToggleBtn.setAttribute("aria-label", label);
       themeToggleBtn.setAttribute("aria-pressed", String(isDark));
-      themeToggleBtn.setAttribute("title", label);
     });
   }
 
