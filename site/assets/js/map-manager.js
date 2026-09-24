@@ -63,7 +63,7 @@ const MINUTES_PER_HOUR = MS_PER_HOUR / MS_PER_MINUTE;
 const RADIATION_INSTANT_FORMAT = "radiation-instant-v1";
 const STEP_SECONDS_FORMAT = "step-seconds-v1";
 const MS_PER_DAY = 24 * MS_PER_HOUR;
-const RADIANS_PER_DEGREE = 1 / DEGREES_PER_RADIAN;
+const RADIANS_PER_DEGREE = Math.PI / 180;
 const SPENCER_DAYS_PER_YEAR = 365;
 const SOLAR_NOON_DAY_FRACTION = 0.5;
 const SPENCER_DECLINATION_RAD = {
@@ -96,6 +96,10 @@ const GRID_NODATA_STYLE = {
   ...GRID_VISIBLE_STYLE,
   fillColor: "#cccccc",
 };
+
+function prefersReducedMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+}
 
 function twoDigits(value) {
   return String(value).padStart(2, "0");
@@ -1631,7 +1635,7 @@ class MeteoMapManager {
     if (!this.state.initialDateTime) return null;
     const hoursDiff = (index - this.state.initialIndex) * TIMELINE_STEP_HOURS;
     const date = new Date(this.state.initialDateTime.getTime());
-    date.setTime(date.getTime() + hoursDiff * 60 * 60 * 1000);
+    date.setTime(date.getTime() + hoursDiff * MS_PER_HOUR);
     return date;
   }
 
@@ -1735,7 +1739,7 @@ class MeteoMapManager {
    */
   startInitialPlayback() {
     if (this.state.hasUserControlledPlayback) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     this.setPlaybackState(true);
   }
 
@@ -2220,17 +2224,14 @@ class MeteoMapManager {
         // A click invalidates the framing the previous one asked for; both branches
         // below end in an async flyTo, so they share a token.
         const switchGen = (this._domainSwitchGen = (this._domainSwitchGen || 0) + 1);
-        const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+        const reducedMotion = prefersReducedMotion();
+        const flyOptions = { animate: !reducedMotion, duration: 1.5, easeLinearity: 0.25 };
 
         if (this.state.selectedCell) {
           const selectedLat = this.state.selectedCell.lat;
           const selectedLng = this.state.selectedCell.lng;
 
-          this.map.flyTo([selectedLat, selectedLng], targetZoom, {
-            animate: !reducedMotion,
-            duration: 1.5,
-            easeLinearity: 0.25,
-          });
+          this.map.flyTo([selectedLat, selectedLng], targetZoom, flyOptions);
 
           // Generation token so only the LATEST handler acts: rapid switches during a
           // 1.5s flyTo would stack one-shot moveend handlers. Do NOT call
@@ -2249,11 +2250,7 @@ class MeteoMapManager {
                 this.showErrorMessage(
                   `A célula selecionada está fora do domínio ${this.getDomainLabel(selectedDomain)}`
                 );
-                this.map.flyTo(config.center, targetZoom, {
-                  animate: !reducedMotion,
-                  duration: 1.5,
-                  easeLinearity: 0.25,
-                });
+                this.map.flyTo(config.center, targetZoom, flyOptions);
                 return;
               }
               // Don't resurrect a selection cleared during the 1.5s flyTo.
@@ -2268,11 +2265,7 @@ class MeteoMapManager {
             // The domains share a center and differ only in zoom: a load resolving late
             // would frame the abandoned domain under the newer one's grid and legend.
             if (switchGen !== this._domainSwitchGen) return;
-            this.map.flyTo(config.center, targetZoom, {
-              animate: !reducedMotion,
-              duration: 1.5,
-              easeLinearity: 0.25,
-            });
+            this.map.flyTo(config.center, targetZoom, flyOptions);
           });
         }
       });

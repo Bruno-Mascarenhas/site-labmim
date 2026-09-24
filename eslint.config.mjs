@@ -46,14 +46,6 @@ export default defineConfig([
     },
   },
   {
-    files: ["site/assets/js/map-manager.js"],
-    languageOptions: {
-      globals: {
-        DEGREES_PER_RADIAN: "readonly",
-      },
-    },
-  },
-  {
     files: ["build.js", "scripts/**/*.js", "scripts/**/*.cjs", "src/**/*.js"],
     extends: [js.configs.recommended],
     languageOptions: {
