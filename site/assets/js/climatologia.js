@@ -21,6 +21,7 @@
 
   const ROSE_RINGS = 4;
   const COMPASS = ["N", "NE", "L", "SE", "S", "SO", "O", "NO"];
+  const MODEL_SOURCE_ID = "wrf";
 
   const state = {
     base: "",
@@ -94,6 +95,23 @@
     return entry ? entry.label : id;
   }
 
+  function isModelSubset(id) {
+    const entry = state.manifest.subsets.find((item) => item.id === id);
+    return entry ? entry.source === MODEL_SOURCE_ID : false;
+  }
+
+  function sampleNoun(id) {
+    return isModelSubset(id) ? "horas do modelo" : "observações";
+  }
+
+  function capitalized(text) {
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  function frequencyNoun(id) {
+    return isModelSubset(id) ? "frequência do modelo" : "frequência medida";
+  }
+
   function buildControls() {
     const select = el("climaVariavel");
     select.replaceChildren();
@@ -150,10 +168,11 @@
     const digits = digitsToDistinguishBins(variable.edges);
     const labels = binLabels(variable.edges, digits);
     const axisWindow = variable.display_range || [0, labels.length - 1];
+    const countLabel = capitalized(sampleNoun(state.subsetId));
     const datasets = [
       {
         type: "bar",
-        label: "Frequência medida",
+        label: capitalized(frequencyNoun(state.subsetId)),
         data: subset.density,
         backgroundColor: theme.empirical,
         borderColor: theme.empirical,
@@ -220,7 +239,7 @@
                   return `${item.dataset.label}: ${decimal(item.parsed.y, 4)}`;
                 }
                 const count = subset.counts[item.dataIndex];
-                return [`Densidade: ${decimal(item.parsed.y, 4)}`, `Observações: ${integer(count)}`];
+                return [`Densidade: ${decimal(item.parsed.y, 4)}`, `${countLabel}: ${integer(count)}`];
               },
             },
           },
@@ -424,7 +443,7 @@
     const unit = state.variable.unit ? ` ${state.variable.unit}` : "";
     const tiles = el("climaStats");
     tiles.replaceChildren();
-    tiles.appendChild(statTile("Observações", integer(subset.n)));
+    tiles.appendChild(statTile(capitalized(sampleNoun(state.subsetId)), integer(subset.n)));
 
     if (state.variable.chart === "rose") {
       const circular = subset.circular || {};
@@ -679,7 +698,7 @@
       return { header, rows };
     }
     const digits = digitsToDistinguishBins(variable.edges);
-    const header = ["Intervalo", "Observações", "Densidade", "Densidade teórica"];
+    const header = ["Intervalo", capitalized(sampleNoun(state.subsetId)), "Densidade", "Densidade teórica"];
     const rows = subset.counts.map((count, index) => [
       `${decimal(variable.edges[index], digits)} – ${decimal(variable.edges[index + 1], digits)}`,
       integer(count),
@@ -721,7 +740,7 @@
     const counted = isRose ? subset.n : (subset.counts || []).reduce((total, count) => total + count, 0);
     const marks = isRose ? "pétalas" : "barras";
     el("climaTabelaCaption").textContent =
-      `${state.variable.label} — ${subsetLabel(state.subsetId)} (${integer(counted)} observações nas ${marks})`;
+      `${state.variable.label} — ${subsetLabel(state.subsetId)} (${integer(counted)} ${sampleNoun(state.subsetId)} nas ${marks})`;
   }
 
   function exportCsv() {
@@ -806,7 +825,13 @@
     renderCoverage();
 
     if (!subset || !subset.n) {
-      el("climaStatus").textContent = "Sem observações válidas neste recorte.";
+      const modelSilent = isModelSubset(state.subsetId);
+      const absence = modelSilent
+        ? "o modelo WRF não publica esta variável neste recorte"
+        : "sem observações neste recorte";
+      el("climaStatus").textContent = modelSilent
+        ? "O modelo WRF não publica esta variável neste recorte."
+        : "Sem observações válidas neste recorte.";
       el("climaStats").replaceChildren();
       el("climaFitPanel").hidden = true;
       el("climaAtoms").textContent = "";
@@ -814,11 +839,12 @@
       // Emptied by hand instead of through renderTable(): there may be no subset object at all, and a rose with no
       // observations may be missing `frequencies`.
       el("climaTabelaBody").replaceChildren();
-      el("climaTabelaCaption").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)} (0 observações)`;
+      const emptyCount = modelSilent ? "o modelo WRF não publica esta variável" : "0 observações";
+      el("climaTabelaCaption").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)} (${emptyCount})`;
       el("climaExport").disabled = true;
       el("climaCanvas").setAttribute(
         "aria-label",
-        `Histograma de ${state.variable.label} — ${subsetLabel(state.subsetId)}: sem observações neste recorte.`
+        `Histograma de ${state.variable.label} — ${subsetLabel(state.subsetId)}: ${absence}.`
       );
       if (state.chart) {
         state.chart.destroy();
@@ -826,10 +852,7 @@
       }
       if (isRose) {
         el("climaRose").replaceChildren();
-        el("climaRose").setAttribute(
-          "aria-label",
-          `Rosa dos ventos — ${subsetLabel(state.subsetId)}: sem observações neste recorte.`
-        );
+        el("climaRose").setAttribute("aria-label", `Rosa dos ventos — ${subsetLabel(state.subsetId)}: ${absence}.`);
       }
       return;
     }
@@ -853,14 +876,14 @@
     const marks = isRose ? "Pétalas" : "Barras";
     const legend = el("climaLegenda");
     if (subset.curve) {
-      legend.replaceChildren(document.createTextNode(`${marks}: frequência medida. Linha: `));
+      legend.replaceChildren(document.createTextNode(`${marks}: ${frequencyNoun(state.subsetId)}. Linha: `));
       legend.appendChild(withReferences(state.variable.family_label));
       legend.appendChild(document.createTextNode("."));
     } else {
-      legend.textContent = `${marks}: frequência medida. Esta variável não tem densidade teórica canônica.`;
+      legend.textContent = `${marks}: ${frequencyNoun(state.subsetId)}. Esta variável não tem densidade teórica canônica.`;
     }
     el("climaStatus").textContent =
-      `${state.variable.label}, ${subsetLabel(state.subsetId)}: ${integer(subset.n)} observações.` +
+      `${state.variable.label}, ${subsetLabel(state.subsetId)}: ${integer(subset.n)} ${sampleNoun(state.subsetId)}.` +
       overflowNote(subset);
   }
 
