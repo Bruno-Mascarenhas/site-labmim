@@ -34,6 +34,13 @@ module.exports = [
         "LEAL — Potenciais Energéticos: mapas interativos de potencial fotovoltaico, potencial eólico e densidade eólica para o Espírito Santo.",
     },
   }),
+  page("annual-means", {
+    indexable: false,
+    seo: {
+      title: "LEAL — Médias Anuais · UFES",
+      description: "LEAL — Médias Anuais: médias anuais das saídas do modelo WRF para o Espírito Santo, em preparação.",
+    },
+  }),
   page("climatology", {
     source: templateSource("pages/climatologia.html"),
     vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],

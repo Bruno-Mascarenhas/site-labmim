@@ -96,6 +96,15 @@ const PAGE_TYPES = Object.freeze({
     kicker: "Potenciais Energéticos",
     docModalTitle: "Documentação - Potenciais Energéticos",
   }),
+  "annual-means": Object.freeze({
+    id: "annual-means",
+    file: "medias_anuais.html",
+    layout: "institutional",
+    source: templateSource("pages/medias_anuais.html"),
+    append: Object.freeze([]),
+    seo: Object.freeze({ h1: "Médias Anuais" }),
+    nav: Object.freeze({ label: "Médias Anuais", icon: "fa-layer-group", order: 25, elementId: "nav-medias-anuais" }),
+  }),
 });
 
 // Mirrors VARIABLE_CONTEXTS in assets/js/variables-config.js. Anything else
