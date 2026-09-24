@@ -300,9 +300,11 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
               </div>
               <p>
                 Parcela da radiação solar incidente devolvida pela superfície. O <code>wrfout</code> traz os fluxos
-                incidentes diretamente, mas os ascendentes só quando os diagnósticos de fundo de atmosfera do RRTMG
-                estão ligados. {{RUN_NOTE_SWUP_MISSING_DIAGNOSTICS}} Por isso o backend os reconstrói a partir de
-                campos que toda rodada carrega.
+                incidentes diretamente, mas os ascendentes na superfície só quando o esquema de radiação da banda os
+                grava, como faz o RRTMG: o <code>SWUPB</code> na onda curta e o <code>LWUPB</code> na onda longa. O
+                RRTM de onda longa não grava o <code>LWUPB</code>. {{RUN_NOTE_SWUP_MISSING_DIAGNOSTICS}} Por
+                isso o backend reconstrói os dois a partir de campos que toda rodada carrega, e cada termo sai da mesma
+                fórmula em qualquer rodada.
               </p>
               <pre class="doc-formula"><code>SWUP = ALBEDO * SWDOWN</code></pre>
               <p>
@@ -311,9 +313,13 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 solo exposto. {{RUN_NOTE_SWUP_ALBEDO_RANGE}}
               </p>
               <p>
-                O <code>SWDOWN</code> publicado não é reescalado pelo ângulo zenital entre as chamadas de radiação
-                (<code>RADT</code> = 30 min). Reconstruir como <code>ALBEDO · SWDOWN</code> mantém <code>SWUP</code>,
-                <code>SWNET</code> e <code>RNET</code> coerentes com ele. É publicada apenas na janela diurna.
+                Com <code>SWINT_OPT = 0</code>, o <code>SWDOWN</code> e o <code>SWUPB</code> vêm da mesma chamada de
+                radiação, e <code>ALBEDO · SWDOWN</code> reproduz o <code>SWUPB</code> nas células que o próprio
+                domínio calcula. Quando o retorno dos ninhos está ligado (<code>FEEDBACK = 1</code>), na área coberta
+                por um domínio mais fino o <code>SWUPB</code> do domínio externo passa a ser a média do domínio interno,
+                e o <code>SWDOWN</code> e o <code>ALBEDO</code> continuam os dele. {{RUN_NOTE_SWUP_NEST_FEEDBACK}}
+                Reconstruir como <code>ALBEDO · SWDOWN</code> mantém <code>SWUP</code>, <code>SWNET</code> e
+                <code>RNET</code> coerentes com o <code>SWDOWN</code> publicado. É publicada apenas na janela diurna.
               </p>
             </div>
           </details>
