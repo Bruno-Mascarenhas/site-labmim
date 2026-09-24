@@ -133,6 +133,7 @@
     cumulativeStatus: "absent",
     timelineChart: null,
     stripChart: null,
+    timelineDrawToken: 0,
     curveChart: null,
     classes: [],
     models: [],
@@ -2950,7 +2951,8 @@
     return "O documento da linha do tempo não traz blocos pontuados.";
   }
 
-  function drawTimeline() {
+  async function drawTimeline() {
+    const token = ++state.timelineDrawToken;
     destroyTimelineCharts();
     const payload = state.timelinePayload;
     const bounds = payload ? timelineBounds() : null;
@@ -2978,11 +2980,13 @@
       kindex: timelinePoints("kindex"),
     };
     drawTimelineChart(theme, bounds, runs, series);
-    drawConditionStrip(theme, bounds, runs, series.kindex);
     renderTimelineLegend(theme, runs, series);
     renderLiveStats();
     renderTimelineDays();
     renderTimelineStatus();
+    await afterNextPaint();
+    if (token !== state.timelineDrawToken) return;
+    drawConditionStrip(theme, bounds, runs, series.kindex);
   }
 
   function renderTimelineStatus() {
@@ -3715,6 +3719,15 @@
     return "O cartão do modelo não traz avaliação.";
   }
 
+  function syncTrainingCurve() {
+    if (!el("ceuModeloDetalhes").hidden) {
+      drawTrainingCurve(themeColors());
+    } else if (state.curveChart) {
+      state.curveChart.destroy();
+      state.curveChart = null;
+    }
+  }
+
   function drawModelCard() {
     const model = state.modelPayload;
     const usable = Boolean(model && typeof model === "object" && (servedArm() || servedBlock().id));
@@ -3735,7 +3748,7 @@
     renderConfusion();
     renderStratified();
     renderPerDay();
-    drawTrainingCurve(themeColors());
+    syncTrainingCurve();
     renderSeeds();
     renderDataset();
     renderProvenance();
@@ -3766,13 +3779,22 @@
     el("ceuEmptyMessage").textContent = message;
   }
 
-  function onThemeChange() {
+  function afterNextPaint() {
+    if (document.hidden) return new Promise((resolve) => setTimeout(resolve, 0));
+    return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+  }
+
+  async function onThemeChange() {
     buildClassToggles();
     buildModelToggles();
-    drawChart();
-    drawCumulative();
     renderPredictionCard();
-    drawTimeline();
+    await afterNextPaint();
+    drawChart();
+    await afterNextPaint();
+    drawCumulative();
+    await afterNextPaint();
+    await drawTimeline();
+    await afterNextPaint();
     drawModelCard();
   }
 
@@ -3824,7 +3846,7 @@
     registerPayloadReferences();
     renderHeader();
     if (frameChanged) renderFrames();
-    if (timelineChanged) drawTimeline();
+    if (timelineChanged) await drawTimeline();
     buildCaveats();
     renderReferences();
   }
@@ -3887,20 +3909,30 @@
     el("ceuAmpliar").addEventListener("click", openZoom);
     el("ceuExport").addEventListener("click", exportCsv);
 
+    new MutationObserver(syncTrainingCurve).observe(el("ceuModeloDetalhes"), {
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
+
     initCumulative();
     el("ceuEmpty").hidden = true;
     el("ceuApp").hidden = false;
-    drawTimeline();
+    window.addEventListener("labmim-theme-change", onThemeChange);
+    await afterNextPaint();
+    await drawTimeline();
+    await afterNextPaint();
     drawModelCard();
     // Last, so it sees every citation the page ended up making — the static prose already decorated by
     // references.js, plus the markers the payloads brought in.
     renderReferences();
+    await afterNextPaint();
     drawChart();
+    await afterNextPaint();
     drawCumulative();
 
-    window.addEventListener("labmim-theme-change", onThemeChange);
     followPublications();
 
+    await afterNextPaint();
     applyChartPayload(await chartRequest);
     if (state.layers.has("points")) ensurePoints();
     registerPayloadReferences();
