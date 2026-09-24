@@ -58,6 +58,10 @@
     iv: "Claro",
   };
 
+  const TIMESCALE_NOTES = {
+    hourly: { label: "Médias horárias", unit: "horas" },
+  };
+
   /**
    * Validated over ALL pairs against the card surface (#f8f9fa light, #2d2d2d dark): on
    * a scatter any two classes can touch.
@@ -190,12 +194,12 @@
   }
 
   function resolveClasses(payload) {
-    const declared = payload && payload.sky_conditions && payload.sky_conditions.classes;
-    const source = Array.isArray(declared) && declared.length ? declared : FALLBACK_CLASSES;
+    const source = declaredConditions(payload) || FALLBACK_CLASSES;
     return source.map((entry, index) => {
       const id = String(entry.id || ROMAN[index] || index + 1).toLowerCase();
       const roman = ROMAN[(entry.condition || index + 1) - 1] || String(entry.condition || index + 1);
-      const name = entry.name_pt || SHORT_LABELS[id] || id;
+      const cited = FALLBACK_CLASSES.find((known) => known.id === id);
+      const name = (cited && cited.name_pt) || entry.name_pt || SHORT_LABELS[id] || id;
       return {
         id,
         roman,
@@ -1746,13 +1750,14 @@
     const payload = state.chartPayload || {};
     const period = payload.period || {};
     const parts = [];
-    if (payload.timescale && payload.timescale.label) parts.push(payload.timescale.label);
+    const timescale = TIMESCALE_NOTES[payload.timescale];
+    if (timescale) parts.push(timescale.label);
     const start = parseStationTime(period.start || "");
     const end = parseStationTime(period.end || "");
     if (Number.isFinite(start) && Number.isFinite(end)) {
       parts.push(`${formatDay(start)} a ${formatDay(end)}`);
     }
-    if (Number.isFinite(period.hours)) parts.push(`${decimal(period.hours, 0)} horas`);
+    if (Number.isFinite(period.n)) parts.push(`${integer(period.n)} ${timescale ? timescale.unit : "registros"}`);
     el("ceuGraficoNota").textContent = parts.join(" · ");
 
     const filtersWrittenForReaders = Boolean(payload.points_file) && Array.isArray(payload.filters);
