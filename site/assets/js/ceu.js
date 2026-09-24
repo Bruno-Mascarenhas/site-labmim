@@ -3748,9 +3748,13 @@
     }
   }
 
-  function drawModelCard() {
+  function modelCardUsable() {
     const model = state.modelPayload;
-    const usable = Boolean(model && typeof model === "object" && (servedArm() || servedBlock().id));
+    return Boolean(model && typeof model === "object" && (servedArm() || servedBlock().id));
+  }
+
+  function drawModelCard() {
+    const usable = modelCardUsable();
     el("ceuModeloToggleWrap").hidden = !usable;
     el("ceuModeloResumo").hidden = !usable;
     if (!usable) {
@@ -3867,6 +3871,7 @@
     renderHeader();
     if (frameChanged) renderFrames();
     if (timelineChanged) await drawTimeline();
+    if (frameChanged && modelCardUsable()) renderProvenance();
     buildCaveats();
     renderReferences();
   }
