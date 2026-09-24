@@ -973,7 +973,9 @@ RNET = H + LE + G</code></pre>
                   <ul class="doc-list">
                     <li><code>H</code> é o fluxo de calor sensível (<code>HFX</code>).</li>
                     <li><code>LE</code> é o fluxo de calor latente (<code>LH</code>).</li>
-                    <li><code>G</code> é o fluxo de calor no solo, não exibido no mapa.</li>
+                    <li>
+                      <code>G</code> é o fluxo de calor no solo, positivo para dentro do solo, não exibido no mapa.
+                    </li>
                   </ul>
                   <p>
                     Positivo de dia, quando a onda curta domina, e negativo à noite, quando resta apenas a perda de onda
@@ -985,8 +987,9 @@ RNET = H + LE + G</code></pre>
                   </p>
                   <p>
                     O fechamento do balanço é o que valida os termos reconstruídos nas grades que não trazem
-                    <code>LWUPB</code>. Mediado sobre três dias inteiros, <code>Rn + G = H + LE</code> fecha com resíduo
-                    de 0,6 a 1,4 W/m² nos quatro domínios.
+                    <code>LWUPB</code>. Nesta rodada o WRF grava o <code>GRDFLX</code> positivo para cima, então
+                    <code>G = −GRDFLX</code>. Mediado sobre três dias inteiros nas células de terra, o resíduo
+                    <code>RNET − H − LE − G</code> fica entre −0,6 e −1,4 W/m² nos quatro domínios.
                   </p>
                 </div>
               </details>

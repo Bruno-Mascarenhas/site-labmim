@@ -30,7 +30,7 @@ module.exports = {
     lwnetLandCells:
       "Nesta rodada o saldo é negativo em 99,5% a 99,9% das células de terra, com magnitude mediana de 53 a 61 W/m², abaixo dessa faixa.",
     rnetClosure:
-      "Mediado sobre três dias inteiros, <code>Rn + G = H + LE</code> fecha com resíduo de 0,6 a 1,4 W/m² nos quatro domínios.",
+      "Nesta rodada o WRF grava o <code>GRDFLX</code> positivo para cima, então <code>G = −GRDFLX</code>. Mediado sobre três dias inteiros nas células de terra, o resíduo <code>RNET − H − LE − G</code> fica entre −0,6 e −1,4 W/m² nos quatro domínios.",
     ktHighValues: "A rodada confirma: apenas 0,19% a 3,4% das células passam desse valor.",
   },
   paths: {
