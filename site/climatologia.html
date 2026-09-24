@@ -176,8 +176,11 @@
                 <li><strong>Velocidade do vento</strong> — distribuição de Weibull;</li>
                 <li><strong>Temperatura e pressão</strong> — gaussiana;</li>
                 <li><strong>Umidade relativa</strong> — distribuição beta;</li>
-                <li>
+                <li data-clima-variable="precipitation" data-clima-family="weibull" hidden>
                   <strong>Precipitação</strong> — Weibull ajustada na grade da báscula, só sobre as horas chuvosas;
+                </li>
+                <li data-clima-variable="precipitation" data-clima-family="gamma" hidden>
+                  <strong>Precipitação</strong> — gama, ajustada só sobre as horas chuvosas;
                 </li>
                 <li><strong>Índice de claridade</strong> — densidade de Hollands e Huget;</li>
                 <li>
@@ -189,10 +192,16 @@
                 <li><strong>Direção do vento</strong> — rosa dos ventos com mistura de von Mises.</li>
               </ul>
               <p>
-                As barras são a frequência medida. Nas leis de ajuste direto — Weibull, gaussiana, beta e as misturas —,
-                a linha é a densidade ajustada por máxima verossimilhança aos mesmos dados. Na precipitação, o ajuste é
-                feito sobre as próprias básculas, e a linha é a probabilidade que ele dá a cada barra, dividida pela
-                largura dela, como as barras.
+                As barras são a frequência medida (no recorte WRF, a do modelo). Nas leis de ajuste direto — Weibull,
+                gaussiana, beta e as misturas —, a linha é a densidade ajustada por máxima verossimilhança aos mesmos
+                dados.
+                <span data-clima-variable="precipitation" data-clima-family="weibull" hidden>
+                  Na precipitação, o ajuste é feito sobre as próprias básculas, e a linha é a probabilidade que ele dá a
+                  cada barra, dividida pela largura dela, como as barras.
+                </span>
+                <span data-clima-variable="precipitation" data-clima-family="gamma" hidden>
+                  Na precipitação, a gama também é ajustada assim.
+                </span>
               </p>
               <p>
                 O índice de claridade não é ajustado por verossimilhança: o Kt máximo é o percentil 99,5 da amostra, e λ
@@ -543,6 +552,6 @@
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
     <script defer src="assets/js/chart-page.js?v=84613b8a"></script>
-    <script defer src="assets/js/climatologia.js?v=8b4b0829"></script>
+    <script defer src="assets/js/climatologia.js?v=1a952cd2"></script>
   </body>
 </html>

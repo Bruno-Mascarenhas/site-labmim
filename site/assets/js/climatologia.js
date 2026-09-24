@@ -824,6 +824,13 @@
     el("climaSeasons").textContent = [scaleNote, seasonNote].filter(Boolean).join(" ");
   }
 
+  function showFamilyExplanations() {
+    for (const node of document.querySelectorAll("[data-clima-family]")) {
+      const entry = state.manifest.variables.find((item) => item.id === node.dataset.climaVariable);
+      node.hidden = !entry || entry.family !== node.dataset.climaFamily;
+    }
+  }
+
   function showEmpty(message) {
     el("climaApp").hidden = true;
     const empty = el("climaEmpty");
@@ -992,6 +999,7 @@
       showEmpty("O conjunto publicado não declara nenhuma variável.");
       return;
     }
+    showFamilyExplanations();
 
     state.variableId = state.manifest.variables[0].id;
     state.subsetId = state.manifest.selector[0];
