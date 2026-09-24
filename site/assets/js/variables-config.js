@@ -1010,11 +1010,6 @@ const VARIABLES_CONFIG = {
             value: "Balanço radiativo",
             icon: "fa-scale-balanced",
           },
-          {
-            label: "Condição",
-            value: value > 420 ? "Atmosfera úmida/nublada" : value < 330 ? "Céu mais limpo" : "Intermediária",
-            icon: "fa-cloud",
-          },
         ],
       };
     },
