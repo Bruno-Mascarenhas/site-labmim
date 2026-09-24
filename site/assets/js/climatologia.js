@@ -86,13 +86,17 @@
     return state.variable.subsets[state.subsetId] || null;
   }
 
+  function subsetEntry(id) {
+    return state.manifest.subsets.find((item) => item.id === id);
+  }
+
   function subsetLabel(id) {
-    const entry = state.manifest.subsets.find((item) => item.id === id);
+    const entry = subsetEntry(id);
     return entry ? entry.label : id;
   }
 
   function isModelSubset(id) {
-    const entry = state.manifest.subsets.find((item) => item.id === id);
+    const entry = subsetEntry(id);
     return entry ? entry.source === MODEL_SOURCE_ID : false;
   }
 
@@ -570,12 +574,12 @@
       return;
     }
     panel.hidden = false;
+    const unit = state.variable.unit ? ` ${state.variable.unit}` : "";
 
     for (const [label, value] of parameterRows(subset.fit)) {
       grid.appendChild(fitRow(label, value));
     }
     if (Number.isFinite(subset.fit.truncation)) {
-      const unit = state.variable.unit ? ` ${state.variable.unit}` : "";
       grid.appendChild(fitRow("Condicionada a partir de", `${decimal(subset.fit.truncation, 3)}${unit}`));
     }
 
@@ -586,7 +590,6 @@
       grid.appendChild(fitRow("Maior discrepância acumulada (KS)", percent(quality.ks_distance, 2)));
     }
     if (quality.quantile_gap !== undefined && quality.quantile_gap !== null) {
-      const unit = state.variable.unit ? ` ${state.variable.unit}` : "";
       grid.appendChild(fitRow("Erro médio de quantil", `${decimal(quality.quantile_gap, 3)}${unit}`));
     }
     if (quality.density_r_squared !== undefined && quality.density_r_squared !== null) {
@@ -842,13 +845,19 @@
     renderCoverage();
 
     if (!subset || !subset.n) {
-      const modelSilent = isModelSubset(state.subsetId);
-      const absence = modelSilent
-        ? "o modelo WRF não publica esta variável neste recorte"
-        : "sem observações neste recorte";
-      el("climaStatus").textContent = modelSilent
-        ? "O modelo WRF não publica esta variável neste recorte."
-        : "Sem observações válidas neste recorte.";
+      const modelSilence = "o modelo WRF não publica esta variável";
+      const emptyText = isModelSubset(state.subsetId)
+        ? {
+            absence: `${modelSilence} neste recorte`,
+            status: `${capitalized(modelSilence)} neste recorte.`,
+            count: modelSilence,
+          }
+        : {
+            absence: "sem observações neste recorte",
+            status: "Sem observações válidas neste recorte.",
+            count: "0 observações",
+          };
+      el("climaStatus").textContent = emptyText.status;
       el("climaStats").replaceChildren();
       el("climaFitPanel").hidden = true;
       el("climaAtoms").textContent = "";
@@ -857,12 +866,12 @@
       // observations may be missing `frequencies`.
       el("climaTabelaBody").replaceChildren();
       clearTableHead();
-      const emptyCount = modelSilent ? "o modelo WRF não publica esta variável" : "0 observações";
-      el("climaTabelaCaption").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)} (${emptyCount})`;
+      el("climaTabelaCaption").textContent =
+        `${state.variable.label} — ${subsetLabel(state.subsetId)} (${emptyText.count})`;
       el("climaExport").disabled = true;
       el("climaCanvas").setAttribute(
         "aria-label",
-        `Histograma de ${state.variable.label} — ${subsetLabel(state.subsetId)}: ${absence}.`
+        `Histograma de ${state.variable.label} — ${subsetLabel(state.subsetId)}: ${emptyText.absence}.`
       );
       if (state.chart) {
         state.chart.destroy();
@@ -870,7 +879,10 @@
       }
       if (isRose) {
         el("climaRose").replaceChildren();
-        el("climaRose").setAttribute("aria-label", `Rosa dos ventos — ${subsetLabel(state.subsetId)}: ${absence}.`);
+        el("climaRose").setAttribute(
+          "aria-label",
+          `Rosa dos ventos — ${subsetLabel(state.subsetId)}: ${emptyText.absence}.`
+        );
       }
       return;
     }
