@@ -4,7 +4,6 @@ const CHART_TIMELINE_FIRST_INDEX = 1;
 // (see app.parseDateTime) and the map label prints those digits, so charts and
 // CSV must format in UTC too — local time would shift them off the map.
 const CHART_FORECAST_TIME_ZONE = "UTC";
-const DAYLIGHT_ONLY_SHORTWAVE_VARIABLE_IDS = new Set(["SWDOWN", "SWUP", "SWNET"]);
 const CHART_JS_SRC = "assets/vendor/chartjs/chart.min.js?v=3.9.1";
 
 // The two card surfaces a series is drawn on: assets/css/maps.css and the dark override in
@@ -573,9 +572,9 @@ class ChartsManager {
   }
 
   _meanCoversDaylightOnly(variableType, config, domain) {
-    const variableId = this._getVariableId(variableType, config);
-    if (!DAYLIGHT_ONLY_SHORTWAVE_VARIABLE_IDS.has(variableId)) return false;
+    if (config.publishedSteps !== "daylight" || !config.daylightMeanLabelSinceNightFluxIsZero) return false;
 
+    const variableId = this._getVariableId(variableType, config);
     const ranges = this.app?.availabilityRanges?.(variableId, domain);
     if (!Array.isArray(ranges)) return true;
 

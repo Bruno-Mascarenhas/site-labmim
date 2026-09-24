@@ -2,9 +2,6 @@ const PLAYBACK_INTERVAL_MS = 800;
 const PREFETCH_AHEAD_STEPS = 2;
 // One playback loop (values + wind overlay) plus an open modal must stay resident.
 const CACHE_ENTRIES_PER_TIMELINE_STEP = 5.5;
-// Mirrors DAYLIGHT_ONLY_VARIABLES in the pipeline (value_source.py). Fallback only:
-// with a v2 manifest, `availability` is authoritative.
-const DAYLIGHT_ONLY_VARIABLE_IDS = new Set(["SWDOWN", "SWUP", "SWNET", "KT"]);
 const DAYLIGHT_FALLBACK_FIRST_LOCAL_HOUR = 6;
 const DAYLIGHT_FALLBACK_LAST_LOCAL_HOUR = 18;
 const SCALE_TICK_COUNT = 10;
@@ -568,9 +565,9 @@ class MeteoMapManager {
     if (Array.isArray(ranges)) {
       return ranges.some((range) => index >= range[0] && index <= range[1]);
     }
-    if (config.publishedOnlyWhenListed) return false;
-
-    if (!DAYLIGHT_ONLY_VARIABLE_IDS.has(config.id)) return true;
+    const publishedSteps = config.publishedSteps ?? "all";
+    if (publishedSteps === "listed") return false;
+    if (publishedSteps === "all") return true;
     const date = this.calculateTargetDateFromIndex(index);
     if (!date) return true;
     const hour = date.getUTCHours();
