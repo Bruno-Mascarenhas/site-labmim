@@ -29,6 +29,7 @@ const BEAUFORT_FORCE_DESIGNATIONS = [
 ];
 
 const RAIN_HOURLY_SCALE_STOPS_MM = [0.1, 0.5, 1, 2.5, 5, 10, 20, 30, 50];
+const RAIN_WINDOW_TOTAL_NO_RAIN_BELOW_MM = 0.01;
 
 const TURBINE_CUT_IN_SPEED_M_S = 3;
 const TURBINE_RATED_SPEED_M_S = 12;
@@ -804,7 +805,7 @@ const VARIABLES_CONFIG = {
       "Precipitação acumulada no timestep do modelo, somada na janela escolhida (1h ou 3h). Células sem chuva (< 0,01 mm) não são pintadas.",
     scaleStops: RAIN_HOURLY_SCALE_STOPS_MM,
     // Below 0.01 mm WRF writes zeros over almost the whole grid.
-    hideBelow: 0.01,
+    hideBelow: RAIN_WINDOW_TOTAL_NO_RAIN_BELOW_MM,
     accumulation: {
       title: "Acumulado:",
       defaultHours: 1,
@@ -836,7 +837,14 @@ const VARIABLES_CONFIG = {
         items: [
           {
             label: "Intensidade",
-            value: hourlyRate < 0.01 ? "Sem chuva" : hourlyRate < 2.5 ? "Leve" : hourlyRate < 10 ? "Moderada" : "Forte",
+            value:
+              value < RAIN_WINDOW_TOTAL_NO_RAIN_BELOW_MM
+                ? "Sem chuva"
+                : hourlyRate < 2.5
+                  ? "Leve"
+                  : hourlyRate < 10
+                    ? "Moderada"
+                    : "Forte",
             icon: "fa-cloud-rain",
           },
           {
