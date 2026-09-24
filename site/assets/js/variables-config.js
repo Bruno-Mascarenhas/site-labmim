@@ -379,6 +379,17 @@ const CLEAR_SKY_INDEX_SCALE_STOPS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 const CLEAR_SKY_INDEX_OVERCAST_BELOW = 0.3;
 const SKY_EMISSIVITY_DRY_BELOW = 0.8;
 const SKY_EMISSIVITY_OVERCAST_OR_HUMID_ABOVE = 0.9;
+const SURFACE_FLUX_PUBLISHED_RESOLUTION_W_M2 = 0.01;
+const SURFACE_FLUX_ZERO_TOLERANCE_W_M2 = SURFACE_FLUX_PUBLISHED_RESOLUTION_W_M2 / 2;
+
+function surfaceFluxDirectionItem(fluxWM2, upwardLabel, downwardLabel) {
+  if (Math.abs(fluxWM2) < SURFACE_FLUX_ZERO_TOLERANCE_W_M2) {
+    return { label: "Tipo", value: "Sem fluxo", icon: "fa-scale-balanced" };
+  }
+  return fluxWM2 > 0
+    ? { label: "Tipo", value: upwardLabel, icon: "fa-arrow-up" }
+    : { label: "Tipo", value: downwardLabel, icon: "fa-arrow-down" };
+}
 
 function clearnessSkyItem(kt, solarElevationRad, clearSkyIndex) {
   if (Number.isFinite(clearSkyIndex)) {
@@ -1367,11 +1378,7 @@ const VARIABLES_CONFIG = {
             unit: "W/m²",
             icon: "fa-fire",
           },
-          {
-            label: "Tipo",
-            value: value > 0 ? "Aquecimento" : "Resfriamento",
-            icon: value > 0 ? "fa-arrow-up" : "fa-arrow-down",
-          },
+          surfaceFluxDirectionItem(value, "Aquecimento", "Resfriamento"),
           {
             label: "Magnitude",
             value: Math.abs(value) > 300 ? "Forte" : Math.abs(value) > 100 ? "Moderada" : "Fraca",
@@ -1408,11 +1415,7 @@ const VARIABLES_CONFIG = {
             unit: "W/m²",
             icon: "fa-cloud",
           },
-          {
-            label: "Tipo",
-            value: value > 0 ? "Evaporação" : "Condensação",
-            icon: value > 0 ? "fa-arrow-up" : "fa-arrow-down",
-          },
+          surfaceFluxDirectionItem(value, "Evaporação", "Condensação (orvalho)"),
           {
             label: "Atividade Convectiva",
             value: Math.abs(value) > 300 ? "Intensa" : Math.abs(value) > 100 ? "Moderada" : "Fraca",
