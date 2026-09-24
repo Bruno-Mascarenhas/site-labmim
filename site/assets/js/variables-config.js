@@ -59,11 +59,6 @@ const SECONDS_PER_MINUTE = 60;
 const NOMINAL_STEP_SECONDS = 3600;
 const STEP_IRRADIATION_SCALE_MAX_KJ_M2 = 4320;
 
-function stepSecondsOf(irradiation) {
-  const seconds = irradiation?.metadata?.step_seconds;
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
-}
-
 function formatStepDuration(seconds) {
   const wholeSeconds = Math.round(seconds);
   const minutes = Math.floor(wholeSeconds / SECONDS_PER_MINUTE);
@@ -459,7 +454,7 @@ const VARIABLES_CONFIG = {
 
       const irradiation = allValues.shortwaveIrradiation;
       if (Number.isFinite(irradiation?.value)) {
-        const stepSeconds = stepSecondsOf(irradiation);
+        const stepSeconds = irradiation.stepSeconds;
         const meanIrradianceWM2 = stepMeanFluxWM2(irradiation.value, stepSeconds ?? NOMINAL_STEP_SECONDS);
         const stepEnergyWhM2 = (irradiation.value / KILOJOULES_PER_WATT_HOUR) * conversionEfficiency(meanIrradianceWM2);
         return {
@@ -929,7 +924,7 @@ const VARIABLES_CONFIG = {
       }
 
       const irradiation = allValues.shortwaveIrradiation;
-      const stepSeconds = stepSecondsOf(irradiation);
+      const stepSeconds = irradiation?.stepSeconds;
       const energyItem = Number.isFinite(irradiation?.value)
         ? stepEnergyItem(irradiation.value, stepSeconds, "fa-chart-area")
         : {
@@ -980,7 +975,7 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Irradiação Solar do Passo");
       }
 
-      const stepSeconds = stepSecondsOf(allValues.shortwaveIrradiation);
+      const stepSeconds = allValues.shortwaveIrradiation?.stepSeconds;
       const items = [stepEnergyItem(value, stepSeconds, "fa-sun")];
       if (stepSeconds) {
         items.push({

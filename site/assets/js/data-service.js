@@ -144,6 +144,10 @@ class LabmimDataService {
     });
   }
 
+  peekJson(url) {
+    return this._cache.get(url)?.data;
+  }
+
   _fetchAndParse(url) {
     if (!this._worker) return this._mainThreadFetch(url);
 

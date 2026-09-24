@@ -95,6 +95,10 @@ const GRID_NODATA_STYLE = {
   fillColor: "#cccccc",
 };
 
+function positiveSecondsOrNull(seconds) {
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
 function spencerSeries({ constant, harmonics }, fractionalYearRad) {
   return harmonics.reduce((sum, [cosine, sine], index) => {
     const angleRad = (index + 1) * fractionalYearRad;
@@ -1625,9 +1629,13 @@ class MeteoMapManager {
     return Number.isFinite(offsetMinutes) ? offsetMinutes : null;
   }
 
-  manifestStepSeconds(index, domain = this.state.domain) {
-    const seconds = this.timeline.stepSeconds?.[domain]?.[index];
-    return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+  stepSecondsFor(domain, index) {
+    const fromManifest = positiveSecondsOrNull(this.timeline.stepSeconds?.[domain]?.[index]);
+    if (fromManifest !== null) return fromManifest;
+    const stepFile = this.dataService.peekJson(
+      this.dataUrl(this.valuesJsonPath(domain, VARIABLES_CONFIG.shortwaveIrradiation.id, index))
+    );
+    return positiveSecondsOrNull(stepFile?.metadata?.step_seconds);
   }
 
   formatRadiationSun(offsetMinutes) {
@@ -2832,91 +2840,40 @@ class MeteoMapManager {
     return this._cachedFetch(filePath).catch(() => null);
   }
 
-  loadAllVariableValuesForCell(foundCell) {
-    const allValues = {};
+  async loadAllVariableValuesForCell(foundCell) {
+    const domain = this.state.domain;
     const stepIndex = this.state.index;
+    const { cellIndex } = foundCell;
 
-    const promises = [];
-
-    this.getRelatedVariableTypes().forEach((varType) => {
+    const cellValue = async (varType) => {
       const config = VARIABLES_CONFIG[varType];
+      const entry = (value) => ({ value, label: config.label, unit: config.unit });
+      const absent = () => ({ ...entry(null), ausente: true });
 
-      if (varType === this.state.type && foundCell) {
-        allValues[varType] = {
-          value: foundCell.value,
-          label: config.label,
-          unit: config.unit,
-          metadata: this._currentValueKey === this._loadKey() ? this.currentValueData?.metadata : undefined,
-        };
-        return;
+      if (varType === this.state.type) return entry(foundCell.value);
+      if (!this.isIndexAvailable(stepIndex, varType)) return absent();
+
+      try {
+        const seriesCarriesStep = !config.panelNeedsStepMetadata || this.stepSecondsFor(domain, stepIndex) !== null;
+        const series =
+          this.chartsManager && seriesCarriesStep
+            ? await this.chartsManager._loadVariableSeries(varType, domain, cellIndex, null, { rangeReadOnly: true })
+            : null;
+        if (series) return entry(series.data.find((point) => point.hour === stepIndex)?.value ?? null);
+
+        const values = (await this.loadValueDataOnly(stepIndex, varType))?.values;
+        return Array.isArray(values) && cellIndex >= 0 && cellIndex < values.length
+          ? entry(values[cellIndex])
+          : absent();
+      } catch {
+        return absent();
       }
+    };
 
-      if (!this.isIndexAvailable(stepIndex, varType)) {
-        allValues[varType] = {
-          value: null,
-          label: config.label,
-          unit: config.unit,
-          ausente: true,
-        };
-        return;
-      }
-
-      const stepSeconds = config.panelNeedsStepMetadata ? this.manifestStepSeconds(stepIndex) : null;
-      const cellSeries =
-        this.chartsManager && (!config.panelNeedsStepMetadata || stepSeconds !== null)
-          ? this.chartsManager._loadVariableSeries(varType, this.state.domain, foundCell.cellIndex, null, {
-              rangeReadOnly: true,
-            })
-          : Promise.resolve(null);
-
-      promises.push(
-        cellSeries
-          .then((series) => {
-            if (series) {
-              allValues[varType] = {
-                value: series.data.find((entry) => entry.hour === stepIndex)?.value ?? null,
-                label: config.label,
-                unit: config.unit,
-                metadata: stepSeconds === null ? undefined : { step_seconds: stepSeconds },
-              };
-              return null;
-            }
-            return this.loadValueDataOnly(stepIndex, varType).then((valueData) => {
-              if (
-                valueData &&
-                Array.isArray(valueData.values) &&
-                foundCell.cellIndex >= 0 &&
-                foundCell.cellIndex < valueData.values.length
-              ) {
-                const loadedValue = valueData.values[foundCell.cellIndex];
-                allValues[varType] = {
-                  value: loadedValue,
-                  label: config.label,
-                  unit: config.unit,
-                  metadata: valueData.metadata,
-                };
-              } else {
-                allValues[varType] = {
-                  value: null,
-                  label: config.label,
-                  unit: config.unit,
-                  ausente: true,
-                };
-              }
-            });
-          })
-          .catch(() => {
-            allValues[varType] = {
-              value: null,
-              label: config.label,
-              unit: config.unit,
-              ausente: true,
-            };
-          })
-      );
-    });
-
-    return Promise.all(promises).then(() => allValues);
+    const types = this.getRelatedVariableTypes();
+    const entries = await Promise.all(types.map(cellValue));
+    const stepSeconds = this.stepSecondsFor(domain, stepIndex);
+    return Object.fromEntries(types.map((varType, i) => [varType, { ...entries[i], stepSeconds }]));
   }
 
   /**
