@@ -73,9 +73,12 @@ class ChartsManager {
   }
 
   ensureChartJs() {
-    if (typeof Chart !== "undefined") return Promise.resolve(true);
     if (!this.chartJsLoading) {
       this.chartJsLoading = new Promise((resolve) => {
+        if (typeof Chart !== "undefined") {
+          resolve(true);
+          return;
+        }
         const script = document.createElement("script");
         const fail = () => {
           script.remove();
@@ -87,6 +90,9 @@ class ChartsManager {
         script.onload = () => (typeof Chart === "undefined" ? fail() : resolve(true));
         script.onerror = fail;
         document.head.appendChild(script);
+      }).then((ready) => {
+        if (ready) Chart.Interaction.modes[STEP_ENDING_AT_CURSOR_INTERACTION_MODE] = itemsOfStepEndingAtCursor;
+        return ready;
       });
     }
     return this.chartJsLoading;
@@ -901,7 +907,6 @@ class ChartsManager {
   }
 
   _applySeriesShape(chartOrConfig, stepTotal, openingStepAnchorIndexes) {
-    Chart.Interaction.modes[STEP_ENDING_AT_CURSOR_INTERACTION_MODE] = itemsOfStepEndingAtCursor;
     chartOrConfig.data.datasets[0].stepped = stepTotal ? STEPPED_MODE_FILLING_STEP_BEFORE_EACH_POINT : false;
     chartOrConfig.data.datasets[0].openingStepAnchorIndexes = openingStepAnchorIndexes;
     chartOrConfig.options.scales.y.beginAtZero = stepTotal;
