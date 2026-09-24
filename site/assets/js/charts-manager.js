@@ -8,7 +8,6 @@ const CSV_EXCEL_UTF8_BOM = "\ufeff";
 const CSV_FIELD_SEPARATOR = ";";
 const CSV_VALUE_FRACTION_DIGITS = 2;
 const CSV_COORDINATE_FRACTION_DIGITS = 4;
-const CHART_JS_SRC = "assets/vendor/chartjs/chart.min.js?v=3.9.1";
 const STEPPED_MODE_FILLING_STEP_BEFORE_EACH_POINT = "after";
 const STEP_ENDING_AT_CURSOR_INTERACTION_MODE = "stepEndingAtCursor";
 
@@ -83,7 +82,7 @@ class ChartsManager {
           console.error("[Charts] Error loading Chart.js:", new Error(`Chart.js did not load from ${script.src}`));
           resolve(false);
         };
-        script.src = CHART_JS_SRC;
+        script.src = window.SITE_RUNTIME_CONFIG.vendor.chartJs;
         script.onload = () => (typeof Chart === "undefined" ? fail() : resolve(true));
         script.onerror = fail;
         document.head.appendChild(script);

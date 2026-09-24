@@ -72,6 +72,8 @@ const RUN_NOTE_SLOTS = Object.freeze({
 
 const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";
 
+const CHART_JS_SCRIPT = "assets/vendor/chartjs/chart.min.js?v=3.9.1";
+
 const MINUTES_PER_HOUR = 60;
 
 const OBSERVATION_CHART_WIDTH = 800;
@@ -244,6 +246,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
           domains.map((domain) => [domain.id, { label: domain.label, center: domain.center, zoom: domain.zoom }])
         ),
       },
+      vendor: { chartJs: CHART_JS_SCRIPT },
     };
   }
 

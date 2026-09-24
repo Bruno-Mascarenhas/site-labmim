@@ -35,9 +35,10 @@ function readSiteConfig() {
       !parsed?.data?.valuesBase ||
       !parsed?.data?.gridsBase ||
       !parsed?.data?.timeline ||
-      !Number.isFinite(parsed.data.timeline.utcOffsetHours)
+      !Number.isFinite(parsed.data.timeline.utcOffsetHours) ||
+      !parsed?.vendor?.chartJs
     ) {
-      throw new Error("incomplete publication, map, or dataset configuration");
+      throw new Error("incomplete publication, map, dataset, or vendor configuration");
     }
     return parsed;
   } catch (error) {
