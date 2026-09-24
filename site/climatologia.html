@@ -179,11 +179,30 @@
                   <strong>Precipitação</strong> — Weibull ajustada na grade da báscula, só sobre as horas chuvosas;
                 </li>
                 <li><strong>Índice de claridade</strong> — densidade de Hollands e Huget;</li>
+                <li>
+                  <strong>Onda curta incidente e refletida, PAR e saldo de radiação de dia</strong> — densidade induzida
+                  pela lei do índice de claridade;
+                </li>
+                <li><strong>Onda longa incidente e saldo de radiação de noite</strong> — gaussiana;</li>
+                <li><strong>Onda longa emitida</strong> — mistura de dois regimes, dia e noite;</li>
                 <li><strong>Direção do vento</strong> — rosa dos ventos com mistura de von Mises.</li>
               </ul>
               <p>
-                As barras são a frequência medida; a linha é a densidade ajustada por máxima verossimilhança aos mesmos
-                dados. As bordas dos intervalos são <strong>fixas</strong>, iguais em todos os recortes, para que verão,
+                As barras são a frequência medida. Nas leis de ajuste direto — Weibull, gaussiana, beta e as misturas —,
+                a linha é a densidade ajustada por máxima verossimilhança aos mesmos dados. Na precipitação, o ajuste é
+                feito sobre as próprias básculas, e a linha é a probabilidade que ele dá a cada barra, dividida pela
+                largura dela, como as barras.
+              </p>
+              <p>
+                O índice de claridade não é ajustado por verossimilhança: o Kt máximo é o percentil 99,5 da amostra, e λ
+                é o valor que reproduz a média medida. Na onda curta, na PAR e no saldo de dia, a linha não é um ajuste
+                ao fluxo: é a densidade que a lei do índice de claridade induz sobre ele, com λ e Kt máximo herdados do
+                mesmo recorte. À parte, estima-se só o ganho — o albedo na onda curta refletida, a fração PAR na PAR —
+                ou, no saldo de dia, a reta que liga o saldo à onda curta e a dispersão gaussiana em torno dela. As
+                ressalvas de cada variável detalham a construção.
+              </p>
+              <p>
+                As bordas dos intervalos são <strong>fixas</strong>, iguais em todos os recortes, para que verão,
                 inverno e modelo possam ser comparados no mesmo eixo.
               </p>
               <p class="compact-note">
