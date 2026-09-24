@@ -1069,11 +1069,13 @@ class ChartsManager {
         new Map((this.timeSeriesData?.[key]?.data || []).map((entry) => [entry.hour, entry.value])),
       ])
     );
+    const domain = this.app.state.domain;
     const energyItems = timeData.map((entry) => {
       if (entry.value === null || entry.value === undefined) return null;
-      const allValues = { [variableType]: { value: entry.value } };
+      const stepSeconds = this.app.stepSecondsFor(domain, entry.hour);
+      const allValues = { [variableType]: { value: entry.value, stepSeconds } };
       companionValuesByHour.forEach((valueByHour, key) => {
-        allValues[key] = { value: valueByHour.get(entry.hour) };
+        allValues[key] = { value: valueByHour.get(entry.hour), stepSeconds };
       });
       const info = config.specificInfo(entry.value, allValues);
       return info?.items?.find((item) => Number.isFinite(item.energyValue)) ?? null;
