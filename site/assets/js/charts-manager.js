@@ -4,7 +4,6 @@ const CHART_TIMELINE_FIRST_INDEX = 1;
 // (see app.parseDateTime) and the map label prints those digits, so charts and
 // CSV must format in UTC too — local time would shift them off the map.
 const CHART_FORECAST_TIME_ZONE = "UTC";
-const FORECAST_UTC_OFFSET_LABEL = "UTC−03:00";
 const CSV_EXCEL_UTF8_BOM = "\ufeff";
 const CSV_FIELD_SEPARATOR = ";";
 const CSV_VALUE_FRACTION_DIGITS = 2;
@@ -1273,7 +1272,7 @@ class ChartsManager {
     const seriesLabel = this._seriesLabel(type, config);
     const header = [
       "Data",
-      `Hora (${FORECAST_UTC_OFFSET_LABEL})`,
+      `Hora (${this.app.forecastUtcOffsetLabel()})`,
       "Latitude",
       "Longitude",
       "Domínio",

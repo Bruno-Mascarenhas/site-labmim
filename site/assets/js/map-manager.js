@@ -58,6 +58,7 @@ const TIMELINE_STEP_HOURS = DATA_SITE_CONFIG.timeline.stepHours;
 const FORECAST_UTC_OFFSET_HOURS = DATA_SITE_CONFIG.timeline.utcOffsetHours;
 const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_MINUTE = 60 * 1000;
+const MINUTES_PER_HOUR = MS_PER_HOUR / MS_PER_MINUTE;
 const RADIATION_INSTANT_FORMAT = "radiation-instant-v1";
 const STEP_SECONDS_FORMAT = "step-seconds-v1";
 const MS_PER_DAY = 24 * MS_PER_HOUR;
@@ -94,6 +95,14 @@ const GRID_NODATA_STYLE = {
   ...GRID_VISIBLE_STYLE,
   fillColor: "#cccccc",
 };
+
+function twoDigits(value) {
+  return String(value).padStart(2, "0");
+}
+
+function wallClockHoursMinutes(date) {
+  return `${twoDigits(date.getUTCHours())}:${twoDigits(date.getUTCMinutes())}`;
+}
 
 function positiveSecondsOrNull(seconds) {
   return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
@@ -1647,9 +1656,13 @@ class MeteoMapManager {
     const stepLocalDate = this.calculateTargetDateFromIndex(this.state.index);
     if (!stepLocalDate) return relation;
     const sunLocalDate = new Date(stepLocalDate.getTime() + roundedMinutes * MS_PER_MINUTE);
-    const hours = String(sunLocalDate.getUTCHours()).padStart(2, "0");
-    const minutes = String(sunLocalDate.getUTCMinutes()).padStart(2, "0");
-    return `${hours}:${minutes} (${relation})`;
+    return `${wallClockHoursMinutes(sunLocalDate)} (${relation})`;
+  }
+
+  forecastUtcOffsetLabel() {
+    const offsetMinutes = Math.round(Math.abs(FORECAST_UTC_OFFSET_HOURS) * MINUTES_PER_HOUR);
+    const sign = FORECAST_UTC_OFFSET_HOURS < 0 ? "−" : "+";
+    return `UTC${sign}${twoDigits(Math.floor(offsetMinutes / MINUTES_PER_HOUR))}:${twoDigits(offsetMinutes % MINUTES_PER_HOUR)}`;
   }
 
   _specificInfoContext(cell) {
@@ -1681,19 +1694,18 @@ class MeteoMapManager {
 
     const year = date.getUTCFullYear();
     const monthIndex = date.getUTCMonth();
-    const month = String(monthIndex + 1).padStart(2, "0");
-    const day = String(date.getUTCDate()).padStart(2, "0");
-    const hours = String(date.getUTCHours()).padStart(2, "0");
-    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    const month = twoDigits(monthIndex + 1);
+    const day = twoDigits(date.getUTCDate());
+    const clock = `${wallClockHoursMinutes(date)} ${this.forecastUtcOffsetLabel()}`;
 
     if (hasData) {
-      return `${year}-${month}-${day} · ${hours}:${minutes} UTC−03:00`;
+      return `${year}-${month}-${day} · ${clock}`;
     }
 
     // Generic wording: gaps are not only night hours (skip-first spin-up steps too).
     const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
     const monthStr = months[monthIndex];
-    return `${day} ${monthStr} ${year} · ${hours}:${minutes} UTC−03:00 — sem dados neste horário`;
+    return `${day} ${monthStr} ${year} · ${clock} — sem dados neste horário`;
   }
 
   togglePlayPause() {
