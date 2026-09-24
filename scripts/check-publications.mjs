@@ -189,6 +189,28 @@ function assertForecastHorizonMatchesPublishedRun(publication) {
   }
 }
 
+const APACHE_REDIRECT_TARGET = /^\s*Redirect\s+\d+\s+"[^"]*"\s+"([^"]*)"/;
+
+function assertFragmentRedirectsStopQueryAppend(publication) {
+  const htaccess = fs.readFileSync(path.join(root, "site", ".htaccess"), "utf8");
+  const exposed = htaccess
+    .split(/\r?\n/)
+    .filter((line) => {
+      const target = line.match(APACHE_REDIRECT_TARGET)?.[1];
+      return target?.includes("#") && !target.split("#", 1)[0].includes("?");
+    })
+    .map((line) => line.trim());
+
+  if (exposed.length > 0) {
+    throw new Error(
+      `.htaccess of ${publication.id} redirects to a fragment without a "?" before the "#":\n${exposed
+        .map((line) => `  - ${line}`)
+        .join("\n")}\nmod_alias appends the request query to any target without "?", after the fragment, ` +
+        `where the browser reads it as part of the anchor. End the path in "?" before "#".`
+    );
+  }
+}
+
 function assertNoUntrackedOutput(publication) {
   const result = spawnSync("git", ["ls-files", "--others", "--exclude-standard", "--", "site"], {
     cwd: root,
@@ -263,6 +285,7 @@ function buildAndValidate(publication) {
   assertLocalReferences(publication);
   assertRunNotesStayWithTheirDataset(publication);
   if (publication.id === defaultSite.id) assertForecastHorizonMatchesPublishedRun(publication);
+  assertFragmentRedirectsStopQueryAppend(publication);
 }
 
 const restoreDefault = makeRestore({
