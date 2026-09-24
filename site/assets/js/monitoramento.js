@@ -62,12 +62,10 @@
   const MINUTE_MS = 60000;
   const HOUR_MS = 3600000;
   const DAY_MS = 86400000;
-  const HOURLY_CENTER_OFFSET_MS = 27.5 * MINUTE_MS;
   const STALE_NAIVE_RECORD_AFTER_MS = DAY_MS;
   const STALE_UTC_RECORD_AFTER_MS = 3 * HOUR_MS;
   const UTC_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
-  const CSV_STAMP_HEADER = "instante (bruto: fim do intervalo de 5 min, horária: agrega os brutos de hh:00 a hh:55)";
-  const UNPLACED = Object.freeze({ covers: null, shiftMs: 0, intervalMs: null, pairsByInterval: false });
+  const UNDECLARED_COVERS_MINUTES = Object.freeze({ raw: [-5, 0], hourly: [-5, 55], wrf: [0, 0] });
 
   const state = {
     base: "",
@@ -187,36 +185,22 @@
     return finiteCount ? points : null;
   }
 
-  function declaredCovers(layer, layerId) {
+  function layerCovers(layer, layerId) {
     const covers = layer.axis.covers_minutes;
-    if (covers === undefined) return null;
+    if (covers === undefined) return UNDECLARED_COVERS_MINUTES[layerId];
     const valid =
       Array.isArray(covers) && covers.length === 2 && covers.every(Number.isFinite) && covers[0] <= covers[1];
     if (!valid) throw new Error(`covers_minutes inválido na camada ${layerId}: ${JSON.stringify(covers)}`);
     return covers;
   }
 
-  function layerPlacement(layer, layerId) {
-    const covers = declaredCovers(layer, layerId);
-    if (covers) {
-      const [fromMs, toMs] = covers.map((minutes) => minutes * MINUTE_MS);
-      const isInterval = covers[0] !== covers[1];
-      return {
-        covers,
-        shiftMs: (fromMs + toMs) / 2,
-        intervalMs: isInterval ? [fromMs, toMs] : null,
-        pairsByInterval: isInterval,
-      };
-    }
-    if (layerId === "hourly") {
-      return {
-        covers: null,
-        shiftMs: HOURLY_CENTER_OFFSET_MS,
-        intervalMs: [0, layer.axis.step_minutes * MINUTE_MS],
-        pairsByInterval: false,
-      };
-    }
-    return UNPLACED;
+  function layerPlacement(covers) {
+    const [fromMs, toMs] = covers.map((minutes) => minutes * MINUTE_MS);
+    return {
+      covers,
+      shiftMs: (fromMs + toMs) / 2,
+      intervalMs: covers[0] === covers[1] ? null : [fromMs, toMs],
+    };
   }
 
   function layerHasData(layer, seriesId, from) {
@@ -523,7 +507,7 @@
       // A match means the instant falls INSIDE the sample's interval, not that the
       // stamps are equal: the layers run at different cadences (twelve raw points per
       // hourly one) and equality would fail eleven times in twelve.
-      const point = placement.pairsByInterval
+      const point = placement.intervalMs
         ? sampleCovering(points, placement, stamp, step)
         : nearestSample(points, stamp, step);
       if (!point || point.y === null) return;
@@ -680,9 +664,9 @@
   }
 
   function csvStampHeader(chart, layers) {
-    const conventions = layers.map((layer) => ({ layer, covers: state.placements.get(chart.layers[layer.id]).covers }));
-    if (conventions.some(({ covers }) => !covers)) return CSV_STAMP_HEADER;
-    const parts = conventions.map(({ layer, covers }) => `${layerLabel(chart, layer)}: ${coversText(covers)}`);
+    const parts = layers.map(
+      (layer) => `${layerLabel(chart, layer)}: ${coversText(state.placements.get(chart.layers[layer.id]).covers)}`
+    );
     return `instante t (${parts.join(", ")})`;
   }
 
@@ -1128,7 +1112,7 @@
     for (const chart of payload.charts) {
       for (const { id } of LAYERS) {
         const layer = chart.layers[id];
-        if (layer) state.placements.set(layer, layerPlacement(layer, id));
+        if (layer) state.placements.set(layer, layerPlacement(layerCovers(layer, id)));
       }
       state.modelCaveats.set(chart.id, modelCaveatIndices(chart));
     }
