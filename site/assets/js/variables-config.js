@@ -1422,7 +1422,6 @@ const VARIABLES_CONFIG = {
   windPowerDensity: {
     id: "WIND_POWER_DENSITY_10M",
     relatedVariables: ["wind"],
-    chartCompanions: ["wind"],
     label: "Densidade de Potência Eólica (10m)",
     optionLabel: "Densidade Eólica 10m",
     icon: "💨",
