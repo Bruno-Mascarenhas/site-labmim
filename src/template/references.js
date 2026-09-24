@@ -25,7 +25,7 @@ const SITE_REFERENCES = Object.freeze({
     citation:
       "Skamarock, W. C. et al. (2019). A Description of the Advanced Research WRF Model Version 4. " +
       "NCAR Technical Note NCAR/TN-556+STR. Documentação oficial do modelo usado nestas previsões.",
-    url: "https://www2.mmm.ucar.edu/wrf/users/docs/user_guide_v4/v4.0/contents.html",
+    url: "https://doi.org/10.5065/1dfh-6p97",
   },
   gfs: {
     short: "GFS/NCEP",
