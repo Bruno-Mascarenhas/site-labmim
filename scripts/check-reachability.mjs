@@ -124,7 +124,17 @@ function probeInPage(sel) {
   };
   const shown = (node) =>
     node.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && !node.closest("[hidden]");
-  const painters = [...document.body.querySelectorAll("*")].filter(painted);
+  const passThroughNodes = new Set();
+  const painters = [];
+  for (const node of document.body.querySelectorAll("*")) {
+    if (getComputedStyle(node).pointerEvents === "none") passThroughNodes.add(node);
+    if (painted(node) && shown(node)) painters.push(node);
+  }
+  const passThroughPainters = painters.filter((painter) => passThroughNodes.has(painter));
+  let painterBoxes = null;
+  const paintersWithBoxes = () =>
+    (painterBoxes ??= painters.map((painter) => ({ painter, box: painter.getBoundingClientRect() })));
+  const hitAt = (x, y) => document.elementsFromPoint(x, y).find((node) => !passThroughNodes.has(node)) ?? null;
   const inkWithin = (canvas, box, area) => {
     const context = canvas.getContext("2d");
     if (!context) return true;
@@ -143,22 +153,17 @@ function probeInPage(sel) {
   const paintedOver = (element, target, proxy) => {
     const own = (node) => element.contains(node) || Boolean(proxy?.contains(node));
     const width = document.documentElement.clientWidth;
-    for (const painter of painters) {
+    for (const { painter, box } of paintersWithBoxes()) {
       if (painter.contains(element) || own(painter)) continue;
-      const box = painter.getBoundingClientRect();
       const left = Math.max(box.left, target.left, 0);
       const right = Math.min(box.right, target.right, width);
       const top = Math.max(box.top, target.top, 0);
       const bottom = Math.min(box.bottom, target.bottom, window.innerHeight);
-      if (right - left < OVERLAP_TOLERANCE_PX || bottom - top < OVERLAP_TOLERANCE_PX || !shown(painter)) continue;
+      if (right - left < OVERLAP_TOLERANCE_PX || bottom - top < OVERLAP_TOLERANCE_PX) continue;
       if (painter instanceof HTMLCanvasElement && !inkWithin(painter, box, { left, right, top, bottom })) continue;
-      const inlineStyle = painter.getAttribute("style");
-      painter.style.setProperty("pointer-events", "auto", "important");
       const stack = document.elementsFromPoint((left + right) / 2, (top + bottom) / 2);
-      if (inlineStyle === null) painter.removeAttribute("style");
-      else painter.setAttribute("style", inlineStyle);
       const painterDepth = stack.indexOf(painter);
-      const ownDepth = stack.findIndex(own);
+      const ownDepth = stack.findIndex((node) => own(node) && !passThroughNodes.has(node));
       if (painterDepth >= 0 && ownDepth >= 0 && painterDepth < ownDepth) return painter;
     }
     return null;
@@ -219,36 +224,37 @@ function probeInPage(sel) {
       [target.left + inset, target.bottom - inset],
       [target.right - inset, target.bottom - inset],
     ];
-    const clippers = clippingAncestors(shape);
+    const clips = clippingAncestors(shape).map(({ node }) => {
+      const box = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      const border = {
+        left: parseFloat(style.borderLeftWidth),
+        right: parseFloat(style.borderRightWidth),
+        top: parseFloat(style.borderTopWidth),
+        bottom: parseFloat(style.borderBottomWidth),
+      };
+      const verticalScrollbar = Math.max(
+        0,
+        node.offsetWidth - node.clientWidth - Math.round(border.left + border.right)
+      );
+      const horizontalScrollbar = Math.max(
+        0,
+        node.offsetHeight - node.clientHeight - Math.round(border.top + border.bottom)
+      );
+      return {
+        node,
+        left: box.left + border.left,
+        right: box.right - border.right - verticalScrollbar,
+        top: box.top + border.top,
+        bottom: box.bottom - border.bottom - horizontalScrollbar,
+      };
+    });
     for (const [rawX, y] of points) {
       const x = Math.min(Math.max(rawX, 1), width - 1);
       if (y < 0 || y >= window.innerHeight) return { pending: true };
-      const clipper = clippers.find(({ node }) => {
-        const box = node.getBoundingClientRect();
-        const style = getComputedStyle(node);
-        const border = {
-          left: parseFloat(style.borderLeftWidth),
-          right: parseFloat(style.borderRightWidth),
-          top: parseFloat(style.borderTopWidth),
-          bottom: parseFloat(style.borderBottomWidth),
-        };
-        const verticalScrollbar = Math.max(
-          0,
-          node.offsetWidth - node.clientWidth - Math.round(border.left + border.right)
-        );
-        const horizontalScrollbar = Math.max(
-          0,
-          node.offsetHeight - node.clientHeight - Math.round(border.top + border.bottom)
-        );
-        return (
-          x < box.left + border.left ||
-          x > box.right - border.right - verticalScrollbar ||
-          y < box.top + border.top ||
-          y > box.bottom - border.bottom - horizontalScrollbar
-        );
-      });
-      if (clipper) return { pending: true, clippedBy: describe(clipper.node) };
-      const top = document.elementFromPoint(x, y);
+      const clip = clips.find(({ left, right, top, bottom }) => x < left || x > right || y < top || y > bottom);
+      if (clip) return { pending: true, clippedBy: describe(clip.node) };
+      const top = hitAt(x, y);
       if (!top) return { pending: true };
       const owns = top === element || element.contains(top) || top.contains(element) || proxy?.contains(top);
       if (!owns) return { covered: describe(top) };
@@ -268,6 +274,7 @@ function probeInPage(sel) {
     const origin = { left: window.scrollX, top: window.scrollY };
     for (const block of SCROLL_ALIGNMENTS) {
       element.scrollIntoView({ block, inline: "nearest", behavior: "instant" });
+      painterBoxes = null;
       const viewportForced = !viewportScrolls && (window.scrollX !== origin.left || window.scrollY !== origin.top);
       const clipperForced = scrollers.some(
         ({ node, scrollsByUser, top, left }) => !scrollsByUser && (node.scrollTop !== top || node.scrollLeft !== left)
@@ -280,12 +287,15 @@ function probeInPage(sel) {
         node.scrollLeft = left;
       }
       window.scrollTo({ ...origin, behavior: "instant" });
+      painterBoxes = null;
       if (!verdict.pending && !verdict.covered) return verdict;
     }
     if (!verdict.pending) return verdict;
     return { covered: verdict.clippedBy ? `recortado por ${verdict.clippedBy}` : "fora do alcance da rolagem" };
   };
 
+  const passThroughInlineStyles = passThroughPainters.map((painter) => [painter, painter.getAttribute("style")]);
+  for (const painter of passThroughPainters) painter.style.setProperty("pointer-events", "auto", "important");
   for (const element of document.querySelectorAll(sel)) {
     const located = locate(element);
     if (!located) continue;
@@ -304,6 +314,10 @@ function probeInPage(sel) {
       offscreen: rect.right > document.documentElement.clientWidth + 1 || rect.left < -1,
       covered: settle(element, located).covered || null,
     });
+  }
+  for (const [painter, inlineStyle] of passThroughInlineStyles) {
+    if (inlineStyle === null) painter.removeAttribute("style");
+    else painter.setAttribute("style", inlineStyle);
   }
   return { controls: results, hScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth };
 }
