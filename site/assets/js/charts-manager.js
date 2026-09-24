@@ -4,6 +4,11 @@ const CHART_TIMELINE_FIRST_INDEX = 1;
 // (see app.parseDateTime) and the map label prints those digits, so charts and
 // CSV must format in UTC too — local time would shift them off the map.
 const CHART_FORECAST_TIME_ZONE = "UTC";
+const FORECAST_UTC_OFFSET_LABEL = "UTC−03:00";
+const CSV_EXCEL_UTF8_BOM = "\ufeff";
+const CSV_FIELD_SEPARATOR = ";";
+const CSV_VALUE_FRACTION_DIGITS = 2;
+const CSV_COORDINATE_FRACTION_DIGITS = 4;
 const CHART_JS_SRC = "assets/vendor/chartjs/chart.min.js?v=3.9.1";
 const STEPPED_MODE_FILLING_STEP_BEFORE_EACH_POINT = "after";
 const STEP_ENDING_AT_CURSOR_INTERACTION_MODE = "stepEndingAtCursor";
@@ -310,7 +315,7 @@ class ChartsManager {
 
     // Before the no-data return: the header must name the REQUESTED variable
     // even when the answer is "no data".
-    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}" aria-hidden="true"></i> Série Temporal: ${this._stepLabel(config)}`;
+    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}" aria-hidden="true"></i> Série Temporal: ${this._seriesLabel(variableType, config)}`;
 
     // The requested variable can be missing while a companion series loaded,
     // and the caller only checks whether the payload has any key at all.
@@ -1042,11 +1047,16 @@ class ChartsManager {
     return options.find((option) => option.hours === 1)?.variableLabel || `${config?.label} (1h)`;
   }
 
+  _seriesLabel(variableType, config) {
+    const stepLabel = this._stepLabel(config);
+    return variableType === "eolico" ? `${stepLabel} a ${this.app.windHeight} m` : stepLabel;
+  }
+
   _prepareChartData(variableType, chartType, config, timeData) {
     if (chartType === "value") {
       return {
         data: timeData.map((entry) => entry.value),
-        label: this._stepLabel(config),
+        label: this._seriesLabel(variableType, config),
         unit: config.unit,
         color: themeInvariantSeriesColor(config.colors),
         stepTotal: config.stepTotal === true,
@@ -1262,7 +1272,16 @@ class ChartsManager {
     const domainLabel = this.app?.getDomainLabel
       ? this.app.getDomainLabel(this.app.state.domain)
       : this.app?.state?.domain || "";
-    let csv = `Data,Hora,Latitude,Longitude,Domínio,Variável,Valor(${config.unit})`;
+    const seriesLabel = this._seriesLabel(type, config);
+    const header = [
+      "Data",
+      `Hora (${FORECAST_UTC_OFFSET_LABEL})`,
+      "Latitude",
+      "Longitude",
+      "Domínio",
+      "Variável",
+      `Valor(${config.unit})`,
+    ];
     const isEnergy = type === "solar" || type === "eolico";
     let chartDataEnergy = null;
     let stepIrradiationByHour = null;
@@ -1271,14 +1290,14 @@ class ChartsManager {
       const energyConfig = this._prepareChartData(type, "energy", config, timeData);
       chartDataEnergy = energyConfig.data;
       stepIrradiationByHour = energyConfig.stepIrradiationByHour;
-      if (stepIrradiationByHour) csv += `,Irradiação do passo(${VARIABLES_CONFIG.shortwaveIrradiation.unit})`;
+      if (stepIrradiationByHour) header.push(`Irradiação do passo(${VARIABLES_CONFIG.shortwaveIrradiation.unit})`);
       const solarColumn = stepIrradiationByHour
         ? "Produção no passo pela irradiação"
         : "Produção em 1h estimada pelo fluxo instantâneo";
       const energyColumn = type === "solar" ? solarColumn : "Produção em 1h estimada pela potência instantânea";
-      csv += `,${energyColumn}(${energyConfig.unit})`;
+      header.push(`${energyColumn}(${energyConfig.unit})`);
     }
-    csv += "\n";
+    const rows = [header.join(CSV_FIELD_SEPARATOR)];
 
     timeData.forEach((entry, i) => {
       const date = new Date(entry.timestamp);
@@ -1290,32 +1309,43 @@ class ChartsManager {
         second: "2-digit",
       });
 
-      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${this._stepLabel(config)}",${this._formatCsvValue(Number(chartDataValue[i]))}`;
-
-      if (stepIrradiationByHour) {
-        const irradiation = stepIrradiationByHour.get(entry.hour);
-        csv += Number.isFinite(irradiation) ? `,${this._formatCsvValue(irradiation)}` : ",";
-      }
-      if (isEnergy && chartDataEnergy) {
-        csv += chartDataEnergy[i] === null ? "," : `,${this._formatCsvValue(Number(chartDataEnergy[i]))}`;
-      }
-      csv += "\n";
+      const cells = [
+        dateStr,
+        timeStr,
+        this._formatCsvValue(selectedCell.lat, CSV_COORDINATE_FRACTION_DIGITS),
+        this._formatCsvValue(selectedCell.lng, CSV_COORDINATE_FRACTION_DIGITS),
+        `"${domainLabel}"`,
+        `"${seriesLabel}"`,
+        this._formatCsvValue(chartDataValue[i]),
+      ];
+      if (stepIrradiationByHour) cells.push(this._formatCsvValue(stepIrradiationByHour.get(entry.hour)));
+      if (isEnergy && chartDataEnergy) cells.push(this._formatCsvValue(chartDataEnergy[i]));
+      rows.push(cells.join(CSV_FIELD_SEPARATOR));
     });
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([CSV_EXCEL_UTF8_BOM, `${rows.join("\n")}\n`], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `timeseries_${type}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = this._csvFileName(type, config);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
 
-  _formatCsvValue(value) {
-    if (isNaN(value)) return "0.00";
-    return value.toFixed(2);
+  _csvFileName(variableType, config) {
+    const parts = ["timeseries", this._getVariableId(variableType, config), this.app.state.domain];
+    const runStartLocal = this.app.calculateTargetDateFromIndex(0);
+    if (runStartLocal instanceof Date && !isNaN(runStartLocal)) {
+      parts.push(`rodada_${runStartLocal.toISOString().slice(0, 13).replace("T", "_")}h`);
+    }
+    return `${parts.join("_")}.csv`;
+  }
+
+  _formatCsvValue(value, fractionDigits = CSV_VALUE_FRACTION_DIGITS) {
+    if (!Number.isFinite(value)) return "";
+    return value.toFixed(fractionDigits).replace(".", ",");
   }
 
   /**
