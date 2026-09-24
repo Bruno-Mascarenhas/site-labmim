@@ -370,6 +370,12 @@
     return { inside, outside: grid.n_outside, span: densityGridSpan(grid) };
   }
 
+  function densestCellHours() {
+    const count = state.density ? state.density.max_count : null;
+    if (!Number.isInteger(count) || count < 1) return "muitas horas";
+    return `${integer(count)} ${count === 1 ? "hora" : "horas"}`;
+  }
+
   function densityCoverageSentence(coverage, pointsLayerAvailable) {
     const rest = coverage.outside === 1 ? "mais uma fica" : `outras ${integer(coverage.outside)} ficam`;
     const appear = coverage.outside === 1 ? "aparece" : "aparecem";
@@ -1772,6 +1778,7 @@
     const coverage = hoursOutsideDensityGrid();
     if (coverage) el("ceuAmostra").textContent = "das horas selecionadas";
     el("ceuForaDaGrade").textContent = coverage ? densityCoverageSentence(coverage, pointsUsable()) : "";
+    el("ceuHorasCelulaCheia").textContent = densestCellHours();
 
     // Each model against the measured Kd over this exact period: the legend says
     // how they perform here instead of implying they are equivalent.
@@ -1876,7 +1883,7 @@
       guideDefinition(
         list,
         "Camada Densidade",
-        "O plano é cortado em células e cada uma é pintada pelo número de horas do acervo que caíram nela: quanto mais escura, mais horas. A escala é logarítmica porque o miolo concentra dezenas de horas e as bordas têm uma ou duas."
+        `O plano é cortado em células e cada uma é pintada pelo número de horas do acervo que caíram nela: quanto mais escura, mais horas. A escala é logarítmica porque a célula mais cheia concentra ${densestCellHours()} e as bordas têm uma ou duas.`
       );
     }
     if (pointsUsable()) {

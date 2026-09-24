@@ -214,9 +214,9 @@
                 a <strong>densidade</strong>: o plano é cortado numa grade e cada célula é pintada pelo
                 <strong>número de horas do acervo que caíram nela</strong> — quanto mais escura, mais horas. Não é uma
                 nuvem de pontos desbotada; é uma contagem. A escala é logarítmica porque a célula mais cheia concentra
-                dezenas de horas enquanto as bordas têm uma ou duas, e numa escala linear tudo fora do miolo viraria um
-                tom só. Ligando a camada <strong>Pontos</strong>, cada hora medida aparece individualmente, colorida
-                pela condição de céu.
+                <span id="ceuHorasCelulaCheia">muitas horas</span> enquanto as bordas têm uma ou duas, e numa escala
+                linear tudo fora do miolo viraria um tom só. Ligando a camada <strong>Pontos</strong>, cada hora medida
+                aparece individualmente, colorida pela condição de céu.
                 <span id="ceuForaDaGrade"></span>
               </p>
               <p>
@@ -229,13 +229,14 @@
               </p>
               <p>
                 K<sub>t</sub> é uma razão entre irradiações do hemisfério inteiro, então descreve o céu de um
-                <em>instante</em>, não de um ponto da imagem: a legenda abaixo do gráfico é a chave das condições, e as
-                mesmas cores marcam a condição prevista no cartão do quadro e na linha do tempo.
+                <em>instante</em>, não de um ponto da imagem: a chave das condições está no guia do gráfico, o botão de
+                informação ao lado do título, e nos botões <strong>Condições de céu</strong>, que aparecem com a camada
+                Pontos. As mesmas cores marcam a condição prevista no cartão do quadro e na linha do tempo.
               </p>
               <p>
                 Três modelos empíricos podem ser sobrepostos, e eles não se desenham do mesmo jeito. O de
                 [[marquesfilho]] é função <strong>apenas</strong> de K<sub>t</sub>, então é uma curva. Os de [[lemos]] e
-                [[ridley]] — o BRL — são logísticas em mais cinco preditores (hora solar aparente, elevação solar,
+                [[ridley]] — o BRL — são logísticas em mais quatro preditores (hora solar aparente, elevação solar,
                 índice de claridade diário e persistência), então num mesmo K<sub>t</sub> assumem uma faixa de valores:
                 aparecem como <strong>banda</strong>, a mediana por faixa de K<sub>t</sub>
                 dentro do envelope entre os percentis 10 e 90. Desenhá-los como uma linha só afirmaria uma determinação
@@ -919,6 +920,6 @@
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
     <script defer src="assets/js/chart-page.js?v=db35ae7b"></script>
-    <script defer src="assets/js/ceu.js?v=b8edc3a6"></script>
+    <script defer src="assets/js/ceu.js?v=32773ca4"></script>
   </body>
 </html>
