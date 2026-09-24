@@ -853,12 +853,6 @@ const VARIABLES_CONFIG = {
             unit: "mm",
             icon: "fa-water",
           },
-          {
-            // 5 mm is a VOLUME threshold, not a rate: hence the window in the label.
-            label: `Impacto Agrícola (${hours}h)`,
-            value: value > 5 ? "Benéfico" : "Insuficiente",
-            icon: "fa-leaf",
-          },
         ],
       };
     },
