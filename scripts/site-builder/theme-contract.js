@@ -289,8 +289,8 @@ function parsePublicationThemeCss(content) {
   return { values, errors };
 }
 
-function inspectPublicationThemeCss(content) {
-  const { values, errors } = parsePublicationThemeCss(content);
+function inspectPublicationTheme({ values, errors: parseErrors }) {
+  const errors = [...parseErrors];
   if (!values) return errors;
 
   for (const property of REQUIRED_THEME_PROPERTIES) {
@@ -325,11 +325,16 @@ function inspectPublicationThemeCss(content) {
   return errors;
 }
 
+function inspectPublicationThemeCss(content) {
+  return inspectPublicationTheme(parsePublicationThemeCss(content));
+}
+
 module.exports = {
   REQUIRED_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTY_NAMES,
   parsePublicationThemeCss,
+  inspectPublicationTheme,
   inspectPublicationThemeCss,
   parseHexColor,
   contrastRatio,

@@ -12,7 +12,7 @@ const {
   REQUIRED_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTIES,
   parsePublicationThemeCss,
-  inspectPublicationThemeCss,
+  inspectPublicationTheme,
   parseHexColor,
   contrastRatio,
 } = require("./site-builder/theme-contract.js");
@@ -101,32 +101,31 @@ const sharedJs = sharedScripts.map((file) => fs.readFileSync(file, "utf8")).join
 
 for (const publication of publications) {
   const themePath = path.join(publication.directory, publication.theme);
-  const content = fs.readFileSync(themePath, "utf8");
-  for (const error of inspectPublicationThemeCss(content)) {
-    errors.push(`${path.relative(root, themePath)}: ${error}`);
+  const themeFile = path.relative(root, themePath);
+  const theme = parsePublicationThemeCss(fs.readFileSync(themePath, "utf8"));
+  for (const error of inspectPublicationTheme(theme)) {
+    errors.push(`${themeFile}: ${error}`);
   }
 
-  const { values } = parsePublicationThemeCss(content);
+  const { values } = theme;
   if (!values) continue;
   for (const { property, minContrast, requirement } of TONES_CHECKED_AGAINST_WHITE) {
     const { value, source } = resolveThemeTone(values, property);
     if (value === undefined) {
       errors.push(
-        `${path.relative(root, themePath)}: ${source} is not declared, so the contrast of --${property} with white cannot be checked`
+        `${themeFile}: ${source} is not declared, so the contrast of --${property} with white cannot be checked`
       );
       continue;
     }
     const channels = parseHexColor(value);
     if (!channels) {
-      errors.push(
-        `${path.relative(root, themePath)}: ${source} must be #rgb or #rrggbb so its contrast with white can be checked`
-      );
+      errors.push(`${themeFile}: ${source} must be #rgb or #rrggbb so its contrast with white can be checked`);
       continue;
     }
     const contrast = contrastRatio(channels, WHITE_SRGB_CHANNELS);
     if (contrast < minContrast) {
       errors.push(
-        `${path.relative(root, themePath)}: --${property} (${source === `--${property}` ? value : `${value} from ${source}`}) reaches ${contrast.toFixed(2)}:1 against white, below ${requirement}`
+        `${themeFile}: --${property} (${source === `--${property}` ? value : `${value} from ${source}`}) reaches ${contrast.toFixed(2)}:1 against white, below ${requirement}`
       );
     }
   }
