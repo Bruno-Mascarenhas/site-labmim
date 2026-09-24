@@ -1112,7 +1112,7 @@ class ChartsManager {
           timestamp: this._timestampForHour(hour, null),
         });
       }
-      return series.length ? series : null;
+      return series.length || rangeReadOnly ? series : null;
     } catch (error) {
       if (error?.name === "AbortError") throw error;
       return null;
