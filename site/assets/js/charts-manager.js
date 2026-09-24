@@ -195,7 +195,7 @@ class ChartsManager {
       // Inline: the build-generated modal markup carries no class for this state.
       box.style.cssText =
         "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;" +
-        "text-align:center;padding:1.5rem;color:var(--text-secondary,#666);background:var(--bg-card,#fff);";
+        "text-align:center;padding:1.5rem;color:var(--text-secondary,#666);background:var(--bg-secondary);";
       body.appendChild(box);
     }
     box.textContent = message;
