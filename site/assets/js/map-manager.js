@@ -3033,9 +3033,12 @@ class MeteoMapManager {
       return;
     }
 
-    const minMag = Math.min(...magnitudes);
-    const maxMag = Math.max(...magnitudes);
-    const magRange = maxMag - minMag || 1;
+    const { scaleMax } = this.getVariableConfig();
+    if (!Number.isFinite(scaleMax) || scaleMax <= 0) {
+      console.warn(`No wind speed ceiling for ${this.state.type}`);
+      this.clearWindVectors();
+      return;
+    }
 
     const isClipped = this.state.isClippedToState;
     // Feature order in the GeoJSON is not guaranteed to match linear_index, so a
@@ -3057,9 +3060,10 @@ class MeteoMapManager {
 
         const angle = angles[idx];
         const magnitude = magnitudes[idx];
+        if (!Number.isFinite(angle) || !Number.isFinite(magnitude)) return;
 
         if (point.x >= 0 && point.x <= canvas.width && point.y >= 0 && point.y <= canvas.height) {
-          this.drawWindArrow(ctx, point.x, point.y, angle, magnitude, minMag, magRange);
+          this.drawWindArrow(ctx, point.x, point.y, angle, magnitude, scaleMax);
         }
       } catch {
         return;
@@ -3067,8 +3071,8 @@ class MeteoMapManager {
     });
   }
 
-  drawWindArrow(ctx, x, y, angle, magnitude, minMag, magRange) {
-    const normalizedMag = (magnitude - minMag) / magRange;
+  drawWindArrow(ctx, x, y, angle, magnitude, scaleMax) {
+    const normalizedMag = Math.min(Math.max(magnitude, 0) / scaleMax, 1);
     const arrowLength = 8 + normalizedMag * 16;
     const lineWidth = 0.8 + normalizedMag * 1.2;
     const arrowHeadSize = 3 + normalizedMag * 2;
