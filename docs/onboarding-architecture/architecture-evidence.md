@@ -772,9 +772,11 @@ Confiança: **Confirmado**
 
 Observação:
 A única checagem automatizada de navegador é `npm run check:reach`, que dirige o Chromium em treze
-viewports (320 a 1920 px) e confere se cada controle das páginas construídas é alcançável; ela roda
-à mão antes do merge, não no CI. Light/dark e as interações do WebGIS continuam exigindo inspeção
-manual.
+viewports (320 a 1920 px), mais uma grade de 32 nas páginas do WebGIS, e confere se cada controle das
+páginas construídas é alcançável no centro e nos quatro cantos internos; no WebGIS, também com a visão
+geral das variáveis, a célula, os parâmetros customizados e o menu da navbar abertos, e com os vetores
+de vento desenhados. Ela roda à mão antes do merge, não no CI. Light/dark, troca de domínio, slider e
+modal de série continuam exigindo inspeção manual.
 
 ---
 

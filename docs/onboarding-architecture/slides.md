@@ -1343,9 +1343,10 @@ O wrapper de links também deriva do dataset os paths operacionais que o Linkina
 novo não exige acrescentar regex de `JSON/`/`GeoJSON/` manualmente.
 
 O único teste de navegador automatizado é `npm run check:reach` (`scripts/check-reachability.mjs`):
-Playwright/Chromium em 13 viewports, verificando se cada controle é clicável. Ele não roda no CI e cobre só
-alcançabilidade; por isso inspeção manual continua necessária, sobretudo para dark mode, responsividade,
-mapa, troca de domínio, slider e modal de série.
+Playwright/Chromium em 13 viewports, mais 32 nas páginas do WebGIS, verificando se cada controle é clicável,
+também com a visão geral, a célula, os parâmetros e o menu abertos e com os vetores de vento desenhados.
+Ele não roda no CI e cobre só alcançabilidade; por isso inspeção manual continua necessária, sobretudo
+para dark mode, responsividade, mapa, troca de domínio, slider e modal de série.
 
 Quando uma mudança mexe em CSS comum ou template, validar apenas o site que motivou a alteração é
 insuficiente. O contrato multi-publicação só é real se todas forem exercitadas.

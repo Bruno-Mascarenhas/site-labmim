@@ -40,13 +40,13 @@ npm run lint:links           # linkinator em todas as publicações (ignora exte
 npm run format               # Prettier no output e nos módulos JS/CSS do gerador
 npm run format:check
 npm run purge:bootstrap      # regenera o Bootstrap purgado quando entra classe nova
-npm run check:reach          # alcançabilidade dos controles em treze viewports
+npm run check:reach          # alcançabilidade dos controles, também com os painéis do WebGIS abertos
 ```
 
 Os dois últimos ficam fora do ciclo diário e têm regras próprias:
 
 - **`purge:bootstrap`** só é necessário quando uma página passa a usar uma classe do Bootstrap que ainda não estava no CSS purgado. Regenerá-lo reescreve um arquivo carimbado por hash de conteúdo: o `?v=` muda e o HTML commitado de **todas** as publicações muda junto — é esperado, e tudo vai no mesmo commit. O detalhe está em [`src/sites/README.md`](src/sites/README.md).
-- **`check:reach`** é a única checagem automatizada de navegador do projeto: dirige o Chromium em treze viewports (320 a 1920 px) e confere se cada controle das páginas construídas é alcançável. Ele **não** roda no CI — rode-o à mão antes do merge. Light/dark e as interações do WebGIS continuam exigindo inspeção manual.
+- **`check:reach`** é a única checagem automatizada de navegador do projeto: dirige o Chromium em treze viewports (320 a 1920 px) e confere se cada controle das páginas construídas é alcançável. O centro e os quatro cantos internos de cada controle precisam receber o clique, e só conta a rolagem que o usuário consegue fazer. Nas duas páginas do WebGIS ele mede também a grade de 320 a 1280 px por 600 a 900 px e repete a medida com a visão geral das variáveis aberta, uma célula selecionada, os parâmetros customizados abertos, a visão geral recolhida, o menu da navbar aberto e, por último, a variável de vento com os vetores desenhados. Sem os dados em `site/`, a prévia da visão geral, a célula e os vetores de vento não carregam, e a checagem falha em vez de medir esses estados pela metade; para aceitar de propósito uma execução parcial, rode `npm run check:reach -- --sem-dados`, que só avisa quais estados ficaram de fora. Ele **não** roda no CI — rode-o à mão antes do merge; leva cerca de 13 minutos. O tema escuro, a troca de domínio, o slider e o modal de série continuam exigindo inspeção manual.
 
 Atalhos no `Makefile`:
 
