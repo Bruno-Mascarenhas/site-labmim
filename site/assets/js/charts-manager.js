@@ -345,7 +345,8 @@ class ChartsManager {
 
     const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
     const energySeries = this._prepareChartData(variableType, "energy", config, timeData);
-    const sharedAxisOpensHourBefore = energySeries?.stepTotal === true && Number.isFinite(energySeries.data[0]);
+    const sharedAxisOpensHourBefore =
+      energySeries !== null && this._opensHourBefore(energySeries.stepTotal, energySeries.data);
 
     this._updateOrCreateChart(
       "chartCanvasValue",
@@ -440,7 +441,7 @@ class ChartsManager {
   async _loadDomainMeanSeries(variableType, domain, signal) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config?.id) return null;
-    if (this.app?.hasPublishedSteps && !this.app.hasPublishedSteps(variableType, domain)) return null;
+    if (!this._variablePublished(variableType, domain)) return null;
 
     const variableId = this._getVariableId(variableType, config);
     const maxHour = this._getAvailableHourCount();
@@ -691,7 +692,7 @@ class ChartsManager {
       })
     );
     const chartData = drawn.data;
-    const firstSeriesLabel = labels[drawn.entries.length - gapped.length];
+    const firstSeriesLabel = labels[drawn.firstSeriesIndex];
     const chartColor = themeInvariantSeriesColor(config.colors);
     const chartLabel = `Média do domínio · ${this._stepLabel(config)}`;
     const tooltipLabel = (ctx) => {
@@ -806,7 +807,7 @@ class ChartsManager {
     });
 
     const canvas = this._getChartCanvas(canvasId);
-    const firstSeriesLabel = labels[drawn.entries.length - timeData.length];
+    const firstSeriesLabel = labels[drawn.firstSeriesIndex];
     // A <canvas> exposes no content to the accessibility tree (WCAG 1.1.1).
     if (canvas && labels.length) {
       canvas.setAttribute("role", "img");
@@ -913,8 +914,13 @@ class ChartsManager {
     chartOrConfig.options.interaction.mode = stepTotal ? STEP_ENDING_AT_CURSOR_INTERACTION_MODE : "index";
   }
 
+  _opensHourBefore(stepTotal, values) {
+    return stepTotal === true && Number.isFinite(values[0]);
+  }
+
   _withOpeningStepAnchors(entries, values, stepTotal, sharedAxisOpensHourBefore = false) {
-    const opensHourBefore = sharedAxisOpensHourBefore || (stepTotal && Number.isFinite(values[0]));
+    const opensHourBefore = sharedAxisOpensHourBefore || this._opensHourBefore(stepTotal, values);
+    const firstSeriesIndex = opensHourBefore ? 1 : 0;
     const drawnEntries = [...entries];
     const data = [...values];
     if (opensHourBefore) {
@@ -923,7 +929,7 @@ class ChartsManager {
       data.unshift(null);
     }
     const anchorIndexes = new Set();
-    if (!stepTotal) return { entries: drawnEntries, data, anchorIndexes };
+    if (!stepTotal) return { entries: drawnEntries, data, anchorIndexes, firstSeriesIndex };
     for (let index = 1; index < data.length; index++) {
       const opensRun = Number.isFinite(data[index]) && !Number.isFinite(data[index - 1]);
       const anchorFollowsGapOrEdge = index === 1 || !Number.isFinite(data[index - 2]);
@@ -932,7 +938,7 @@ class ChartsManager {
         anchorIndexes.add(index - 1);
       }
     }
-    return { entries: drawnEntries, data, anchorIndexes };
+    return { entries: drawnEntries, data, anchorIndexes, firstSeriesIndex };
   }
 
   _seriesPointRadii(drawn) {
@@ -966,7 +972,6 @@ class ChartsManager {
             borderWidth: 3,
             fill: true,
             tension: 0.4,
-            pointRadius: chartData.length > MOST_POINTS_DRAWN_WITH_MARKERS ? 0 : SERIES_POINT_RADIUS_PX,
             pointBackgroundColor: chartColor,
             pointBorderColor: "#fff",
             pointBorderWidth: 2,
@@ -1098,6 +1103,10 @@ class ChartsManager {
     };
   }
 
+  _variablePublished(variableType, domain) {
+    return !this.app?.hasPublishedSteps || this.app.hasPublishedSteps(variableType, domain);
+  }
+
   _getRequiredVariableKeys(variableType) {
     const keys = new Set();
     const config = VARIABLES_CONFIG[variableType];
@@ -1112,7 +1121,7 @@ class ChartsManager {
   async _loadVariableSeries(variableKey, domain, cellIndex, signal, { rangeReadOnly = false } = {}) {
     const config = VARIABLES_CONFIG[variableKey];
     if (!config?.id) return null;
-    if (this.app?.hasPublishedSteps && !this.app.hasPublishedSteps(variableKey, domain)) return null;
+    if (!this._variablePublished(variableKey, domain)) return null;
 
     const variableId = this._getVariableId(variableKey, config);
     const maxHour = this._getAvailableHourCount();
