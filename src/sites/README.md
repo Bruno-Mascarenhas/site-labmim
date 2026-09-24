@@ -173,7 +173,7 @@ module.exports = {
 
 `defaultDomain` deve existir em `domains`. Os IDs são parte dos nomes dos arquivos operacionais e não devem ser usados apenas como labels de interface.
 
-Um `paths` que aponte para um diretório de dados novo precisa ganhar a própria regra no `.gitignore`. As regras de hoje nomeiam um a um os diretórios existentes (`site/JSON/*.json`, `site/JSON/*.series.bin`, `site/GeoJSON/*.geojson`, `site/GeoJSON/*.json`, `site/Climatologia/*.json`, `site/Monitoramento/*.json` e `site/Ceu/*`, este por diretório porque ali chegam imagens além de JSON), então um diretório novo **não** é ignorado por herança — e dado operacional do laboratório nunca entra no git. As mecânicas estão em [Organização De Pastas](../../Architecture.md#organização-de-pastas).
+Um `paths` que aponte para um diretório de dados novo precisa ganhar a própria regra no `.gitignore`. As regras de hoje nomeiam um a um os cinco diretórios existentes (`JSON`, `GeoJSON`, `Climatologia`, `Monitoramento` e `Ceu`) e ignoram cada um por diretório, `site/<dir>/*` com a exceção `!site/<dir>/.keep`, porque além de JSON chegam ali `.series.bin`, imagens do céu e os temporários `.{nome}.tmp-{pid}` do pipeline. Por isso um diretório novo **não** é ignorado por herança — e dado operacional do laboratório nunca entra no git. As mecânicas estão em [Organização De Pastas](../../Architecture.md#organização-de-pastas).
 
 Campos opcionais do dataset: `generator` (nome da CLI que produz os dados), `model` (o namelist WRF descrito na documentação do WebGIS) e `observations`, que alimenta a página de monitoramento:
 

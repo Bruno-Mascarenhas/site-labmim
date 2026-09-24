@@ -33,17 +33,19 @@ dist/
 # publicação, então fica fora do git (ao contrário de site/assets/img/, que é a
 # união estável de todas as publicações e é versionada para site/ ser deployável).
 site/assets/css/generated/
-site/JSON/*.json
-site/JSON/*.series.bin
-site/GeoJSON/*.geojson
-site/GeoJSON/*.json
+site/JSON/*
+!site/JSON/.keep
+site/GeoJSON/*
+!site/GeoJSON/.keep
 # Distribuições observadas da estação: derivadas do acervo de sensores do
 # laboratório, que não é público. Como as saídas do WRF, chegam pelo deploy.
-site/Climatologia/*.json
+site/Climatologia/*
+!site/Climatologia/.keep
 # Janela móvel de 7 dias do monitoramento, reescrita a cada hora pelo deploy.
 # Mesma origem e mesma restrição do diretório acima: é o registro bruto da
 # estação, não um produto publicável.
-site/Monitoramento/*.json
+site/Monitoramento/*
+!site/Monitoramento/.keep
 # Quadros da câmera all-sky, a máscara segmentada prevista sobre eles e o payload
 # do gráfico Kt × Kd. Regra por diretório, e não por extensão: aqui chegam imagens
 # além de JSON. O .keep segue rastreado para o diretório existir sem os dados.

@@ -143,7 +143,7 @@ Observações:
 - `assets/vendor/` contém bibliotecas de terceiros servidas localmente, evitando dependência de CDN no caminho crítico.
 - `assets/data/br_ba.json` e `br_es.json` são os contornos referenciados pelos módulos de território atuais.
 - O manifest real fica em `site/JSON/manifest.json` (gerado pelo pipeline).
-- `GeoJSON/`, `JSON/`, `Climatologia/`, `Monitoramento/` e `Ceu/` contêm dados gerados e ficam fora do controle de versão (`.gitignore` cobre `site/JSON/*.json`, `site/JSON/*.series.bin`, `site/GeoJSON/*.geojson`, `site/GeoJSON/*.json`, `site/Climatologia/*.json` e `site/Monitoramento/*.json`). `Ceu/` é o único ignorado **por diretório** — `site/Ceu/*` com a exceção `!site/Ceu/.keep` —, e não por extensão, porque ali chegam imagens além de JSON.
+- `GeoJSON/`, `JSON/`, `Climatologia/`, `Monitoramento/` e `Ceu/` contêm dados gerados e ficam fora do controle de versão. O `.gitignore` ignora os cinco **por diretório** — `site/JSON/*` com a exceção `!site/JSON/.keep`, e o mesmo para os outros quatro —, e não por extensão: além de JSON, chegam ali `.series.bin`, imagens do céu e os temporários `.{nome}.tmp-{pid}` que o pipeline grava no próprio diretório de destino antes de renomeá-los, e que uma exportação interrompida deixa para trás.
 - Não abra, varra, formate ou reprocesse `/data`; evite ler conteúdo de `GeoJSON/` e `JSON/` fora de depuração estritamente necessária, porque esses diretórios contêm artefatos grandes do pipeline externo.
 
 ## Build, Validação E Cache Busting
