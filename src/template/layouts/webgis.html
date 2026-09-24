@@ -30,7 +30,10 @@
 <main class="container-main" id="main">
   <h1 class="visually-hidden">{{h1}}</h1>
 
-  <div id="map"></div>
+  <div id="map">
+    <!-- Decorative overlay: a mute canvas only clutters the a11y tree. -->
+    <canvas id="windVectorCanvas" aria-hidden="true"></canvas>
+  </div>
 
   <div class="sidebar" id="sidebar">
     <div class="sidebar-logo-header">
@@ -134,9 +137,6 @@
       <span class="wind-toggle-text">Isóbaras ao nível do mar</span>
     </label>
   </div>
-
-  <!-- Decorative overlay: a mute canvas only clutters the a11y tree. -->
-  <canvas id="windVectorCanvas" aria-hidden="true"></canvas>
 
   <div class="documentation-btn-container">
     <button type="button" class="documentation-btn" id="docBtn" title="Abrir Documentação">

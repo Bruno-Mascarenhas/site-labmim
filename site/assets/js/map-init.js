@@ -43,6 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // variable, wind height) refresh the charts, and only when already open.
     const userInitiated = options?.userInitiated === true;
     if (userInitiated) {
+      if (getComputedStyle(app.ui.sidebar).position === "static") {
+        app.ui.sidebar.querySelector(".sidebar-header").scrollIntoView({ block: "nearest", behavior: "instant" });
+      }
       chartsManager.openModal();
     } else if (!chartsManager.isModalOpen()) {
       return;
