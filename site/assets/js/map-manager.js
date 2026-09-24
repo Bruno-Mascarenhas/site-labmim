@@ -1555,7 +1555,6 @@ class MeteoMapManager {
     this.chartsManager.renderDomainSummary(variableType, this.state.domain, {
       canvasId: "variablePreviewCanvas",
       statsContainer: this.ui.variablePreviewStats,
-      titleElement: this.ui.variablePreviewTitle,
       labelElement: this.ui.variablePreviewLabel,
       domainElement: this.ui.variablePreviewDomain,
     });

@@ -386,11 +386,8 @@ class ChartsManager {
     this.previewAbortController = new AbortController();
     const signal = this.previewAbortController.signal;
 
-    const { canvasId = "variablePreviewCanvas", statsContainer, titleElement, labelElement, domainElement } = elements;
+    const { canvasId = "variablePreviewCanvas", statsContainer, labelElement, domainElement } = elements;
 
-    if (titleElement) {
-      titleElement.textContent = config.accumulation ? this._stepLabel(config) : config.optionLabel || config.label;
-    }
     if (labelElement) {
       // Same node `updateVariablePreviewShell` (map-manager.js) writes to, and
       // this one writes last. Dimensionless variables (EPS_SKY, KT) carry no
