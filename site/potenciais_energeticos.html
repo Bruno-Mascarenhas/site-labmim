@@ -796,8 +796,9 @@ WIND_POWER_DENSITY_10M = 0.5 * rho * speed10³</code></pre>
                   <code>netCDF4</code>.
                 </li>
                 <li>
-                  <strong>Interpolação Vertical:</strong> Para variáveis eólicas, interpolação logarítmica dos níveis do
-                  modelo para alturas de hub (50m, 100m, 150m).
+                  <strong>Interpolação Vertical:</strong> Para as variáveis eólicas, a velocidade do vento é interpolada
+                  linearmente na altura geopotencial acima do terreno, entre os dois níveis de massa do modelo que
+                  cercam 50, 100 e 150 m.
                 </li>
                 <li>
                   <strong>Serialização:</strong> Conversão para GeoJSON (geometria da grade, 1 arquivo por domínio) e
