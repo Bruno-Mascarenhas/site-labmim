@@ -79,12 +79,12 @@ module.exports = {
     {
       id: "D02",
       label: "BA",
-      longLabel: "Bahia",
+      longLabel: "Centro-leste da Bahia",
       center: [-12.97, -38.5],
       zoom: 7,
       resolution: "9 km",
       description:
-        "Escala intermediária. Cobre a Bahia (~890×890 km). Resolve convecção organizada e brisas de escala meso-α.",
+        "Escala intermediária. Cobre o centro-leste da Bahia e parte dos estados vizinhos (~890×890 km). Cerca de um quarto do estado fica de fora: o Oeste Baiano, a oeste de ~43,6°W, e o extremo sul, ao sul de ~16,7°S. Para o estado inteiro, use o domínio de 27 km (BA/NE). Resolve convecção organizada e brisas de escala meso-α.",
       cumulusParameterized: true,
     },
     {
