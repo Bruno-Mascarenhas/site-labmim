@@ -147,12 +147,26 @@
     el("climaExport").addEventListener("click", exportCsv);
   }
 
+  function modelSubsetWithoutHours(id) {
+    if (!state.variable || !isModelSubset(id)) return false;
+    const subset = state.variable.subsets[id];
+    return !subset || !subset.n;
+  }
+
   function markActiveSubset() {
+    const note = el("climaRecorteNota");
+    let anyDisabled = false;
     for (const button of el("climaRecorte").children) {
       const active = button.dataset.subset === state.subsetId;
       button.setAttribute("aria-pressed", String(active));
       button.classList.toggle("is-active", active);
+      const disabled = !active && modelSubsetWithoutHours(button.dataset.subset);
+      button.disabled = disabled;
+      if (disabled) button.setAttribute("aria-describedby", note.id);
+      else button.removeAttribute("aria-describedby");
+      anyDisabled = anyDisabled || disabled;
     }
+    note.hidden = !anyDisabled;
   }
 
   function binLabels(edges, digits) {
@@ -821,6 +835,7 @@
   function render() {
     const subset = currentSubset();
     const isRose = state.variable.chart === "rose";
+    markActiveSubset();
     el("climaChartWrap").hidden = isRose;
     el("climaRoseWrap").hidden = !isRose;
     el("climaTitulo").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)}`;
@@ -902,6 +917,7 @@
     console.error(error);
     // Mandatory: keeps the previous variable's chart and table from sitting under the label of the one that failed.
     state.variable = null;
+    markActiveSubset();
     const entry = (state.manifest.variables || []).find((item) => item.id === state.variableId);
     const label = entry ? entry.label : state.variableId;
 

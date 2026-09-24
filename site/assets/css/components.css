@@ -515,6 +515,15 @@
   opacity: 0.5;
 }
 
+.clima-model-note {
+  width: 0;
+  min-width: 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 .clima-panel {
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.5rem;
