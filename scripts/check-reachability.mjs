@@ -330,11 +330,15 @@ const ACCEPT_MISSING_DATA_FLAG = "--sem-dados";
 const acceptsMissingData = process.argv.slice(2).includes(ACCEPT_MISSING_DATA_FLAG);
 
 const STATE_SETTLE_MS = 450;
+const MAP_FIRST_FRAME_TIMEOUT_MS = 3000;
+const PAGE_SETTLE_MS = 1500;
 const WIND_PAINT_TIMEOUT_MS = 10000;
 const WIND_PAINT_POLL_MS = 200;
+const WIND_INK_SAMPLE_PX = 64;
 const WIND_VARIABLES = ["wind", "eolico"];
 const PREVIEW_TIMEOUT_MS = 10000;
 const CELL_TIMEOUT_MS = 8000;
+const STEP_APPLIED_TIMEOUT_MS = 1000;
 const MAP_CLICK_FRACTIONS = [
   [0.5, 0.5],
   [0.35, 0.5],
@@ -343,34 +347,99 @@ const MAP_CLICK_FRACTIONS = [
   [0.5, 0.65],
 ];
 
-async function openOverview(page) {
-  await page.evaluate(() => {
-    const toggle = document.getElementById("variableOverviewToggle");
-    if (toggle.getAttribute("aria-expanded") !== "true") toggle.click();
-  });
-  const settled = await page
-    .waitForFunction(
-      () => !/Carregando/.test(document.getElementById("variablePreviewStats")?.textContent ?? ""),
-      null,
-      {
-        timeout: PREVIEW_TIMEOUT_MS,
-      }
-    )
-    .then(
-      () => true,
-      () => false
-    );
-  await page.waitForTimeout(STATE_SETTLE_MS);
-  return settled && page.evaluate(() => !document.querySelector("#variablePreviewStats .variable-preview-empty"));
+function succeeded(promise) {
+  return promise.then(
+    () => true,
+    () => false
+  );
 }
 
-async function collapseOverview(page) {
-  await page.evaluate(() => {
-    const toggle = document.getElementById("variableOverviewToggle");
-    if (toggle.getAttribute("aria-expanded") === "true") toggle.click();
+function transitionsFinished() {
+  return document
+    .getAnimations()
+    .every(
+      (animation) => animation.playState !== "running" || animation.effect?.getComputedTiming().endTime === Infinity
+    );
+}
+
+function settle(page) {
+  return succeeded(page.waitForFunction(transitionsFinished, null, { timeout: STATE_SETTLE_MS }));
+}
+
+function mapShowsFirstFrame() {
+  const label = document.getElementById("layerLabel");
+  return (
+    document.fonts.status === "loaded" &&
+    Boolean(label) &&
+    !label.hasAttribute("aria-busy") &&
+    !/Carregando/.test(label.textContent)
+  );
+}
+
+function nextStepApplied(timeoutMs) {
+  return new Promise((resolve) => {
+    const label = document.getElementById("layerLabel");
+    if (!label) {
+      resolve();
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      if (label.hasAttribute("aria-busy")) return;
+      observer.disconnect();
+      resolve();
+    });
+    observer.observe(label, { attributes: true, attributeFilter: ["aria-busy"] });
+    setTimeout(() => {
+      observer.disconnect();
+      resolve();
+    }, timeoutMs);
   });
-  await page.waitForTimeout(STATE_SETTLE_MS);
-  return true;
+}
+
+function windCanvasInked(samplePx) {
+  const canvas = document.getElementById("windVectorCanvas");
+  if (!canvas?.width || !canvas.height) return false;
+  const context = canvas.getContext("2d");
+  const inked = (left, top, width, height) => {
+    const { data } = context.getImageData(left, top, width, height);
+    for (let alpha = 3; alpha < data.length; alpha += 4) if (data[alpha] > 0) return true;
+    return false;
+  };
+  const width = Math.min(samplePx, canvas.width);
+  const height = Math.min(samplePx, canvas.height);
+  return (
+    inked(Math.floor((canvas.width - width) / 2), Math.floor((canvas.height - height) / 2), width, height) ||
+    inked(0, 0, canvas.width, canvas.height)
+  );
+}
+
+function windPainted(page) {
+  return succeeded(
+    page.waitForFunction(windCanvasInked, WIND_INK_SAMPLE_PX, {
+      timeout: WIND_PAINT_TIMEOUT_MS,
+      polling: WIND_PAINT_POLL_MS,
+    })
+  );
+}
+
+async function setOverview(page, expanded) {
+  await page.evaluate((expand) => {
+    const toggle = document.getElementById("variableOverviewToggle");
+    if ((toggle.getAttribute("aria-expanded") === "true") !== expand) toggle.click();
+  }, expanded);
+  if (!expanded) {
+    await settle(page);
+    return true;
+  }
+  const loaded = await succeeded(
+    page.waitForFunction(
+      () => !/Carregando/.test(document.getElementById("variablePreviewStats")?.textContent ?? ""),
+      null,
+      { timeout: PREVIEW_TIMEOUT_MS }
+    )
+  );
+  await settle(page);
+  return loaded && page.evaluate(() => !document.querySelector("#variablePreviewStats .variable-preview-empty"));
 }
 
 async function openCell(page) {
@@ -387,22 +456,20 @@ async function openCell(page) {
     return null;
   }, MAP_CLICK_FRACTIONS);
   if (!point) return false;
+  await page.evaluate(nextStepApplied, STEP_APPLIED_TIMEOUT_MS);
   await page.mouse.click(point.x, point.y);
-  const opened = await page
-    .waitForFunction(() => document.getElementById("sidebar")?.classList.contains("active"), null, {
+  const opened = await succeeded(
+    page.waitForFunction(() => document.getElementById("sidebar")?.classList.contains("active"), null, {
       timeout: CELL_TIMEOUT_MS,
     })
-    .then(
-      () => true,
-      () => false
-    );
+  );
   if (!opened) return false;
   await page.evaluate(() => {
     if (document.getElementById("timeSeriesModal")?.style.display === "flex") {
       document.getElementById("timeSeriesCloseBtn").click();
     }
   });
-  await page.waitForTimeout(STATE_SETTLE_MS);
+  await settle(page);
   return true;
 }
 
@@ -414,7 +481,7 @@ async function openParameters(page) {
     if (!list.classList.contains("active")) toggle.click();
     return true;
   });
-  if (present) await page.waitForTimeout(STATE_SETTLE_MS);
+  if (present) await settle(page);
   return present;
 }
 
@@ -425,7 +492,7 @@ async function openMenu(page) {
     if (toggler.getAttribute("aria-expanded") !== "true") toggler.click();
     return true;
   });
-  if (present) await page.waitForTimeout(STATE_SETTLE_MS);
+  if (present) await settle(page);
   return present;
 }
 
@@ -440,7 +507,7 @@ async function openWind(page) {
     return option.value;
   }, WIND_VARIABLES);
   if (!windVariable) return false;
-  await page.waitForTimeout(STATE_SETTLE_MS);
+  await settle(page);
   await page.evaluate((variable) => {
     const select = document.getElementById("variableSelect");
     const checkbox = document.getElementById("windLayerCheckbox");
@@ -450,34 +517,36 @@ async function openWind(page) {
     }
     if (!checkbox.checked) checkbox.click();
   }, windVariable);
-  const painted = await page
-    .waitForFunction(
-      () => {
-        const canvas = document.getElementById("windVectorCanvas");
-        if (!canvas?.width || !canvas.height) return false;
-        const { data } = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
-        for (let alpha = 3; alpha < data.length; alpha += 4) if (data[alpha] > 0) return true;
-        return false;
-      },
-      null,
-      { timeout: WIND_PAINT_TIMEOUT_MS, polling: WIND_PAINT_POLL_MS }
-    )
-    .then(
-      () => true,
-      () => false
-    );
-  if (painted) await page.waitForTimeout(STATE_SETTLE_MS);
+  const painted = await windPainted(page);
+  if (painted) await settle(page);
   return painted;
 }
 
+const INITIAL_STATE = { name: "inicial", enter: async () => true };
+
 const WEBGIS_STATES = [
-  { name: "visão geral aberta", enter: openOverview, needsData: true },
+  { name: "visão geral aberta", enter: (page) => setOverview(page, true), needsData: true },
   { name: "célula aberta", enter: openCell, needsData: true },
   { name: "parâmetros abertos", enter: openParameters },
-  { name: "visão geral recolhida", enter: collapseOverview },
+  { name: "visão geral recolhida", enter: (page) => setOverview(page, false) },
   { name: "menu aberto", enter: openMenu },
-  { name: "vento ligado", enter: openWind, needsData: true },
+  { name: "vento ligado", enter: openWind, afterResize: windPainted, needsData: true },
 ];
+
+function sameWidthRuns(viewports) {
+  const runs = new Map();
+  for (const viewport of viewports) runs.set(viewport.w, [...(runs.get(viewport.w) ?? []), viewport]);
+  return [...runs.values()];
+}
+
+async function resizeTo(page, viewport, state) {
+  const { width, height } = page.viewportSize();
+  if (width === viewport.w && height === viewport.h) return true;
+  await page.setViewportSize({ width: viewport.w, height: viewport.h });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await settle(page);
+  return state.afterResize ? state.afterResize(page) : true;
+}
 
 const pages = fs
   .readdirSync(siteRoot)
@@ -519,24 +588,31 @@ function record(name, viewport, state, result) {
 }
 
 let measuredViewports = 0;
+let pageLoads = 0;
 for (const name of pages) {
   const webgis = fs.readFileSync(path.join(siteRoot, name), "utf8").includes('id="variableOverviewToggle"');
   const viewports = webgis ? [...VIEWPORTS, ...WEBGIS_VIEWPORTS] : VIEWPORTS;
   measuredViewports += viewports.length;
   const page = await browser.newPage();
   page.on("pageerror", (error) => failures.push([name, "-", "-", "erro de página", String(error).slice(0, 90)]));
-  for (const viewport of viewports) {
-    await page.setViewportSize({ width: viewport.w, height: viewport.h });
+  for (const run of sameWidthRuns(viewports)) {
+    await page.setViewportSize({ width: run[0].w, height: run[0].h });
     await page.goto(`${base}/${name}`, { waitUntil: "load" });
-    await page.waitForTimeout(name.includes("mapas") || name.includes("potenciais") ? 3000 : 1500);
+    pageLoads += 1;
+    if (webgis) {
+      await succeeded(page.waitForFunction(mapShowsFirstFrame, null, { timeout: MAP_FIRST_FRAME_TIMEOUT_MS }));
+    } else {
+      await page.waitForTimeout(PAGE_SETTLE_MS);
+    }
     await reveal(page);
-    record(name, viewport, "inicial", await probe(page));
-    if (!webgis) continue;
-    for (const state of WEBGIS_STATES) {
-      if (await state.enter(page)) {
-        record(name, viewport, state.name, await probe(page));
-      } else if (state.needsData) {
-        unexercised.set(`${name} [${state.name}]`, (unexercised.get(`${name} [${state.name}]`) || 0) + 1);
+    for (const state of webgis ? [INITIAL_STATE, ...WEBGIS_STATES] : [INITIAL_STATE]) {
+      const entered = await state.enter(page);
+      for (const viewport of run) {
+        if (entered && (await resizeTo(page, viewport, state))) {
+          record(name, viewport, state.name, await probe(page));
+        } else if (state.needsData) {
+          unexercised.set(`${name} [${state.name}]`, (unexercised.get(`${name} [${state.name}]`) || 0) + 1);
+        }
       }
     }
   }
@@ -548,7 +624,7 @@ await browser.close();
 server.close();
 
 console.log(
-  `\n\ncheck-reachability: ${checked} controles em ${pages.length} páginas, ${measuredViewports} cargas de viewport, ${states} estados`
+  `\n\ncheck-reachability: ${checked} controles em ${pages.length} páginas, ${measuredViewports} viewports em ${pageLoads} cargas, ${states} estados`
 );
 const missingDataFails = unexercised.size > 0 && !acceptsMissingData;
 for (const [where, count] of unexercised) {
