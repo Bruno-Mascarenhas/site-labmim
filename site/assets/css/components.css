@@ -1155,11 +1155,6 @@
   background: rgba(var(--brand-secondary-rgb), 0.12);
 }
 
-.sky-guide-open:focus-visible {
-  outline: 3px solid var(--focus-ring-color);
-  outline-offset: 2px;
-}
-
 /* `color` is explicit because the UA sheet gives <dialog> CanvasText, which
    ignores the theme. */
 .sky-guide {

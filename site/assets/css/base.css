@@ -134,11 +134,6 @@ button {
   color: var(--white) !important;
 }
 
-.btn-outline-lab:focus-visible {
-  outline: 3px solid var(--focus-ring-color);
-  outline-offset: 2px;
-}
-
 .navbar-toggler {
   background-color: var(--brand-primary) !important;
   border-color: var(--brand-primary) !important;

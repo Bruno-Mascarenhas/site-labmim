@@ -465,11 +465,6 @@ header.maps-header {
   box-shadow: 0 0 0 3px rgba(var(--map-accent-rgb), 0.1);
 }
 
-.variable-select:focus-visible {
-  outline: 3px solid var(--focus-ring-color);
-  outline-offset: 2px;
-}
-
 /* Hub height (wind) and accumulation window (rain) share this corner of the
    map: each belongs to a different variable, so only one is ever active. */
 .segmented-selector {

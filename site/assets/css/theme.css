@@ -47,8 +47,11 @@ html.dark-theme {
 }
 
 [data-theme-toggle]:focus-visible,
+.btn-outline-lab:focus-visible,
 .control-btn:focus-visible,
 .sidebar-close-btn:focus-visible,
+.sky-guide-open:focus-visible,
+.variable-select:focus-visible,
 input:focus-visible {
   outline: 3px solid var(--focus-ring-color);
   outline-offset: 2px;
