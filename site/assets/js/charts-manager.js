@@ -1081,6 +1081,7 @@ class ChartsManager {
 
       const view = new DataView(buffer);
       const scale = Number.isFinite(feature.scale) ? feature.scale : 0.01;
+      const rawUnitsPerValue = 1 / scale;
       const missing = Number.isInteger(feature.missing) ? feature.missing : -2147483648;
       const series = [];
       for (let step = 0; step < steps; step++) {
@@ -1090,7 +1091,7 @@ class ChartsManager {
         if (raw === missing) continue;
         series.push({
           hour,
-          value: raw * scale,
+          value: raw / rawUnitsPerValue,
           timestamp: this._timestampForHour(hour, null),
         });
       }
