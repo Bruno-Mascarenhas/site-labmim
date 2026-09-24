@@ -2922,7 +2922,7 @@
       `contra o piranômetro — ${window.join(", ")}`,
       rawScale
         ? RAW_SCALE_LIVE_NOTE
-        : "o único holdout limpo: dias posteriores à decisão do pino, nunca usados em decisão"
+        : "o único holdout limpo: blocos a partir do dia da decisão do pino, nunca usados em decisão"
     );
     const dhi = live.dhi || {};
     const scaleNote = rawScale ? " (inclui a diferença de escala)" : "";
