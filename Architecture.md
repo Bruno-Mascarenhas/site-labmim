@@ -332,7 +332,7 @@ O fluxo principal é:
 4. `Promise.all([_cachedFetch(JSON/...), loadGridLayer(domain)])` — valor e grade em **paralelo**.
 5. `applyValuesToGrid(gridLayer, valueData)` — cores via `color-calc.worker.js`.
 6. `showGeoJsonLayer(gridLayer)` e `updateUIFromMetadata(metadata)`.
-7. `_prefetchUpcoming()` aquece os próximos 2 passos reproduzíveis (`PREFETCH_AHEAD_STEPS`; pulado sob `navigator.connection.saveData`; inclui `WIND_VECTORS` quando a camada de vento está ligada em `wind`).
+7. `_prefetchUpcoming()` aquece os próximos 2 passos reproduzíveis (`PREFETCH_AHEAD_STEPS`; pulado sob `navigator.connection.saveData`; inclui `WIND_VECTORS` quando a camada de vento está ligada em `wind`, e o arquivo de `features.isobar_overlay.variable` (`ISOBARS`) quando as isóbaras estão ligadas e a variável está em `draw_over`). Ligar a camada de isóbaras já dispara o aquecimento.
 
 A máscara de recorte por estado é computada **preguiçosamente**, apenas quando o recorte está ativo (custa centenas de ms em mobile) e memoizada por grade.
 

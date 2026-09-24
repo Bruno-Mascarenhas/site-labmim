@@ -1818,8 +1818,12 @@ class MeteoMapManager {
   }
 
   toggleIsobarLayer(isEnabled) {
-    if (isEnabled) this.renderIsobars();
-    else this.clearIsobars();
+    if (isEnabled) {
+      this.renderIsobars();
+      this._prefetchUpcoming(this.state.index, this.state.type);
+    } else {
+      this.clearIsobars();
+    }
   }
 
   clearIsobars() {
@@ -2122,6 +2126,8 @@ class MeteoMapManager {
     // The 'wind' overlay draws from standalone WIND_VECTORS files (eolico embeds its
     // vectors in the values JSON), so the arrows need warming too.
     const prefetchWind = type === "wind" && this.ui.windCheckbox?.checked;
+    const isobarOverlay = this.ui.isobarCheckbox?.checked && this.isobarsAllowedFor(type) ? this.isobarOverlay() : null;
+    const isobarVariableId = isobarOverlay ? isobarOverlay.variable || "ISOBARS" : null;
 
     const warm = (path) =>
       this.dataService.fetchJson(this.dataUrl(path)).catch(() => {
@@ -2135,6 +2141,7 @@ class MeteoMapManager {
       if (prefetchWind) {
         warm(this.valuesJsonPath(domain, "WIND_VECTORS", next));
       }
+      if (isobarVariableId) warm(this.valuesJsonPath(domain, isobarVariableId, next));
     }
   }
 
