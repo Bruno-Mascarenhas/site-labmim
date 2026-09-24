@@ -2180,12 +2180,14 @@ class MeteoMapManager {
         // A click invalidates the framing the previous one asked for; both branches
         // below end in an async flyTo, so they share a token.
         const switchGen = (this._domainSwitchGen = (this._domainSwitchGen || 0) + 1);
+        const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
         if (this.state.selectedCell) {
           const selectedLat = this.state.selectedCell.lat;
           const selectedLng = this.state.selectedCell.lng;
 
           this.map.flyTo([selectedLat, selectedLng], targetZoom, {
+            animate: !reducedMotion,
             duration: 1.5,
             easeLinearity: 0.25,
           });
@@ -2194,7 +2196,7 @@ class MeteoMapManager {
           // 1.5s flyTo would stack one-shot moveend handlers. Do NOT call
           // map.off("moveend") with no function — that also removes Leaflet's own
           // tile-layer and canvas-renderer handlers, breaking tiles and grid repaint.
-          this.map.once("moveend", () => {
+          const reframeSelectedCell = () => {
             if (switchGen !== this._domainSwitchGen) return;
             this.applyMapChanges().then(() => {
               if (switchGen !== this._domainSwitchGen) return;
@@ -2208,6 +2210,7 @@ class MeteoMapManager {
                   `A célula selecionada está fora do domínio ${this.getDomainLabel(selectedDomain)}`
                 );
                 this.map.flyTo(config.center, targetZoom, {
+                  animate: !reducedMotion,
                   duration: 1.5,
                   easeLinearity: 0.25,
                 });
@@ -2217,13 +2220,16 @@ class MeteoMapManager {
               if (!this.state.selectedCell) return;
               this.handleMapClick({ latlng: target }).catch(() => this.closeSidebar());
             });
-          });
+          };
+          if (reducedMotion) reframeSelectedCell();
+          else this.map.once("moveend", reframeSelectedCell);
         } else {
           this.applyMapChanges().then(() => {
             // The domains share a center and differ only in zoom: a load resolving late
             // would frame the abandoned domain under the newer one's grid and legend.
             if (switchGen !== this._domainSwitchGen) return;
             this.map.flyTo(config.center, targetZoom, {
+              animate: !reducedMotion,
               duration: 1.5,
               easeLinearity: 0.25,
             });
