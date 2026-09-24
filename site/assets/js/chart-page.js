@@ -6,12 +6,30 @@
   const STAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
   const COMPACT_STAMP = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/;
 
+  const PRINT_MEDIA = window.matchMedia("print");
+
   const INTEGER_FORMAT = new Intl.NumberFormat("pt-BR");
   const decimalFormatsByDigits = new Map();
 
   const el = (id) => document.getElementById(id);
 
   const pad = (value) => String(value).padStart(2, "0");
+
+  function hasDarkTheme() {
+    return document.documentElement.classList.contains("dark-theme");
+  }
+
+  function isDark() {
+    return hasDarkTheme() && !PRINT_MEDIA.matches;
+  }
+
+  PRINT_MEDIA.addEventListener("change", () => {
+    window.dispatchEvent(
+      new CustomEvent("labmim-print-change", {
+        detail: { printing: PRINT_MEDIA.matches, paletteChanged: hasDarkTheme() },
+      })
+    );
+  });
 
   function node(tag, className, text) {
     const element = document.createElement(tag);
@@ -117,6 +135,7 @@
 
   window.labmimChartPage = {
     el,
+    isDark,
     node,
     statTile,
     pad,

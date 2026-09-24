@@ -155,6 +155,7 @@
 
   const {
     el,
+    isDark,
     node,
     statTile,
     pad,
@@ -171,10 +172,6 @@
   const formatStamp = window.labmimChartPage.formatStampYear;
   const formatShortDay = window.labmimChartPage.formatDay;
   const formatHour = window.labmimChartPage.formatHour;
-
-  function isDark() {
-    return document.documentElement.classList.contains("dark-theme");
-  }
 
   function classPalette() {
     return isDark() ? CLASS_PALETTE.dark : CLASS_PALETTE.light;
@@ -4008,6 +4005,9 @@
     el("ceuEmpty").hidden = true;
     el("ceuApp").hidden = false;
     window.addEventListener("labmim-theme-change", onThemeChange);
+    window.addEventListener("labmim-print-change", (event) => {
+      if (event.detail.paletteChanged) onThemeChange();
+    });
     await afterNextPaint();
     await drawTimeline();
     announceStatusChanges();

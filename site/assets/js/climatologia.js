@@ -34,7 +34,7 @@
     seq: 0,
   };
 
-  const { el, decimal, integer, percent, showEmpty, downloadCsv } = window.labmimChartPage;
+  const { el, isDark, decimal, integer, percent, showEmpty, downloadCsv } = window.labmimChartPage;
 
   function digitsToDistinguishBins(edges) {
     let smallest = Infinity;
@@ -47,10 +47,6 @@
 
   // Chart.js keeps nothing from the CSS, so re-reading the tokens when the theme class flips is enough — the same
   // runtime read as charts-manager.js.
-
-  function isDark() {
-    return document.documentElement.classList.contains("dark-theme");
-  }
 
   function themeColors() {
     const root = getComputedStyle(document.documentElement);
@@ -946,6 +942,16 @@
     renderCoverage();
   }
 
+  function redrawSubset() {
+    const subset = currentSubset();
+    if (!subset || !subset.n) return;
+    if (state.variable.chart === "rose") {
+      drawRose(subset);
+    } else {
+      drawHistogram(subset);
+    }
+  }
+
   async function refresh() {
     // Every change of variable or subset invalidates the responses still in flight: without this mark the slowest
     // one arrives last and draws the old choice.
@@ -1009,14 +1015,9 @@
     el("climaApp").hidden = false;
     await refresh();
 
-    window.addEventListener("labmim-theme-change", () => {
-      const subset = currentSubset();
-      if (!subset || !subset.n) return;
-      if (state.variable.chart === "rose") {
-        drawRose(subset);
-      } else {
-        drawHistogram(subset);
-      }
+    window.addEventListener("labmim-theme-change", redrawSubset);
+    window.addEventListener("labmim-print-change", (event) => {
+      if (event.detail.paletteChanged) redrawSubset();
     });
   }
 

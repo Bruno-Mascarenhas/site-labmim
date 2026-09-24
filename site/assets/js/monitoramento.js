@@ -91,6 +91,7 @@
 
   const {
     el,
+    isDark,
     node,
     pad,
     decimal,
@@ -116,13 +117,9 @@
     return 1;
   }
 
-  function isDark() {
-    return document.documentElement.classList.contains("dark-theme");
-  }
-
   function themeColors() {
     const root = getComputedStyle(document.documentElement);
-    const dark = isDark() && !window.matchMedia("print").matches;
+    const dark = isDark();
     const series = dark ? PALETTE.dark : PALETTE.light;
     return {
       series,
@@ -1202,7 +1199,7 @@
     observeCards();
 
     window.addEventListener("beforeprint", drawAllForPrint);
-    window.matchMedia("print").addEventListener("change", redrawAll);
+    window.addEventListener("labmim-print-change", redrawAll);
     window.addEventListener("labmim-theme-change", redrawAll);
   }
 
