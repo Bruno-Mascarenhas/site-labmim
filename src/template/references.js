@@ -25,7 +25,7 @@ const SITE_REFERENCES = Object.freeze({
     citation:
       "Skamarock, W. C. et al. (2019). A Description of the Advanced Research WRF Model Version 4. " +
       "NCAR Technical Note NCAR/TN-556+STR. Documentação oficial do modelo usado nestas previsões.",
-    url: "https://www2.mmm.ucar.edu/wrf/users/docs/user_guide_v4/v4.0/contents.html",
+    url: "https://doi.org/10.5065/1dfh-6p97",
   },
   gfs: {
     short: "GFS/NCEP",
@@ -41,6 +41,37 @@ const SITE_REFERENCES = Object.freeze({
       "(2008). Radiative forcing by long-lived greenhouse gases: calculations with the AER radiative " +
       "transfer models. Journal of Geophysical Research 113, D13103. O esquema RRTMG.",
     url: crossrefTitleSearch("Radiative forcing by long-lived greenhouse gases AER radiative transfer models"),
+  },
+  rrtm: {
+    short: "Mlawer et al., 1997",
+    citation:
+      "Mlawer, E. J., Taubman, S. J., Brown, P. D., Iacono, M. J. & Clough, S. A. (1997). Radiative transfer for " +
+      "inhomogeneous atmospheres: RRTM, a validated correlated-k model for the longwave. Journal of Geophysical " +
+      "Research 102(D14), 16663-16682. O esquema RRTM de onda longa.",
+    url: "https://doi.org/10.1029/97JD00237",
+  },
+  wsm3: {
+    short: "Hong, Dudhia e Chen, 2004",
+    citation:
+      "Hong, S.-Y., Dudhia, J. & Chen, S.-H. (2004). A revised approach to ice microphysical processes for the " +
+      "bulk parameterization of clouds and precipitation. Monthly Weather Review 132(1), 103-120. O esquema WSM3.",
+    url: "https://doi.org/10.1175/1520-0493(2004)132%3C0103:ARATIM%3E2.0.CO;2",
+  },
+  noah: {
+    short: "Chen e Dudhia, 2001",
+    citation:
+      "Chen, F. & Dudhia, J. (2001). Coupling an advanced land surface-hydrology model with the Penn State-NCAR " +
+      "MM5 modeling system. Part I: model implementation and sensitivity. Monthly Weather Review 129(4), 569-585. " +
+      "O modelo de superfície Noah.",
+    url: "https://doi.org/10.1175/1520-0493(2001)129%3C0569:CAALSH%3E2.0.CO;2",
+  },
+  bmj: {
+    short: "Janjic, 1994",
+    citation:
+      "Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the " +
+      "convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), " +
+      "927-945. O esquema Betts-Miller-Janjić de cumulus.",
+    url: "https://doi.org/10.1175/1520-0493(1994)122%3C0927:TSMECM%3E2.0.CO;2",
   },
   thompson: {
     short: "Thompson et al., 2008",
@@ -133,6 +164,22 @@ const SITE_REFERENCES = Object.freeze({
       "Renewable Energy 35(2), 478-483. O modelo BRL original: logística no índice de claridade horário, hora " +
       "solar aparente, elevação solar, índice de claridade diário e persistência.",
     url: "https://doi.org/10.1016/j.renene.2009.07.018",
+  },
+  prata1996: {
+    short: "Prata, 1996",
+    citation:
+      "Prata, A. J. (1996). A new long-wave formula for estimating downward clear-sky radiation at the surface. " +
+      "Quarterly Journal of the Royal Meteorological Society 122(533), 1127-1151. A emissividade de céu limpo " +
+      "em função da temperatura e do vapor d'água junto à superfície.",
+    url: "https://doi.org/10.1002/qj.49712253306",
+  },
+  herrero2012: {
+    short: "Herrero e Polo, 2012",
+    citation:
+      "Herrero, J. & Polo, M. J. (2012). Parameterization of atmospheric longwave emissivity in a mountainous " +
+      "site for all sky conditions. Hydrology and Earth System Sciences 16(9), 3139-3147. Medidas de uma estação " +
+      "a 2.500 m de altitude na Sierra Nevada, Espanha.",
+    url: "https://doi.org/10.5194/hess-16-3139-2012",
   },
   codata2018: {
     short: "CODATA 2018",

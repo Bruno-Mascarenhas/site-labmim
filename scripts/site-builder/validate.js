@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { inspectPublicationThemeCss } = require("./theme-contract");
-const { observationModalId, DEFAULT_MODEL } = require("./renderer");
+const { observationModalId, DEFAULT_MODEL, RUN_NOTE_SLOTS } = require("./renderer");
 const { DEFAULT_GRAPHS_DIRECTORY } = require("./operational-paths");
 const { closestKey, LAYOUT_CONTRACTS } = require("../../src/template/page-types");
 
@@ -610,6 +610,7 @@ function validateObservations(errors, observations, graphsDirectory) {
 }
 
 const LIVE_MONITORING_TEMPLATE = "pages/monitoring-live.html";
+const BOOTSTRAP_BUNDLE_SCRIPT = "assets/vendor/bootstrap/bootstrap.bundle.min.js";
 
 // Compares the resolved FILE, not the configured string: `pages//monitoring-live.html` is safe and
 // opens the same file, but a textual match would push it down the static branch.
@@ -647,6 +648,13 @@ function validateMonitoringHasData(errors, publication, templateDirectory, publi
       "dataset.observations: the static monitoring page requires at least one chart; declare dataset.observations.charts or drop the monitoring page"
     );
   }
+
+  const vendorScripts = Array.isArray(monitoring.vendorScripts) ? monitoring.vendorScripts : [];
+  if (!vendorScripts.some((source) => typeof source === "string" && source.split("?")[0] === BOOTSTRAP_BUNDLE_SCRIPT)) {
+    errors.push(
+      `pages.monitoring.vendorScripts: the static monitoring page opens its charts in Bootstrap modals; declare ${BOOTSTRAP_BUNDLE_SCRIPT}?v=5.3.8 in page("monitoring", { vendorScripts: [...] })`
+    );
+  }
 }
 
 function validateClimatologyHasData(errors, publication) {
@@ -671,25 +679,32 @@ function validateSkyHasData(errors, publication) {
   }
 }
 
+function validateClosedStringRecord(errors, record, field, keys) {
+  if (record === undefined || record === null) return;
+  if (!addRequiredObject(errors, record, field)) return;
+  for (const key of Object.keys(record)) {
+    if (keys.includes(key)) {
+      addRequiredString(errors, record[key], `${field}.${key}`);
+      continue;
+    }
+    const suggestion = closestKey(key, keys);
+    errors.push(
+      `${field}.${key}: unknown field${suggestion ? `; did you mean "${suggestion}"?` : "."} ` +
+        `Valid fields: ${keys.join(", ")}`
+    );
+  }
+}
+
 // Optional WRF namelist block, layered by the renderer over DEFAULT_MODEL: an unknown key is inert
 // — the page keeps publishing the default scheme and crediting its paper — hence the closed key
 // list. An empty string publishes an empty parenthesis where the scheme belongs, and an explicit
 // `undefined` wipes the default through the renderer's spread and publishes the word "undefined".
 function validateModel(errors, model) {
-  if (model === undefined || model === null) return;
-  if (!addRequiredObject(errors, model, "dataset.model")) return;
-  const fields = Object.keys(DEFAULT_MODEL);
-  for (const key of Object.keys(model)) {
-    if (fields.includes(key)) {
-      addRequiredString(errors, model[key], `dataset.model.${key}`);
-      continue;
-    }
-    const suggestion = closestKey(key, fields);
-    errors.push(
-      `dataset.model.${key}: unknown field${suggestion ? `; did you mean "${suggestion}"?` : "."} ` +
-        `Valid fields: ${fields.join(", ")}`
-    );
-  }
+  validateClosedStringRecord(errors, model, "dataset.model", Object.keys(DEFAULT_MODEL));
+}
+
+function validateRunNotes(errors, runNotes) {
+  validateClosedStringRecord(errors, runNotes, "dataset.runNotes", Object.keys(RUN_NOTE_SLOTS));
 }
 
 function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBounds) {
@@ -701,6 +716,7 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
     addRequiredString(errors, dataset.generator, "dataset.generator");
   }
   validateModel(errors, dataset.model);
+  validateRunNotes(errors, dataset.runNotes);
 
   if (addRequiredObject(errors, dataset.paths, "dataset.paths")) {
     validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.manifest, "dataset.paths.manifest");
@@ -770,7 +786,9 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
     if (!Number.isFinite(timeline.stepHours) || timeline.stepHours <= 0) {
       errors.push("dataset.timeline.stepHours: expected a positive number");
     }
-    addRequiredString(errors, timeline.label, "dataset.timeline.label");
+    if (!Number.isFinite(timeline.utcOffsetHours)) {
+      errors.push("dataset.timeline.utcOffsetHours: expected a finite number of hours");
+    }
   }
 
   addRequiredString(errors, dataset.defaultDomain, "dataset.defaultDomain");
@@ -807,16 +825,6 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
 
   if (isNonEmptyString(dataset.defaultDomain) && !domainIds.has(dataset.defaultDomain)) {
     errors.push(`dataset.defaultDomain: no matching domain with id ${dataset.defaultDomain}`);
-  }
-
-  // A uniform grid is a legitimate (if undocumented) dataset choice, so warn rather than fail.
-  if (Array.isArray(dataset.domains) && dataset.domains.length > 0) {
-    const flags = dataset.domains.map((domain) => domain?.cumulusParameterized === true);
-    if (flags.every(Boolean) || !flags.some(Boolean)) {
-      warnings.push(
-        "dataset.domains: every domain has the same cumulusParameterized value; the WebGIS cumulus sentence will list one side as empty"
-      );
-    }
   }
 }
 
@@ -1159,7 +1167,10 @@ function validateRedirects(errors, redirects, pageOutputs) {
       sources.set(redirect.from, index);
     }
 
-    if (!addRequiredString(errors, redirect.to, `${field}.to`) || !isSafeRedirectPath(redirect.to)) {
+    if (
+      !addRequiredString(errors, redirect.to, `${field}.to`) ||
+      !(redirect.to === "/" || isSafeRedirectPath(redirect.to))
+    ) {
       if (isNonEmptyString(redirect.to)) errors.push(`${field}.to: expected a safe internal destination path`);
     } else {
       const target = redirectTargetOutput(redirect.to);

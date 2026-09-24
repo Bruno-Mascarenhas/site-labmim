@@ -40,19 +40,25 @@
             <div class="doc-var-detail-body">
               <div class="doc-var-meta">
                 <span class="doc-var-badge">Unidade base: W/m²</span>
-                <span class="doc-var-badge">JSON id: SWDOWN</span>
+                <span class="doc-var-badge">JSON ids: SWDOWN, SW_IRRAD</span>
                 <span class="doc-var-badge">Estimativa no frontend</span>
               </div>
               <p>
-                O potencial fotovoltaico é estimado a partir da radiação solar incidente na superfície
-                (<code>SWDOWN</code>) e de parâmetros do sistema fotovoltaico definidos no frontend.
+                O potencial fotovoltaico é estimado a partir da radiação solar que chega à superfície e de parâmetros do
+                sistema fotovoltaico definidos no frontend. O mapa mostra o fluxo incidente (<code>SWDOWN</code>); a
+                energia vem de <code>SW_IRRAD</code>, a irradiação do passo que termina no horário, calculada pela
+                diferença do <code>ACSWDNB</code> que o WRF acumula.
               </p>
-              <pre class="doc-formula"><code>SWDOWN = W/m²</code></pre>
-              <pre class="doc-formula"><code>Tcell = Tair + ((NOCT - 20) * SWDOWN) / 800
+              <pre class="doc-formula"><code>E = SW_IRRAD / 3.6                   (kJ/m² para Wh/m²)
+G = SW_IRRAD * 1000 / step_seconds   (fluxo médio no passo, W/m²)
+Tcell = Tair + ((NOCT - 20) * G) / 800
 
-Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
-         (1 + PTC * (Tcell - 25) / 100)</code></pre>
+Energy = E * eta_panel * eta_inverter * (1 + PTC * (Tcell - 25) / 100)</code></pre>
               <ul class="doc-list">
+                <li>
+                  <code>step_seconds</code> é a duração real do passo, que pode ficar alguns segundos ou minutos longe de
+                  1 h. O gráfico e o CSV não a recebem e usam 1 h no fluxo médio, o que só mexe na correção térmica.
+                </li>
                 <li><code>Tcell</code> é a temperatura estimada da célula fotovoltaica.</li>
                 <li><code>Tair</code> é a temperatura do ar.</li>
                 <li><code>NOCT</code> é a temperatura nominal de operação da célula.</li>
@@ -60,6 +66,17 @@ Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
                 <li><code>eta_inverter</code> é a eficiência do inversor.</li>
                 <li><code>PTC</code> é o coeficiente térmico de potência.</li>
               </ul>
+              <p>
+                Quando a rodada não publica <code>SW_IRRAD</code>, o painel volta à estimativa pelo fluxo instantâneo, com
+                <code>E = SWDOWN × 1 h</code> e <code>G = SWDOWN</code>, e rotula os valores assim. O <code>SWDOWN</code>
+                é um fluxo instantâneo, não a média da hora, e essa estimativa erra para mais ou para
+                menos conforme o sol e as nuvens mudam dentro do passo.
+              </p>
+              <p>
+                Quando a rodada informa o instante da chamada de radiação que produziu o <code>SWDOWN</code> do
+                horário, o painel da célula o mostra em <strong>Cálculo da radiação</strong>. Ele vale para o fluxo
+                mostrado em Valor, não para a energia do passo, que vem do <code>SW_IRRAD</code>.
+              </p>
               <p>
                 <code>SWDOWN</code> é uma variável meteorológica. A produção fotovoltaica exibida é uma estimativa
                 derivada e depende dos parâmetros assumidos para o sistema. Não substitui estudo técnico de geração
@@ -84,18 +101,33 @@ Energy = (SWDOWN / 1000) * eta_panel * eta_inverter *
                 A velocidade do vento é a variável primária exibida no mapa. A produção energética exibida no painel é
                 estimada a partir da densidade do ar, área do rotor e coeficiente de potência.
               </p>
+              <pre class="doc-formula"><code>Tv = T2 * (1 + 0.61 * Q2)
+
+rho = PSFC / (287.05 * Tv)</code></pre>
               <pre class="doc-formula"><code>P_density = 0.5 * rho * v³</code></pre>
-              <pre class="doc-formula"><code>P = 0.5 * rho * A * Cp * v³</code></pre>
+              <pre class="doc-formula"><code>P = 0.5 * rho * A * Cp * min(v, 12)³   se 3 ≤ v ≤ 25 m/s
+P = 0                                  fora dessa faixa</code></pre>
               <ul class="doc-list">
-                <li><code>rho</code> é a densidade do ar.</li>
+                <li>
+                  <code>rho</code> é a densidade do ar úmido na própria célula, em kg/m³, calculada com a pressão na
+                  superfície (<code>PSFC</code>, em Pa), a temperatura a 2 m (<code>T2</code>, em K) e o vapor d'água a
+                  2 m (<code>Q2</code>, em kg/kg), a mesma conta da densidade de potência a 10 m. Sem um desses três
+                  campos, a densidade, a potência e a produção aparecem como N/D.
+                </li>
                 <li><code>v</code> é a velocidade do vento.</li>
                 <li><code>A</code> é a área varrida pelo rotor.</li>
                 <li><code>Cp</code> é o coeficiente de potência.</li>
               </ul>
               <p>
-                A estimativa não considera curva real de potência da turbina, velocidades de cut-in/rated/cut-out,
-                perdas elétricas, disponibilidade, rugosidade local ou micrositing. Deve ser usada como triagem espacial
-                preliminar.
+                A densidade é a do ar a 2 m, não a da altura do rotor. Ela cai cerca de 1% a cada 100 m de altura, e a
+                potência e a produção saem altas nessa proporção, até cerca de 1,5% a 150 m.
+              </p>
+              <p>
+                A produção segue uma curva de potência simplificada, com as faixas do item Faixa de Operação do painel:
+                zero abaixo da partida (3 m/s) e acima do corte (25 m/s), cresce com v³ até a velocidade nominal (12 m/s)
+                e fica constante daí até o corte. A densidade de potência não passa por essa curva: mostra o recurso
+                disponível no vento. A estimativa não considera a curva real de cada turbina, perdas elétricas,
+                disponibilidade, rugosidade local ou micrositing. Deve ser usada como triagem espacial preliminar.
               </p>
             </div>
           </details>

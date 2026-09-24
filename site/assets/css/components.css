@@ -322,7 +322,7 @@
 }
 
 .team-group a:hover {
-  color: var(--secondary-color);
+  color: var(--secondary-color-ink);
   text-decoration: underline;
 }
 
@@ -499,8 +499,29 @@
 }
 
 .clima-segmented-btn:focus-visible {
-  outline: 3px solid var(--accent-color);
-  outline-offset: 2px;
+  outline: 3px solid var(--focus-ring-color);
+  outline-offset: 0;
+}
+
+.clima-segmented-btn.is-active:focus-visible {
+  outline-width: 2px;
+  outline-offset: 1px;
+}
+
+.clima-segmented-btn:disabled {
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  background: transparent;
+  opacity: 0.5;
+}
+
+.clima-model-note {
+  width: 0;
+  min-width: 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
 }
 
 .clima-panel {
@@ -579,7 +600,7 @@
 
 .clima-fit-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: 0.4rem 1.5rem;
   margin: 0.75rem 0 0;
 }
@@ -770,6 +791,16 @@
 
 .clima-empty p {
   margin: 0;
+}
+
+.clima-empty.is-loading {
+  margin-bottom: 100vh;
+}
+
+@media (scripting: none) {
+  .clima-empty.is-loading {
+    display: none;
+  }
 }
 
 @media (width <= 768px) {
@@ -1116,11 +1147,6 @@
   background: rgba(var(--brand-secondary-rgb), 0.12);
 }
 
-.sky-guide-open:focus-visible {
-  outline: 3px solid var(--accent-color);
-  outline-offset: 2px;
-}
-
 /* `color` is explicit because the UA sheet gives <dialog> CanvasText, which
    ignores the theme. */
 .sky-guide {
@@ -1325,14 +1351,9 @@
   color: var(--text-secondary);
 }
 
-.sky-notes [aria-expanded="true"] .fa-chevron-down {
-  transform: rotate(180deg);
-}
-
-.sky-notes-toggle .fa-chevron-down {
+.sky-notes-toggle i {
   font-size: 0.8em;
   color: var(--text-secondary);
-  transition: transform 0.2s ease;
 }
 
 .sky-notes #ceuCaveats {
@@ -1357,7 +1378,7 @@
 
 .sky-prediction-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 1rem 1.75rem;
 }
 
@@ -1462,7 +1483,7 @@
 
 .sky-two-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 0 1.5rem;
 }
 

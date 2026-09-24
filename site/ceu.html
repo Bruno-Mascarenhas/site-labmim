@@ -52,18 +52,18 @@
       type="font/woff2"
       crossorigin
     />
-    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/fa.subset.min.css?v=dd152823" />
 
-    <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
-    <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
-    <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
-    <link rel="stylesheet" href="assets/css/components.css?v=38bc57c5" />
+    <link rel="stylesheet" href="assets/css/base.css?v=bfb24568" />
+    <link rel="stylesheet" href="assets/css/site-theme.css?v=51e1d16d" />
+    <link rel="stylesheet" href="assets/css/layout.css?v=172e813e" />
+    <link rel="stylesheet" href="assets/css/components.css?v=c8c52745" />
 
-    <link rel="stylesheet" href="assets/css/theme.css?v=694b8c88" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=f9e449d6" />
 
     <script src="assets/js/theme-boot.js?v=fef91866"></script>
-    <script src="assets/js/theme-toggle.js?v=396a40c7" defer></script>
-    <script src="assets/js/ui-shell.js?v=482aa431" defer></script>
+    <script src="assets/js/theme-toggle.js?v=b82be33e" defer></script>
+    <script src="assets/js/ui-shell.js?v=fa862f16" defer></script>
   </head>
 
   <body>
@@ -85,8 +85,7 @@
         <button
           class="navbar-toggler"
           type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarSupportedContent"
+          data-navbar-toggle
           aria-controls="navbarSupportedContent"
           aria-expanded="false"
           aria-label="Alternar navegação"
@@ -118,9 +117,10 @@
           <button
             type="button"
             class="btn btn-outline-light me-3"
-            title="Alternar Tema"
+            title="Tema escuro"
             data-theme-toggle
-            aria-label="Alternar Tema"
+            aria-label="Tema escuro"
+            aria-pressed="false"
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
@@ -148,7 +148,7 @@
  cumulative one, all rewritten in place in that directory. Nothing here is specific to LabMiM. -->
       <div class="modern-section" id="ceu" data-sky-base="Ceu">
         <div class="modern-header mb-4">
-          <h2><i class="fas fa-cloud me-2"></i>Condição do Céu</h2>
+          <h2><i class="fas fa-cloud me-2" aria-hidden="true"></i>Condição do Céu</h2>
           <p id="ceuPeriodo">
             Câmera all-sky, a irradiância difusa que a rede prevê a partir dela e a dispersão do índice de claridade
           </p>
@@ -164,7 +164,7 @@
             aria-controls="explanationContentCeu"
             aria-expanded="false"
           >
-            <i class="fas fa-chevron-down"></i> <span data-toggle-label>Mostrar Explicação</span>
+            <i class="fas fa-chevron-down" aria-hidden="true"></i> <span data-toggle-label>Mostrar Explicação</span>
           </button>
         </div>
 
@@ -211,13 +211,14 @@
                 </li>
               </ul>
               <p>
-                O gráfico tem duas leituras da mesma amostra, e a que aparece por padrão é a
-                <strong>densidade</strong>: o plano é cortado numa grade e cada célula é pintada pelo
+                O gráfico tem duas leituras <span id="ceuAmostra">da mesma amostra</span>, e a que aparece por padrão é
+                a <strong>densidade</strong>: o plano é cortado numa grade e cada célula é pintada pelo
                 <strong>número de horas do acervo que caíram nela</strong> — quanto mais escura, mais horas. Não é uma
                 nuvem de pontos desbotada; é uma contagem. A escala é logarítmica porque a célula mais cheia concentra
-                dezenas de horas enquanto as bordas têm uma ou duas, e numa escala linear tudo fora do miolo viraria um
-                tom só. Ligando a camada <strong>Pontos</strong>, cada hora medida aparece individualmente, colorida
-                pela condição de céu.
+                <span id="ceuHorasCelulaCheia">muitas horas</span> enquanto as bordas têm uma ou duas, e numa escala
+                linear tudo fora do miolo viraria um tom só. Ligando a camada <strong>Pontos</strong>, cada hora medida
+                aparece individualmente, colorida pela condição de céu.
+                <span id="ceuForaDaGrade"></span>
               </p>
               <p>
                 As <strong>quatro condições de céu</strong> são definidas por faixas de K<sub>t</sub> [[escobedo]], na
@@ -229,13 +230,14 @@
               </p>
               <p>
                 K<sub>t</sub> é uma razão entre irradiações do hemisfério inteiro, então descreve o céu de um
-                <em>instante</em>, não de um ponto da imagem: a legenda abaixo do gráfico é a chave das condições, e as
-                mesmas cores marcam a condição prevista no cartão do quadro e na linha do tempo.
+                <em>instante</em>, não de um ponto da imagem: a chave das condições está no guia do gráfico, o botão de
+                informação ao lado do título, e nos botões <strong>Condições de céu</strong>, que aparecem com a camada
+                Pontos. As mesmas cores marcam a condição prevista no cartão do quadro e na linha do tempo.
               </p>
               <p>
                 Três modelos empíricos podem ser sobrepostos, e eles não se desenham do mesmo jeito. O de
                 [[marquesfilho]] é função <strong>apenas</strong> de K<sub>t</sub>, então é uma curva. Os de [[lemos]] e
-                [[ridley]] — o BRL — são logísticas em mais cinco preditores (hora solar aparente, elevação solar,
+                [[ridley]] — o BRL — são logísticas em mais quatro preditores (hora solar aparente, elevação solar,
                 índice de claridade diário e persistência), então num mesmo K<sub>t</sub> assumem uma faixa de valores:
                 aparecem como <strong>banda</strong>, a mediana por faixa de K<sub>t</sub>
                 dentro do envelope entre os percentis 10 e 90. Desenhá-los como uma linha só afirmaria uma determinação
@@ -247,12 +249,17 @@
                   >A linha horizontal em K<sub>d</sub> = 0,5 não é decorativa: o limite entre a segunda e a terceira
                   condição é definido justamente onde a componente difusa iguala a direta, o que na superfície
                   corresponde a metade da global. Os três modelos foram ajustados a médias <strong>horárias</strong>, e
-                  é por isso que o exportador integra o registro de 5 minutos à grade horária antes de comparar. As
-                  horas com chuva e as de sol baixo ficam de fora, assim como as de K<sub>d</sub> fora do intervalo
-                  aberto (0, 1) — a convenção dos ajustes publicados, que remove o realce por nuvens e o artefato da
-                  correção de banda de sombreamento. A rede do quadro é o produto do modelo deste laboratório, e o
-                  cartão em O modelo diz como ela foi escolhida e onde erra. As informações são resultados de aquisições
-                  de pesquisa, sem garantia para utilização irrestrita.</small
+                  é por isso que o exportador integra o registro de 5 minutos à grade horária antes de comparar.
+                  <span id="ceuFiltros"
+                    >Entram as horas com global acima de 50 W/m² e sol acima de 10° durante a hora inteira, com K<sub
+                      >t</sub
+                    >
+                    e K<sub>d</sub> entre 0 e 1,2; horas de chuva não são excluídas.</span
+                  >
+                  Como a difusa não pode superar a global, K<sub>d</sub> acima de 1 é erro de medida: essas horas
+                  aparecem na camada de pontos e entram nas métricas dos modelos. A rede do quadro é o produto do modelo
+                  deste laboratório, e o cartão em O modelo diz como ela foi escolhida e onde erra. As informações são
+                  resultados de aquisições de pesquisa, sem garantia para utilização irrestrita.</small
                 >
               </p>
             </div>
@@ -260,7 +267,7 @@
           <hr class="mb-4 max-w-1000" />
         </div>
 
-        <div class="clima-empty" id="ceuEmpty" hidden>
+        <div class="clima-empty is-loading" id="ceuEmpty">
           <p id="ceuEmptyMessage">Carregando a condição do céu…</p>
         </div>
 
@@ -285,7 +292,8 @@
             </div>
           </div>
 
-          <p class="clima-status sky-frame-status" id="ceuQuadroStatus" aria-live="polite"></p>
+          <p class="clima-status sky-frame-status" id="ceuQuadroStatus"></p>
+          <div class="visually-hidden" id="ceuAnuncio" aria-live="polite"></div>
 
           <div class="sky-frames">
             <figure class="theme-surface sky-frame">
@@ -365,9 +373,9 @@
                 ></canvas>
               </div>
               <ul class="sky-inline-legend" id="ceuLinhaLegenda" hidden></ul>
-              <div class="clima-table-scroll" id="ceuDiasWrap" hidden>
+              <section class="clima-table-scroll" id="ceuDiasWrap" tabindex="0" aria-labelledby="ceuDiasLegenda" hidden>
                 <table class="clima-table">
-                  <caption>
+                  <caption id="ceuDiasLegenda">
                     Resumo por dia
                   </caption>
                   <thead>
@@ -381,9 +389,9 @@
                   </thead>
                   <tbody id="ceuDiasCorpo"></tbody>
                 </table>
-              </div>
+              </section>
             </div>
-            <p class="clima-status" id="ceuLinhaStatus" aria-live="polite"></p>
+            <p class="clima-status" id="ceuLinhaStatus"></p>
           </div>
 
           <h3 class="sky-section-title">O modelo</h3>
@@ -408,13 +416,14 @@
                 aria-controls="ceuModeloDetalhes"
                 aria-expanded="false"
               >
-                <i class="fas fa-chevron-down"></i> <span data-toggle-label>Ver detalhes do modelo</span>
+                <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                <span data-toggle-label>Ver detalhes do modelo</span>
               </button>
             </div>
 
             <div id="ceuModeloDetalhes" hidden>
-              <h4 class="sky-block-title">Braços avaliados nas mesmas linhas de teste</h4>
-              <div class="clima-table-scroll">
+              <h4 class="sky-block-title" id="ceuBracosTitulo">Braços avaliados nas mesmas linhas de teste</h4>
+              <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuBracosTitulo">
                 <table class="clima-table">
                   <caption id="ceuBracosLegenda"></caption>
                   <thead>
@@ -435,10 +444,10 @@
                   </thead>
                   <tbody id="ceuBracosCorpo"></tbody>
                 </table>
-              </div>
+              </section>
 
-              <h4 class="sky-block-title">Referências e habilidade</h4>
-              <div class="clima-table-scroll">
+              <h4 class="sky-block-title" id="ceuReferenciasTitulo">Referências e habilidade</h4>
+              <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuReferenciasTitulo">
                 <table class="clima-table">
                   <caption>
                     Habilidade = 1 − RMSE do modelo / RMSE da referência, sobre as mesmas linhas pareadas
@@ -455,13 +464,13 @@
                   </thead>
                   <tbody id="ceuReferenciasCorpo"></tbody>
                 </table>
-              </div>
+              </section>
 
-              <h4 class="sky-block-title">Por condição de céu</h4>
+              <h4 class="sky-block-title" id="ceuClassesTitulo">Por condição de céu</h4>
               <div class="sky-two-columns">
-                <div class="clima-table-scroll">
+                <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuClassesTitulo ceuClassesLegenda">
                   <table class="clima-table">
-                    <caption>
+                    <caption id="ceuClassesLegenda">
                       Por condição verdadeira
                     </caption>
                     <thead>
@@ -475,10 +484,10 @@
                     </thead>
                     <tbody id="ceuClassesCorpo"></tbody>
                   </table>
-                </div>
-                <div class="clima-table-scroll">
+                </section>
+                <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuClassesTitulo ceuConfusaoLegenda">
                   <table class="clima-table sky-confusion">
-                    <caption>
+                    <caption id="ceuConfusaoLegenda">
                       Matriz de confusão — linhas: condição verdadeira; colunas: condição prevista
                     </caption>
                     <thead>
@@ -488,12 +497,12 @@
                     </thead>
                     <tbody id="ceuConfusaoCorpo"></tbody>
                   </table>
-                </div>
+                </section>
               </div>
 
-              <h4 class="sky-block-title">Erro da difusa por estrato</h4>
+              <h4 class="sky-block-title" id="ceuEstratosTitulo">Erro da difusa por estrato</h4>
               <div class="sky-two-columns">
-                <div class="clima-table-scroll">
+                <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuEstratosTitulo ceuElevacaoLegenda">
                   <table class="clima-table">
                     <caption id="ceuElevacaoLegenda">
                       Por faixa de elevação solar
@@ -509,10 +518,14 @@
                     </thead>
                     <tbody id="ceuElevacaoCorpo"></tbody>
                   </table>
-                </div>
-                <div class="clima-table-scroll">
+                </section>
+                <section
+                  class="clima-table-scroll"
+                  tabindex="0"
+                  aria-labelledby="ceuEstratosTitulo ceuEstratoClasseLegenda"
+                >
                   <table class="clima-table">
-                    <caption>
+                    <caption id="ceuEstratoClasseLegenda">
                       Por condição de céu verdadeira
                     </caption>
                     <thead>
@@ -526,11 +539,11 @@
                     </thead>
                     <tbody id="ceuEstratoClasseCorpo"></tbody>
                   </table>
-                </div>
+                </section>
               </div>
 
-              <h4 class="sky-block-title">Por dia de teste</h4>
-              <div class="clima-table-scroll">
+              <h4 class="sky-block-title" id="ceuDiasTesteTitulo">Por dia de teste</h4>
+              <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuDiasTesteTitulo">
                 <table class="clima-table">
                   <caption>
                     RMSE da difusa por dia, do modelo e das duas referências
@@ -547,7 +560,7 @@
                   </thead>
                   <tbody id="ceuDiasTesteCorpo"></tbody>
                 </table>
-              </div>
+              </section>
 
               <h4 class="sky-block-title">Curva de treino</h4>
               <p class="clima-legend" id="ceuCurvaNota"></p>
@@ -559,8 +572,8 @@
                 ></canvas>
               </div>
 
-              <h4 class="sky-block-title">Sementes</h4>
-              <div class="clima-table-scroll">
+              <h4 class="sky-block-title" id="ceuSementesTitulo">Sementes</h4>
+              <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuSementesTitulo">
                 <table class="clima-table">
                   <caption id="ceuSementesLegenda"></caption>
                   <thead>
@@ -568,7 +581,7 @@
                       <th scope="col">Membro</th>
                       <th scope="col">Semente</th>
                       <th scope="col">Época</th>
-                      <th scope="col">Métrica de parada</th>
+                      <th scope="col">Métrica de seleção</th>
                       <th scope="col">RMSE DHI</th>
                       <th scope="col">MAE DHI</th>
                       <th scope="col">MBE DHI</th>
@@ -578,11 +591,11 @@
                   </thead>
                   <tbody id="ceuSementesCorpo"></tbody>
                 </table>
-              </div>
+              </section>
 
-              <h4 class="sky-block-title">Conjunto de dados e divisão</h4>
+              <h4 class="sky-block-title" id="ceuDivisaoTitulo">Conjunto de dados e divisão</h4>
               <p class="clima-legend" id="ceuDadosNota"></p>
-              <div class="clima-table-scroll">
+              <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuDivisaoTitulo">
                 <table class="clima-table">
                   <caption id="ceuDivisaoLegenda"></caption>
                   <thead>
@@ -597,7 +610,7 @@
                   </thead>
                   <tbody id="ceuDivisaoCorpo"></tbody>
                 </table>
-              </div>
+              </section>
 
               <h4 class="sky-block-title">Proveniência</h4>
               <dl class="sky-facts sky-facts-wide" id="ceuProveniencia"></dl>
@@ -720,7 +733,7 @@
 
         <div class="footer-notice mt-4">
           <p>
-            <i class="fas fa-exclamation-triangle"></i>
+            <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
             ATENÇÃO: Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos
             laboratórios associados. Não há nenhum compromisso quanto à confiabilidade das previsões, isentando os
             pesquisadores participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados
@@ -745,20 +758,23 @@
                 class="brand-logo brand-logo-bright site-brand-logo" /></picture
           ></a>
           <nav class="footer-nav" aria-label="Navegação do rodapé">
-            <a href="mapas_interativos.html"><i class="fas fa-map me-1"></i> Previsões</a>
-            <a href="potenciais_energeticos.html"><i class="fas fa-bolt me-1"></i> Potenciais Energéticos</a>
-            <a href="monitoring.html"><i class="fas fa-chart-line me-1"></i> Monitoramento</a>
-            <a href="ceu.html"><i class="fas fa-cloud me-1"></i> Céu</a>
-            <a href="climatologia.html"><i class="fas fa-cloud-sun me-1"></i> Climatologia</a>
-            <a href="team.html"><i class="fas fa-users me-1"></i> Equipe</a>
+            <a href="mapas_interativos.html"><i class="fas fa-map me-1" aria-hidden="true"></i> Previsões</a>
+            <a href="potenciais_energeticos.html"
+              ><i class="fas fa-bolt me-1" aria-hidden="true"></i> Potenciais Energéticos</a
+            >
+            <a href="monitoring.html"><i class="fas fa-chart-line me-1" aria-hidden="true"></i> Monitoramento</a>
+            <a href="ceu.html"><i class="fas fa-cloud me-1" aria-hidden="true"></i> Céu</a>
+            <a href="climatologia.html"><i class="fas fa-cloud-sun me-1" aria-hidden="true"></i> Climatologia</a>
+            <a href="team.html"><i class="fas fa-users me-1" aria-hidden="true"></i> Equipe</a>
           </nav>
 
           <button
             type="button"
             class="btn btn-outline-light me-3"
-            title="Alternar Tema"
+            title="Tema escuro"
             data-theme-toggle
-            aria-label="Alternar Tema"
+            aria-label="Tema escuro"
+            aria-pressed="false"
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
@@ -776,8 +792,8 @@
         </div>
         <div class="footer-bottom-compact">
           <p class="footer-disclaimer">
-            <i class="fas fa-exclamation-triangle me-1"></i> ATENÇÃO: As informações exibidas são resultados acadêmicos.
-            Não recomendamos atitudes de risco com base nesta plataforma.
+            <i class="fas fa-exclamation-triangle me-1" aria-hidden="true"></i> ATENÇÃO: As informações exibidas são
+            resultados acadêmicos. Não recomendamos atitudes de risco com base nesta plataforma.
           </p>
           <p class="copyright mb-0">
             &copy; 2026 LabMiM - Todos os direitos reservados
@@ -804,7 +820,6 @@
       </div>
     </footer>
 
-    <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
     <!-- Inlined by the build from src/template/references.js. It goes out as JSON
  rather than JavaScript so the CSP needs no exception. -->
     <script type="application/json" id="siteReferences">
@@ -812,7 +827,7 @@
         "wrf": {
           "short": "Skamarock et al., 2019",
           "citation": "Skamarock, W. C. et al. (2019). A Description of the Advanced Research WRF Model Version 4. NCAR Technical Note NCAR/TN-556+STR. Documentação oficial do modelo usado nestas previsões.",
-          "url": "https://www2.mmm.ucar.edu/wrf/users/docs/user_guide_v4/v4.0/contents.html"
+          "url": "https://doi.org/10.5065/1dfh-6p97"
         },
         "gfs": {
           "short": "GFS/NCEP",
@@ -823,6 +838,26 @@
           "short": "Iacono et al., 2008",
           "citation": "Iacono, M. J., Delamere, J. S., Mlawer, E. J., Shephard, M. W., Clough, S. A. & Collins, W. D. (2008). Radiative forcing by long-lived greenhouse gases: calculations with the AER radiative transfer models. Journal of Geophysical Research 113, D13103. O esquema RRTMG.",
           "url": "https://search.crossref.org/search/works?q=Radiative%20forcing%20by%20long-lived%20greenhouse%20gases%20AER%20radiative%20transfer%20models&from_ui=yes"
+        },
+        "rrtm": {
+          "short": "Mlawer et al., 1997",
+          "citation": "Mlawer, E. J., Taubman, S. J., Brown, P. D., Iacono, M. J. & Clough, S. A. (1997). Radiative transfer for inhomogeneous atmospheres: RRTM, a validated correlated-k model for the longwave. Journal of Geophysical Research 102(D14), 16663-16682. O esquema RRTM de onda longa.",
+          "url": "https://doi.org/10.1029/97JD00237"
+        },
+        "wsm3": {
+          "short": "Hong, Dudhia e Chen, 2004",
+          "citation": "Hong, S.-Y., Dudhia, J. & Chen, S.-H. (2004). A revised approach to ice microphysical processes for the bulk parameterization of clouds and precipitation. Monthly Weather Review 132(1), 103-120. O esquema WSM3.",
+          "url": "https://doi.org/10.1175/1520-0493(2004)132%3C0103:ARATIM%3E2.0.CO;2"
+        },
+        "noah": {
+          "short": "Chen e Dudhia, 2001",
+          "citation": "Chen, F. & Dudhia, J. (2001). Coupling an advanced land surface-hydrology model with the Penn State-NCAR MM5 modeling system. Part I: model implementation and sensitivity. Monthly Weather Review 129(4), 569-585. O modelo de superfície Noah.",
+          "url": "https://doi.org/10.1175/1520-0493(2001)129%3C0569:CAALSH%3E2.0.CO;2"
+        },
+        "bmj": {
+          "short": "Janjic, 1994",
+          "citation": "Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), 927-945. O esquema Betts-Miller-Janjić de cumulus.",
+          "url": "https://doi.org/10.1175/1520-0493(1994)122%3C0927:TSMECM%3E2.0.CO;2"
         },
         "thompson": {
           "short": "Thompson et al., 2008",
@@ -879,6 +914,16 @@
           "citation": "Ridley, B., Boland, J. & Lauret, P. (2010). Modelling of diffuse solar fraction with multiple predictors. Renewable Energy 35(2), 478-483. O modelo BRL original: logística no índice de claridade horário, hora solar aparente, elevação solar, índice de claridade diário e persistência.",
           "url": "https://doi.org/10.1016/j.renene.2009.07.018"
         },
+        "prata1996": {
+          "short": "Prata, 1996",
+          "citation": "Prata, A. J. (1996). A new long-wave formula for estimating downward clear-sky radiation at the surface. Quarterly Journal of the Royal Meteorological Society 122(533), 1127-1151. A emissividade de céu limpo em função da temperatura e do vapor d'água junto à superfície.",
+          "url": "https://doi.org/10.1002/qj.49712253306"
+        },
+        "herrero2012": {
+          "short": "Herrero e Polo, 2012",
+          "citation": "Herrero, J. & Polo, M. J. (2012). Parameterization of atmospheric longwave emissivity in a mountainous site for all sky conditions. Hydrology and Earth System Sciences 16(9), 3139-3147. Medidas de uma estação a 2.500 m de altitude na Sierra Nevada, Espanha.",
+          "url": "https://doi.org/10.5194/hess-16-3139-2012"
+        },
         "codata2018": {
           "short": "CODATA 2018",
           "citation": "CODATA Internationally Recommended Values of the Fundamental Physical Constants (ajuste de 2018), NIST. Fonte da constante de Stefan-Boltzmann usada nas derivações desta página.",
@@ -891,7 +936,7 @@
     <script defer src="assets/js/references.js?v=23573fee"></script>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
-    <script defer src="assets/js/chart-page.js?v=f40f32a6"></script>
-    <script defer src="assets/js/ceu.js?v=2584ea3e"></script>
+    <script defer src="assets/js/chart-page.js?v=94585a14"></script>
+    <script defer src="assets/js/ceu.js?v=3f9dfef2"></script>
   </body>
 </html>

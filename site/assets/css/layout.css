@@ -62,7 +62,7 @@
 }
 
 .page-header i {
-  color: var(--secondary-color);
+  color: var(--secondary-color-ink);
   font-size: 1.8rem;
 }
 
@@ -72,6 +72,8 @@
 }
 
 .modern-footer {
+  --focus-ring-color: var(--white);
+
   margin-top: 2rem;
   padding: 1.5rem 1rem;
   background: var(--lab-footer-bg);
@@ -110,7 +112,8 @@
 
 .footer-nav a:hover,
 .modern-footer a:hover {
-  color: var(--accent-color) !important;
+  color: var(--ink-on-brand-hover, var(--accent-color)) !important;
+  text-decoration: underline;
 }
 
 .footer-bottom-compact {
@@ -122,7 +125,7 @@
 /* --warning-color is meant for light surfaces and reaches only 4.05:1 over the
    footer blue; lightened here, so the token keeps its canonical value. */
 .footer-disclaimer {
-  color: #f7dc6f;
+  color: var(--ink-on-brand-warning, #f7dc6f);
   font-size: 0.85rem;
   margin-bottom: 5px;
 }
@@ -130,7 +133,7 @@
 /* Faded through the ink alpha, not `opacity`: `opacity` would also dim the ink
    the dark theme swaps in, dropping the line below 4.5:1 over the footer. */
 .copyright {
-  color: rgba(255, 255, 255, 0.86) !important;
+  color: var(--ink-on-brand-muted, rgba(255, 255, 255, 0.86)) !important;
   font-size: 0.8rem !important;
 }
 

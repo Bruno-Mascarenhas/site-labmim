@@ -43,6 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // variable, wind height) refresh the charts, and only when already open.
     const userInitiated = options?.userInitiated === true;
     if (userInitiated) {
+      if (getComputedStyle(app.ui.sidebar).position === "static") {
+        app.ui.sidebar.querySelector(".sidebar-header").scrollIntoView({ block: "nearest", behavior: "instant" });
+      }
       chartsManager.openModal();
     } else if (!chartsManager.isModalOpen()) {
       return;
@@ -55,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .loadTimeSeriesData(app.state.selectedCell, app.state.domain, app.state.type)
       .then((data) => {
         if (Object.keys(data).length > 0) {
-          chartsManager.renderChartsForVariable(app.state.type);
+          return chartsManager.renderChartsForVariable(app.state.type);
         }
       })
       .catch((err) => {
@@ -69,12 +72,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Waiting here buys the ?v= version and the availability contract for the very
   // first fetches; without it every first-frame file would be fetched twice.
   manifestPromise.then((manifest) => {
-    if (manifest) app.applyManifest(manifest);
+    app.applyManifest(manifest);
     app.applyMapChanges().then((values) => {
-      // Values or an anchor, never "did the manifest arrive": a partial FTP
-      // upload can leave the manifest as the only file online, and a v1 manifest
-      // carries no `start_local`, hence no anchor at all.
-      if (values || app.state.initialDateTime) {
+      if (values) {
         app.startInitialPlayback();
         return;
       }

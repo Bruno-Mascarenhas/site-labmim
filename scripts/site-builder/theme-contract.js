@@ -20,6 +20,7 @@ const REQUIRED_THEME_PROPERTIES = Object.freeze([
   "map-accent",
   "map-accent-2",
   "map-accent-rgb",
+  "map-accent-strong",
   "lab-header-bg",
   "lab-header-dark-bg",
   "lab-footer-bg",
@@ -33,6 +34,20 @@ const REQUIRED_THEME_PROPERTIES = Object.freeze([
 
 const OPTIONAL_THEME_PROPERTIES = Object.freeze(
   [
+    {
+      property: "brand-secondary-strong",
+      consumedBy: "css",
+      fallback: "var(--brand-secondary)",
+      describes:
+        "tom de --brand-secondary que aguenta texto branco em cima ou vira texto: item ativo e hover da navbar e instituição do cabeçalho",
+    },
+    {
+      property: "brand-primary-strong",
+      consumedBy: "css",
+      fallback: "var(--brand-primary)",
+      describes:
+        "anel de foco do tema claro; com luminância até 0,067 (9:1 contra o branco), o anel e a faixa branca dos toggles do mapa dão 3:1 sobre qualquer fundo",
+    },
     {
       property: "ink-strong",
       consumedBy: "css",
@@ -68,6 +83,24 @@ const OPTIONAL_THEME_PROPERTIES = Object.freeze(
       consumedBy: "css",
       fallback: "#f4f8ff",
       describes: "links e texto do rodapé, que fica sobre --lab-footer-bg",
+    },
+    {
+      property: "ink-on-brand-warning",
+      consumedBy: "css",
+      fallback: "#f7dc6f",
+      describes: "aviso de resultado acadêmico no rodapé, sobre --lab-footer-bg",
+    },
+    {
+      property: "ink-on-brand-muted",
+      consumedBy: "css",
+      fallback: "rgba(255, 255, 255, 0.86)",
+      describes: "linha de copyright do rodapé, sobre --lab-footer-bg",
+    },
+    {
+      property: "ink-on-brand-hover",
+      consumedBy: "css",
+      fallback: "var(--accent-color)",
+      describes: "links do rodapé sob o cursor, sobre --lab-footer-bg",
     },
     {
       property: "ink-on-dark",
@@ -174,6 +207,15 @@ const COLOR_RGB_PAIRS = Object.freeze([
 
 const PAIRED_RGB_PROPERTIES = new Set(COLOR_RGB_PAIRS.map(([, rgbProperty]) => rgbProperty));
 
+const WCAG_CONTRAST_FLARE = 0.05;
+const WCAG_LUMINANCE_WEIGHTS = Object.freeze([0.2126, 0.7152, 0.0722]);
+const SRGB_CHANNEL_MAX = 255;
+const SRGB_LINEAR_SEGMENT_LIMIT = 0.04045;
+const SRGB_LINEAR_SEGMENT_SLOPE = 12.92;
+const SRGB_GAMMA_OFFSET = 0.055;
+const SRGB_GAMMA_SCALE = 1.055;
+const SRGB_GAMMA_EXPONENT = 2.4;
+
 function parseHexColor(value) {
   const match = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
   if (!match) return null;
@@ -188,7 +230,25 @@ function parseRgbChannels(value) {
   return channels.every((channel) => channel <= 255) ? channels : null;
 }
 
-function inspectPublicationThemeCss(content) {
+function relativeLuminance(channels) {
+  return channels.reduce((sum, channel, index) => {
+    const unit = channel / SRGB_CHANNEL_MAX;
+    const linear =
+      unit <= SRGB_LINEAR_SEGMENT_LIMIT
+        ? unit / SRGB_LINEAR_SEGMENT_SLOPE
+        : ((unit + SRGB_GAMMA_OFFSET) / SRGB_GAMMA_SCALE) ** SRGB_GAMMA_EXPONENT;
+    return sum + WCAG_LUMINANCE_WEIGHTS[index] * linear;
+  }, 0);
+}
+
+function contrastRatio(firstChannels, secondChannels) {
+  const [lighter, darker] = [relativeLuminance(firstChannels), relativeLuminance(secondChannels)].sort(
+    (left, right) => right - left
+  );
+  return (lighter + WCAG_CONTRAST_FLARE) / (darker + WCAG_CONTRAST_FLARE);
+}
+
+function parsePublicationThemeCss(content) {
   const errors = [];
   const withoutComments = content.replace(/\/\*[\s\S]*?\*\//g, "").trim();
   // `[^{}]` stops the match from swallowing the next rule when the last declaration has
@@ -196,7 +256,7 @@ function inspectPublicationThemeCss(content) {
   const root = withoutComments.match(/^:root\s*\{([^{}@]*)\}\s*$/);
 
   if (!root) {
-    return ["must contain exactly one :root block and no publication-specific selectors"];
+    return { values: null, errors: ["must contain exactly one :root block and no publication-specific selectors"] };
   }
 
   const declarations = root[1]
@@ -226,8 +286,15 @@ function inspectPublicationThemeCss(content) {
     }
   }
 
+  return { values, errors };
+}
+
+function inspectPublicationTheme({ values, errors: parseErrors }) {
+  const errors = [...parseErrors];
+  if (!values) return errors;
+
   for (const property of REQUIRED_THEME_PROPERTIES) {
-    if (!seen.has(property)) {
+    if (!values.has(property)) {
       errors.push(
         `missing required custom property --${property}; declare it, or move it to OPTIONAL_THEME_PROPERTIES in ` +
           `scripts/site-builder/theme-contract.js if the shared CSS/JS can fall back without it`
@@ -258,9 +325,17 @@ function inspectPublicationThemeCss(content) {
   return errors;
 }
 
+function inspectPublicationThemeCss(content) {
+  return inspectPublicationTheme(parsePublicationThemeCss(content));
+}
+
 module.exports = {
   REQUIRED_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTY_NAMES,
+  parsePublicationThemeCss,
+  inspectPublicationTheme,
   inspectPublicationThemeCss,
+  parseHexColor,
+  contrastRatio,
 };

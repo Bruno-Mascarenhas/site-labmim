@@ -24,7 +24,7 @@ module.exports = [
     seo: {
       title: "LabMiM — Monitoramento Ambiental · UFBA",
       description:
-        "LabMiM — Monitoramento Ambiental: variáveis meteorológicas medidas em tempo quase real por estações micrometeorológicas em Salvador, Bahia.",
+        "LabMiM — Monitoramento Ambiental: variáveis meteorológicas da última semana registrada por estações micrometeorológicas em Salvador, Bahia.",
     },
   }),
   page("team", {

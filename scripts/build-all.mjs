@@ -24,11 +24,11 @@ const distDir = path.join(root, "dist");
 // the currently rendered one declares.
 const operationalPaths = allOperationalPaths(publications);
 
-// Sources the repository needs to regenerate the derived vendor files (purgecss reads
-// the full Bootstrap, pyftsubset the complete Font Awesome face) but no page links.
-// ~376 KB per bundle on a host that serves uncompressed and deploys over FTP.
 const buildInputAssets = new Set([
   "assets/vendor/bootstrap/bootstrap.min.css",
+  "assets/vendor/fontawesome/css/all.min.css",
+  "assets/vendor/fontawesome/webfonts/fa-brands-400.woff2",
+  "assets/vendor/fontawesome/webfonts/fa-regular-400.woff2",
   "assets/vendor/fontawesome/webfonts/fa-solid-900.full.woff2",
 ]);
 

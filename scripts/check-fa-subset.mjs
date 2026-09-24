@@ -12,6 +12,21 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const { collectFiles, htmlFilesIn, bundleDirs } = require("./site-builder/corpus.js");
+const {
+  I_TAG,
+  glyphCodepoints,
+  hasFontAwesomeClass,
+  manifestDisagreements,
+} = require("./site-builder/fontawesome-glyphs.js");
+
+const lineOf = (text, index) => text.slice(0, index).split("\n").length;
+
+function fail(header, entries, hint) {
+  console.error(header);
+  for (const entry of entries) console.error(`  - ${entry}`);
+  console.error(`\n${hint}`);
+  process.exit(1);
+}
 
 // site/ holds one publication at a time; dist/<id>/ (npm run build:all) holds all of
 // them, so the check covers every publication whenever the bundles are around.
@@ -25,11 +40,38 @@ const sources = [
 ];
 
 const usedNames = new Set();
+const templatedIconClasses = [];
+const unprefixedFaIcons = [];
 for (const file of sources) {
   const text = readFileSync(join(root, file), "utf8");
   for (const match of text.matchAll(/\bfa-[a-z0-9-]+/g)) {
     usedNames.add(match[0]);
   }
+  for (const match of text.matchAll(/\bfa-[a-z0-9-]*\$\{/g)) {
+    templatedIconClasses.push(`${file}:${lineOf(text, match.index)}: ${match[0]}`);
+  }
+  for (const match of text.matchAll(/\bfaIcon\s*:\s*["'`](?!fa-)[^"'`]*["'`]/g)) {
+    unprefixedFaIcons.push(`${file}:${lineOf(text, match.index)}: ${match[0]}`);
+  }
+}
+
+if (templatedIconClasses.length > 0) {
+  fail(
+    "✗ Classe Font Awesome montada por template string " +
+      "(o nome do glifo não aparece no código, e o subset pode ficar sem ele):",
+    templatedIconClasses,
+    'Guarde o nome completo na configuração ("fa-fan", não "fan") e interpole a classe inteira: ' +
+      'class="fas ${icone}".'
+  );
+}
+
+if (unprefixedFaIcons.length > 0) {
+  fail(
+    "✗ faIcon sem o prefixo fa- (a classe do título do modal não casaria com glifo nenhum, " +
+      "e o check não veria o nome para conferir o subset):",
+    unprefixedFaIcons,
+    'Escreva o nome completo do glifo: faIcon: "fa-fan", não "fan".'
+  );
 }
 
 // First-party CSS can consume a glyph by raw codepoint (maps.css uses content: "\f078"
@@ -53,12 +95,7 @@ for (const file of cssDirs.flatMap((dir) => collectFiles(root, dir, [".css"]))) 
 // A real glyph has a :before{content:"\f..."} rule; utility classes (fa-2x, fa-fw)
 // match the fa- scan above but have none.
 const faCss = readFileSync(join(root, "site/assets/vendor/fontawesome/css/all.min.css"), "utf8");
-const glyphNames = new Set();
-for (const match of faCss.matchAll(/((?:\.fa-[a-z0-9-]+:before,?)+)\{content:"\\[0-9a-f]+"\}/g)) {
-  for (const name of match[1].matchAll(/\.(fa-[a-z0-9-]+):before/g)) {
-    glyphNames.add(name[1]);
-  }
-}
+const glyphNames = new Set(glyphCodepoints(faCss).keys());
 
 const manifest = JSON.parse(readFileSync(join(root, "site/assets/vendor/fontawesome/subset-glyphs.json"), "utf8"));
 const subsetted = new Set(Object.keys(manifest.glyphs));
@@ -71,12 +108,51 @@ for (const code of usedCodepoints) {
 }
 
 if (missing.length > 0) {
-  console.error(
-    "✗ Ícones usados no site mas AUSENTES do subset de fa-solid-900.woff2 " + "(renderizariam como caixas vazias):"
+  fail(
+    "✗ Ícones usados no site mas AUSENTES do subset de fa-solid-900.woff2 " + "(renderizariam como caixas vazias):",
+    missing,
+    "Regenere o subset: ver scripts/subset-fontawesome.md"
   );
-  for (const name of missing) console.error(`  - ${name}`);
-  console.error("\nRegenere o subset: ver scripts/subset-fontawesome.md");
-  process.exit(1);
+}
+
+const subsetCssPath = "site/assets/vendor/fontawesome/css/fa.subset.min.css";
+const subsetCssCodepoints = glyphCodepoints(readFileSync(join(root, subsetCssPath), "utf8"));
+
+const staleSubsetCss = manifestDisagreements(manifest, subsetCssCodepoints).map(
+  ({ name, declared }) => `${name} (\\${declared})`
+);
+for (const name of subsetCssCodepoints.keys()) {
+  if (!subsetted.has(name)) staleSubsetCss.push(`${name} (fora do manifesto)`);
+}
+
+if (staleSubsetCss.length > 0) {
+  fail(
+    `✗ ${subsetCssPath} não acompanha subset-glyphs.json (o ícone não teria regra :before):`,
+    staleSubsetCss.sort(),
+    "Regenere o CSS: npm run subset:icons-css (ver scripts/subset-fontawesome.md)"
+  );
+}
+
+let scriptIconCount = 0;
+const scriptIconsWithoutAriaHidden = [];
+for (const file of collectFiles(root, "site/assets/js", [".js"])) {
+  const text = readFileSync(join(root, file), "utf8");
+  for (const tag of text.matchAll(I_TAG)) {
+    if (!hasFontAwesomeClass(tag[1])) continue;
+    scriptIconCount += 1;
+    if (/(?<![\w-])aria-hidden\s*=\s*["']true["']/.test(tag[1])) continue;
+    scriptIconsWithoutAriaHidden.push(`${file}:${lineOf(text, tag.index)}: ${tag[0].replace(/\s+/g, " ")}`);
+  }
+}
+
+if (scriptIconsWithoutAriaHidden.length > 0) {
+  fail(
+    '✗ Ícones Font Awesome montados em JS sem aria-hidden="true" ' +
+      "(o leitor de tela anunciaria o glifo de uso privado no nome do controle):",
+    scriptIconsWithoutAriaHidden,
+    'Acrescente aria-hidden="true" ao <i>. Se o ícone for o único conteúdo do controle, dê aria-label ao controle.'
+  );
 }
 
 console.log(`✓ Subset Font Awesome cobre todos os ${subsetted.size} glifos usados`);
+console.log(`✓ Os ${scriptIconCount} ícones montados por string HTML em site/assets/js têm aria-hidden="true"`);

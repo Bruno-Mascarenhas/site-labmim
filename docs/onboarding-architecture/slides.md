@@ -566,7 +566,7 @@ module.exports = {
     defaultMaxLayer: 75,
     initialIndex: 7,
     stepHours: 1,
-    label: "Horário local (UTC-03)",
+    utcOffsetHours: -3,
   },
   defaultDomain: "D01",
   domains: [/* id, label, centro, zoom, resolução */],
@@ -587,8 +587,8 @@ contorno de outro estado por engano.
 No dataset, `defaultDomain` precisa existir no array. Os IDs D01 etc. fazem parte dos nomes dos arquivos e
 não são apenas labels. `monitoring`, `climatology` e `sky` só devem existir quando a publicação oferece as
 páginas correspondentes; o build valida esses pares. Reutilize módulos existentes quando o produto ou
-território for realmente o mesmo. `stepHours` torna a frequência explícita; horizonte e quantidade textual de passos são derivados, não
-hardcoded no template.
+território for realmente o mesmo. `stepHours` torna a frequência explícita e `utcOffsetHours` gera o rótulo de fuso; horizonte, quantidade textual de passos e
+rótulo são derivados, não hardcoded no template.
 
 [Sources]
 - site-labmim, checkout local de 18-08-2026: README.md, Architecture.md, src/sites/README.md e arquivos citados neste slide.
@@ -1343,9 +1343,10 @@ O wrapper de links também deriva do dataset os paths operacionais que o Linkina
 novo não exige acrescentar regex de `JSON/`/`GeoJSON/` manualmente.
 
 O único teste de navegador automatizado é `npm run check:reach` (`scripts/check-reachability.mjs`):
-Playwright/Chromium em 13 viewports, verificando se cada controle é clicável. Ele não roda no CI e cobre só
-alcançabilidade; por isso inspeção manual continua necessária, sobretudo para dark mode, responsividade,
-mapa, troca de domínio, slider e modal de série.
+Playwright/Chromium em 13 viewports, mais 32 nas páginas do WebGIS, verificando se cada controle é clicável,
+também com a visão geral, a célula, os parâmetros e o menu abertos e com os vetores de vento desenhados.
+Ele não roda no CI e cobre só alcançabilidade; por isso inspeção manual continua necessária, sobretudo
+para dark mode, responsividade, mapa, troca de domínio, slider e modal de série.
 
 Quando uma mudança mexe em CSS comum ou template, validar apenas o site que motivou a alteração é
 insuficiente. O contrato multi-publicação só é real se todas forem exercitadas.
@@ -1690,7 +1691,7 @@ $ labmim-wrf-geojson -v UST \
 frictionVelocity: {
   id: "UST", sourceId: "UST", // == {VAR}
   label: "Velocidade de fricção", unit: "m/s",
-  faIcon: "wind",
+  faIcon: "fa-wind",
   colors: ["#f7fbff", /* rampa editorial */ "#08306b"],
   scaleMin: 0, scaleMax: 2, // validar com dados reais
   summary: "Escala turbulenta próxima à superfície.",

@@ -27,6 +27,7 @@ export default defineConfig([
         Chart: "readonly",
         VARIABLES_CONFIG: "readonly",
         VARIABLE_CONTEXTS: "readonly",
+        publishedStepsOf: "readonly",
         LabmimDataService: "readonly",
         MeteoMapManager: "readonly",
         ChartsManager: "readonly",

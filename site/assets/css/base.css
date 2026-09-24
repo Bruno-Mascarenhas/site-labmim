@@ -2,10 +2,13 @@
   /* The --brand-* tokens come from the publication's generated site-theme.css. */
   --primary-color: var(--brand-primary);
   --secondary-color: var(--brand-secondary);
+  --secondary-color-strong: var(--brand-secondary-strong, var(--brand-secondary));
+  --secondary-color-ink: var(--secondary-color-strong);
+  --affiliation-ink: var(--secondary-color-strong);
   --danger-color: #e74c3c;
   --warning-color: #f1c40f;
   --text-dark: #2c3e50;
-  --text-light: #7f8c8d;
+  --text-light: #5f6b6d;
   --bg-light: #f8f9fa;
   --white: #fff;
   --border-color: #e9ecef;
@@ -14,9 +17,12 @@
   --radius-lg: 10px;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.15);
-  --map-accent-gradient: linear-gradient(135deg, var(--map-accent), var(--map-accent-2));
+  --map-accent-gradient: linear-gradient(135deg, var(--map-accent-strong), var(--map-accent-2));
+  --map-accent-ink: var(--map-accent-strong);
+  --map-accent-active-border: var(--map-accent-strong);
   --navbar-height: 76px;
   --wcag-min-target: 24px;
+  --focus-ring-color: var(--brand-primary-strong, var(--brand-primary));
   --bg-primary: #fff;
   --bg-secondary: #f5f5f5;
   --text-primary: #333;
@@ -117,16 +123,16 @@ button {
 }
 
 .btn-outline-lab:hover {
-  background-color: var(--secondary-color) !important;
-  border-color: var(--secondary-color) !important;
+  background-color: var(--secondary-color-strong) !important;
+  border-color: var(--secondary-color-strong) !important;
   color: var(--white) !important;
   transform: translateY(-2px);
 }
 
 .btn-outline-lab.active,
 .btn-outline-lab[aria-current="page"] {
-  background-color: var(--secondary-color) !important;
-  border-color: var(--secondary-color) !important;
+  background-color: var(--secondary-color-strong) !important;
+  border-color: var(--secondary-color-strong) !important;
   color: var(--white) !important;
 }
 
@@ -140,8 +146,8 @@ button {
 }
 
 .navbar-toggler:hover {
-  background-color: var(--brand-secondary) !important;
-  border-color: var(--brand-secondary) !important;
+  background-color: var(--secondary-color-strong) !important;
+  border-color: var(--secondary-color-strong) !important;
   transform: translateY(-1px);
 }
 
@@ -190,7 +196,7 @@ button {
 }
 
 .site-affiliation-text small {
-  color: var(--brand-secondary);
+  color: var(--affiliation-ink);
   font-size: 0.78rem;
   letter-spacing: 0.08em;
 }
@@ -242,5 +248,11 @@ button {
 
   iframe {
     max-width: 100%;
+  }
+}
+
+@media (800px < width < 992px) {
+  .navbar-nav {
+    padding-bottom: 10px;
   }
 }

@@ -68,18 +68,18 @@
       type="font/woff2"
       crossorigin
     />
-    <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css?v=6.4.0" />
+    <link rel="stylesheet" href="assets/vendor/fontawesome/css/fa.subset.min.css?v=dd152823" />
 
-    <link rel="stylesheet" href="assets/css/base.css?v=b184f9f2" />
-    <link rel="stylesheet" href="assets/css/site-theme.css?v=c18d9c76" />
-    <link rel="stylesheet" href="assets/css/layout.css?v=ee608352" />
-    <link rel="stylesheet" href="assets/css/components.css?v=38bc57c5" />
+    <link rel="stylesheet" href="assets/css/base.css?v=bfb24568" />
+    <link rel="stylesheet" href="assets/css/site-theme.css?v=51e1d16d" />
+    <link rel="stylesheet" href="assets/css/layout.css?v=172e813e" />
+    <link rel="stylesheet" href="assets/css/components.css?v=c8c52745" />
 
-    <link rel="stylesheet" href="assets/css/theme.css?v=694b8c88" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=f9e449d6" />
 
     <script src="assets/js/theme-boot.js?v=fef91866"></script>
-    <script src="assets/js/theme-toggle.js?v=396a40c7" defer></script>
-    <script src="assets/js/ui-shell.js?v=482aa431" defer></script>
+    <script src="assets/js/theme-toggle.js?v=b82be33e" defer></script>
+    <script src="assets/js/ui-shell.js?v=fa862f16" defer></script>
   </head>
 
   <body>
@@ -101,8 +101,7 @@
         <button
           class="navbar-toggler"
           type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarSupportedContent"
+          data-navbar-toggle
           aria-controls="navbarSupportedContent"
           aria-expanded="false"
           aria-label="Alternar navegação"
@@ -132,9 +131,10 @@
           <button
             type="button"
             class="btn btn-outline-light me-3"
-            title="Alternar Tema"
+            title="Tema escuro"
             data-theme-toggle
-            aria-label="Alternar Tema"
+            aria-label="Tema escuro"
+            aria-pressed="false"
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
@@ -166,7 +166,7 @@
         <div class="row mb-5">
           <div class="col-lg-4 mb-4">
             <div class="feature-card h-100">
-              <div class="feature-icon"><i class="fas fa-cloud-sun"></i></div>
+              <div class="feature-icon"><i class="fas fa-cloud-sun" aria-hidden="true"></i></div>
               <h3 class="mt-3">Sobre o LabMiM</h3>
               <p>
                 O LabMiM faz parte do
@@ -180,12 +180,12 @@
           </div>
           <div class="col-lg-4 mb-4">
             <div class="feature-card h-100">
-              <div class="feature-icon"><i class="fas fa-wind"></i></div>
+              <div class="feature-icon"><i class="fas fa-wind" aria-hidden="true"></i></div>
               <h3 class="mt-3">Modelo de previsão WRF</h3>
               <p>
                 Utilizamos o modelo atmosférico
                 <em>Weather Research and Forecasting</em> (WRF) para realizar previsões numéricas em alta resolução
-                espaço-temporal sobre o estado da Bahia e a Região Metropolitana de Salvador com antecedência de 72
+                espaço-temporal sobre o estado da Bahia e a Região Metropolitana de Salvador com antecedência de 75
                 horas.
               </p>
             </div>
@@ -193,7 +193,7 @@
           <div class="col-lg-4 mb-4">
             <div class="feature-card h-100">
               <div class="feature-icon">
-                <i class="fas fa-satellite-dish"></i>
+                <i class="fas fa-satellite-dish" aria-hidden="true"></i>
               </div>
               <h3 class="mt-3">Monitoramento Ambiental</h3>
               <p>
@@ -266,20 +266,23 @@
                 class="brand-logo brand-logo-bright site-brand-logo" /></picture
           ></a>
           <nav class="footer-nav" aria-label="Navegação do rodapé">
-            <a href="mapas_interativos.html"><i class="fas fa-map me-1"></i> Previsões</a>
-            <a href="potenciais_energeticos.html"><i class="fas fa-bolt me-1"></i> Potenciais Energéticos</a>
-            <a href="monitoring.html"><i class="fas fa-chart-line me-1"></i> Monitoramento</a>
-            <a href="ceu.html"><i class="fas fa-cloud me-1"></i> Céu</a>
-            <a href="climatologia.html"><i class="fas fa-cloud-sun me-1"></i> Climatologia</a>
-            <a href="team.html"><i class="fas fa-users me-1"></i> Equipe</a>
+            <a href="mapas_interativos.html"><i class="fas fa-map me-1" aria-hidden="true"></i> Previsões</a>
+            <a href="potenciais_energeticos.html"
+              ><i class="fas fa-bolt me-1" aria-hidden="true"></i> Potenciais Energéticos</a
+            >
+            <a href="monitoring.html"><i class="fas fa-chart-line me-1" aria-hidden="true"></i> Monitoramento</a>
+            <a href="ceu.html"><i class="fas fa-cloud me-1" aria-hidden="true"></i> Céu</a>
+            <a href="climatologia.html"><i class="fas fa-cloud-sun me-1" aria-hidden="true"></i> Climatologia</a>
+            <a href="team.html"><i class="fas fa-users me-1" aria-hidden="true"></i> Equipe</a>
           </nav>
 
           <button
             type="button"
             class="btn btn-outline-light me-3"
-            title="Alternar Tema"
+            title="Tema escuro"
             data-theme-toggle
-            aria-label="Alternar Tema"
+            aria-label="Tema escuro"
+            aria-pressed="false"
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
@@ -297,8 +300,8 @@
         </div>
         <div class="footer-bottom-compact">
           <p class="footer-disclaimer">
-            <i class="fas fa-exclamation-triangle me-1"></i> ATENÇÃO: As informações exibidas são resultados acadêmicos.
-            Não recomendamos atitudes de risco com base nesta plataforma.
+            <i class="fas fa-exclamation-triangle me-1" aria-hidden="true"></i> ATENÇÃO: As informações exibidas são
+            resultados acadêmicos. Não recomendamos atitudes de risco com base nesta plataforma.
           </p>
           <p class="copyright mb-0">
             &copy; 2026 LabMiM - Todos os direitos reservados
@@ -325,7 +328,6 @@
       </div>
     </footer>
 
-    <script defer src="assets/vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.8"></script>
     <!-- Inlined by the build from src/template/references.js. It goes out as JSON
  rather than JavaScript so the CSP needs no exception. -->
     <script type="application/json" id="siteReferences">
@@ -333,7 +335,7 @@
         "wrf": {
           "short": "Skamarock et al., 2019",
           "citation": "Skamarock, W. C. et al. (2019). A Description of the Advanced Research WRF Model Version 4. NCAR Technical Note NCAR/TN-556+STR. Documentação oficial do modelo usado nestas previsões.",
-          "url": "https://www2.mmm.ucar.edu/wrf/users/docs/user_guide_v4/v4.0/contents.html"
+          "url": "https://doi.org/10.5065/1dfh-6p97"
         },
         "gfs": {
           "short": "GFS/NCEP",
@@ -344,6 +346,26 @@
           "short": "Iacono et al., 2008",
           "citation": "Iacono, M. J., Delamere, J. S., Mlawer, E. J., Shephard, M. W., Clough, S. A. & Collins, W. D. (2008). Radiative forcing by long-lived greenhouse gases: calculations with the AER radiative transfer models. Journal of Geophysical Research 113, D13103. O esquema RRTMG.",
           "url": "https://search.crossref.org/search/works?q=Radiative%20forcing%20by%20long-lived%20greenhouse%20gases%20AER%20radiative%20transfer%20models&from_ui=yes"
+        },
+        "rrtm": {
+          "short": "Mlawer et al., 1997",
+          "citation": "Mlawer, E. J., Taubman, S. J., Brown, P. D., Iacono, M. J. & Clough, S. A. (1997). Radiative transfer for inhomogeneous atmospheres: RRTM, a validated correlated-k model for the longwave. Journal of Geophysical Research 102(D14), 16663-16682. O esquema RRTM de onda longa.",
+          "url": "https://doi.org/10.1029/97JD00237"
+        },
+        "wsm3": {
+          "short": "Hong, Dudhia e Chen, 2004",
+          "citation": "Hong, S.-Y., Dudhia, J. & Chen, S.-H. (2004). A revised approach to ice microphysical processes for the bulk parameterization of clouds and precipitation. Monthly Weather Review 132(1), 103-120. O esquema WSM3.",
+          "url": "https://doi.org/10.1175/1520-0493(2004)132%3C0103:ARATIM%3E2.0.CO;2"
+        },
+        "noah": {
+          "short": "Chen e Dudhia, 2001",
+          "citation": "Chen, F. & Dudhia, J. (2001). Coupling an advanced land surface-hydrology model with the Penn State-NCAR MM5 modeling system. Part I: model implementation and sensitivity. Monthly Weather Review 129(4), 569-585. O modelo de superfície Noah.",
+          "url": "https://doi.org/10.1175/1520-0493(2001)129%3C0569:CAALSH%3E2.0.CO;2"
+        },
+        "bmj": {
+          "short": "Janjic, 1994",
+          "citation": "Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), 927-945. O esquema Betts-Miller-Janjić de cumulus.",
+          "url": "https://doi.org/10.1175/1520-0493(1994)122%3C0927:TSMECM%3E2.0.CO;2"
         },
         "thompson": {
           "short": "Thompson et al., 2008",
@@ -399,6 +421,16 @@
           "short": "Ridley, Boland e Lauret, 2010",
           "citation": "Ridley, B., Boland, J. & Lauret, P. (2010). Modelling of diffuse solar fraction with multiple predictors. Renewable Energy 35(2), 478-483. O modelo BRL original: logística no índice de claridade horário, hora solar aparente, elevação solar, índice de claridade diário e persistência.",
           "url": "https://doi.org/10.1016/j.renene.2009.07.018"
+        },
+        "prata1996": {
+          "short": "Prata, 1996",
+          "citation": "Prata, A. J. (1996). A new long-wave formula for estimating downward clear-sky radiation at the surface. Quarterly Journal of the Royal Meteorological Society 122(533), 1127-1151. A emissividade de céu limpo em função da temperatura e do vapor d'água junto à superfície.",
+          "url": "https://doi.org/10.1002/qj.49712253306"
+        },
+        "herrero2012": {
+          "short": "Herrero e Polo, 2012",
+          "citation": "Herrero, J. & Polo, M. J. (2012). Parameterization of atmospheric longwave emissivity in a mountainous site for all sky conditions. Hydrology and Earth System Sciences 16(9), 3139-3147. Medidas de uma estação a 2.500 m de altitude na Sierra Nevada, Espanha.",
+          "url": "https://doi.org/10.5194/hess-16-3139-2012"
         },
         "codata2018": {
           "short": "CODATA 2018",

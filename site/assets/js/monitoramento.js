@@ -42,6 +42,7 @@
   };
 
   const RAW_COLOR = { light: "#79818b", dark: "#7b848f" };
+  const RAW_OVER_BAR_COLOR = { light: "#1a1a1a", dark: "#f0f0f0" };
 
   const RAW_LABEL = "Bruto 5 min";
 
@@ -59,7 +60,12 @@
   ];
 
   const MINUTE_MS = 60000;
+  const HOUR_MS = 3600000;
   const DAY_MS = 86400000;
+  const STALE_NAIVE_RECORD_AFTER_MS = DAY_MS;
+  const STALE_UTC_RECORD_AFTER_MS = 3 * HOUR_MS;
+  const UTC_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+  const UNDECLARED_COVERS_MINUTES = Object.freeze({ raw: [-5, 0], hourly: [-5, 55], wrf: [0, 0] });
 
   const state = {
     base: "",
@@ -75,6 +81,10 @@
     plots: new Map(),
     empties: new Map(),
     caveats: new Map(),
+    placements: new Map(),
+    modelCaveats: new Map(),
+    model: null,
+    stationEndUtcMs: null,
     // `redrawAll` works from this recorded intent, not from `charts`: a chart leaves
     // `charts` whenever no selected layer has data, and the observer only fires again
     // when the card crosses the margin it watches.
@@ -83,15 +93,20 @@
 
   const {
     el,
+    isDark,
     node,
     pad,
     decimal,
     fade,
     parseStationTime,
     formatDay,
+    formatDayYear,
     formatHour,
+    formatClock,
     formatStamp,
     formatStampYear,
+    countNoun,
+    showEmpty,
     downloadCsv,
   } = window.labmimChartPage;
 
@@ -104,22 +119,20 @@
     return 1;
   }
 
-  function isDark() {
-    return document.documentElement.classList.contains("dark-theme");
-  }
-
   function themeColors() {
     const root = getComputedStyle(document.documentElement);
-    const series = isDark() ? PALETTE.dark : PALETTE.light;
+    const dark = isDark();
+    const series = dark ? PALETTE.dark : PALETTE.light;
     return {
       series,
-      raw: isDark() ? RAW_COLOR.dark : RAW_COLOR.light,
+      raw: dark ? RAW_COLOR.dark : RAW_COLOR.light,
+      rawOverBar: dark ? RAW_OVER_BAR_COLOR.dark : RAW_OVER_BAR_COLOR.light,
       textSecondary: root.getPropertyValue("--text-secondary").trim() || "#888",
       legendText: root.getPropertyValue("--chart-legend-color").trim() || "#666",
       grid: root.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
       tooltipBg: root.getPropertyValue("--tooltip-bg").trim() || "rgba(18, 18, 18, 0.96)",
       tooltipText: root.getPropertyValue("--tooltip-text").trim() || "#fff",
-      crosshair: isDark() ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
+      crosshair: dark ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
     };
   }
 
@@ -129,6 +142,14 @@
   function layerLabel(chart, layer) {
     if (layer.id === "hourly" && chart.kind === "bar") return "Soma horária";
     return layer.label;
+  }
+
+  function rawLabel(chart) {
+    return chart.series.length > 1 ? `${chart.series[0].label} — ${RAW_LABEL}` : RAW_LABEL;
+  }
+
+  function drawnLayerLabel(chart, layer) {
+    return layer.id === "raw" ? rawLabel(chart) : layerLabel(chart, layer);
   }
 
   function windowStart() {
@@ -144,7 +165,7 @@
   // The payload's `null`s are kept as null-valued points rather than dropped: with
   // `spanGaps` off, that is what makes an outage show as a hole instead of a straight
   // segment bridging hours of silence.
-  function layerPoints(layer, seriesId, from) {
+  function layerPoints(layer, seriesId, from, shiftMs = 0) {
     const values = layer && layer.series ? layer.series[seriesId] : null;
     if (!values) return null;
     const start = parseStationTime(layer.axis.start);
@@ -152,16 +173,39 @@
     const points = [];
     let finiteCount = 0;
     for (let index = 0; index < values.length; index += 1) {
-      const x = start + index * step;
-      if (x < from) continue;
+      const stamp = start + index * step;
+      if (stamp < from) continue;
       const y = values[index];
       if (typeof y === "number" && Number.isFinite(y)) finiteCount += 1;
-      points.push({ x, y });
+      points.push({ x: stamp + shiftMs, y });
     }
     // An all-null series must not become a dataset: Chart.js draws nothing under a
     // legend entry, which reads as "the line exists and left the scale" — worse than
     // a declared absence. `points.length` cannot tell the two apart; it counts nulls.
     return finiteCount ? points : null;
+  }
+
+  function undeclaredCovers(chart, layer, layerId) {
+    if (layerId === "wrf" && chart.kind === "bar") return [-layer.axis.step_minutes, 0];
+    return UNDECLARED_COVERS_MINUTES[layerId];
+  }
+
+  function layerCovers(chart, layer, layerId) {
+    const covers = layer.axis.covers_minutes;
+    if (covers === undefined) return undeclaredCovers(chart, layer, layerId);
+    const valid =
+      Array.isArray(covers) && covers.length === 2 && covers.every(Number.isFinite) && covers[0] <= covers[1];
+    if (!valid) throw new Error(`covers_minutes inválido na camada ${layerId}: ${JSON.stringify(covers)}`);
+    return covers;
+  }
+
+  function layerPlacement(covers) {
+    const [fromMs, toMs] = covers.map((minutes) => minutes * MINUTE_MS);
+    return {
+      covers,
+      shiftMs: (fromMs + toMs) / 2,
+      intervalMs: covers[0] === covers[1] ? null : [fromMs, toMs],
+    };
   }
 
   function layerHasData(layer, seriesId, from) {
@@ -239,19 +283,19 @@
     if (chart.kind === "bar") {
       return baseDataset({
         type: "line",
-        label: RAW_LABEL,
+        label: rawLabel(chart),
         data: points,
         borderColor: color,
         backgroundColor: color,
         borderWidth: 1,
         pointRadius: isolatedRadii(points, 1.5),
         pointHoverRadius: 0,
-        order: 6,
+        order: 2,
       });
     }
     return baseDataset({
       type: "line",
-      label: RAW_LABEL,
+      label: rawLabel(chart),
       data: points,
       borderColor: "transparent",
       backgroundColor: fade(color, 0.85),
@@ -275,6 +319,8 @@
         borderWidth: 0,
         borderRadius: 3,
         borderSkipped: "bottom",
+        categoryPercentage: 1,
+        barPercentage: 1,
         order: 3,
       });
     }
@@ -331,32 +377,39 @@
     });
   }
 
-  // Drawing order: raw at the bottom, hourly over it, model on top. In a multi-series
-  // chart the raw layer is the FIRST term's only — five clouds of ~2000 points smear
-  // into a blot — though the CSV still exports the raw data of every term.
+  // In a multi-series chart the raw layer is the FIRST term's only — five clouds of
+  // ~2000 points smear into a blot — though the CSV still exports the raw data of every
+  // term.
   function buildDatasets(chart, theme) {
     const from = windowStart();
     const datasets = [];
+    const pushPlacedDataset = (layerId, seriesId, makeDataset) => {
+      const layer = chart.layers[layerId];
+      if (!layer) return;
+      const placement = state.placements.get(layer);
+      const points = layerPoints(layer, seriesId, from, placement.shiftMs);
+      if (!points) return;
+      const dataset = makeDataset(points);
+      dataset.labmimPlacement = placement;
+      datasets.push(dataset);
+    };
     if (state.layers.has("raw")) {
-      const points = layerPoints(chart.layers.raw, chart.series[0].id, from);
-      if (points) datasets.push(rawDataset(chart, theme.raw, points));
+      pushPlacedDataset("raw", chart.series[0].id, (points) =>
+        rawDataset(chart, chart.kind === "bar" ? theme.rawOverBar : theme.raw, points)
+      );
     }
     for (const series of chart.series) {
       if (state.layers.has("hourly")) {
-        const points = layerPoints(chart.layers.hourly, series.id, from);
-        if (points) {
-          const dataset = hourlyDataset(chart, series, seriesColor(chart, series, theme), points);
-          // The only layer stamped by INTERVAL — the stamp is the start of the hour
-          // it summarises. Read by `otherSeriesAt`.
-          dataset.labmimInterval = true;
-          datasets.push(dataset);
-        }
+        pushPlacedDataset("hourly", series.id, (points) =>
+          hourlyDataset(chart, series, seriesColor(chart, series, theme), points)
+        );
       }
     }
     for (const series of chart.series) {
       if (state.layers.has("wrf")) {
-        const points = layerPoints(chart.layers.wrf, series.id, from);
-        if (points) datasets.push(wrfDataset(chart, series, modelColor(chart, series, theme), points));
+        pushPlacedDataset("wrf", series.id, (points) =>
+          wrfDataset(chart, series, modelColor(chart, series, theme), points)
+        );
       }
     }
     return datasets;
@@ -442,9 +495,8 @@
   function otherSeriesAt(items, digits, unit) {
     if (!items.length) return [];
     const hovered = items[0];
-    // A Chart.js hit returns EVERY series tied at the smallest distance in x: the
-    // hourly and WRF layers share the 60-minute grid, so on a round hour they all
-    // tie. The tooltip body already prints one line per tied series, so the whole set
+    // A Chart.js hit returns EVERY series tied at the smallest distance in x.
+    // The tooltip body already prints one line per tied series, so the whole set
     // has to stay out — skipping only the first would repeat those values twice.
     const shown = new Set(items.map((item) => item.datasetIndex));
     const stamp = hovered.parsed.x;
@@ -456,26 +508,46 @@
       if (!points.length) return;
       const step = points.length > 1 ? points[1].x - points[0].x : 0;
       if (!step) return;
-      const offset = (stamp - points[0].x) / step;
+      const placement = dataset.labmimPlacement;
       // A match means the instant falls INSIDE the sample's interval, not that the
       // stamps are equal: the layers run at different cadences (twelve raw points per
       // hourly one) and equality would fail eleven times in twelve.
-      //
-      // Two stamp semantics, hence two rules. The hourly layer summarises an INTERVAL
-      // stamped at its start (the exporter's `resample` labels on the left), so the
-      // containing hour is the FLOOR — rounding would make 05:40 read [06:00, 07:00),
-      // on the rain chart the sum of an hour with no rain. Raw and WRF are
-      // instantaneous and stay on the nearest stamp.
-      const position = dataset.labmimInterval ? Math.floor(offset) : Math.round(offset);
-      const point = points[position];
+      const point = placement.intervalMs
+        ? sampleCovering(points, placement, stamp, step)
+        : nearestSample(points, stamp, step);
       if (!point || point.y === null) return;
-      const inside = dataset.labmimInterval
-        ? stamp >= point.x && stamp < point.x + step
-        : Math.abs(point.x - stamp) <= step / 2;
-      if (!inside) return;
-      lines.push(`${dataset.label}: ${decimal(point.y, digits)} ${unit}`.trim());
+      const name = placement.intervalMs
+        ? `${dataset.label} (${coveredInterval(point.x, placement, formatClock)})`
+        : dataset.label;
+      lines.push(`${name}: ${decimal(point.y, digits)} ${unit}`.trim());
     });
     return lines;
+  }
+
+  function nearestSample(points, instant, step) {
+    const point = points[Math.round((instant - points[0].x) / step)];
+    return point && Math.abs(point.x - instant) <= step / 2 ? point : null;
+  }
+
+  function sampleCovering(points, placement, instant, step) {
+    const [fromMs, toMs] = placement.intervalMs;
+    const firstStamp = points[0].x - placement.shiftMs;
+    const point = points[Math.ceil((instant - firstStamp - toMs) / step)];
+    if (!point) return null;
+    const stamp = point.x - placement.shiftMs;
+    return instant > stamp + fromMs && instant <= stamp + toMs ? point : null;
+  }
+
+  function coveredInterval(x, placement, formatStart) {
+    const stamp = x - placement.shiftMs;
+    const [fromMs, toMs] = placement.intervalMs;
+    return `${formatStart(stamp + fromMs)}–${formatClock(stamp + toMs)}`;
+  }
+
+  function tooltipTitle(item) {
+    const placement = item.dataset.labmimPlacement;
+    if (!placement.intervalMs) return formatStamp(item.parsed.x - placement.shiftMs);
+    return coveredInterval(item.parsed.x, placement, formatStamp);
   }
 
   function tickCallback(value) {
@@ -486,7 +558,6 @@
   // Fixed rather than automatic: Chart.js would pick round multiples of
   // milliseconds, which land on broken hours. A seven-day axis has to tick midnight.
   const TICK_HOURS = { "7d": 24, "3d": 12, "1d": 3 };
-  const HOUR_MS = 3600000;
 
   function alignedTicks(min, max) {
     const step = (TICK_HOURS[state.windowId] || 24) * HOUR_MS;
@@ -519,8 +590,8 @@
             labels: {
               color: theme.legendText,
               boxWidth: 26,
-              // Dataset order, not drawing order: `order` pushes raw to the back of
-              // the canvas and would list the model before the measurement it mirrors.
+              // Dataset order, not drawing order: `order` would list the model before
+              // the measurement it mirrors.
               sort: (left, right) => left.datasetIndex - right.datasetIndex,
               generateLabels: legendLabels,
             },
@@ -532,7 +603,7 @@
             borderColor: theme.series.station,
             borderWidth: 1,
             callbacks: {
-              title: (items) => formatStamp(items[0].parsed.x),
+              title: (items) => tooltipTitle(items[0]),
               label: (item) => `${item.dataset.label}: ${decimal(item.parsed.y, digits)} ${chart.unit}`.trim(),
               // Nearest-in-x answers the wrong question on the balance, where what is
               // wanted is the whole instant: five terms and the model side by side.
@@ -564,14 +635,17 @@
     };
   }
 
+  function destroyChart(chartId) {
+    const existing = state.charts.get(chartId);
+    if (!existing) return;
+    existing.destroy();
+    state.charts.delete(chartId);
+  }
+
   function drawChart(chart) {
     const canvas = state.canvases.get(chart.id);
     if (!canvas) return;
-    const existing = state.charts.get(chart.id);
-    if (existing) {
-      existing.destroy();
-      state.charts.delete(chart.id);
-    }
+    destroyChart(chart.id);
     const config = chartConfig(chart, themeColors());
     syncCardText(chart, config.data.datasets.length);
     if (!config.data.datasets.length) return;
@@ -584,6 +658,23 @@
     }
   }
 
+  function stampOffsetText(minutes) {
+    if (minutes === 0) return "t";
+    return `t${minutes > 0 ? "+" : "−"}${String(Math.abs(minutes)).replace(".", ",")} min`;
+  }
+
+  function coversText([fromMinutes, toMinutes]) {
+    if (fromMinutes === toMinutes) return `no instante ${stampOffsetText(fromMinutes)}`;
+    return `de ${stampOffsetText(fromMinutes)} a ${stampOffsetText(toMinutes)}`;
+  }
+
+  function csvStampHeader(chart, layers) {
+    const parts = layers.map(
+      (layer) => `${layerLabel(chart, layer)}: ${coversText(state.placements.get(chart.layers[layer.id]).covers)}`
+    );
+    return `instante t (${parts.join(", ")})`;
+  }
+
   // The chart's text alternative, and the only route to the raw layers the drawing
   // leaves out: one row per instant, one column per series/layer.
   function exportCsv(chart) {
@@ -592,17 +683,21 @@
     for (const series of chart.series) {
       for (const layer of LAYERS) {
         const points = layerPoints(chart.layers[layer.id], series.id, from);
-        if (points) columns.push({ header: `${series.label} (${layerLabel(chart, layer)})`, points });
+        if (points) columns.push({ header: `${series.label} (${layerLabel(chart, layer)})`, points, layer });
       }
     }
     if (!columns.length) return;
+    const exportedLayers = LAYERS.filter((layer) => columns.some((column) => column.layer === layer));
 
     const stamps = new Set();
     for (const column of columns) for (const point of column.points) stamps.add(point.x);
     const ordered = [...stamps].sort((left, right) => left - right);
     const lookup = columns.map((column) => new Map(column.points.map((point) => [point.x, point.y])));
 
-    const header = ["instante", ...columns.map((column) => `${column.header} [${chart.unit}]`)];
+    const header = [
+      csvStampHeader(chart, exportedLayers),
+      ...columns.map((column) => `${column.header} [${chart.unit}]`),
+    ];
     const rows = [header.join(";")];
     for (const stamp of ordered) {
       const date = new Date(stamp);
@@ -645,7 +740,8 @@
   }
 
   function syncCardText(chart, drawnCount) {
-    const labels = drawnLayers(chart).map((layer) => layerLabel(chart, layer));
+    const drawn = drawnLayers(chart);
+    const labels = drawn.map((layer) => drawnLayerLabel(chart, layer));
     const span = state.layerLabels.get(chart.id);
     if (span) span.textContent = labels.join(" · ");
 
@@ -680,7 +776,11 @@
     if (empty) empty.hidden = !barren;
 
     const caveats = state.caveats.get(chart.id);
-    if (caveats) caveats.hidden = barren;
+    if (caveats) {
+      const modelDrawn = drawn.some((layer) => layer.id === "wrf");
+      for (const item of caveats.children) item.hidden = item.dataset.caveat === "model" && !modelDrawn;
+      caveats.hidden = barren || [...caveats.children].every((item) => item.hidden);
+    }
 
     const zoom = state.zooms.get(chart.id);
     if (zoom) {
@@ -729,7 +829,7 @@
       "aria-label",
       `${chart.title} ampliado — camadas ${
         drawnLayers(chart)
-          .map((layer) => layerLabel(chart, layer))
+          .map((layer) => drawnLayerLabel(chart, layer))
           .join(", ") || "nenhuma"
       }. Use o botão CSV do cartão para a versão textual.`
     );
@@ -757,7 +857,17 @@
     }
   }
 
-  function buildCard(chart) {
+  function modelCaveatIndices(chart) {
+    const indices = chart.model_caveat_indices;
+    if (indices === undefined) return new Set();
+    const caveatCount = chart.caveats ? chart.caveats.length : 0;
+    const valid =
+      Array.isArray(indices) && indices.every((index) => Number.isInteger(index) && index >= 0 && index < caveatCount);
+    if (!valid) throw new Error(`model_caveat_indices inválido no gráfico ${chart.id}: ${JSON.stringify(indices)}`);
+    return new Set(indices);
+  }
+
+  function buildCard(chart, modelAbsent) {
     const card = node("div", "theme-surface monitor-card");
     card.id = `monitor-card-${chart.id}`;
 
@@ -808,7 +918,7 @@
 
     // Naming what the model does not deliver yet: otherwise a missing layer is
     // indistinguishable from a loading error.
-    const pending = Object.keys(chart.wrf_pending || {});
+    const pending = modelAbsent ? [] : Object.keys(chart.wrf_pending || {});
     if (pending.length) {
       const labels = chart.series.filter((series) => pending.includes(series.id)).map((series) => series.label);
       card.appendChild(
@@ -820,9 +930,14 @@
       );
     }
 
+    const modelCaveats = state.modelCaveats.get(chart.id);
     if (chart.caveats && chart.caveats.length) {
       const list = node("ul", "clima-caveats");
-      for (const caveat of chart.caveats) list.appendChild(node("li", null, caveat));
+      chart.caveats.forEach((caveat, index) => {
+        const item = node("li", null, caveat);
+        if (modelCaveats.has(index)) item.dataset.caveat = "model";
+        list.appendChild(item);
+      });
       card.appendChild(list);
       state.caveats.set(chart.id, list);
     }
@@ -832,9 +947,33 @@
     return card;
   }
 
-  function buildLayerToggles() {
+  function declaredModel(model) {
+    if (model === undefined) return null;
+    const valid =
+      model !== null &&
+      typeof model.loaded === "boolean" &&
+      Number.isInteger(model.hours_in_window) &&
+      model.hours_in_window >= 0 &&
+      (model.end === null || Number.isFinite(parseStationTime(model.end)));
+    if (!valid) throw new Error(`model inválido: ${JSON.stringify(model)}`);
+    return model;
+  }
+
+  function modelAbsenceNote() {
+    const model = state.model;
+    if (model === null || model.hours_in_window > 0) return null;
+    if (!model.loaded || model.end === null) return "Modelo WRF sem dados nesta janela.";
+    const end = parseStationTime(model.end);
+    return `Modelo WRF sem dados nesta janela (o registro do modelo termina em ${formatDayYear(end)} às ${formatHour(end)}).`;
+  }
+
+  function buildLayerToggles(modelAbsence) {
     const group = el("monitorCamadas");
     group.replaceChildren();
+    const note = el("monitorModelo");
+    note.textContent = modelAbsence || "";
+    note.hidden = !modelAbsence;
+    if (modelAbsence) state.layers.delete("wrf");
     for (const layer of LAYERS) {
       const button = node("button", "clima-segmented-btn", layer.label);
       button.type = "button";
@@ -842,6 +981,10 @@
       const active = state.layers.has(layer.id);
       button.setAttribute("aria-pressed", String(active));
       button.classList.toggle("is-active", active);
+      if (modelAbsence && layer.id === "wrf") {
+        button.disabled = true;
+        button.setAttribute("aria-describedby", note.id);
+      }
       button.addEventListener("click", () => {
         if (state.layers.has(layer.id)) state.layers.delete(layer.id);
         else state.layers.add(layer.id);
@@ -876,13 +1019,6 @@
     }
   }
 
-  function showEmpty(message) {
-    el("monitorApp").hidden = true;
-    const empty = el("monitorEmpty");
-    empty.hidden = false;
-    el("monitorEmptyMessage").textContent = message;
-  }
-
   // Charts are born only when their card reaches the screen: nine canvases of ~2000
   // points built on load freeze the page for seconds on a phone. The same observer
   // drives the cards' fade-in, which is pure CSS.
@@ -903,6 +1039,54 @@
     for (const card of el("monitorGrid").children) observer.observe(card);
   }
 
+  function drawForPrint({ printing, paletteChanged }) {
+    for (const chart of state.payload.charts) {
+      if (state.revealed.has(chart.id)) {
+        if (paletteChanged) drawChart(chart);
+      } else if (!printing) {
+        destroyChart(chart.id);
+      } else if (paletteChanged || !state.charts.has(chart.id)) {
+        el(`monitor-card-${chart.id}`).classList.add("is-visible");
+        drawChart(chart);
+      }
+    }
+  }
+
+  function stationEndUtcMs(windowInfo) {
+    const utcEnd = windowInfo.station_end_utc;
+    if (utcEnd === undefined) return null;
+    if (!UTC_STAMP.test(utcEnd)) throw new Error(`station_end_utc inválido: ${JSON.stringify(utcEnd)}`);
+    return parseStationTime(utcEnd);
+  }
+
+  function stationSilence(stationEnd) {
+    if (state.stationEndUtcMs === null) {
+      return { silenceMs: Date.now() - stationEnd, staleAfterMs: STALE_NAIVE_RECORD_AFTER_MS };
+    }
+    return { silenceMs: Date.now() - state.stationEndUtcMs, staleAfterMs: STALE_UTC_RECORD_AFTER_MS };
+  }
+
+  function formatSilence(silenceMs) {
+    if (silenceMs < DAY_MS) return countNoun(Math.floor(silenceMs / HOUR_MS), "hora", "horas");
+    return countNoun(Math.floor(silenceMs / DAY_MS), "dia", "dias");
+  }
+
+  function renderStaleRecordNotice(stationEnd, { silenceMs, staleAfterMs }) {
+    const region = el("monitorAtraso");
+    if (!Number.isFinite(silenceMs) || silenceMs < staleAfterMs) {
+      region.replaceChildren();
+      return;
+    }
+    const notice = node("div", "doc-warning max-w-1000 mx-auto");
+    const icon = node("i", "fas fa-exclamation-triangle doc-warning-icon");
+    icon.setAttribute("aria-hidden", "true");
+    notice.append(
+      icon,
+      `Última amostra em ${formatStampYear(stationEnd)} (horário local), há ${formatSilence(silenceMs)} sem novos dados. Os gráficos mostram o último período registrado pela estação.`
+    );
+    region.replaceChildren(notice);
+  }
+
   function renderHeader() {
     const windowInfo = state.payload.window || {};
     const start = parseStationTime(windowInfo.start);
@@ -916,16 +1100,29 @@
       // two only agree on the exporter's default path, and with an explicit `--end`
       // the field would start contradicting the dates beside it.
       const dayCount = Math.max(1, Math.round((stationEnd - start) / DAY_MS));
-      const recordText = `Janela móvel de ${dayCount} ${dayCount === 1 ? "dia" : "dias"} — ${formatStampYear(start)} a ${formatStampYear(stationEnd)} (horário local)`;
+      const recordText = `Janela móvel de ${countNoun(dayCount, "dia", "dias")} — ${formatStampYear(start)} a ${formatStampYear(stationEnd)} (horário local)`;
       el("monitorPeriodo").textContent =
         Number.isFinite(stationEnd) && end > stationEnd
           ? `${recordText}; modelo até ${formatStampYear(end)}`
           : recordText;
     }
+    renderStaleRecordNotice(stationEnd, stationSilence(stationEnd));
     const generated = parseStationTime(state.payload.generated_utc || "");
     el("monitorAtualizado").textContent = Number.isFinite(generated)
       ? `Publicado em ${formatStampYear(generated)} UTC`
       : "";
+  }
+
+  function normalizePayload(payload) {
+    for (const chart of payload.charts) {
+      for (const { id } of LAYERS) {
+        const layer = chart.layers[id];
+        if (layer) state.placements.set(layer, layerPlacement(layerCovers(chart, layer, id)));
+      }
+      state.modelCaveats.set(chart.id, modelCaveatIndices(chart));
+    }
+    state.stationEndUtcMs = stationEndUtcMs(payload.window || {});
+    state.model = declaredModel(payload.model);
   }
 
   async function start() {
@@ -933,15 +1130,14 @@
     if (!root) return;
     state.base = (root.dataset.monitoringBase || "").replace(/\/$/, "");
     if (!state.base) {
-      showEmpty("Esta publicação ainda não declara um diretório de monitoramento.");
+      showEmpty("monitor", "Esta publicação ainda não declara um diretório de monitoramento.");
       return;
     }
     if (typeof Chart === "undefined") {
-      showEmpty("A biblioteca de gráficos não carregou.");
+      showEmpty("monitor", "A biblioteca de gráficos não carregou.");
       return;
     }
 
-    el("monitorEmpty").hidden = false;
     let response;
     try {
       // No `?v=`: the file is rewritten under the same name hourly, so freshness is
@@ -950,6 +1146,7 @@
       if (!response.ok) throw new Error(String(response.status));
     } catch {
       showEmpty(
+        "monitor",
         "Os dados de monitoramento ainda não foram publicados para esta estação. " +
           "Eles são anexados ao site no deploy, separadamente das páginas."
       );
@@ -966,6 +1163,7 @@
       // The engine's message is what tells a truncated body from a corrupted one.
       console.error(error);
       showEmpty(
+        "monitor",
         "O documento de monitoramento chegou incompleto ou ilegível; o arquivo pode estar sendo " +
           "publicado neste momento. Recarregar a página em alguns minutos deve resolver."
       );
@@ -973,22 +1171,32 @@
     }
 
     if (!state.payload.charts || !state.payload.charts.length) {
-      showEmpty("O documento publicado não declara nenhum gráfico.");
+      showEmpty("monitor", "O documento publicado não declara nenhum gráfico.");
+      return;
+    }
+
+    try {
+      normalizePayload(state.payload);
+    } catch (error) {
+      console.error(error);
+      showEmpty("monitor", "O documento de monitoramento publicado tem um campo fora do formato esperado.");
       return;
     }
 
     renderHeader();
-    buildLayerToggles();
+    const modelAbsence = modelAbsenceNote();
+    buildLayerToggles(modelAbsence);
     buildWindowChips();
 
     const grid = el("monitorGrid");
     grid.replaceChildren();
-    for (const chart of state.payload.charts) grid.appendChild(buildCard(chart));
+    for (const chart of state.payload.charts) grid.appendChild(buildCard(chart, Boolean(modelAbsence)));
 
     el("monitorEmpty").hidden = true;
     el("monitorApp").hidden = false;
     observeCards();
 
+    window.addEventListener("labmim-print-change", (event) => drawForPrint(event.detail));
     window.addEventListener("labmim-theme-change", redrawAll);
   }
 

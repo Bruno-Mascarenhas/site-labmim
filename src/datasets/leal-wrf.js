@@ -19,10 +19,10 @@ module.exports = {
     grids: "GeoJSON",
   },
   timeline: {
-    defaultMaxLayer: 73,
+    defaultMaxLayer: 72,
     initialIndex: 7,
     stepHours: 1,
-    label: "Horário local (UTC−03)",
+    utcOffsetHours: -3,
   },
   defaultDomain: "D01",
   domains: [
@@ -34,7 +34,7 @@ module.exports = {
       zoom: 5.5,
       resolution: "27 km",
       description:
-        "Escala sinótica/regional. Cobre uma ampla faixa das regiões Sul, Sudeste e Nordeste e representa frentes, ciclones e massas de ar.",
+        "Escala sinótica/regional. Cobre o Sudeste, Goiás, a maior parte do Sul e o Nordeste até Pernambuco (~2670×2670 km). Representa frentes, ciclones e massas de ar.",
       cumulusParameterized: true,
     },
     {
@@ -45,7 +45,7 @@ module.exports = {
       zoom: 7,
       resolution: "9 km",
       description:
-        "Escala intermediária sobre a Região Sudeste. Resolve sistemas de mesoescala, convecção organizada e circulações costeiras.",
+        "Escala intermediária. Cobre o Espírito Santo, o Rio de Janeiro, o leste de Minas Gerais e o extremo sul da Bahia (~890×890 km). Resolve sistemas de mesoescala, convecção organizada e circulações costeiras.",
       cumulusParameterized: true,
     },
     {
@@ -56,7 +56,7 @@ module.exports = {
       zoom: 9,
       resolution: "3 km",
       description:
-        "Escala estadual de alta resolução. Cobre o Espírito Santo e permite resolver convecção profunda explicitamente (sem parametrização de cumulus).",
+        "Escala estadual de alta resolução. Cobre a maior parte do Espírito Santo, sem o norte do estado a partir de São Mateus e Nova Venécia (~300×300 km), e permite resolver convecção profunda explicitamente (sem parametrização de cumulus).",
       cumulusParameterized: false,
     },
     {

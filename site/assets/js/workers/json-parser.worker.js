@@ -10,8 +10,8 @@ self.onmessage = async function (e) {
       return;
     }
 
-    const data = await response.json();
-    self.postMessage({ id, data });
+    const body = await response.text();
+    self.postMessage({ id, data: JSON.parse(body), bodyLength: body.length });
   } catch (err) {
     self.postMessage({ id, error: err.message });
   }

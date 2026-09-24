@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { createAssetPipeline, writePublicationTheme } = require("./assets");
+const { I_TAG, hasFontAwesomeClass } = require("./fontawesome-glyphs");
 const { publicationOperationalPaths } = require("./operational-paths");
 const { SITE_REFERENCES } = require("../../src/template/references");
 
@@ -18,6 +19,13 @@ const writeOutput = (filePath, content) => {
 };
 const escapeAttribute = (value) =>
   String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+function hideDecorativeIcons(html) {
+  return html.replace(I_TAG, (tag, attributes) => {
+    const declaresAria = /(?<![\w-])aria-[a-z]+\s*=/.test(attributes);
+    return hasFontAwesomeClass(attributes) && !declaresAria ? `<i${attributes.trimEnd()} aria-hidden="true">` : tag;
+  });
+}
 
 // Ignored by assertResolved, then expanded right after it, so a page can document the
 // template syntax itself without failing the unresolved-token check.
@@ -44,7 +52,25 @@ const DEFAULT_MODEL = Object.freeze({
 const declaredFields = (block) =>
   Object.fromEntries(Object.entries(block || {}).filter(([, value]) => value !== undefined));
 
+const RUN_NOTE_SLOTS = Object.freeze({
+  isobarsResidual: "RUN_NOTE_ISOBARS_RESIDUAL",
+  isobarsMassField: "RUN_NOTE_ISOBARS_MASS_FIELD",
+  presMassField: "RUN_NOTE_PRES_MASS_FIELD",
+  swupMissingDiagnostics: "RUN_NOTE_SWUP_MISSING_DIAGNOSTICS",
+  swupNestFeedback: "RUN_NOTE_SWUP_NEST_FEEDBACK",
+  swupAlbedoRange: "RUN_NOTE_SWUP_ALBEDO_RANGE",
+  lwupReflectedTerm: "RUN_NOTE_LWUP_REFLECTED_TERM",
+  lwnetLandCells: "RUN_NOTE_LWNET_LAND_CELLS",
+  rnetClosure: "RUN_NOTE_RNET_CLOSURE",
+  ktHighValues: "RUN_NOTE_KT_HIGH_VALUES",
+  epsSkyClearCells: "RUN_NOTE_EPS_SKY_CLEAR_CELLS",
+});
+
 const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";
+
+const CHART_JS_SCRIPT = "assets/vendor/chartjs/chart.min.js?v=3.9.1";
+
+const MINUTES_PER_HOUR = 60;
 
 const OBSERVATION_CHART_WIDTH = 800;
 const OBSERVATION_CHART_HEIGHT = 400;
@@ -52,6 +78,14 @@ const OBSERVATION_CHART_HEIGHT = 400;
 function faviconHref(emoji) {
   const glyph = escapeAttribute(emoji);
   return `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${glyph}</text></svg>`;
+}
+
+function utcOffsetLabel(hours) {
+  const totalMinutes = Math.round(Math.abs(hours) * MINUTES_PER_HOUR);
+  const sign = hours < 0 ? "−" : "+";
+  const wholeHours = String(Math.floor(totalMinutes / MINUTES_PER_HOUR)).padStart(2, "0");
+  const minutes = totalMinutes % MINUTES_PER_HOUR;
+  return `UTC${sign}${wholeHours}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;
 }
 
 function observationModalId(chartId) {
@@ -106,7 +140,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   const model = { ...DEFAULT_MODEL, ...declaredFields(dataset.model) };
   const observationCharts = dataset.observations?.charts ?? [];
   const defaultDomain = domains.find((domain) => domain.id === dataset.defaultDomain);
-  const forecastHorizonHours = (dataset.timeline.defaultMaxLayer - 1) * dataset.timeline.stepHours;
+  const forecastHorizonHours = dataset.timeline.defaultMaxLayer * dataset.timeline.stepHours;
   const timelineFrequency =
     dataset.timeline.stepHours === 1
       ? "horárias"
@@ -208,6 +242,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
           domains.map((domain) => [domain.id, { label: domain.label, center: domain.center, zoom: domain.zoom }])
         ),
       },
+      vendor: { chartJs: CHART_JS_SCRIPT },
     };
   }
 
@@ -218,6 +253,24 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
         return `<button type="button" class="domain-btn${active}" aria-pressed="${domain.id === dataset.defaultDomain}" data-domain="${escapeAttribute(domain.id)}" data-zoom="${domain.zoom}">${escapeAttribute(domain.label)}</button>`;
       })
       .join("\n");
+  }
+
+  function cumulusCoverage() {
+    const parameterized = domains.filter((domain) => domain.cumulusParameterized).map((domain) => domain.label);
+    const explicit = domains.filter((domain) => !domain.cumulusParameterized).map((domain) => domain.label);
+    if (!explicit.length) {
+      return (
+        `Parametriza a convecção sub-grade em todos os domínios (${naturalList(parameterized, "e")}). ` +
+        "A chuva publicada soma a parcela do esquema de cumulus e a da microfísica, em escala de grade."
+      );
+    }
+    if (!parameterized.length) {
+      return "Desativada em todos os domínios: a convecção é resolvida explicitamente pela grade.";
+    }
+    return (
+      `Parametriza a convecção sub-grade nos domínios ${naturalList(parameterized, "e")}. ` +
+      `Desativada em ${naturalList(explicit, "e")} (Δx < 4 km), onde a convecção é resolvida explicitamente.`
+    );
   }
 
   function domainDocumentation() {
@@ -253,25 +306,14 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     DOMAIN_COUNT: String(domains.length),
     DEFAULT_DOMAIN_LABEL: escapeAttribute(defaultDomain.label),
     DOMAIN_LABELS: escapeAttribute(naturalList(domains.map((domain) => domain.label))),
-    COARSE_DOMAIN_LABELS: escapeAttribute(
-      naturalList(
-        domains.filter((domain) => domain.cumulusParameterized).map((domain) => domain.label),
-        "e"
-      )
-    ),
-    FINE_DOMAIN_LABELS: escapeAttribute(
-      naturalList(
-        domains.filter((domain) => !domain.cumulusParameterized).map((domain) => domain.label),
-        "e"
-      )
-    ),
+    CUMULUS_COVERAGE: escapeAttribute(cumulusCoverage()),
     DOMAIN_DOCUMENTATION: domainDocumentation(),
     TIMELINE_MAX: String(dataset.timeline.defaultMaxLayer),
     TIMELINE_INITIAL_INDEX: String(dataset.timeline.initialIndex),
     TIMELINE_STEP_COUNT: String(dataset.timeline.defaultMaxLayer),
     FORECAST_HORIZON_HOURS: String(forecastHorizonHours).replace(".", ","),
     TIMELINE_OUTPUT_FREQUENCY: timelineFrequency,
-    TIMEZONE_LABEL: escapeAttribute(dataset.timeline.label),
+    TIMEZONE_LABEL: escapeAttribute(`Horário local (${utcOffsetLabel(dataset.timeline.utcOffsetHours)})`),
     DATA_PIPELINE_NAME: escapeAttribute(dataset.generator ?? DEFAULT_DATA_PIPELINE),
     MODEL_INITIAL_CONDITIONS: escapeAttribute(model.initialConditions),
     MODEL_VERTICAL_LEVELS: escapeAttribute(model.verticalLevels),
@@ -291,6 +333,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     SITE_REFERENCES: JSON.stringify(SITE_REFERENCES).replace(/</g, "\\u003c"),
     MONITORING_BASE: escapeAttribute(dataset.paths.monitoring ?? ""),
     SKY_BASE: escapeAttribute(dataset.paths.sky ?? ""),
+    ...Object.fromEntries(Object.entries(RUN_NOTE_SLOTS).map(([key, token]) => [token, dataset.runNotes?.[key] ?? ""])),
   };
 
   function applySiteTokens(html) {
@@ -400,8 +443,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   }
 
   // `defer` scripts run in document order, so vendor-first is what guarantees `Chart` is
-  // defined when the page module runs. The `{{pageScripts}}` slot sits after `{{> scripts}}`
-  // in the layout for the same reason: the Bootstrap bundle must exist before the page JS.
+  // defined when the page module runs.
   function scriptTags(page) {
     return [...page.vendorScripts, ...page.scripts]
       .map((source) => `    <script defer src="${escapeAttribute(source)}"></script>`)
@@ -481,6 +523,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     html = applySiteTokens(html);
     assertResolved(page.file, html);
     html = resolveLiteralBraces(html);
+    html = hideDecorativeIcons(html);
     html = assetPipeline.stampAssetVersions(html);
     writeOutput(path.join(outputDir, page.file), html);
     return page.file;
@@ -491,7 +534,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     return publication.redirects
       .map(
         (redirect) =>
-          `  Redirect ${redirect.status} "${redirect.from}" "${redirect.to}${redirect.hash ? `#${redirect.hash}` : ""}"`
+          `  Redirect ${redirect.status} "${redirect.from}" "${redirect.to}${redirect.hash ? `?#${redirect.hash}` : ""}"`
       )
       .join("\n");
   }
@@ -501,6 +544,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     let notFound = applySiteTokens(read(path.join(staticDir, "404.html")));
     assertResolved("404.html", notFound);
     notFound = resolveLiteralBraces(notFound);
+    notFound = hideDecorativeIcons(notFound);
     notFound = assetPipeline.stampAssetVersions(notFound);
     writeOutput(path.join(outputDir, "404.html"), notFound);
 
@@ -549,4 +593,4 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
 
 // observationModalId and DEFAULT_MODEL travel to validate.js so it checks chart-id
 // collisions and unknown `dataset.model` keys against exactly what this file emits.
-module.exports = { renderPublication, observationModalId, DEFAULT_MODEL };
+module.exports = { renderPublication, observationModalId, DEFAULT_MODEL, RUN_NOTE_SLOTS };

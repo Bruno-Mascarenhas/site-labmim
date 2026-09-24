@@ -4,11 +4,25 @@ const CHART_TIMELINE_FIRST_INDEX = 1;
 // (see app.parseDateTime) and the map label prints those digits, so charts and
 // CSV must format in UTC too — local time would shift them off the map.
 const CHART_FORECAST_TIME_ZONE = "UTC";
+const CSV_EXCEL_UTF8_BOM = "\ufeff";
+const CSV_FIELD_SEPARATOR = ";";
+const CSV_VALUE_FRACTION_DIGITS = 2;
+const CSV_COORDINATE_FRACTION_DIGITS = 4;
+const TIME_SERIES_CACHE_ENTRY_LIMIT = 200;
+const STEPPED_MODE_FILLING_STEP_BEFORE_EACH_POINT = "after";
+const STEP_ENDING_AT_CURSOR_INTERACTION_MODE = "stepEndingAtCursor";
 
 // The two card surfaces a series is drawn on: assets/css/maps.css and the dark override in
 // assets/css/theme.css (.chart-modal-body, div[id^="chartContainer"]).
 const CHART_SURFACES = ["#ffffff", "#161b22"];
 const CHART_SERIES_FALLBACK = "#0d6efd";
+
+const SERIES_POINT_RADIUS_PX = 3;
+const MOST_POINTS_DRAWN_WITH_MARKERS = 96;
+const PARTIAL_COVERAGE_POINT_RADIUS_PX = 5;
+const PARTIAL_COVERAGE_POINT_BORDER_WIDTH_PX = 2;
+const HOLLOW_POINT_FILL = "rgba(0, 0, 0, 0)";
+const INSTANT_UPDATE_MODE_REFRESHING_POINT_OPTIONS = "instantRefresh";
 
 function relativeLuminance(hex) {
   const channel = (offset) => {
@@ -29,6 +43,16 @@ function themeInvariantSeriesColor(colors) {
   return colors.reduce((best, color) => (worstContrast(color) > worstContrast(best) ? color : best), colors[0]);
 }
 
+function itemsOfStepEndingAtCursor(chart, event, options, useFinalPosition) {
+  const cursorX = Chart.helpers.getRelativePosition(event, chart).x;
+  return chart.getSortedVisibleDatasetMetas().flatMap((meta) => {
+    const index = meta.data.findIndex((point) => point.getProps(["x"], useFinalPosition).x >= cursorX);
+    const point = meta.data[index];
+    const closesNoStep = chart.data.datasets[meta.index].openingStepAnchorIndexes.has(index);
+    return point && !point.skip && !closesNoStep ? [{ element: point, datasetIndex: meta.index, index }] : [];
+  });
+}
+
 class ChartsManager {
   constructor(app) {
     this.app = app;
@@ -37,11 +61,41 @@ class ChartsManager {
     this.timeSeriesData = {};
     this.timeSeriesCache = new Map();
     this.domainSummaryCache = new Map();
+    this.unusableCellSeriesFiles = new Set();
+    this.cellSeriesFilesSkippedByPanel = new Set();
     this.abortController = null;
     this.previewAbortController = null;
+    this.chartJsLoading = null;
+    this.modalChartJsPrefetch = null;
     this.ui = this._cacheUIElements();
 
     this._setupModalListeners();
+  }
+
+  ensureChartJs() {
+    if (!this.chartJsLoading) {
+      this.chartJsLoading = new Promise((resolve) => {
+        if (typeof Chart !== "undefined") {
+          resolve(true);
+          return;
+        }
+        const script = document.createElement("script");
+        const fail = () => {
+          script.remove();
+          this.chartJsLoading = null;
+          console.error("[Charts] Error loading Chart.js:", new Error(`Chart.js did not load from ${script.src}`));
+          resolve(false);
+        };
+        script.src = window.SITE_RUNTIME_CONFIG.vendor.chartJs;
+        script.onload = () => (typeof Chart === "undefined" ? fail() : resolve(true));
+        script.onerror = fail;
+        document.head.appendChild(script);
+      }).then((ready) => {
+        if (ready) Chart.Interaction.modes[STEP_ENDING_AT_CURSOR_INTERACTION_MODE] = itemsOfStepEndingAtCursor;
+        return ready;
+      });
+    }
+    return this.chartJsLoading;
   }
 
   _cacheUIElements() {
@@ -125,13 +179,14 @@ class ChartsManager {
     }
   }
 
-  _showModalEmptyState(message) {
+  _showModalEmptyState(message, { exportable = false } = {}) {
     this.charts.forEach((chart) => chart.destroy());
     this.charts.clear();
     if (this.ui.chartEnergyContainer) this.ui.chartEnergyContainer.style.display = "none";
     if (this.ui.exportBtn) {
-      this.ui.exportBtn.disabled = true;
-      this.ui.exportBtn.setAttribute("aria-disabled", "true");
+      this.ui.exportBtn.disabled = !exportable;
+      if (exportable) this.ui.exportBtn.removeAttribute("aria-disabled");
+      else this.ui.exportBtn.setAttribute("aria-disabled", "true");
     }
 
     const body = this.ui.modal?.querySelector(".chart-modal-body");
@@ -145,7 +200,7 @@ class ChartsManager {
       // Inline: the build-generated modal markup carries no class for this state.
       box.style.cssText =
         "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;" +
-        "text-align:center;padding:1.5rem;color:var(--text-secondary,#666);background:var(--bg-card,#fff);";
+        "text-align:center;padding:1.5rem;color:var(--text-secondary,#666);background:var(--bg-secondary);";
       body.appendChild(box);
     }
     box.textContent = message;
@@ -214,6 +269,7 @@ class ChartsManager {
   }
 
   openModal() {
+    this.modalChartJsPrefetch = this.ensureChartJs();
     if (this.ui.modal) {
       this._returnFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       this.ui.modal.style.display = "flex";
@@ -258,13 +314,13 @@ class ChartsManager {
     this._returnFocusEl = null;
   }
 
-  renderChartsForVariable(variableType) {
+  async renderChartsForVariable(variableType) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
 
     // Before the no-data return: the header must name the REQUESTED variable
     // even when the answer is "no data".
-    this.ui.title.innerHTML = `<i class="fas fa-${this._getIcon(variableType)}"></i> Série Temporal: ${this._stepLabel(config)}`;
+    this.ui.title.innerHTML = `<i class="fas ${this._getIcon(variableType)}" aria-hidden="true"></i> Série Temporal: ${this._seriesLabel(variableType, config)}`;
 
     // The requested variable can be missing while a companion series loaded,
     // and the caller only checks whether the payload has any key at all.
@@ -273,16 +329,36 @@ class ChartsManager {
       return;
     }
 
+    const signal = this.abortController?.signal;
+    const chartJsReady = this.modalChartJsPrefetch ?? this.ensureChartJs();
+    this.modalChartJsPrefetch = null;
+    if (!(await chartJsReady)) {
+      if (signal?.aborted) return;
+      this._showModalEmptyState("Não foi possível carregar os gráficos. A série continua disponível no botão CSV.", {
+        exportable: true,
+      });
+      return;
+    }
+    if (signal?.aborted || !this.timeSeriesData?.[variableType]?.data?.length) return;
+
     this._clearModalEmptyState();
 
-    const isSolarOrWind = variableType === "solar" || variableType === "eolico";
+    const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
+    const energySeries = this._prepareChartData(variableType, "energy", config, timeData);
+    const sharedAxisOpensHourBefore =
+      energySeries !== null && this._opensHourBefore(energySeries.stepTotal, energySeries.data);
 
-    this._updateOrCreateChart(variableType, "value", "chartCanvasValue");
+    this._updateOrCreateChart(
+      "chartCanvasValue",
+      timeData,
+      this._prepareChartData(variableType, "value", config, timeData),
+      sharedAxisOpensHourBefore
+    );
 
     const energyContainer = this.ui.chartEnergyContainer;
-    if (isSolarOrWind) {
+    if (energySeries?.data.some(Number.isFinite)) {
       energyContainer.style.display = "block";
-      this._updateOrCreateChart(variableType, "energy", "chartCanvasEnergy");
+      this._updateOrCreateChart("chartCanvasEnergy", timeData, energySeries, sharedAxisOpensHourBefore);
     } else {
       energyContainer.style.display = "none";
     }
@@ -302,11 +378,14 @@ class ChartsManager {
   clearCaches() {
     this.timeSeriesCache.clear();
     this.domainSummaryCache.clear();
+    this.unusableCellSeriesFiles.clear();
+    this.cellSeriesFilesSkippedByPanel.clear();
   }
 
   async renderDomainSummary(variableType, domain, elements = {}) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config) return;
+    const chartJsReady = this.ensureChartJs();
 
     if (this.previewAbortController) {
       this.previewAbortController.abort();
@@ -314,9 +393,8 @@ class ChartsManager {
     this.previewAbortController = new AbortController();
     const signal = this.previewAbortController.signal;
 
-    const { canvasId = "variablePreviewCanvas", statsContainer, titleElement, labelElement, domainElement } = elements;
+    const { canvasId = "variablePreviewCanvas", statsContainer, labelElement, domainElement } = elements;
 
-    if (titleElement) titleElement.textContent = config.optionLabel || config.label;
     if (labelElement) {
       // Same node `updateVariablePreviewShell` (map-manager.js) writes to, and
       // this one writes last. Dimensionless variables (EPS_SKY, KT) carry no
@@ -345,8 +423,14 @@ class ChartsManager {
         return;
       }
 
-      this._renderPreviewStats(statsContainer, result.stats, config);
-      this._renderPreviewChart(canvasId, result.series, config);
+      const meanCoversDaylightOnly = this._meanCoversDaylightOnly(variableType, config, domain);
+      this._renderPreviewStats(statsContainer, result.stats, config, meanCoversDaylightOnly);
+      if (!(await chartJsReady)) {
+        if (!signal.aborted) this._showPreviewChartNotice(canvasId, "Não foi possível carregar o gráfico.");
+        return;
+      }
+      if (signal.aborted) return;
+      this._renderPreviewChart(canvasId, result.series, config, meanCoversDaylightOnly);
     } catch (error) {
       if (error.name === "AbortError") return;
       console.error("[Charts] Error rendering domain summary:", error);
@@ -357,6 +441,7 @@ class ChartsManager {
   async _loadDomainMeanSeries(variableType, domain, signal) {
     const config = VARIABLES_CONFIG[variableType];
     if (!config?.id) return null;
+    if (!this._variablePublished(variableType, domain)) return null;
 
     const variableId = this._getVariableId(variableType, config);
     const maxHour = this._getAvailableHourCount();
@@ -390,6 +475,8 @@ class ChartsManager {
           value: summary.mean,
           min: summary.min,
           max: summary.max,
+          finiteCells: summary.count,
+          totalCells: data.values.length,
           timestamp: this._timestampForHour(hour, data),
         };
       }
@@ -431,6 +518,8 @@ class ChartsManager {
           value,
           min: Number.isFinite(data.min?.[i]) ? data.min[i] : value,
           max: Number.isFinite(data.max?.[i]) ? data.max[i] : value,
+          finiteCells: Number.isInteger(data.finite_cells?.[i]) ? data.finite_cells[i] : null,
+          totalCells: Number.isInteger(data.cells) ? data.cells : null,
           timestamp: this._timestampForHour(hour, { metadata: { date_time: data.date_times?.[i] } }),
         });
       }
@@ -499,7 +588,7 @@ class ChartsManager {
     });
 
     if (!count) return null;
-    return { mean: sum / count, min, max };
+    return { mean: sum / count, min, max, count };
   }
 
   _aggregateSeriesStats(series, currentHour) {
@@ -509,19 +598,56 @@ class ChartsManager {
     // "Atual" is genuinely unavailable; another hour's value would read as a
     // measurement next to a map that says "sem dados".
     const current = series.find((entry) => entry.hour === currentHour) || null;
-    const mean = series.reduce((sum, entry) => sum + entry.value, 0) / series.length;
+    const weightedByFiniteCells = series.every((entry) => Number.isInteger(entry.finiteCells) && entry.finiteCells > 0);
+    const mean = weightedByFiniteCells
+      ? series.reduce((sum, entry) => sum + entry.value * entry.finiteCells, 0) /
+        series.reduce((sum, entry) => sum + entry.finiteCells, 0)
+      : series.reduce((sum, entry) => sum + entry.value, 0) / series.length;
     const min = Math.min(...series.map((entry) => entry.min));
     const max = Math.max(...series.map((entry) => entry.max));
+    const meanWeightsPartialSteps = weightedByFiniteCells && series.some((entry) => this._coversPartOfDomain(entry));
 
-    return { current: current ? current.value : null, mean, min, max };
+    return { current: current ? current.value : null, mean, min, max, meanWeightsPartialSteps };
   }
 
-  _renderPreviewStats(container, stats, config) {
+  _coversPartOfDomain(entry) {
+    return (
+      Number.isInteger(entry?.finiteCells) && Number.isInteger(entry.totalCells) && entry.finiteCells < entry.totalCells
+    );
+  }
+
+  _domainCoverageLabel(entry) {
+    const coveredPercent = Math.floor((100 * entry.finiteCells) / entry.totalCells);
+    return coveredPercent < 1 ? "menos de 1% das células com valor" : `${coveredPercent}% das células com valor`;
+  }
+
+  _applyPreviewPoints(chartOrConfig, series, color) {
+    const dataset = chartOrConfig.data.datasets[0];
+    const coversPart = series.map((entry) => this._coversPartOfDomain(entry));
+    dataset.pointRadius = coversPart.map((partial) => (partial ? PARTIAL_COVERAGE_POINT_RADIUS_PX : 0));
+    dataset.pointBorderWidth = coversPart.map((partial) => (partial ? PARTIAL_COVERAGE_POINT_BORDER_WIDTH_PX : 0));
+    dataset.pointBackgroundColor = coversPart.map((partial) => (partial ? HOLLOW_POINT_FILL : color));
+    dataset.pointBorderColor = color;
+  }
+
+  _meanCoversDaylightOnly(variableType, config, domain) {
+    if (config.publishedSteps !== "daylight-zero-night") return false;
+
+    const variableId = this._getVariableId(variableType, config);
+    const ranges = this.app?.availabilityRanges?.(variableId, domain);
+    if (!Array.isArray(ranges)) return true;
+
+    const publishedSteps = ranges.reduce((sum, [first, last]) => sum + last - first + 1, 0);
+    const firstIndex = this.app?.timeline?.indexMin ?? CHART_TIMELINE_FIRST_INDEX;
+    return publishedSteps < this._getAvailableHourCount() - firstIndex + 1;
+  }
+
+  _renderPreviewStats(container, stats, config, meanCoversDaylightOnly) {
     if (!container || !stats) return;
 
     const items = [
       ["Atual", stats.current],
-      ["Média", stats.mean],
+      [meanCoversDaylightOnly ? "Média diurna" : "Média", stats.mean],
       ["Mín", stats.min],
       ["Máx", stats.max],
     ];
@@ -536,13 +662,28 @@ class ChartsManager {
         `
       )
       .join("");
+    if (stats.meanWeightsPartialSteps) {
+      container.insertAdjacentHTML(
+        "beforeend",
+        '<p class="variable-preview-note">A média pesa cada passo pelo número de células com valor. ' +
+          "Os pontos vazados marcam os passos em que só parte das células tem valor.</p>"
+      );
+    }
   }
 
-  _renderPreviewChart(canvasId, series, config) {
+  _renderPreviewChart(canvasId, series, config, meanCoversDaylightOnly) {
     const canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return;
+    this._clearPreviewChartNotice(canvasId);
 
-    const labels = series.map((entry) =>
+    const stepTotal = config.stepTotal === true;
+    const gapped = this._seriesWithHourGaps(series);
+    const drawn = this._withOpeningStepAnchors(
+      gapped,
+      gapped.map((entry) => entry.value),
+      stepTotal
+    );
+    const labels = drawn.entries.map((entry) =>
       new Date(entry.timestamp).toLocaleString("pt-BR", {
         timeZone: CHART_FORECAST_TIME_ZONE,
         day: "2-digit",
@@ -550,10 +691,15 @@ class ChartsManager {
         hour: "2-digit",
       })
     );
-    const chartData = series.map((entry) => entry.value);
+    const chartData = drawn.data;
+    const firstSeriesLabel = labels[drawn.firstSeriesIndex];
     const chartColor = themeInvariantSeriesColor(config.colors);
     const chartLabel = `Média do domínio · ${this._stepLabel(config)}`;
-    const tooltipLabel = (ctx) => this._formatPreviewValue(ctx.parsed.y, config.unit);
+    const tooltipLabel = (ctx) => {
+      const value = this._formatPreviewValue(ctx.parsed.y, config.unit);
+      const entry = drawn.entries[ctx.dataIndex];
+      return this._coversPartOfDomain(entry) ? [value, this._domainCoverageLabel(entry)] : value;
+    };
 
     // A <canvas> exposes no content to the accessibility tree (WCAG 1.1.1).
     if (labels.length) {
@@ -561,8 +707,10 @@ class ChartsManager {
       canvas.setAttribute(
         "aria-label",
         `Média do domínio para ${this._stepLabel(config)}${config.unit ? ` em ${config.unit}` : ""}, ` +
-          `de ${labels[0]} a ${labels[labels.length - 1]}. ` +
-          "As estatísticas do período estão no resumo desta prévia."
+          `de ${firstSeriesLabel} a ${labels[labels.length - 1]}. ` +
+          (meanCoversDaylightOnly
+            ? "As estatísticas do resumo desta prévia cobrem só as horas diurnas publicadas; a noite não entra na média."
+            : "As estatísticas do período estão no resumo desta prévia.")
       );
     }
 
@@ -570,20 +718,21 @@ class ChartsManager {
 
     if (chartInstance) {
       this._applySeriesToChart(chartInstance, labels, chartData, chartLabel, chartColor);
+      this._applySeriesShape(chartInstance, stepTotal, drawn.anchorIndexes);
       chartInstance.options.scales.y.title.text = config.unit;
       chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
+      this._applyPreviewPoints(chartInstance, drawn.entries, chartColor);
       this._applyChartTheme(chartInstance, chartColor);
-      chartInstance.update("none");
+      chartInstance.update(INSTANT_UPDATE_MODE_REFRESHING_POINT_OPTIONS);
       return;
     }
 
-    chartInstance = new Chart(
-      canvas.getContext("2d"),
-      this._buildChartConfig(chartData, labels, chartLabel, chartColor, config.unit)
-    );
+    const previewConfig = this._buildChartConfig(chartData, labels, chartLabel, chartColor, config.unit);
+    this._applySeriesShape(previewConfig, stepTotal, drawn.anchorIndexes);
+    this._applyPreviewPoints(previewConfig, drawn.entries, chartColor);
+    chartInstance = new Chart(canvas.getContext("2d"), previewConfig);
     chartInstance.options.plugins.legend.display = false;
     chartInstance.options.scales.x.ticks.maxTicksLimit = 6;
-    chartInstance.options.elements = { point: { radius: 0 } };
     chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
     chartInstance.update("none");
     this.previewCharts.set(canvasId, chartInstance);
@@ -595,9 +744,32 @@ class ChartsManager {
       chartInstance.destroy();
       this.previewCharts.delete(canvasId);
     }
+    this._clearPreviewChartNotice(canvasId);
     if (statsContainer) {
       statsContainer.innerHTML = `<div class="variable-preview-empty">${message}</div>`;
     }
+  }
+
+  _showPreviewChartNotice(canvasId, message) {
+    const canvas = document.getElementById(canvasId);
+    const area = canvas?.parentElement;
+    if (!area) return;
+    let notice = area.querySelector(".variable-preview-empty");
+    if (!notice) {
+      notice = document.createElement("div");
+      notice.className = "variable-preview-empty";
+      notice.setAttribute("role", "status");
+      area.appendChild(notice);
+    }
+    notice.textContent = message;
+    canvas.hidden = true;
+  }
+
+  _clearPreviewChartNotice(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    canvas.parentElement?.querySelector(".variable-preview-empty")?.remove();
+    canvas.hidden = false;
   }
 
   _formatPreviewValue(value, unit) {
@@ -613,19 +785,15 @@ class ChartsManager {
     return `${numericValue.toFixed(precision)} ${unit}`;
   }
 
-  _updateOrCreateChart(variableType, chartType, canvasId) {
-    if (!this.timeSeriesData?.[variableType]) return;
-
-    const config = VARIABLES_CONFIG[variableType];
-    const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
-    const {
-      data: chartData,
-      label: chartLabel,
-      unit: chartUnit,
-      color: chartColor,
-    } = this._prepareChartData(variableType, chartType, config, timeData);
-
-    const labels = timeData.map((entry) => {
+  _updateOrCreateChart(
+    canvasId,
+    timeData,
+    { data: seriesData, label: chartLabel, unit: chartUnit, color: chartColor, stepTotal },
+    sharedAxisOpensHourBefore = false
+  ) {
+    const drawn = this._withOpeningStepAnchors(timeData, seriesData, stepTotal, sharedAxisOpensHourBefore);
+    const chartData = drawn.data;
+    const labels = drawn.entries.map((entry) => {
       if (!entry._formattedLabel) {
         entry._formattedLabel = new Date(entry.timestamp).toLocaleString("pt-BR", {
           timeZone: CHART_FORECAST_TIME_ZONE,
@@ -639,13 +807,14 @@ class ChartsManager {
     });
 
     const canvas = this._getChartCanvas(canvasId);
+    const firstSeriesLabel = labels[drawn.firstSeriesIndex];
     // A <canvas> exposes no content to the accessibility tree (WCAG 1.1.1).
     if (canvas && labels.length) {
       canvas.setAttribute("role", "img");
       canvas.setAttribute(
         "aria-label",
         `Série temporal de ${chartLabel}${chartUnit ? ` em ${chartUnit}` : ""}, ` +
-          `de ${labels[0]} a ${labels[labels.length - 1]}. ` +
+          `de ${firstSeriesLabel} a ${labels[labels.length - 1]}. ` +
           "Use o botão CSV para a versão textual dos dados."
       );
     }
@@ -654,16 +823,20 @@ class ChartsManager {
 
     if (chartInstance) {
       this._applySeriesToChart(chartInstance, labels, chartData, chartLabel, chartColor);
-      chartInstance.data.datasets[0].pointRadius = chartData.length > 96 ? 0 : 3;
+      this._applySeriesShape(chartInstance, stepTotal, drawn.anchorIndexes);
+      chartInstance.data.datasets[0].pointRadius = this._seriesPointRadii(drawn);
       chartInstance.data.datasets[0].pointBackgroundColor = chartColor;
       chartInstance.options.scales.y.title.text = chartUnit;
       chartInstance.options.plugins.tooltip.callbacks.label = (ctx) => `${ctx.parsed.y.toFixed(2)} ${chartUnit}`;
       this._applyChartTheme(chartInstance, chartColor);
-      chartInstance.update("none");
+      chartInstance.update(INSTANT_UPDATE_MODE_REFRESHING_POINT_OPTIONS);
     } else {
       const ctx = canvas?.getContext("2d");
       if (!ctx) return;
-      chartInstance = new Chart(ctx, this._buildChartConfig(chartData, labels, chartLabel, chartColor, chartUnit));
+      const chartConfig = this._buildChartConfig(chartData, labels, chartLabel, chartColor, chartUnit);
+      this._applySeriesShape(chartConfig, stepTotal, drawn.anchorIndexes);
+      chartConfig.data.datasets[0].pointRadius = this._seriesPointRadii(drawn);
+      chartInstance = new Chart(ctx, chartConfig);
       this.charts.set(canvasId, chartInstance);
     }
   }
@@ -734,6 +907,45 @@ class ChartsManager {
     chartInstance.data.datasets[0].backgroundColor = `${color}20`;
   }
 
+  _applySeriesShape(chartOrConfig, stepTotal, openingStepAnchorIndexes) {
+    chartOrConfig.data.datasets[0].stepped = stepTotal ? STEPPED_MODE_FILLING_STEP_BEFORE_EACH_POINT : false;
+    chartOrConfig.data.datasets[0].openingStepAnchorIndexes = openingStepAnchorIndexes;
+    chartOrConfig.options.scales.y.beginAtZero = stepTotal;
+    chartOrConfig.options.interaction.mode = stepTotal ? STEP_ENDING_AT_CURSOR_INTERACTION_MODE : "index";
+  }
+
+  _opensHourBefore(stepTotal, values) {
+    return stepTotal === true && Number.isFinite(values[0]);
+  }
+
+  _withOpeningStepAnchors(entries, values, stepTotal, sharedAxisOpensHourBefore = false) {
+    const opensHourBefore = sharedAxisOpensHourBefore || this._opensHourBefore(stepTotal, values);
+    const firstSeriesIndex = opensHourBefore ? 1 : 0;
+    const drawnEntries = [...entries];
+    const data = [...values];
+    if (opensHourBefore) {
+      const openingHour = entries[0].hour - 1;
+      drawnEntries.unshift({ hour: openingHour, value: null, timestamp: this._timestampForHour(openingHour, null) });
+      data.unshift(null);
+    }
+    const anchorIndexes = new Set();
+    if (!stepTotal) return { entries: drawnEntries, data, anchorIndexes, firstSeriesIndex };
+    for (let index = 1; index < data.length; index++) {
+      const opensRun = Number.isFinite(data[index]) && !Number.isFinite(data[index - 1]);
+      const anchorFollowsGapOrEdge = index === 1 || !Number.isFinite(data[index - 2]);
+      if (opensRun && anchorFollowsGapOrEdge) {
+        data[index - 1] = data[index];
+        anchorIndexes.add(index - 1);
+      }
+    }
+    return { entries: drawnEntries, data, anchorIndexes, firstSeriesIndex };
+  }
+
+  _seriesPointRadii(drawn) {
+    const radius = drawn.data.length > MOST_POINTS_DRAWN_WITH_MARKERS ? 0 : SERIES_POINT_RADIUS_PX;
+    return drawn.data.map((_, index) => (drawn.anchorIndexes.has(index) ? 0 : radius));
+  }
+
   _getThemeColors() {
     const rootStyles = getComputedStyle(document.documentElement);
     return {
@@ -760,7 +972,6 @@ class ChartsManager {
             borderWidth: 3,
             fill: true,
             tension: 0.4,
-            pointRadius: chartData.length > 96 ? 0 : 3,
             pointBackgroundColor: chartColor,
             pointBorderColor: "#fff",
             pointBorderWidth: 2,
@@ -772,6 +983,7 @@ class ChartsManager {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { intersect: false, mode: "index" },
+        transitions: { [INSTANT_UPDATE_MODE_REFRESHING_POINT_OPTIONS]: { animation: { duration: 0 } } },
         plugins: {
           legend: {
             display: true,
@@ -840,39 +1052,59 @@ class ChartsManager {
     return options.find((option) => option.hours === 1)?.variableLabel || `${config?.label} (1h)`;
   }
 
+  _seriesLabel(variableType, config) {
+    const stepLabel = this._stepLabel(config);
+    return variableType === "eolico" ? `${stepLabel} a ${this.app.windHeight} m` : stepLabel;
+  }
+
   _prepareChartData(variableType, chartType, config, timeData) {
     if (chartType === "value") {
       return {
         data: timeData.map((entry) => entry.value),
-        label: this._stepLabel(config),
+        label: this._seriesLabel(variableType, config),
         unit: config.unit,
         color: themeInvariantSeriesColor(config.colors),
+        stepTotal: config.stepTotal === true,
       };
     }
 
-    const unit = variableType === "solar" ? "Wh/m²" : "kWh";
     const color = variableType === "solar" ? "#b16d00" : "#4783a9";
-    const temperatureSeries = this.timeSeriesData?.temperature?.data || [];
-    const temperatureByHour = new Map(temperatureSeries.map((entry) => [entry.hour, entry.value]));
-    const data = timeData.map((entry) => {
-      // Hour with no exported radiation/wind: the catch below would turn
-      // `specificInfo`'s unavailable payload into a 0 — invented production
-      // where the line should have a hole.
+    const companionValuesByHour = new Map(
+      (config.chartCompanions || []).map((key) => [
+        key,
+        new Map((this.timeSeriesData?.[key]?.data || []).map((entry) => [entry.hour, entry.value])),
+      ])
+    );
+    const domain = this.app.state.domain;
+    const energyItems = timeData.map((entry) => {
       if (entry.value === null || entry.value === undefined) return null;
-      try {
-        const info = config.specificInfo(entry.value, {
-          [variableType]: { value: entry.value },
-          temperature: { value: temperatureByHour.get(entry.hour) },
-        });
-        // `energyValue` is the raw number; the sibling fields are display text.
-        const item = info?.items?.find((it) => Number.isFinite(it.energyValue));
-        return item ? item.energyValue : 0;
-      } catch {
-        return 0;
-      }
+      const stepSeconds = this.app.stepSecondsFor(domain, entry.hour);
+      const allValues = { [variableType]: { value: entry.value, stepSeconds } };
+      companionValuesByHour.forEach((valueByHour, key) => {
+        allValues[key] = { value: valueByHour.get(entry.hour), stepSeconds };
+      });
+      const info = config.specificInfo(entry.value, allValues);
+      return info?.items?.find((item) => Number.isFinite(item.energyValue)) ?? null;
     });
 
-    return { data, label: "Produção Energética Acumulada (1h)", unit, color };
+    const basis = energyItems.some((item) => item?.energyBasis === "step") ? "step" : "instant";
+    const seriesItem = energyItems.find((item) => item?.energyBasis === basis);
+    if (!seriesItem) return null;
+
+    const stepTotal = basis === "step";
+    return {
+      data: energyItems.map((item) => (item?.energyBasis === basis ? item.energyValue : null)),
+      label: seriesItem.chartLabel,
+      csvLabel: seriesItem.csvLabel,
+      unit: seriesItem.unit,
+      color,
+      stepIrradiationByHour: stepTotal ? companionValuesByHour.get("shortwaveIrradiation") : null,
+      stepTotal,
+    };
+  }
+
+  _variablePublished(variableType, domain) {
+    return !this.app?.hasPublishedSteps || this.app.hasPublishedSteps(variableType, domain);
   }
 
   _getRequiredVariableKeys(variableType) {
@@ -886,7 +1118,7 @@ class ChartsManager {
     return [...keys];
   }
 
-  async _loadVariableSeries(variableKey, domain, cellIndex, signal) {
+  async _loadVariableSeries(variableKey, domain, cellIndex, signal, { rangeReadOnly = false } = {}) {
     const config = VARIABLES_CONFIG[variableKey];
     if (!config?.id) return null;
 
@@ -894,17 +1126,21 @@ class ChartsManager {
     const maxHour = this._getAvailableHourCount();
     // Run version in the key: see _loadDomainMeanSeries.
     const cacheKey = `${this.app?.dataVersion || "v0"}:${domain}:${variableId}:${cellIndex}:${maxHour}`;
-    const cached = this.timeSeriesCache.get(cacheKey);
+    const cached = this._cachedTimeSeries(cacheKey);
     if (cached) return cached;
+    if (!this._variablePublished(variableKey, domain)) return null;
 
     // One ~300-byte Range request instead of dozens of full-domain JSONs read
     // for a single cell each.
-    const binarySeries = await this._loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal);
+    const binarySeries = await this._loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal, {
+      rangeReadOnly,
+    });
     if (binarySeries) {
       const result = { config, data: binarySeries };
-      this.timeSeriesCache.set(cacheKey, result);
+      this._cacheTimeSeries(cacheKey, result);
       return result;
     }
+    if (rangeReadOnly) return null;
 
     const { series, transientFailures } = await this._collectHourlySeries(
       variableId,
@@ -925,19 +1161,34 @@ class ChartsManager {
 
     const result = { config, data: series };
     if (transientFailures === 0) {
-      this.timeSeriesCache.set(cacheKey, result);
+      this._cacheTimeSeries(cacheKey, result);
     }
     return result;
+  }
+
+  _cachedTimeSeries(cacheKey) {
+    const cached = this.timeSeriesCache.get(cacheKey);
+    if (cached) {
+      this.timeSeriesCache.delete(cacheKey);
+      this.timeSeriesCache.set(cacheKey, cached);
+    }
+    return cached;
+  }
+
+  _cacheTimeSeries(cacheKey, result) {
+    this.timeSeriesCache.delete(cacheKey);
+    this.timeSeriesCache.set(cacheKey, result);
+    if (this.timeSeriesCache.size > TIME_SERIES_CACHE_ENTRY_LIMIT) {
+      this.timeSeriesCache.delete(this.timeSeriesCache.keys().next().value);
+    }
   }
 
   /**
    * Reads one cell's series from {D}_{VAR}.series.bin (cell-series-int32-le-v1:
    * row-major cells x steps int32 LE, value = raw * scale, `missing` sentinel)
-   * via a Range request. A server without Range support answers 200 with the
-   * full body, sliced locally. Null on any error — callers fall back to the
-   * legacy per-hour path.
+   * via a Range request.
    */
-  async _loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal) {
+  async _loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal, { rangeReadOnly = false } = {}) {
     const feature = this.app?.timeline?.features?.cell_series;
     if (
       feature?.format !== "cell-series-int32-le-v1" ||
@@ -949,6 +1200,10 @@ class ChartsManager {
     ) {
       return null;
     }
+
+    const fileKey = `${this.app?.dataVersion || "v0"}:${domain}:${variableId}`;
+    if (this.unusableCellSeriesFiles.has(fileKey)) return null;
+    if (rangeReadOnly && this.cellSeriesFilesSkippedByPanel.has(fileKey)) return null;
 
     const steps = feature.index_max - feature.index_min + 1;
     if (steps <= 0) return null;
@@ -973,23 +1228,33 @@ class ChartsManager {
         const totalMatch = /\/(\d+)\s*$/.exec(res.headers.get("Content-Range") || "");
         const total = totalMatch ? parseInt(totalMatch[1], 10) : null;
         if (total !== null && (total % bytesPerCell !== 0 || (expectedTotal !== null && total !== expectedTotal))) {
+          this.unusableCellSeriesFiles.add(fileKey);
           return null;
         }
+        if (rangeReadOnly && (total === null || total !== expectedTotal)) return null;
         buffer = await res.arrayBuffer();
         if (buffer.byteLength < bytesPerCell) return null;
       } else if (res.ok) {
+        this.cellSeriesFilesSkippedByPanel.add(fileKey);
+        if (rangeReadOnly) {
+          await res.body?.cancel();
+          return null;
+        }
         const full = await res.arrayBuffer();
         if (full.byteLength % bytesPerCell !== 0 || (expectedTotal !== null && full.byteLength !== expectedTotal)) {
+          this.unusableCellSeriesFiles.add(fileKey);
           return null;
         }
         if (full.byteLength < offset + bytesPerCell) return null;
         buffer = full.slice(offset, offset + bytesPerCell);
       } else {
+        if (rangeReadOnly && res.status === 404) this.cellSeriesFilesSkippedByPanel.add(fileKey);
         return null;
       }
 
       const view = new DataView(buffer);
       const scale = Number.isFinite(feature.scale) ? feature.scale : 0.01;
+      const rawUnitsPerValue = 1 / scale;
       const missing = Number.isInteger(feature.missing) ? feature.missing : -2147483648;
       const series = [];
       for (let step = 0; step < steps; step++) {
@@ -999,11 +1264,11 @@ class ChartsManager {
         if (raw === missing) continue;
         series.push({
           hour,
-          value: raw * scale,
+          value: raw / rawUnitsPerValue,
           timestamp: this._timestampForHour(hour, null),
         });
       }
-      return series.length ? series : null;
+      return series.length || rangeReadOnly ? series : null;
     } catch (error) {
       if (error?.name === "AbortError") throw error;
       return null;
@@ -1032,16 +1297,21 @@ class ChartsManager {
     const domainLabel = this.app?.getDomainLabel
       ? this.app.getDomainLabel(this.app.state.domain)
       : this.app?.state?.domain || "";
-    let csv = `Data,Hora,Latitude,Longitude,Domínio,Variável,Valor(${config.unit})`;
-    const isEnergy = type === "solar" || type === "eolico";
-    let chartDataEnergy = null;
-
-    if (isEnergy) {
-      const energyConfig = this._prepareChartData(type, "energy", config, timeData);
-      chartDataEnergy = energyConfig.data;
-      csv += `,Produção(${energyConfig.unit})`;
-    }
-    csv += "\n";
+    const seriesLabel = this._seriesLabel(type, config);
+    const header = [
+      "Data",
+      `Hora (${this.app.forecastUtcOffsetLabel()})`,
+      "Latitude",
+      "Longitude",
+      "Domínio",
+      "Variável",
+      `Valor(${config.unit})`,
+    ];
+    const energySeries = this._prepareChartData(type, "energy", config, timeData);
+    const stepIrradiationByHour = energySeries?.stepIrradiationByHour ?? null;
+    if (stepIrradiationByHour) header.push(`Irradiação do passo(${VARIABLES_CONFIG.shortwaveIrradiation.unit})`);
+    if (energySeries) header.push(`${energySeries.csvLabel}(${energySeries.unit})`);
+    const rows = [header.join(CSV_FIELD_SEPARATOR)];
 
     timeData.forEach((entry, i) => {
       const date = new Date(entry.timestamp);
@@ -1053,28 +1323,43 @@ class ChartsManager {
         second: "2-digit",
       });
 
-      csv += `${dateStr},${timeStr},${selectedCell.lat.toFixed(4)},${selectedCell.lng.toFixed(4)},"${domainLabel}","${this._stepLabel(config)}",${this._formatCsvValue(Number(chartDataValue[i]))}`;
-
-      if (isEnergy && chartDataEnergy) {
-        csv += `,${this._formatCsvValue(Number(chartDataEnergy[i]))}`;
-      }
-      csv += "\n";
+      const cells = [
+        dateStr,
+        timeStr,
+        this._formatCsvValue(selectedCell.lat, CSV_COORDINATE_FRACTION_DIGITS),
+        this._formatCsvValue(selectedCell.lng, CSV_COORDINATE_FRACTION_DIGITS),
+        `"${domainLabel}"`,
+        `"${seriesLabel}"`,
+        this._formatCsvValue(chartDataValue[i]),
+      ];
+      if (stepIrradiationByHour) cells.push(this._formatCsvValue(stepIrradiationByHour.get(entry.hour)));
+      if (energySeries) cells.push(this._formatCsvValue(energySeries.data[i]));
+      rows.push(cells.join(CSV_FIELD_SEPARATOR));
     });
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([CSV_EXCEL_UTF8_BOM, `${rows.join("\n")}\n`], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `timeseries_${type}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = this._csvFileName(type, config);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
 
-  _formatCsvValue(value) {
-    if (isNaN(value)) return "0.00";
-    return value.toFixed(2);
+  _csvFileName(variableType, config) {
+    const parts = ["timeseries", this._getVariableId(variableType, config), this.app.state.domain];
+    const runStartLocal = this.app.calculateTargetDateFromIndex(0);
+    if (runStartLocal instanceof Date && !isNaN(runStartLocal)) {
+      parts.push(`rodada_${runStartLocal.toISOString().slice(0, 13).replace("T", "_")}h`);
+    }
+    return `${parts.join("_")}.csv`;
+  }
+
+  _formatCsvValue(value, fractionDigits = CSV_VALUE_FRACTION_DIGITS) {
+    if (!Number.isFinite(value)) return "";
+    return value.toFixed(fractionDigits).replace(".", ",");
   }
 
   /**
@@ -1174,7 +1459,7 @@ class ChartsManager {
   }
 
   _getIcon(variableType) {
-    return VARIABLES_CONFIG[variableType]?.faIcon || "chart-line";
+    return VARIABLES_CONFIG[variableType]?.faIcon || "fa-chart-line";
   }
 }
 

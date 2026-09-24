@@ -41,5 +41,8 @@ module.exports = {
     { from: "/monitoring.html", to: "/mapas_interativos.html", status: 301 },
     { from: "/equipe.html", to: "/team.html", status: 301 },
     { from: "/contato.html", to: "/team.html", hash: "contato", status: 301 },
+    { from: "/mapas_interativos_es.html", to: "/mapas_interativos.html", status: 301 },
+    { from: "/mapas_meteorologicos.html", to: "/mapas_interativos.html", status: 301 },
+    { from: "/projetos.html", to: "/", status: 301 },
   ],
 };

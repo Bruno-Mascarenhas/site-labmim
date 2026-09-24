@@ -147,10 +147,10 @@ module.exports = {
     sky: "Ceu",
   },
   timeline: {
-    defaultMaxLayer: 73,
+    defaultMaxLayer: 72,
     initialIndex: 7,
     stepHours: 1,
-    label: "Horário local (UTC−03)",
+    utcOffsetHours: -3,
   },
   defaultDomain: "D01",
   domains: [
@@ -168,9 +168,11 @@ module.exports = {
 };
 ```
 
+`timeline.defaultMaxLayer` é o `index_max` da rodada publicada, com o índice 0 na inicialização, e o horizonte que as páginas declaram é `defaultMaxLayer × stepHours`, conferido pelo `build:check` contra o [manifesto](../../Architecture.md#manifest-de-dados-e-ciclo-de-vida-da-rodada) só na publicação padrão.
+
 `defaultDomain` deve existir em `domains`. Os IDs são parte dos nomes dos arquivos operacionais e não devem ser usados apenas como labels de interface.
 
-Um `paths` que aponte para um diretório de dados novo precisa ganhar a própria regra no `.gitignore`. As regras de hoje nomeiam um a um os diretórios existentes (`site/JSON/*.json`, `site/JSON/*.series.bin`, `site/GeoJSON/*.geojson`, `site/GeoJSON/*.json`, `site/Climatologia/*.json`, `site/Monitoramento/*.json` e `site/Ceu/*`, este por diretório porque ali chegam imagens além de JSON), então um diretório novo **não** é ignorado por herança — e dado operacional do laboratório nunca entra no git. As mecânicas estão em [Organização De Pastas](../../Architecture.md#organização-de-pastas).
+Um `paths` que aponte para um diretório de dados novo precisa ganhar a própria regra no `.gitignore`. As regras de hoje nomeiam um a um os cinco diretórios existentes (`JSON`, `GeoJSON`, `Climatologia`, `Monitoramento` e `Ceu`) e ignoram cada um por diretório, `site/<dir>/*` com a exceção `!site/<dir>/.keep`, porque além de JSON chegam ali `.series.bin`, imagens do céu e os temporários `.{nome}.tmp-{pid}` do pipeline. Por isso um diretório novo **não** é ignorado por herança — e dado operacional do laboratório nunca entra no git. As mecânicas estão em [Organização De Pastas](../../Architecture.md#organização-de-pastas).
 
 Campos opcionais do dataset: `generator` (nome da CLI que produz os dados), `model` (o namelist WRF descrito na documentação do WebGIS) e `observations`, que alimenta a página de monitoramento:
 
@@ -180,7 +182,9 @@ observations: {
 },
 ```
 
-A rota `monitoring` tem duas implementações e o build cobra a fonte de dados de cada uma. A estática (`pages/monitoring.html`, a fonte padrão de `page("monitoring")`) desenha os PNGs de `observations` e é **recusada** sem `observations.charts`. A interativa (`source: templateSource("pages/monitoring-live.html")`, que é a de ufba) lê `paths.monitoring` e é recusada sem esse caminho. Ou declare a fonte que a variante escolhida exige, ou não ofereça a página. Do mesmo modo, a página `climatology` exige `paths.climatology`: o build recusa a página sem o caminho, porque ela sozinha só produziria um 404 no console. O caminho sem a página é aceito. Os PNGs são reescritos no lugar pela estação de cada laboratório e ficam fora dos bundles: associe-os no deploy, como os diretórios de `dataset.paths`.
+`runNotes`, também opcional, guarda o texto que só vale para a rodada publicada pelo dataset: data da rodada, números medidos, comparação com a estação. Cada chave preenche um slot `{{RUN_NOTE_*}}` dos templates compartilhados, registrado em `RUN_NOTE_SLOTS` (`scripts/site-builder/renderer.js`). O valor é HTML inserido sem escape. Um dataset que não declara a chave publica o slot vazio, então o texto em volta do slot precisa continuar correto sem a nota. O `build:check` recusa a nota que não aparece em nenhuma página da própria publicação e a que aparece na publicação de outro dataset: texto pinado a uma rodada não entra direto em `src/template/`.
+
+A rota `monitoring` tem duas implementações e o build cobra a fonte de dados de cada uma. A estática (`pages/monitoring.html`, a fonte padrão de `page("monitoring")`) desenha os PNGs de `observations`, abre cada um num modal do Bootstrap e é **recusada** sem `observations.charts` e sem o `bootstrap.bundle.min.js` em `vendorScripts`. A interativa (`source: templateSource("pages/monitoring-live.html")`, que é a de ufba) lê `paths.monitoring` e é recusada sem esse caminho. Ou declare a fonte que a variante escolhida exige, ou não ofereça a página. Do mesmo modo, a página `climatology` exige `paths.climatology`: o build recusa a página sem o caminho, porque ela sozinha só produziria um 404 no console. O caminho sem a página é aceito. Os PNGs são reescritos no lugar pela estação de cada laboratório e ficam fora dos bundles: associe-os no deploy, como os diretórios de `dataset.paths`.
 
 ### 4. Páginas
 
@@ -218,7 +222,7 @@ page("monitoring", {
   append: [siteSource("fragments/funding.html")],
   seo: {
     title: "LAB — Monitoramento Ambiental · UE",
-    description: "Monitoramento ambiental em tempo quase real.",
+    description: "Monitoramento ambiental da última semana registrada pela estação.",
   },
 });
 ```
@@ -267,10 +271,10 @@ O CSS do Bootstrap é purgado e a fonte do Font Awesome é um subset — os dois
 
 ```bash
 npm run purge:bootstrap                  # classe Bootstrap nova
-# ícone novo: siga scripts/subset-fontawesome.md (precisa de Python + fonttools + brotli)
+# ícone novo: siga scripts/subset-fontawesome.md (precisa de Python + fonttools + brotli) e depois npm run subset:icons-css
 ```
 
-Regenerar o Bootstrap purgado reescreve um arquivo carimbado por hash de conteúdo — então o `?v=` muda e o HTML commitado de **todas** as publicações muda junto. Regenerar o subset do Font Awesome reescreve só `fa-solid-900.woff2` e `subset-glyphs.json`, servidos sem `?v=`, e não altera HTML nenhum. É esperado; commite tudo no mesmo passo. Se preferir evitar, reutilize as classes e os ícones já presentes: `npm run build:check` acusa cada ausência com o nome exato.
+Regenerar o Bootstrap purgado reescreve um arquivo carimbado por hash de conteúdo — então o `?v=` muda e o HTML commitado de **todas** as publicações muda junto. Regenerar o subset do Font Awesome reescreve `fa-solid-900.woff2` e `subset-glyphs.json`, servidos sem `?v=`, e `fa.subset.min.css`, que também tem hash de conteúdo — o HTML de todas as publicações muda do mesmo jeito. É esperado; commite tudo no mesmo passo. Se preferir evitar, reutilize as classes e os ícones já presentes: `npm run build:check` acusa cada ausência com o nome exato.
 
 ## Criar Uma Página Compartilhada
 
@@ -303,7 +307,7 @@ Use `siteSource("pages/projeto.html")` no lugar de `templateSource()` quando a p
 
 `styles` é opcional. Use `siteSource("styles/arquivo.css")` para CSS pertencente apenas à publicação, `templateSource("styles/arquivo.css")` para uma fonte compartilhada, ou um caminho existente sob `site/assets/css/` para um módulo estático comum. Fontes de `src/` são copiadas para `assets/css/generated/` somente quando a página selecionada as usa; assim, CSS da UFES não vaza para o bundle UFBA. Componentes reutilizáveis continuam em `components.css`. O renderer insere esses arquivos antes de `theme.css`, preservando os overrides de light/dark mode. O layout `webgis` já declara o Leaflet e o `maps.css` por conta própria, então uma `customPage()` com esse layout não nasce sem o CSS de mapa.
 
-`scripts` e `vendorScripts` declaram o JavaScript exclusivo da página. Ao contrário de `styles`, os dois aceitam **apenas caminhos já publicados** sob `site/assets/js/` e `site/assets/vendor/`: `site/assets/js/` é fonte versionada, não saída do build, então não há o que copiar para um diretório gerado. O build carimba `?v=<hash de conteúdo>` nos próprios e deixa o vendor em paz, então um `?v=` escrito à mão é aceito só no vendor. As tags saem com `defer`, os vendorizados antes dos próprios, e o slot `{{pageScripts}}` fica **depois** de `{{> scripts}}` no layout — scripts `defer` executam na ordem do documento, e é isso que garante o Bootstrap e o Chart.js definidos quando o módulo da página roda. Uma página que declara scripts sob um layout sem o slot é **recusada** no build em vez de ir ao ar com os controles mortos.
+`scripts` e `vendorScripts` declaram o JavaScript exclusivo da página. Ao contrário de `styles`, os dois aceitam **apenas caminhos já publicados** sob `site/assets/js/` e `site/assets/vendor/`: `site/assets/js/` é fonte versionada, não saída do build, então não há o que copiar para um diretório gerado. O build carimba `?v=<hash de conteúdo>` nos próprios e deixa o vendor em paz, então um `?v=` escrito à mão é aceito só no vendor. As tags saem com `defer`, os vendorizados antes dos próprios, e o slot `{{pageScripts}}` fica **depois** de `{{> scripts}}` no layout — scripts `defer` executam na ordem do documento, e é isso que garante os vendorizados da página, como o Chart.js, e o `references.js` definidos quando o módulo da página roda. Uma página que declara scripts sob um layout sem o slot é **recusada** no build em vez de ir ao ar com os controles mortos.
 
 ```js
 page("climatology", {

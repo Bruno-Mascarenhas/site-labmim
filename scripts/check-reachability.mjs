@@ -43,6 +43,10 @@ const VIEWPORTS = [
   { w: 320, h: 568, name: "celular minimo" },
 ];
 
+const WEBGIS_WIDTHS = [320, 360, 390, 768, 800, 960, 1024, 1280];
+const WEBGIS_HEIGHTS = [600, 720, 800, 900];
+const WEBGIS_VIEWPORTS = WEBGIS_WIDTHS.flatMap((w) => WEBGIS_HEIGHTS.map((h) => ({ w, h, name: `${w}x${h}` })));
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -100,13 +104,104 @@ const SELECTOR = [
 
 function probeInPage(sel) {
   const MIN_TARGET = 24;
+  const OVERLAP_TOLERANCE_PX = 1;
+  const SCROLL_ALIGNMENTS = ["center", "start", "end"];
+  const rootStyle = getComputedStyle(document.documentElement);
+  const bodyOverflowGoesToViewport = rootStyle.overflowX === "visible" && rootStyle.overflowY === "visible";
+  const viewportOverflowOwner = bodyOverflowGoesToViewport ? document.body : document.documentElement;
+  const viewportOverflow = getComputedStyle(viewportOverflowOwner).overflowY;
+  const viewportScrolls = viewportOverflow !== "hidden" && viewportOverflow !== "clip";
   const results = [];
-  for (const element of document.querySelectorAll(sel)) {
+
+  const describe = (node) =>
+    node ? `${node.tagName.toLowerCase()}.${(node.className || "").toString().split(" ")[0]}` : "nada";
+
+  const transparent = (color) => color === "transparent" || /[,/]\s*0(\.0+)?\)$/.test(color);
+  const painted = (node) => {
+    if ([HTMLImageElement, HTMLVideoElement, HTMLCanvasElement].some((kind) => node instanceof kind)) return true;
+    const style = getComputedStyle(node);
+    return !transparent(style.backgroundColor) || style.backgroundImage !== "none";
+  };
+  const shown = (node) =>
+    node.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && !node.closest("[hidden]");
+  const passThroughNodes = new Set();
+  const painters = [];
+  for (const node of document.body.querySelectorAll("*")) {
+    if (getComputedStyle(node).pointerEvents === "none") passThroughNodes.add(node);
+    if (painted(node) && shown(node)) painters.push(node);
+  }
+  const passThroughPainters = painters.filter((painter) => passThroughNodes.has(painter));
+  let painterBoxes = null;
+  const paintersWithBoxes = () =>
+    (painterBoxes ??= painters.map((painter) => ({ painter, box: painter.getBoundingClientRect() })));
+  const hitAt = (x, y) => document.elementsFromPoint(x, y).find((node) => !passThroughNodes.has(node)) ?? null;
+  const inkWithin = (canvas, box, area) => {
+    const context = canvas.getContext("2d");
+    if (!context) return true;
+    const scaleX = canvas.width / box.width;
+    const scaleY = canvas.height / box.height;
+    const { data } = context.getImageData(
+      Math.floor((area.left - box.left) * scaleX),
+      Math.floor((area.top - box.top) * scaleY),
+      Math.max(1, Math.ceil((area.right - area.left) * scaleX)),
+      Math.max(1, Math.ceil((area.bottom - area.top) * scaleY))
+    );
+    for (let alpha = 3; alpha < data.length; alpha += 4) if (data[alpha] > 0) return true;
+    return false;
+  };
+
+  const paintedOver = (element, target, proxy) => {
+    const own = (node) => element.contains(node) || Boolean(proxy?.contains(node));
+    const width = document.documentElement.clientWidth;
+    for (const { painter, box } of paintersWithBoxes()) {
+      if (painter.contains(element) || own(painter)) continue;
+      const left = Math.max(box.left, target.left, 0);
+      const right = Math.min(box.right, target.right, width);
+      const top = Math.max(box.top, target.top, 0);
+      const bottom = Math.min(box.bottom, target.bottom, window.innerHeight);
+      if (right - left < OVERLAP_TOLERANCE_PX || bottom - top < OVERLAP_TOLERANCE_PX) continue;
+      if (painter instanceof HTMLCanvasElement && !inkWithin(painter, box, { left, right, top, bottom })) continue;
+      const stack = document.elementsFromPoint((left + right) / 2, (top + bottom) / 2);
+      const painterDepth = stack.indexOf(painter);
+      const ownDepth = stack.findIndex((node) => own(node) && !passThroughNodes.has(node));
+      if (painterDepth >= 0 && ownDepth >= 0 && painterDepth < ownDepth) return painter;
+    }
+    return null;
+  };
+
+  const clippingAncestors = (element) => {
+    const clippers = [];
+    for (let node = element.parentElement; node && node !== viewportOverflowOwner; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      if (style.overflowX === "visible" && style.overflowY === "visible") continue;
+      const scrollsByUser = [style.overflowX, style.overflowY].some((value) => value === "auto" || value === "scroll");
+      clippers.push({ node, scrollsByUser });
+    }
+    return clippers;
+  };
+
+  const cornerInset = (element, box) => {
     const style = getComputedStyle(element);
-    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") continue;
-    if (element.closest("[hidden]")) continue;
+    const shortSide = Math.min(box.width, box.height);
+    const radius = Math.max(
+      ...[
+        style.borderTopLeftRadius,
+        style.borderTopRightRadius,
+        style.borderBottomLeftRadius,
+        style.borderBottomRightRadius,
+      ].map((value) => (value.endsWith("%") ? (parseFloat(value) / 100) * shortSide : parseFloat(value) || 0))
+    );
+    return Math.max(2, Math.ceil(Math.min(radius, shortSide / 2) * (1 - Math.SQRT1_2)) + 1);
+  };
+
+  const locate = (element) => {
+    const style = getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return null;
+    if (element.closest("[hidden]")) return null;
     const rect = element.getBoundingClientRect();
-    if (rect.width < 1 || rect.height < 1) continue;
+    if (rect.width < 1 || rect.height < 1) return null;
+    const parkedAboveThePage = rect.bottom + window.scrollY <= 0;
+    if (parkedAboveThePage) return null;
 
     // An inline link that wraps has one box per LINE, and the centre of the box enclosing
     // them falls in the gap between lines — on the paragraph, not on the link.
@@ -116,20 +211,98 @@ function probeInPage(sel) {
     // A visually-hidden input is driven by its label by design and is always "covered".
     const proxy = element.classList.contains("visually-hidden") ? element.closest("label") : null;
     const target = proxy ? proxy.getBoundingClientRect() : box;
+    return { style, rect, proxy, target, shape: proxy || element };
+  };
+
+  const obstruction = (element, { target, proxy, shape }) => {
+    const inset = cornerInset(shape, target);
+    const width = document.documentElement.clientWidth;
+    const points = [
+      [target.x + target.width / 2, target.y + target.height / 2],
+      [target.left + inset, target.top + inset],
+      [target.right - inset, target.top + inset],
+      [target.left + inset, target.bottom - inset],
+      [target.right - inset, target.bottom - inset],
+    ];
+    const clips = clippingAncestors(shape).map(({ node }) => {
+      const box = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      const border = {
+        left: parseFloat(style.borderLeftWidth),
+        right: parseFloat(style.borderRightWidth),
+        top: parseFloat(style.borderTopWidth),
+        bottom: parseFloat(style.borderBottomWidth),
+      };
+      const verticalScrollbar = Math.max(
+        0,
+        node.offsetWidth - node.clientWidth - Math.round(border.left + border.right)
+      );
+      const horizontalScrollbar = Math.max(
+        0,
+        node.offsetHeight - node.clientHeight - Math.round(border.top + border.bottom)
+      );
+      return {
+        node,
+        left: box.left + border.left,
+        right: box.right - border.right - verticalScrollbar,
+        top: box.top + border.top,
+        bottom: box.bottom - border.bottom - horizontalScrollbar,
+      };
+    });
+    for (const [rawX, y] of points) {
+      const x = Math.min(Math.max(rawX, 1), width - 1);
+      if (y < 0 || y >= window.innerHeight) return { pending: true };
+      const clip = clips.find(({ left, right, top, bottom }) => x < left || x > right || y < top || y > bottom);
+      if (clip) return { pending: true, clippedBy: describe(clip.node) };
+      const top = hitAt(x, y);
+      if (!top) return { pending: true };
+      const owns = top === element || element.contains(top) || top.contains(element) || proxy?.contains(top);
+      if (!owns) return { covered: describe(top) };
+    }
+    const painter = paintedOver(element, target, proxy);
+    return painter ? { covered: `${describe(painter)}, pintado por cima` } : {};
+  };
+
+  const settle = (element, located) => {
+    let verdict = obstruction(element, located);
+    if (!verdict.pending) return verdict;
+    const scrollers = clippingAncestors(element).map((clipper) => ({
+      ...clipper,
+      top: clipper.node.scrollTop,
+      left: clipper.node.scrollLeft,
+    }));
+    const origin = { left: window.scrollX, top: window.scrollY };
+    for (const block of SCROLL_ALIGNMENTS) {
+      element.scrollIntoView({ block, inline: "nearest", behavior: "instant" });
+      painterBoxes = null;
+      const viewportForced = !viewportScrolls && (window.scrollX !== origin.left || window.scrollY !== origin.top);
+      const clipperForced = scrollers.some(
+        ({ node, scrollsByUser, top, left }) => !scrollsByUser && (node.scrollTop !== top || node.scrollLeft !== left)
+      );
+      const relocated = locate(element);
+      if (viewportForced || clipperForced) verdict = { covered: "só alcançável por rolagem programática" };
+      else verdict = relocated ? obstruction(element, relocated) : { covered: "sumiu ao rolar" };
+      for (const { node, top, left } of scrollers) {
+        node.scrollTop = top;
+        node.scrollLeft = left;
+      }
+      window.scrollTo({ ...origin, behavior: "instant" });
+      painterBoxes = null;
+      if (!verdict.pending && !verdict.covered) return verdict;
+    }
+    if (!verdict.pending) return verdict;
+    return { covered: verdict.clippedBy ? `recortado por ${verdict.clippedBy}` : "fora do alcance da rolagem" };
+  };
+
+  const passThroughInlineStyles = passThroughPainters.map((painter) => [painter, painter.getAttribute("style")]);
+  for (const painter of passThroughPainters) painter.style.setProperty("pointer-events", "auto", "important");
+  for (const element of document.querySelectorAll(sel)) {
+    const located = locate(element);
+    if (!located) continue;
+    const { style, rect, target } = located;
 
     // WCAG 2.2 exempts a link inside a sentence: it is sized by the text around it.
     const inlineLink = element.tagName === "A" && style.display.startsWith("inline");
-
-    const x = Math.min(Math.max(target.x + target.width / 2, 1), document.documentElement.clientWidth - 1);
-    const y = target.y + target.height / 2;
-    let covered = null;
-    if (y >= 0 && y <= window.innerHeight) {
-      const top = document.elementFromPoint(x, y);
-      const owns = top && (top === element || element.contains(top) || top.contains(element) || proxy?.contains(top));
-      if (top && !owns) covered = `${top.tagName.toLowerCase()}.${(top.className || "").toString().split(" ")[0]}`;
-    } else {
-      covered = "PENDENTE";
-    }
 
     results.push({
       what: element.id
@@ -139,34 +312,240 @@ function probeInPage(sel) {
       size: `${Math.round(target.width)}x${Math.round(target.height)}`,
       small: !inlineLink && (target.width < MIN_TARGET || target.height < MIN_TARGET),
       offscreen: rect.right > document.documentElement.clientWidth + 1 || rect.left < -1,
-      covered,
-      top: Math.round(rect.y + window.scrollY),
+      covered: settle(element, located).covered || null,
     });
+  }
+  for (const [painter, inlineStyle] of passThroughInlineStyles) {
+    if (inlineStyle === null) painter.removeAttribute("style");
+    else painter.setAttribute("style", inlineStyle);
   }
   return { controls: results, hScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth };
 }
 
-// Anything below the fold reports PENDENTE, so each band is scrolled into view and
-// measured where the control actually sits.
-async function probe(page) {
-  const first = await page.evaluate(probeInPage, SELECTOR);
-  const pending = first.controls.filter((control) => control.covered === "PENDENTE");
-  if (!pending.length) return first;
-  const resolved = new Map();
-  const bands = [...new Set(pending.map((control) => Math.floor(control.top / 400) * 400))].sort((a, b) => a - b);
-  for (const band of bands) {
-    await page.evaluate((y) => window.scrollTo(0, y), Math.max(0, band - 100));
-    await page.waitForTimeout(160);
-    const pass = await page.evaluate(probeInPage, SELECTOR);
-    for (const control of pass.controls) {
-      if (control.covered !== "PENDENTE") resolved.set(`${control.what}|${control.label}|${control.top}`, control);
+function probe(page) {
+  return page.evaluate(probeInPage, SELECTOR);
+}
+
+const ACCEPT_MISSING_DATA_FLAG = "--sem-dados";
+const acceptsMissingData = process.argv.slice(2).includes(ACCEPT_MISSING_DATA_FLAG);
+
+const STATE_SETTLE_MS = 450;
+const MAP_FIRST_FRAME_TIMEOUT_MS = 3000;
+const PAGE_SETTLE_MS = 1500;
+const WIND_PAINT_TIMEOUT_MS = 10000;
+const WIND_PAINT_POLL_MS = 200;
+const WIND_INK_SAMPLE_PX = 64;
+const WIND_VARIABLES = ["wind", "eolico"];
+const PREVIEW_TIMEOUT_MS = 10000;
+const CELL_TIMEOUT_MS = 8000;
+const STEP_APPLIED_TIMEOUT_MS = 1000;
+const MAP_CLICK_FRACTIONS = [
+  [0.5, 0.5],
+  [0.35, 0.5],
+  [0.5, 0.35],
+  [0.35, 0.35],
+  [0.5, 0.65],
+];
+
+function succeeded(promise) {
+  return promise.then(
+    () => true,
+    () => false
+  );
+}
+
+function transitionsFinished() {
+  return document
+    .getAnimations()
+    .every(
+      (animation) => animation.playState !== "running" || animation.effect?.getComputedTiming().endTime === Infinity
+    );
+}
+
+function settle(page) {
+  return succeeded(page.waitForFunction(transitionsFinished, null, { timeout: STATE_SETTLE_MS }));
+}
+
+function mapShowsFirstFrame() {
+  const label = document.getElementById("layerLabel");
+  return (
+    document.fonts.status === "loaded" &&
+    Boolean(label) &&
+    !label.hasAttribute("aria-busy") &&
+    !/Carregando/.test(label.textContent)
+  );
+}
+
+function nextStepApplied(timeoutMs) {
+  return new Promise((resolve) => {
+    const label = document.getElementById("layerLabel");
+    if (!label) {
+      resolve();
+      return;
     }
-  }
-  await page.evaluate(() => window.scrollTo(0, 0));
-  return {
-    ...first,
-    controls: first.controls.map((c) => resolved.get(`${c.what}|${c.label}|${c.top}`) || c),
+    const observer = new MutationObserver(() => {
+      if (label.hasAttribute("aria-busy")) return;
+      observer.disconnect();
+      resolve();
+    });
+    observer.observe(label, { attributes: true, attributeFilter: ["aria-busy"] });
+    setTimeout(() => {
+      observer.disconnect();
+      resolve();
+    }, timeoutMs);
+  });
+}
+
+function windCanvasInked(samplePx) {
+  const canvas = document.getElementById("windVectorCanvas");
+  if (!canvas?.width || !canvas.height) return false;
+  const context = canvas.getContext("2d");
+  const inked = (left, top, width, height) => {
+    const { data } = context.getImageData(left, top, width, height);
+    for (let alpha = 3; alpha < data.length; alpha += 4) if (data[alpha] > 0) return true;
+    return false;
   };
+  const width = Math.min(samplePx, canvas.width);
+  const height = Math.min(samplePx, canvas.height);
+  return (
+    inked(Math.floor((canvas.width - width) / 2), Math.floor((canvas.height - height) / 2), width, height) ||
+    inked(0, 0, canvas.width, canvas.height)
+  );
+}
+
+function windPainted(page) {
+  return succeeded(
+    page.waitForFunction(windCanvasInked, WIND_INK_SAMPLE_PX, {
+      timeout: WIND_PAINT_TIMEOUT_MS,
+      polling: WIND_PAINT_POLL_MS,
+    })
+  );
+}
+
+async function setOverview(page, expanded) {
+  await page.evaluate((expand) => {
+    const toggle = document.getElementById("variableOverviewToggle");
+    if ((toggle.getAttribute("aria-expanded") === "true") !== expand) toggle.click();
+  }, expanded);
+  if (!expanded) {
+    await settle(page);
+    return true;
+  }
+  const loaded = await succeeded(
+    page.waitForFunction(
+      () => !/Carregando/.test(document.getElementById("variablePreviewStats")?.textContent ?? ""),
+      null,
+      { timeout: PREVIEW_TIMEOUT_MS }
+    )
+  );
+  await settle(page);
+  return loaded && page.evaluate(() => !document.querySelector("#variablePreviewStats .variable-preview-empty"));
+}
+
+async function openCell(page) {
+  const point = await page.evaluate((fractions) => {
+    const map = document.getElementById("map");
+    const box = map.getBoundingClientRect();
+    for (const [fx, fy] of fractions) {
+      const x = box.left + box.width * fx;
+      const y = box.top + box.height * fy;
+      if (y <= 0 || y >= window.innerHeight) continue;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && map.contains(hit) && !hit.closest(".leaflet-control-container")) return { x, y };
+    }
+    return null;
+  }, MAP_CLICK_FRACTIONS);
+  if (!point) return false;
+  await page.evaluate(nextStepApplied, STEP_APPLIED_TIMEOUT_MS);
+  await page.mouse.click(point.x, point.y);
+  const opened = await succeeded(
+    page.waitForFunction(() => document.getElementById("sidebar")?.classList.contains("active"), null, {
+      timeout: CELL_TIMEOUT_MS,
+    })
+  );
+  if (!opened) return false;
+  await page.evaluate(() => {
+    if (document.getElementById("timeSeriesModal")?.style.display === "flex") {
+      document.getElementById("timeSeriesCloseBtn").click();
+    }
+  });
+  await settle(page);
+  return true;
+}
+
+async function openParameters(page) {
+  const present = await page.evaluate(() => {
+    const toggle = document.querySelector("#sidebar.active .parameters-toggle");
+    const list = document.querySelector("#sidebar.active .parameters-list");
+    if (!toggle || !list) return false;
+    if (!list.classList.contains("active")) toggle.click();
+    return true;
+  });
+  if (present) await settle(page);
+  return present;
+}
+
+async function openMenu(page) {
+  const present = await page.evaluate(() => {
+    const toggler = document.querySelector("[data-navbar-toggle]");
+    if (!toggler || getComputedStyle(toggler).display === "none") return false;
+    if (toggler.getAttribute("aria-expanded") !== "true") toggler.click();
+    return true;
+  });
+  if (present) await settle(page);
+  return present;
+}
+
+async function openWind(page) {
+  const windVariable = await page.evaluate((variables) => {
+    const options = [...(document.getElementById("variableSelect")?.options ?? [])];
+    const option = options.find(({ value }) => variables.includes(value));
+    if (!option || !document.getElementById("windLayerCheckbox")) return null;
+    if (document.getElementById("sidebar")?.classList.contains("active")) {
+      document.getElementById("closeSidebarBtn").click();
+    }
+    return option.value;
+  }, WIND_VARIABLES);
+  if (!windVariable) return false;
+  await settle(page);
+  await page.evaluate((variable) => {
+    const select = document.getElementById("variableSelect");
+    const checkbox = document.getElementById("windLayerCheckbox");
+    if (select.value !== variable) {
+      select.value = variable;
+      select.dispatchEvent(new Event("change"));
+    }
+    if (!checkbox.checked) checkbox.click();
+  }, windVariable);
+  const painted = await windPainted(page);
+  if (painted) await settle(page);
+  return painted;
+}
+
+const INITIAL_STATE = { name: "inicial", enter: async () => true };
+
+const WEBGIS_STATES = [
+  { name: "visão geral aberta", enter: (page) => setOverview(page, true), needsData: true },
+  { name: "célula aberta", enter: openCell, needsData: true },
+  { name: "parâmetros abertos", enter: openParameters },
+  { name: "visão geral recolhida", enter: (page) => setOverview(page, false) },
+  { name: "menu aberto", enter: openMenu },
+  { name: "vento ligado", enter: openWind, afterResize: windPainted, needsData: true },
+];
+
+function sameWidthRuns(viewports) {
+  const runs = new Map();
+  for (const viewport of viewports) runs.set(viewport.w, [...(runs.get(viewport.w) ?? []), viewport]);
+  return [...runs.values()];
+}
+
+async function resizeTo(page, viewport, state) {
+  const { width, height } = page.viewportSize();
+  if (width === viewport.w && height === viewport.h) return true;
+  await page.setViewportSize({ width: viewport.w, height: viewport.h });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await settle(page);
+  return state.afterResize ? state.afterResize(page) : true;
 }
 
 const pages = fs
@@ -192,26 +571,49 @@ try {
   process.exit(1);
 }
 const failures = [];
+const unexercised = new Map();
 let checked = 0;
+let states = 0;
 
+function record(name, viewport, state, result) {
+  states += 1;
+  checked += result.controls.length;
+  if (result.hScroll > 1) failures.push([name, viewport.name, state, "rolagem horizontal", `+${result.hScroll}px`]);
+  for (const control of result.controls) {
+    const where = `${control.what} "${control.label}"`;
+    if (control.covered) failures.push([name, viewport.name, state, "coberto", `${where} por ${control.covered}`]);
+    if (control.offscreen) failures.push([name, viewport.name, state, "fora da tela", where]);
+    if (control.small) failures.push([name, viewport.name, state, "alvo pequeno", `${where} ${control.size}`]);
+  }
+}
+
+let measuredViewports = 0;
+let pageLoads = 0;
 for (const name of pages) {
+  const webgis = fs.readFileSync(path.join(siteRoot, name), "utf8").includes('id="variableOverviewToggle"');
+  const viewports = webgis ? [...VIEWPORTS, ...WEBGIS_VIEWPORTS] : VIEWPORTS;
+  measuredViewports += viewports.length;
   const page = await browser.newPage();
-  page.on("pageerror", (error) => failures.push([name, "-", "erro de página", String(error).slice(0, 90)]));
-  for (const viewport of VIEWPORTS) {
-    await page.setViewportSize({ width: viewport.w, height: viewport.h });
+  page.on("pageerror", (error) => failures.push([name, "-", "-", "erro de página", String(error).slice(0, 90)]));
+  for (const run of sameWidthRuns(viewports)) {
+    await page.setViewportSize({ width: run[0].w, height: run[0].h });
     await page.goto(`${base}/${name}`, { waitUntil: "load" });
-    await page.waitForTimeout(name.includes("mapas") || name.includes("potenciais") ? 3000 : 1500);
+    pageLoads += 1;
+    if (webgis) {
+      await succeeded(page.waitForFunction(mapShowsFirstFrame, null, { timeout: MAP_FIRST_FRAME_TIMEOUT_MS }));
+    } else {
+      await page.waitForTimeout(PAGE_SETTLE_MS);
+    }
     await reveal(page);
-    const result = await probe(page);
-    checked += result.controls.length;
-    if (result.hScroll > 1) failures.push([name, viewport.name, "rolagem horizontal", `+${result.hScroll}px`]);
-    for (const control of result.controls) {
-      const where = `${control.what} "${control.label}"`;
-      if (control.covered && control.covered !== "PENDENTE") {
-        failures.push([name, viewport.name, "coberto", `${where} por ${control.covered}`]);
+    for (const state of webgis ? [INITIAL_STATE, ...WEBGIS_STATES] : [INITIAL_STATE]) {
+      const entered = await state.enter(page);
+      for (const viewport of run) {
+        if (entered && (await resizeTo(page, viewport, state))) {
+          record(name, viewport, state.name, await probe(page));
+        } else if (state.needsData) {
+          unexercised.set(`${name} [${state.name}]`, (unexercised.get(`${name} [${state.name}]`) || 0) + 1);
+        }
       }
-      if (control.offscreen) failures.push([name, viewport.name, "fora da tela", where]);
-      if (control.small) failures.push([name, viewport.name, "alvo pequeno", `${where} ${control.size}`]);
     }
   }
   await page.close();
@@ -221,20 +623,33 @@ for (const name of pages) {
 await browser.close();
 server.close();
 
-console.log(`\n\ncheck-reachability: ${checked} controles em ${pages.length} páginas x ${VIEWPORTS.length} viewports`);
-if (!failures.length) {
+console.log(
+  `\n\ncheck-reachability: ${checked} controles em ${pages.length} páginas, ${measuredViewports} viewports em ${pageLoads} cargas, ${states} estados`
+);
+const missingDataFails = unexercised.size > 0 && !acceptsMissingData;
+for (const [where, count] of unexercised) {
+  const message = `não exercitado: ${where} em ${count} viewport(s): o estado não carregou (sem dados servidos em site/?)`;
+  if (missingDataFails) console.error(`✗ ${message}`);
+  else console.warn(`! ${message}`);
+}
+if (missingDataFails) {
+  console.error(
+    `    sirva os dados em site/ ou aceite a execução parcial com \`npm run check:reach -- ${ACCEPT_MISSING_DATA_FLAG}\``
+  );
+}
+if (!failures.length && !missingDataFails) {
   console.log("✓ todos alcançáveis");
   process.exit(0);
 }
 
 const grouped = new Map();
-for (const [page, viewport, kind, detail] of failures) {
-  const key = `${kind}|${page}|${detail}`;
-  if (!grouped.has(key)) grouped.set(key, { page, kind, detail, viewports: [] });
+for (const [page, viewport, state, kind, detail] of failures) {
+  const key = `${kind}|${page}|${state}|${detail}`;
+  if (!grouped.has(key)) grouped.set(key, { page, state, kind, detail, viewports: [] });
   grouped.get(key).viewports.push(viewport);
 }
-for (const { page, kind, detail, viewports } of grouped.values()) {
-  console.error(`✗ ${kind}: ${page} :: ${detail}`);
+for (const { page, state, kind, detail, viewports } of grouped.values()) {
+  console.error(`✗ ${kind}: ${page} [${state}] :: ${detail}`);
   console.error(
     `    em ${viewports.length} viewport(s): ${viewports.slice(0, 4).join(", ")}${viewports.length > 4 ? " …" : ""}`
   );

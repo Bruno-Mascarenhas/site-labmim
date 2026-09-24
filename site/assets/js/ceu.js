@@ -19,6 +19,16 @@
   const TIMELINE_PAYLOAD = "timeline.json";
   const MODEL_PAYLOAD = "model.json";
   const CUMULATIVE_PAYLOAD = "kt_cumulative.json";
+  const POINTS_FILE_SCHEMA = "labmim-ktkd-points-v1";
+  const POINTS_LOADING_MESSAGE = "Carregando os pontos horários…";
+  const POINTS_FAILURE_MESSAGES = {
+    absent: "Os pontos horários não puderam ser baixados.",
+    unreadable: unreadableMessage("O arquivo dos pontos horários"),
+    foreign: "O arquivo dos pontos horários não está no formato que esta página lê.",
+    stale:
+      "Os pontos horários publicados são de outra versão do documento de Kt × Kd, que está sendo atualizado. Recarregue a página em alguns minutos.",
+  };
+  const UNDECLARED_KD_HEADROOM = 0.1;
   const DEFAULT_RAW_FRAME = "allsky.jpg";
   const DEFAULT_ATTRIBUTION_FRAME = "attribution.png";
   const DEFAULT_INPUT_FRAME = "input.jpg";
@@ -46,6 +56,10 @@
     ii: "Parc. nebuloso — difuso",
     iii: "Parc. nebuloso — claro",
     iv: "Claro",
+  };
+
+  const TIMESCALE_NOTES = {
+    hourly: { label: "Médias horárias", unit: "horas" },
   };
 
   /**
@@ -103,6 +117,8 @@
   // it holds. Finer than any plausible capture interval, coarse enough to cache.
   const FRAME_BUCKET_MS = 300000;
 
+  const GRID_EDGE_FORMAT = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+
   const state = {
     base: "",
     chart: null,
@@ -117,31 +133,46 @@
     cumulativeStatus: "absent",
     timelineChart: null,
     stripChart: null,
+    timelineDrawToken: 0,
+    themeDrawToken: 0,
     curveChart: null,
     classes: [],
     models: [],
     points: [],
+    pointsRequest: null,
+    pointsStatus: "idle",
     density: null,
     hidden: new Set(),
     layers: new Set(["density"]),
     activeModels: new Set(),
     framesMissing: 0,
+    payloadsCheckedAt: 0,
+    announcedStatus: new Map(),
     hoverCell: null,
     cumulativePayload: null,
     cumulativeSubsetId: "",
     cumulativeChart: null,
   };
 
-  const { el, node, statTile, pad, decimal, integer, percent, fade, parseStationTime, downloadCsv } =
-    window.labmimChartPage;
+  const {
+    el,
+    isDark,
+    node,
+    statTile,
+    pad,
+    decimal,
+    integer,
+    countNoun,
+    percent,
+    fade,
+    parseStationTime,
+    showEmpty,
+    downloadCsv,
+  } = window.labmimChartPage;
   const formatDay = window.labmimChartPage.formatDayYear;
   const formatStamp = window.labmimChartPage.formatStampYear;
   const formatShortDay = window.labmimChartPage.formatDay;
   const formatHour = window.labmimChartPage.formatHour;
-
-  function isDark() {
-    return document.documentElement.classList.contains("dark-theme");
-  }
 
   function classPalette() {
     return isDark() ? CLASS_PALETTE.dark : CLASS_PALETTE.light;
@@ -175,14 +206,16 @@
   }
 
   function resolveClasses(payload) {
-    const declared = payload && payload.sky_conditions && payload.sky_conditions.classes;
-    const source = Array.isArray(declared) && declared.length ? declared : FALLBACK_CLASSES;
+    const source = declaredConditions(payload) || FALLBACK_CLASSES;
     return source.map((entry, index) => {
       const id = String(entry.id || ROMAN[index] || index + 1).toLowerCase();
-      const roman = ROMAN[(entry.condition || index + 1) - 1] || String(entry.condition || index + 1);
-      const name = entry.name_pt || SHORT_LABELS[id] || id;
+      const condition = entry.condition || index + 1;
+      const roman = ROMAN[condition - 1] || String(condition);
+      const cited = FALLBACK_CLASSES.find((known) => known.id === id);
+      const name = (cited && cited.name_pt) || entry.name_pt || SHORT_LABELS[id] || id;
       return {
         id,
+        condition,
         roman,
         label: SHORT_LABELS[id] || name,
         full: `Condição de céu ${roman}, ${name}`,
@@ -226,7 +259,16 @@
   function pointsFieldIndex(payload) {
     const declared = payload && payload.points_format;
     const order = Array.isArray(declared) && declared.length ? declared : DEFAULT_POINTS_FORMAT;
-    return { kt: order.indexOf("kt"), kd: order.indexOf("kd"), t: order.indexOf("t") };
+    return {
+      kt: order.indexOf("kt"),
+      kd: order.indexOf("kd"),
+      t: order.indexOf("t"),
+      condition: order.indexOf("condition"),
+    };
+  }
+
+  function pointCondition(value) {
+    return Number.isInteger(value) && value > 0 ? value : null;
   }
 
   function readPoints(payload) {
@@ -242,9 +284,88 @@
       const kd = positional ? entry[at.kd] : entry && entry.kd;
       const stamp = positional ? (at.t < 0 ? "" : entry[at.t]) : entry && entry.t;
       if (!Number.isFinite(kt) || !Number.isFinite(kd)) continue;
-      points.push({ x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", observed: true });
+      const point = { x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", observed: true };
+      if (positional ? at.condition >= 0 : entry.condition !== undefined) {
+        point.condition = pointCondition(positional ? entry[at.condition] : entry.condition);
+      }
+      points.push(point);
     }
     return points;
+  }
+
+  function pointsFileDeclared() {
+    const declared = state.chartPayload && state.chartPayload.points_file;
+    if (!declared || typeof declared.name !== "string" || !declared.name) return false;
+    return Number.isInteger(declared.n) && declared.n > 0;
+  }
+
+  function pointsOffered() {
+    return state.points.length > 0 || pointsFileDeclared();
+  }
+
+  function pointsFailed() {
+    return POINTS_FAILURE_MESSAGES[state.pointsStatus] !== undefined;
+  }
+
+  function pointsUsable() {
+    return pointsOffered() && !pointsFailed();
+  }
+
+  function pointsStatusMessage() {
+    if (state.pointsStatus === "loading") return POINTS_LOADING_MESSAGE;
+    return pointsFailed() ? POINTS_FAILURE_MESSAGES[state.pointsStatus] : "";
+  }
+
+  function pointsFileStatus(result) {
+    if (result.status !== "ok") return result.status;
+    const payload = result.payload;
+    if (!payload || payload.schema !== POINTS_FILE_SCHEMA) return "foreign";
+    const version = state.chartPayload.version;
+    if (typeof version !== "string" || !version || payload.version !== version) return "stale";
+    return "ok";
+  }
+
+  function focusedPointsControl() {
+    const focused = document.activeElement;
+    if (!focused) return null;
+    return focused === el("ceuExport") || el("ceuCamadas").contains(focused) ? focused : null;
+  }
+
+  function refocusLayerToggles(control) {
+    if (control.isConnected && !control.disabled) return;
+    const fallback = Array.from(el("ceuCamadas").children).find((button) => !button.disabled);
+    if (fallback) {
+      fallback.focus();
+      return;
+    }
+    const status = el("ceuStatus");
+    status.tabIndex = -1;
+    status.focus();
+  }
+
+  function acceptPointsFile(result) {
+    const focusedControl = focusedPointsControl();
+    const status = pointsFileStatus(result);
+    const points = status === "ok" ? readPoints(result.payload) : [];
+    state.pointsStatus = status === "ok" && !points.length ? "unreadable" : status;
+    state.points = points;
+    invalidateVisiblePoints();
+    if (pointsFailed()) {
+      state.layers.delete("points");
+      buildLayerToggles();
+    }
+    syncClassToggles();
+    drawChart();
+    if (focusedControl) refocusLayerToggles(focusedControl);
+  }
+
+  function ensurePoints() {
+    if (state.points.length || !pointsFileDeclared()) return Promise.resolve();
+    if (!state.pointsRequest) {
+      state.pointsStatus = "loading";
+      state.pointsRequest = loadJson(state.chartPayload.points_file.name).then(acceptPointsFile);
+    }
+    return state.pointsRequest;
   }
 
   function readDensity(payload) {
@@ -257,11 +378,46 @@
     // silently mirroring the figure about its diagonal.
     if (grid.counts.length !== grid.kd_edges.length - 1) return null;
     if (grid.counts.some((row) => !Array.isArray(row) || row.length !== grid.kt_edges.length - 1)) return null;
+    if (!grid.counts.every((row) => row.every(Number.isFinite))) return null;
     return grid;
+  }
+
+  function densityGridSpan(grid) {
+    const span = (edges) =>
+      `de ${GRID_EDGE_FORMAT.format(edges[0])} a ${GRID_EDGE_FORMAT.format(edges[edges.length - 1])}`;
+    const kt = span(grid.kt_edges);
+    const kd = span(grid.kd_edges);
+    return kt === kd ? kt : `(Kt ${kt}, Kd ${kd})`;
+  }
+
+  function hoursOutsideDensityGrid() {
+    const grid = state.density;
+    if (!grid || !Number.isInteger(grid.n_outside) || grid.n_outside < 1) return null;
+    const inside = grid.counts.reduce((total, row) => row.reduce((sum, count) => sum + count, total), 0);
+    return { inside, outside: grid.n_outside, span: densityGridSpan(grid) };
+  }
+
+  function densestCellHours() {
+    const count = state.density ? state.density.max_count : null;
+    if (!Number.isInteger(count) || count < 1) return "muitas horas";
+    return countNoun(count, "hora", "horas");
+  }
+
+  function densityCoverageSentence(coverage, pointsLayerAvailable) {
+    const rest = coverage.outside === 1 ? "mais uma fica" : `outras ${integer(coverage.outside)} ficam`;
+    const appear = coverage.outside === 1 ? "aparece" : "aparecem";
+    const inside = countNoun(coverage.inside, "hora", "horas");
+    const where = pointsLayerAvailable ? ` e só ${appear} na camada Pontos` : "";
+    return `A densidade conta ${inside}; ${rest} fora da grade ${coverage.span}${where}.`;
   }
 
   function classOf(kt) {
     return state.classes.find((entry) => kt <= entry.max) || state.classes[state.classes.length - 1] || null;
+  }
+
+  function pointClass(point) {
+    if (point.condition === undefined) return classOf(point.x);
+    return state.classes.find((entry) => entry.condition === point.condition) || null;
   }
 
   const ATTRIBUTION_ALT =
@@ -284,6 +440,9 @@
   const MINUTE_MS = 60000;
   const HOUR_MS = 3600000;
   const DAY_MS = 86400000;
+  const AGE_REFRESH_INTERVAL_MS = MINUTE_MS;
+  const PAYLOAD_RECHECK_INTERVAL_MS = 5 * MINUTE_MS;
+  const PAYLOAD_RECHECK_MIN_GAP_MS = MINUTE_MS;
 
   function finite(value) {
     return typeof value === "number" && Number.isFinite(value);
@@ -315,14 +474,28 @@
     return text(value);
   }
 
-  function geometryText(geometry) {
+  function centredCropStart(frameExtent, cropExtent, offset) {
+    const box = Math.min(cropExtent, frameExtent);
+    const start = Math.floor((frameExtent - box) / 2) + offset;
+    return { box, start: Math.min(Math.max(start, 0), frameExtent - box) };
+  }
+
+  function cropText(crop, image) {
+    const frameKnown = image && finite(image.original_width) && finite(image.original_height);
+    if (frameKnown && finite(crop.left) && finite(crop.top)) {
+      const columns = centredCropStart(image.original_width, crop.width, crop.left);
+      const rows = centredCropStart(image.original_height, crop.height, crop.top);
+      return `recorte de ${integer(columns.box)} × ${integer(rows.box)} px com canto em (${integer(columns.start)}, ${integer(rows.start)})`;
+    }
+    return `recorte centrado de ${integer(crop.width)} × ${integer(crop.height)} px, deslocado (${integer(crop.left)}, ${integer(crop.top)}) px`;
+  }
+
+  function geometryText(geometry, image) {
     if (!geometry || typeof geometry !== "object") return text(geometry, "");
     const parts = [];
     const crop = geometry.crop;
     if (crop && typeof crop === "object" && crop.enabled !== false && finite(crop.width) && finite(crop.height)) {
-      parts.push(
-        `recorte de ${integer(crop.width)} × ${integer(crop.height)} px em (${integer(crop.left)}, ${integer(crop.top)})`
-      );
+      parts.push(cropText(crop, image));
     }
     const padding = geometry.pad;
     if (padding && typeof padding === "object" && padding.enabled !== false) {
@@ -499,9 +672,25 @@
     return `há ${Math.floor(hours / 24)} dias`;
   }
 
-  function withAge(payload, localStamp) {
-    const age = ageText(Date.now() - stationToUtcMs(payload, localStamp));
+  function ageSuffix(sinceUtcMs) {
+    const age = ageText(Date.now() - sinceUtcMs);
     return age ? ` (${age})` : "";
+  }
+
+  function ageNode(payload, localStamp) {
+    const sinceUtcMs = stationToUtcMs(payload, localStamp);
+    const age = node("span", null, ageSuffix(sinceUtcMs));
+    age.dataset.ageSince = String(sinceUtcMs);
+    return age;
+  }
+
+  function statusContent(parts, separator) {
+    const content = document.createDocumentFragment();
+    parts.forEach((part, index) => {
+      if (index) content.append(separator);
+      for (const piece of [part].flat()) content.append(typeof piece === "string" ? withReferences(piece) : piece);
+    });
+    return content;
   }
 
   function clockOffsetText(offsetSeconds) {
@@ -609,6 +798,7 @@
   function settleEmptyState() {
     if (state.framesMissing < FRAME_IMAGE_COUNT || !allPayloadsAbsent()) return;
     showEmpty(
+      "ceu",
       "Os dados de condição do céu ainda não foram publicados para esta estação. " +
         "Eles são anexados ao site no deploy, separadamente das páginas."
     );
@@ -734,13 +924,13 @@
       parts.push(text(info.reason_pt, REASON_PT[info.reason] || "nenhum quadro pontuado"));
       const latest = parseStationTime(info.latest_scored_at || "");
       if (Number.isFinite(latest)) {
-        parts.push(`último quadro pontuado em ${formatStamp(latest)}${withAge(frame, info.latest_scored_at)}`);
+        parts.push([`último quadro pontuado em ${formatStamp(latest)}`, ageNode(frame, info.latest_scored_at)]);
       }
       parts.push("as imagens são as últimas publicadas");
     } else {
       const captured = parseStationTime(frame.captured_at || "");
       if (Number.isFinite(captured)) {
-        parts.push(`quadro capturado em ${formatStamp(captured)}${withAge(frame, frame.captured_at)}`);
+        parts.push([`quadro capturado em ${formatStamp(captured)}`, ageNode(frame, frame.captured_at)]);
       }
       if (info.reason && info.reason !== "fresh")
         parts.push(text(info.reason_pt, REASON_PT[info.reason] || info.reason));
@@ -752,7 +942,7 @@
     if (info.watch_alive === false) parts.push("a vigília da câmera parece parada");
     const clock = clockOffsetText(info.camera_clock_drift_s);
     if (clock) parts.push(clock);
-    status.replaceChildren(withReferences(parts.join(" · ")));
+    status.replaceChildren(statusContent(parts, " · "));
   }
 
   function factRow(list, term, detail) {
@@ -965,8 +1155,8 @@
   function visiblePoints() {
     if (!visiblePointsCache) {
       visiblePointsCache = state.points.filter((point) => {
-        const entry = classOf(point.x);
-        return !entry || !state.hidden.has(entry.id);
+        const entry = pointClass(point);
+        return Boolean(entry) && !state.hidden.has(entry.id);
       });
     }
     return visiblePointsCache;
@@ -989,9 +1179,7 @@
     const declaredY = (axes.y && axes.y.range) || [0, 1];
     let ktMax = declaredX[1];
     let kdMin = declaredY[0];
-    // Headroom above the declared range: the overcast class piles up against the
-    // top of it, and a ceiling exactly there presses the densest rows into the edge.
-    let kdMax = declaredY[1] + 0.1;
+    let kdMax = axes.y && axes.y.range ? declaredY[1] : declaredY[1] + UNDECLARED_KD_HEADROOM;
     for (const point of state.points) {
       ktMax = Math.max(ktMax, point.x);
       kdMin = Math.min(kdMin, point.y);
@@ -1205,7 +1393,7 @@
     if (observation) return `Kt ${decimal(observation.x, 3)}`;
     const cell = state.hoverCell;
     if (!cell) return `Kt ${decimal(items[0].parsed.x, 3)}`;
-    const hours = `${decimal(cell.count, 0)} ${cell.count === 1 ? "hora" : "horas"}`;
+    const hours = countNoun(cell.count, "hora", "horas");
     return `Kt ${decimal(cell.kt[0], 3)}–${decimal(cell.kt[1], 3)} · Kd ${decimal(cell.kd[0], 3)}–${decimal(cell.kd[1], 3)} · ${hours}`;
   }
 
@@ -1231,7 +1419,7 @@
     if (showingPoints()) {
       const grouped = new Map(state.classes.map((entry) => [entry.id, []]));
       for (const point of state.points) {
-        const entry = classOf(point.x);
+        const entry = pointClass(point);
         if (!entry || !grouped.has(entry.id)) continue;
         const bucket = grouped.get(entry.id);
         point.dataIndex = bucket.length;
@@ -1392,7 +1580,7 @@
               },
               label: (item) => {
                 if (item.dataset.labmimModel) return modelLine(item, hoveredObservation(item.chart.tooltip.dataPoints));
-                const entry = classOf(item.parsed.x);
+                const entry = pointClass(item.raw);
                 const suffix = entry ? ` — ${entry.roman} · ${entry.label}` : "";
                 return `Kd medido: ${decimal(item.parsed.y, 3)}${suffix}`;
               },
@@ -1438,6 +1626,7 @@
       // The Kt band rides on the chip; the legend row it replaced repeated the swatch
       // and the name to add this one column.
       if (entry.range) button.appendChild(node("span", "sky-chip-range", entry.range));
+      if (entry.disabled) button.disabled = true;
       const active = isActive(entry);
       button.setAttribute("aria-pressed", String(active));
       button.classList.toggle("is-active", active);
@@ -1455,11 +1644,15 @@
   function buildLayerToggles() {
     buildToggles(
       el("ceuCamadas"),
-      LAYERS.filter((layer) => (layer.id === "density" ? state.density : state.points.length)),
+      LAYERS.filter((layer) => (layer.id === "density" ? state.density : pointsOffered())).map((layer) => ({
+        ...layer,
+        disabled: layer.id === "points" && pointsFailed(),
+      })),
       (layer) => state.layers.has(layer.id),
       (layer) => {
         if (state.layers.has(layer.id)) state.layers.delete(layer.id);
         else state.layers.add(layer.id);
+        if (state.layers.has("points")) ensurePoints();
         syncClassToggles();
       },
       (layer) =>
@@ -1611,19 +1804,30 @@
   function syncChartText() {
     const payload = state.chartPayload || {};
     const period = payload.period || {};
-    const filters = payload.filters || {};
     const parts = [];
-    if (payload.timescale && payload.timescale.label) parts.push(payload.timescale.label);
+    const timescale = TIMESCALE_NOTES[payload.timescale];
+    if (timescale) parts.push(timescale.label);
     const start = parseStationTime(period.start || "");
     const end = parseStationTime(period.end || "");
     if (Number.isFinite(start) && Number.isFinite(end)) {
       parts.push(`${formatDay(start)} a ${formatDay(end)}`);
     }
-    if (Number.isFinite(period.hours)) {
-      const kept = `${decimal(period.hours, 0)} horas`;
-      parts.push(Number.isFinite(filters.n_input) ? `${kept} de ${decimal(filters.n_input, 0)}` : kept);
-    }
+    if (Number.isFinite(period.n)) parts.push(`${integer(period.n)} ${timescale ? timescale.unit : "registros"}`);
     el("ceuGraficoNota").textContent = parts.join(" · ");
+
+    const filtersWrittenForReaders = Boolean(payload.points_file) && Array.isArray(payload.filters);
+    const filters = filtersWrittenForReaders
+      ? payload.filters.filter((filter) => typeof filter === "string" && filter.trim())
+      : [];
+    if (filters.length) {
+      el("ceuFiltros").textContent =
+        `Seleção e cálculo das horas, como o exportador os descreve: ${filters.join("; ")}.`;
+    }
+
+    const coverage = hoursOutsideDensityGrid();
+    if (coverage) el("ceuAmostra").textContent = "das horas selecionadas";
+    el("ceuForaDaGrade").textContent = coverage ? densityCoverageSentence(coverage, pointsUsable()) : "";
+    el("ceuHorasCelulaCheia").textContent = densestCellHours();
 
     // Each model against the measured Kd over this exact period: the legend says
     // how they perform here instead of implying they are equivalent.
@@ -1645,16 +1849,20 @@
         ? `Densidade horária no plano do índice de claridade contra a fração difusa, com os limites das quatro condições de céu. Use o botão CSV para a versão textual.`
         : `Dispersão de ${decimal(shown, 0)} horas no plano do índice de claridade contra a fração difusa.`
     );
-    el("ceuExport").disabled = state.points.length === 0;
-    el("ceuAmpliar").disabled = !hasDrawing();
+    el("ceuExport").disabled = !pointsUsable();
+    el("ceuAmpliar").disabled = !hasDrawing() || (state.layers.has("points") && state.pointsStatus === "loading");
+    el("ceuGuia").disabled = state.chartStatus === "loading";
   }
 
   function nothingToDrawMessage() {
+    if (state.chartStatus === "loading") return "Carregando o documento de Kt × Kd…";
     if (state.chartStatus === "unreadable") return unreadableMessage("O documento de Kt × Kd");
     if (state.chartStatus === "absent") {
       return "O documento de Kt × Kd ainda não foi publicado — os quadros acima continuam válidos.";
     }
-    if (!state.density && !state.points.length) return "O documento publicado não traz nem densidade nem pontos.";
+    if (!state.density && !pointsOffered()) return "O documento publicado não traz nem densidade nem pontos.";
+    if (state.pointsStatus === "loading") return POINTS_LOADING_MESSAGE;
+    if (pointsFailed() && !state.density) return pointsStatusMessage();
     if (showingPoints() && !visiblePoints().length) {
       return "Nenhuma condição de céu selecionada — ative pelo menos uma acima.";
     }
@@ -1672,6 +1880,7 @@
       return;
     }
     el("ceuStatus").textContent =
+      pointsStatusMessage() ||
       "A linha horizontal marca Kd = 0,5, onde a componente difusa iguala a direta; as verticais são os limites entre as condições de céu.";
     state.chart = new Chart(el("ceuCanvas").getContext("2d"), {
       type: "line",
@@ -1723,14 +1932,19 @@
       guideDefinition(
         list,
         "Camada Densidade",
-        "O plano é cortado em células e cada uma é pintada pelo número de horas do acervo que caíram nela: quanto mais escura, mais horas. A escala é logarítmica porque o miolo concentra dezenas de horas e as bordas têm uma ou duas."
+        `O plano é cortado em células e cada uma é pintada pelo número de horas do acervo que caíram nela: quanto mais escura, mais horas. A escala é logarítmica porque a célula mais cheia concentra ${densestCellHours()} e as bordas têm uma ou duas.`
       );
     }
-    if (state.points.length) {
+    if (pointsUsable()) {
+      const coverage = hoursOutsideDensityGrid();
       guideDefinition(
         list,
         "Camada Pontos",
-        "Uma marca por hora medida, colorida pela condição de céu daquele Kt. É a mesma amostra da densidade, hora a hora em vez de contada."
+        `Uma marca por hora medida, colorida pela condição de céu daquele Kt. ${
+          coverage
+            ? densityCoverageSentence(coverage, true)
+            : "É a mesma amostra da densidade, hora a hora em vez de contada."
+        }`
       );
     }
     guideDefinition(list, "Condições de céu", (detail) => {
@@ -1819,7 +2033,10 @@
     }
   }
 
-  function exportCsv() {
+  async function exportCsv() {
+    const request = ensurePoints();
+    if (state.pointsStatus === "loading") drawChart();
+    await request;
     if (!state.points.length) return;
     const rows = ["instante;kt;kd;condicao"];
     for (const point of state.points) {
@@ -1828,7 +2045,7 @@
       const iso = date
         ? `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`
         : "";
-      const entry = classOf(point.x);
+      const entry = pointClass(point);
       // Decimal comma with `;` as separator: what Excel in pt-BR opens without
       // going through the import wizard.
       rows.push(
@@ -2217,11 +2434,19 @@
     ok: "exportação da estação recebida",
     no_export: "sem exportação da estação",
     export_stale: "exportação da estação desatualizada",
+    no_valid_rows: "exportação da estação sem leitura que passe pela triagem",
+    interval_mismatch: "exportação da estação fora da grade dos blocos",
   };
   const SCREENING_PT = { "sentinels + sensor_limits": "passados pelas sentinelas e pelos limites do sensor do acervo" };
+  const CORRECTED_LABEL_SCALE = "corrected";
+  const RAW_LABEL_SCALE = "raw";
+  const DECLARED_LABEL_SCALES = new Set([RAW_LABEL_SCALE, CORRECTED_LABEL_SCALE]);
+  const RAW_SCALE_LIVE_NOTE =
+    "a difusa prevista está na escala crua do rótulo de treino e a medida, na escala corrigida: RMSE, MAE e MBE incluem essa diferença de escala, não só o erro do modelo";
   const BLOCK_STATUS_PT = { scored: "pontuado", skipped: "pulado", pending: "pendente", failed: "falhou" };
   const ARM_KIND_PT = { served: "servido", ensemble: "conjunto servido", member: "membro", control: "controle" };
   const SERVED_ARM_KINDS = ["served", "ensemble"];
+  const TRAIN_ELEVATION_TOLERANCE_DEG = 0.05;
   const METRIC_PT = {
     dhi_rmse: "RMSE DHI",
     dhi_mae: "MAE DHI",
@@ -2422,7 +2647,7 @@
       lines.push(`condição prevista: ${conditionLabel(condition)}${suffix}`);
     }
     const frames = at("n_frames");
-    if (finite(frames)) lines.push(`${integer(frames)} ${frames === 1 ? "quadro" : "quadros"} no bloco`);
+    if (finite(frames)) lines.push(`${countNoun(frames, "quadro", "quadros")} no bloco`);
     const source = state.timelinePayload.source;
     const origin = Array.isArray(source) ? sourceLabel(source[index]) : "";
     if (origin) lines.push(`fonte: ${origin}`);
@@ -2432,12 +2657,33 @@
     return lines;
   }
 
+  function predictionOnRawScale() {
+    const declared = [state.timelinePayload?.label_scale, state.modelPayload?.dataset?.label_scale].find((scale) =>
+      DECLARED_LABEL_SCALES.has(scale)
+    );
+    return declared !== CORRECTED_LABEL_SCALE;
+  }
+
+  function liveWithBlocks() {
+    const live = state.timelinePayload && state.timelinePayload.live;
+    return live && typeof live === "object" && finite(live.n_blocks) && live.n_blocks > 0 ? live : null;
+  }
+
+  function comparedWithStation(series) {
+    return Boolean(series.measured) || liveWithBlocks() !== null;
+  }
+
+  function predictedDhiLabel(series) {
+    const label = `${dhiLabel()} prevista`;
+    return comparedWithStation(series) && predictionOnRawScale() ? `${label} (escala crua)` : label;
+  }
+
   function timelineDatasets(theme, series) {
     const datasets = [];
     const predicted = series.dhi;
     if (predicted) {
       datasets.push({
-        label: `${dhiLabel()} prevista`,
+        label: predictedDhiLabel(series),
         data: predicted,
         borderColor: `rgb(${theme.ink})`,
         backgroundColor: `rgb(${theme.ink})`,
@@ -2597,7 +2843,7 @@
     const hasData = Boolean(series.dhi || series.kindex);
     list.hidden = !hasData;
     if (!hasData) return;
-    legendItem(list, { background: `rgb(${theme.ink})`, height: "0.25rem" }, `${dhiLabel()} prevista`);
+    legendItem(list, { background: `rgb(${theme.ink})`, height: "0.25rem" }, predictedDhiLabel(series));
     legendItem(
       list,
       { background: "transparent", height: "0", borderTop: `2px dashed ${theme.textSecondary}` },
@@ -2677,52 +2923,60 @@
     const parts = [];
     const stamp = parseStationTime(latest.last_scored_block || "");
     if (Number.isFinite(stamp))
-      parts.push(`Último bloco pontuado: ${formatStamp(stamp)}${withAge(payload, latest.last_scored_block)}`);
+      parts.push([`Último bloco pontuado: ${formatStamp(stamp)}`, ageNode(payload, latest.last_scored_block)]);
     if (latest.last_block_status && latest.last_block_status !== "scored")
       parts.push(`estado do último bloco: ${BLOCK_STATUS_PT[latest.last_block_status] || latest.last_block_status}`);
     const labels = payload.reason_labels_pt || (payload.skipped && payload.skipped.reason_labels_pt) || {};
     if (latest.reason && latest.reason !== "fresh")
       parts.push(text(labels[latest.reason], REASON_PT[latest.reason] || latest.reason));
-    return parts.length ? `${parts.join(" · ")}.` : "";
+    return parts.length ? [statusContent(parts, " · "), "."] : "";
   }
 
   function measuredSentence(payload) {
     const measured = payload.measured;
     const status = payload.measured_status || {};
-    if (measured && typeof measured === "object") {
+    if (status.reason === "ok" && measured && typeof measured === "object") {
       const source = text(status.source_label, text(measured.source_column, "piranômetro"));
       const screening = measured.screening ? `, ${SCREENING_PT[measured.screening] || measured.screening}` : "";
       return `Difusa medida: ${integer(measured.n)} blocos pareados com ${source}${screening}.`;
     }
-    const lastRow = parseStationTime(status.last_row_at || "");
-    const reason = MEASURED_REASON_PT[status.reason];
-    if (Number.isFinite(lastRow)) {
-      return `A comparação ao vivo com o piranômetro está pendente${reason ? ` (${reason})` : ""}: última leitura da estação disponível em ${formatStamp(lastRow)}.`;
+    const reason = MEASURED_REASON_PT[status.reason] || text(status.reason, "motivo não informado");
+    if (status.reason === "export_stale") {
+      const lastRow = parseStationTime(status.last_row_at || "");
+      const lastReading = Number.isFinite(lastRow) ? `, com última leitura em ${formatStamp(lastRow)}` : "";
+      return `Sem difusa medida nesta janela: ${reason}${lastReading}; a comparação ao vivo cobre só os blocos que ela alcança.`;
+    }
+    if (status.reason === "no_valid_rows" || status.reason === "interval_mismatch") {
+      return `A difusa medida não está publicada: ${reason}.`;
     }
     const source = status.source_label ? ` (${status.source_label})` : "";
-    return `A comparação ao vivo com o piranômetro${source} está pendente: ${reason || "sem exportação da estação"}; os números do teste não a substituem.`;
+    return `A comparação ao vivo com o piranômetro${source} está pendente: ${reason}; os números do teste não a substituem.`;
   }
 
   function renderLiveStats() {
     const container = el("ceuAoVivo");
     container.replaceChildren();
-    const live = state.timelinePayload && state.timelinePayload.live;
-    container.hidden = !live || typeof live !== "object";
+    const live = liveWithBlocks();
+    container.hidden = !live;
     if (container.hidden) return;
     const since = parseStationDate(live.since);
     const window = [];
-    if (finite(live.n_days)) window.push(`${integer(live.n_days)} ${live.n_days === 1 ? "dia" : "dias"}`);
-    if (finite(live.n_blocks)) window.push(`${integer(live.n_blocks)} blocos`);
+    if (finite(live.n_days)) window.push(countNoun(live.n_days, "dia", "dias"));
+    window.push(`${integer(live.n_blocks)} blocos`);
+    const rawScale = predictionOnRawScale();
     statTile(
       container,
       Number.isFinite(since) ? `desde ${formatDay(since)}` : "ao vivo",
-      `contra o piranômetro${window.length ? ` — ${window.join(", ")}` : ""}`,
-      "o único holdout limpo: dias posteriores à decisão do pino, nunca usados em decisão"
+      `contra o piranômetro — ${window.join(", ")}`,
+      rawScale
+        ? RAW_SCALE_LIVE_NOTE
+        : "o único holdout limpo: blocos a partir do dia da decisão do pino, nunca usados em decisão"
     );
     const dhi = live.dhi || {};
-    statTile(container, withUnit(decimal(dhi.rmse, 1), dhiUnit()), "RMSE da difusa ao vivo");
-    statTile(container, withUnit(decimal(dhi.mae, 1), dhiUnit()), "MAE da difusa ao vivo");
-    statTile(container, withUnit(signed(dhi.mbe, 1), dhiUnit()), "MBE da difusa ao vivo");
+    const scaleNote = rawScale ? " (inclui a diferença de escala)" : "";
+    statTile(container, withUnit(decimal(dhi.rmse, 1), dhiUnit()), `RMSE da difusa ao vivo${scaleNote}`);
+    statTile(container, withUnit(decimal(dhi.mae, 1), dhiUnit()), `MAE da difusa ao vivo${scaleNote}`);
+    statTile(container, withUnit(signed(dhi.mbe, 1), dhiUnit()), `MBE da difusa ao vivo${scaleNote}`);
     if (live.kindex && finite(live.kindex.mae))
       statTile(container, decimal(live.kindex.mae, 3), `MAE de ${kindexSymbol()} ao vivo`);
     if (live.sky && finite(live.sky.balanced_accuracy)) {
@@ -2745,7 +2999,8 @@
     return "O documento da linha do tempo não traz blocos pontuados.";
   }
 
-  function drawTimeline() {
+  async function drawTimeline({ stripInSameTurn = false } = {}) {
+    const token = ++state.timelineDrawToken;
     destroyTimelineCharts();
     const payload = state.timelinePayload;
     const bounds = payload ? timelineBounds() : null;
@@ -2773,14 +3028,21 @@
       kindex: timelinePoints("kindex"),
     };
     drawTimelineChart(theme, bounds, runs, series);
-    drawConditionStrip(theme, bounds, runs, series.kindex);
     renderTimelineLegend(theme, runs, series);
     renderLiveStats();
     renderTimelineDays();
+    renderTimelineStatus();
+    if (!stripInSameTurn) {
+      await afterNextPaint();
+      if (token !== state.timelineDrawToken) return;
+    }
+    drawConditionStrip(theme, bounds, runs, series.kindex);
+  }
+
+  function renderTimelineStatus() {
+    const payload = state.timelinePayload;
     el("ceuLinhaStatus").replaceChildren(
-      withReferences(
-        [latestSentence(payload), skippedSummary(payload), measuredSentence(payload)].filter(Boolean).join(" ")
-      )
+      statusContent([latestSentence(payload), skippedSummary(payload), measuredSentence(payload)].filter(Boolean), " ")
     );
   }
 
@@ -2806,6 +3068,14 @@
   function servedBlock() {
     const served = state.modelPayload && state.modelPayload.served;
     return served && typeof served === "object" ? served : {};
+  }
+
+  function attributionMemberName() {
+    const served = servedBlock();
+    const members = Array.isArray(served.members) ? served.members : [];
+    return finite(served.attribution_member)
+      ? (members[served.attribution_member] || {}).name
+      : served.attribution_member;
   }
 
   function armKind(arm) {
@@ -3060,11 +3330,34 @@
     });
   }
 
+  function bandBounds(row) {
+    const bounds = /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/.exec(text(row.stratum, ""));
+    return bounds ? [Number(bounds[1]), Number(bounds[2])] : null;
+  }
+
   function bandLabel(row) {
-    const stratum = text(row.stratum, "");
-    const bounds = /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/.exec(stratum);
-    if (bounds) return `${decimal(Number(bounds[1]), 1)}–${decimal(Number(bounds[2]), 1)}°`;
-    return stratum || "—";
+    const bounds = bandBounds(row);
+    if (bounds) return `${decimal(bounds[0], 1)}–${decimal(bounds[1], 1)}°`;
+    return text(row.stratum, "") || "—";
+  }
+
+  function declaredElevationRange(part) {
+    const declared = part && part.solar_elevation_range_deg;
+    if (Array.isArray(declared)) return declared;
+    return declared && typeof declared === "object" ? [declared.min, declared.max] : [];
+  }
+
+  function trainElevationMaxDeg() {
+    const split = ((state.modelPayload && state.modelPayload.dataset) || {}).split || {};
+    const range = declaredElevationRange(split.train);
+    return range.length === 2 && finite(range[1]) ? range[1] : null;
+  }
+
+  function bandExtrapolationSuffix(entry, trainMaxDeg) {
+    const bounds = bandBounds(entry);
+    if (trainMaxDeg !== null && bounds && bounds[1] > trainMaxDeg + TRAIN_ELEVATION_TOLERANCE_DEG)
+      return ` — passa do máximo do treino (${decimal(trainMaxDeg, 1)}°)`;
+    return entry.extrapolation === true ? " — extrapolação" : "";
   }
 
   function errorCells(row, entry) {
@@ -3079,13 +3372,14 @@
     const model = state.modelPayload;
     const elevationBody = el("ceuElevacaoCorpo");
     elevationBody.replaceChildren();
-    el("ceuElevacaoLegenda").textContent = stratified.member
-      ? `Por faixa de elevação solar — membro ${stratified.member}, difusa em ${dhiUnit()}`
-      : `Por faixa de elevação solar, difusa em ${dhiUnit()}`;
+    const member = stratified.member || attributionMemberName();
+    const stratumLegend = (title) => `${title}${member ? ` — membro ${member}` : ""}, difusa em ${dhiUnit()}`;
+    el("ceuElevacaoLegenda").textContent = stratumLegend("Por faixa de elevação solar");
+    el("ceuEstratoClasseLegenda").textContent = stratumLegend("Por condição de céu verdadeira");
+    const trainMaxDeg = trainElevationMaxDeg();
     for (const entry of rowsOf(stratified.solar_elevation, "stratum")) {
       const row = node("tr");
-      const extrapolated = entry.extrapolation === true ? " — extrapolação" : "";
-      cell(row, `${bandLabel(entry)}${extrapolated}`);
+      cell(row, `${bandLabel(entry)}${bandExtrapolationSuffix(entry, trainMaxDeg)}`);
       errorCells(row, entry);
       elevationBody.appendChild(row);
     }
@@ -3170,6 +3464,32 @@
     },
   };
 
+  function curveMemberName(bestEpoch) {
+    const members = servedBlock().members;
+    const matches = Array.isArray(members)
+      ? members.filter((entry) => entry && entry.best_metric && entry.best_metric.epoch === bestEpoch)
+      : [];
+    return matches.length === 1 && typeof matches[0].name === "string" ? matches[0].name : null;
+  }
+
+  function curveProvenance(curve) {
+    if (Object.hasOwn(curve, "member")) {
+      if (typeof curve.member !== "string" || !curve.member) return { member: null, budget: null, patience: null };
+      return {
+        member: curve.member,
+        budget: finite(curve.epochs_budget) ? curve.epochs_budget : null,
+        patience: finite(curve.patience) ? curve.patience : null,
+      };
+    }
+    const member = finite(curve.best_epoch) ? curveMemberName(curve.best_epoch) : null;
+    const training = servedBlock().training;
+    if (!member || member !== attributionMemberName() || !training || typeof training !== "object")
+      return { member, budget: null, patience: null };
+    const budget = training.epochs_budget ?? training.epochs;
+    const patience = training.early_stopping?.patience;
+    return { member, budget: finite(budget) ? budget : null, patience: finite(patience) ? patience : null };
+  }
+
   function drawTrainingCurve(theme) {
     if (state.curveChart) {
       state.curveChart.destroy();
@@ -3186,11 +3506,16 @@
       note.textContent = "";
       return;
     }
-    const noteParts = [`MAE de ${kindexSymbol()} por época, no treino e na validação`];
-    if (finite(curve.best_epoch)) noteParts.push(`a parada antecipada escolheu a época ${integer(curve.best_epoch)}`);
-    const served = servedBlock();
-    if (served.training && finite(served.training.epochs))
-      noteParts.push(`${integer(served.training.epochs)} épocas previstas`);
+    const { member, budget, patience } = curveProvenance(curve);
+    const noteParts = [
+      `MAE de ${kindexSymbol()} por época${member ? ` do membro ${member}` : ""}, no treino e na validação`,
+    ];
+    if (finite(curve.best_epoch))
+      noteParts.push(
+        `o checkpoint servido ${member ? "desse membro " : ""}é o da melhor época na validação (${integer(curve.best_epoch)})`
+      );
+    if (budget !== null) noteParts.push(`orçamento de ${integer(budget)} épocas`);
+    if (patience !== null) noteParts.push(`paciência de ${integer(patience)} épocas`);
     note.textContent = `${noteParts.join(" · ")}.`;
     const datasets = [];
     if (train) {
@@ -3311,8 +3636,7 @@
     if (Number.isFinite(start) && Number.isFinite(end)) noteParts.push(`${formatDay(start)} a ${formatDay(end)}`);
     if (dataset.season_note) noteParts.push(dataset.season_note);
     if (split.strategy) noteParts.push(`divisão ${keyLabel(SPLIT_STRATEGY_PT, split.strategy)}`);
-    if (finite(split.gap_days))
-      noteParts.push(`${integer(split.gap_days)} ${split.gap_days === 1 ? "dia" : "dias"} de intervalo`);
+    if (finite(split.gap_days)) noteParts.push(`${countNoun(split.gap_days, "dia", "dias")} de intervalo`);
     if (finite(dataset.min_elevation_deg)) noteParts.push(`piso de elevação ${decimal(dataset.min_elevation_deg, 1)}°`);
     if (dataset.frames_from) noteParts.push(`quadros de ${dataset.frames_from}`);
     if (dataset.camera) noteParts.push(dataset.camera);
@@ -3335,12 +3659,7 @@
         Number.isFinite(partStart) && Number.isFinite(partEnd) ? `${formatDay(partStart)} a ${formatDay(partEnd)}` : "—"
       );
       cell(row, integer(part.rows));
-      const declared = part.solar_elevation_range_deg;
-      const range = Array.isArray(declared)
-        ? declared
-        : declared && typeof declared === "object"
-          ? [declared.min, declared.max]
-          : [];
+      const range = declaredElevationRange(part);
       cell(row, range.length === 2 ? `${decimal(range[0], 1)}° a ${decimal(range[1], 1)}°` : "—");
       cell(row, shareBar(model, part.class_share));
       body.appendChild(row);
@@ -3364,9 +3683,7 @@
       details.push(`pesos ${shortHash(member.checkpoint_sha256)}`);
       factRow(list, `Membro ${text(member.name)}`, details.join(" · "));
     }
-    const attributionMember = finite(served.attribution_member)
-      ? (members[served.attribution_member] || {}).name
-      : served.attribution_member;
+    const attributionMember = attributionMemberName();
     if (attributionMember) factRow(list, "Membro do mapa de sensibilidade", text(attributionMember));
     const roles = served.roles;
     if (roles && typeof roles === "object") {
@@ -3401,7 +3718,7 @@
     const inputs = served.inputs;
     if (inputs && typeof inputs === "object") {
       const details = [];
-      const geometry = geometryText(inputs.image_geometry);
+      const geometry = geometryText(inputs.image_geometry, frameSection("image"));
       if (geometry) details.push(geometry);
       details.push(inputs.scalars_consumed === false ? "não consome escalares" : "consome escalares");
       if (inputs.radiometry_forbidden === true) details.push("radiometria proibida na entrada");
@@ -3463,9 +3780,22 @@
     return "O cartão do modelo não traz avaliação.";
   }
 
-  function drawModelCard() {
+  function syncTrainingCurve() {
+    if (!el("ceuModeloDetalhes").hidden) {
+      drawTrainingCurve(themeColors());
+    } else if (state.curveChart) {
+      state.curveChart.destroy();
+      state.curveChart = null;
+    }
+  }
+
+  function modelCardUsable() {
     const model = state.modelPayload;
-    const usable = Boolean(model && typeof model === "object" && (servedArm() || servedBlock().id));
+    return Boolean(model && typeof model === "object" && (servedArm() || servedBlock().id));
+  }
+
+  function drawModelCard() {
+    const usable = modelCardUsable();
     el("ceuModeloToggleWrap").hidden = !usable;
     el("ceuModeloResumo").hidden = !usable;
     if (!usable) {
@@ -3483,7 +3813,7 @@
     renderConfusion();
     renderStratified();
     renderPerDay();
-    drawTrainingCurve(themeColors());
+    syncTrainingCurve();
     renderSeeds();
     renderDataset();
     renderProvenance();
@@ -3506,21 +3836,158 @@
     }
   }
 
-  function showEmpty(message) {
-    el("ceuApp").hidden = true;
-    const empty = el("ceuEmpty");
-    empty.hidden = false;
-    el("ceuEmptyMessage").textContent = message;
+  function afterNextPaint() {
+    if (document.hidden) return new Promise((resolve) => setTimeout(resolve, 0));
+    return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
   }
 
-  function onThemeChange() {
+  async function paintInTurns(...steps) {
+    for (const step of steps) {
+      await afterNextPaint();
+      await step();
+    }
+  }
+
+  function repaintThemedControls() {
     buildClassToggles();
     buildModelToggles();
+    renderPredictionCard();
+  }
+
+  function repaintForPrint() {
+    state.themeDrawToken += 1;
+    repaintThemedControls();
     drawChart();
     drawCumulative();
-    renderPredictionCard();
-    drawTimeline();
+    drawTimeline({ stripInSameTurn: true });
     drawModelCard();
+  }
+
+  async function onThemeChange() {
+    const token = ++state.themeDrawToken;
+    const current = () => token === state.themeDrawToken;
+    repaintThemedControls();
+    await paintInTurns(
+      () => current() && drawChart(),
+      () => current() && drawCumulative(),
+      () => current() && drawTimeline(),
+      () => current() && drawModelCard()
+    );
+  }
+
+  function applyChartPayload(chart) {
+    state.chartPayload = chart.payload;
+    state.chartStatus = chart.status;
+    state.classes = resolveClasses(state.chartPayload);
+    state.models = resolveModels(state.chartPayload);
+    state.points = readPoints(state.chartPayload);
+    state.density = readDensity(state.chartPayload);
+    invalidateVisiblePoints();
+    if (!state.density) state.layers.delete("density");
+    if (!state.density && pointsOffered()) state.layers.add("points");
+    if (state.models.length) state.activeModels.add(state.models[0].id);
+  }
+
+  function buildCaveatsAndToggles() {
+    buildCaveats();
+    buildLayerToggles();
+    buildClassToggles();
+    buildModelToggles();
+  }
+
+  function refreshAges() {
+    for (const age of el("ceuApp").querySelectorAll("[data-age-since]")) {
+      const suffix = ageSuffix(Number(age.dataset.ageSince));
+      if (age.textContent !== suffix) age.textContent = suffix;
+    }
+  }
+
+  function frameAnnouncementKey() {
+    const frame = state.framePayload;
+    const info = (frame && frame.status) || {};
+    return JSON.stringify([
+      state.frameStatus,
+      Boolean(frame),
+      info.scored === false,
+      info.reason,
+      info.watch_alive === false,
+      Boolean(frame && frame.solar && frame.solar.extrapolation === true),
+      Boolean(clockOffsetText(info.camera_clock_drift_s)),
+    ]);
+  }
+
+  function timelineAnnouncementKey() {
+    const payload = state.timelinePayload;
+    const latest = (payload && payload.latest) || {};
+    const measured = (payload && payload.measured_status) || {};
+    return JSON.stringify([
+      state.timelineStatus,
+      Boolean(payload && timelineBounds()),
+      latest.last_block_status,
+      latest.reason,
+      measured.reason,
+    ]);
+  }
+
+  function announceStatusChanges() {
+    const announcements = [];
+    for (const [id, key] of [
+      ["ceuQuadroStatus", frameAnnouncementKey()],
+      ["ceuLinhaStatus", timelineAnnouncementKey()],
+    ]) {
+      const changed = key !== state.announcedStatus.get(id);
+      state.announcedStatus.set(id, key);
+      const status = el(id).cloneNode(true);
+      for (const age of status.querySelectorAll("[data-age-since]")) age.remove();
+      const content = status.textContent;
+      if (content && changed) announcements.push(node("p", null, content));
+    }
+    if (announcements.length) el("ceuAnuncio").replaceChildren(...announcements);
+  }
+
+  function publishedAnew(current, reply) {
+    if (reply.status !== "ok" || !reply.payload) return false;
+    const version = reply.payload.version;
+    return typeof version !== "string" || !version || !current || version !== current.version;
+  }
+
+  async function recheckPayloads() {
+    state.payloadsCheckedAt = Date.now();
+    const [frame, timeline] = await Promise.all([loadJson(FRAME_PAYLOAD), loadJson(TIMELINE_PAYLOAD)]);
+    const frameChanged = publishedAnew(state.framePayload, frame);
+    const timelineChanged = publishedAnew(state.timelinePayload, timeline);
+    if (!frameChanged && !timelineChanged) return;
+    if (frameChanged) {
+      state.framePayload = frame.payload;
+      state.frameStatus = frame.status;
+    }
+    if (timelineChanged) {
+      state.timelinePayload = timeline.payload;
+      state.timelineStatus = timeline.status;
+    }
+    registerPayloadReferences();
+    renderHeader();
+    if (frameChanged) renderFrames();
+    if (timelineChanged) await drawTimeline();
+    if (frameChanged && modelCardUsable()) renderProvenance();
+    buildCaveats();
+    renderReferences();
+    announceStatusChanges();
+  }
+
+  function refreshLiveView(recheckAfterMs) {
+    if (document.hidden) return;
+    refreshAges();
+    if (Date.now() - state.payloadsCheckedAt >= recheckAfterMs) recheckPayloads();
+  }
+
+  function followPublications() {
+    state.payloadsCheckedAt = Date.now();
+    setInterval(() => refreshLiveView(PAYLOAD_RECHECK_INTERVAL_MS), AGE_REFRESH_INTERVAL_MS);
+    document.addEventListener("visibilitychange", () => refreshLiveView(PAYLOAD_RECHECK_MIN_GAP_MS));
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) refreshLiveView(PAYLOAD_RECHECK_MIN_GAP_MS);
+    });
   }
 
   async function start() {
@@ -3528,24 +3995,22 @@
     if (!root) return;
     state.base = (root.dataset.skyBase || "").replace(/\/$/, "");
     if (!state.base) {
-      showEmpty("Esta publicação ainda não declara um diretório de condição do céu.");
+      showEmpty("ceu", "Esta publicação ainda não declara um diretório de condição do céu.");
       return;
     }
     if (typeof Chart === "undefined") {
-      showEmpty("A biblioteca de gráficos não carregou.");
+      showEmpty("ceu", "A biblioteca de gráficos não carregou.");
       return;
     }
 
-    el("ceuEmpty").hidden = false;
-    const [chart, frame, timeline, model, cumulative] = await Promise.all([
-      loadJson(KTKD_PAYLOAD),
+    const chartRequest = loadJson(KTKD_PAYLOAD);
+    const [frame, timeline, model, cumulative] = await Promise.all([
       loadJson(FRAME_PAYLOAD),
       loadJson(TIMELINE_PAYLOAD),
       loadJson(MODEL_PAYLOAD),
       loadJson(CUMULATIVE_PAYLOAD),
     ]);
-    state.chartPayload = chart.payload;
-    state.chartStatus = chart.status;
+    state.chartStatus = "loading";
     state.framePayload = frame.payload;
     state.frameStatus = frame.status;
     state.timelinePayload = timeline.payload;
@@ -3554,14 +4019,7 @@
     state.modelStatus = model.status;
     state.cumulativePayload = cumulative.payload;
     state.cumulativeStatus = cumulative.status;
-    state.classes = resolveClasses(state.chartPayload);
-    state.models = resolveModels(state.chartPayload);
-    state.points = readPoints(state.chartPayload);
-    state.density = readDensity(state.chartPayload);
-    invalidateVisiblePoints();
-    if (!state.density) state.layers.delete("density");
-    if (!state.density && state.points.length) state.layers.add("points");
-    if (state.models.length) state.activeModels.add(state.models[0].id);
+    state.classes = resolveClasses(null);
 
     // Before anything renders text: a payload bibliography has to be in the registry for the markers in its own
     // caveats to expand into citations instead of staying literal.
@@ -3569,27 +4027,51 @@
 
     renderHeader();
     renderFrames();
-    buildCaveats();
-    buildLayerToggles();
-    buildClassToggles();
-    buildModelToggles();
+    buildCaveatsAndToggles();
     el("ceuOpacidade").addEventListener("input", applyOverlayOpacity);
     el("ceuGuia").addEventListener("click", openGuide);
     el("ceuAmpliar").addEventListener("click", openZoom);
     el("ceuExport").addEventListener("click", exportCsv);
 
+    new MutationObserver(syncTrainingCurve).observe(el("ceuModeloDetalhes"), {
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
+
     initCumulative();
     el("ceuEmpty").hidden = true;
     el("ceuApp").hidden = false;
-    drawTimeline();
-    drawModelCard();
-    // Last, so it sees every citation the page ended up making — the static prose already decorated by
-    // references.js, plus the markers the payloads brought in.
-    renderReferences();
-    drawChart();
-    drawCumulative();
-
     window.addEventListener("labmim-theme-change", onThemeChange);
+    window.addEventListener("labmim-print-change", (event) => {
+      if (!event.detail.paletteChanged) return;
+      if (event.detail.printing) repaintForPrint();
+      else onThemeChange();
+    });
+    await paintInTurns(
+      async () => {
+        await drawTimeline();
+        announceStatusChanges();
+      },
+      () => {
+        drawModelCard();
+        renderReferences();
+      },
+      drawChart,
+      () => {
+        drawCumulative();
+        followPublications();
+      },
+      async () => {
+        applyChartPayload(await chartRequest);
+        if (state.layers.has("points")) ensurePoints();
+        registerPayloadReferences();
+        renderHeader();
+        buildCaveatsAndToggles();
+        renderReferences();
+        drawChart();
+        settleEmptyState();
+      }
+    );
   }
 
   if (document.readyState === "loading") {

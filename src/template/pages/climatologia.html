@@ -33,14 +33,43 @@
             <li><strong>Velocidade do vento</strong> — distribuição de Weibull;</li>
             <li><strong>Temperatura e pressão</strong> — gaussiana;</li>
             <li><strong>Umidade relativa</strong> — distribuição beta;</li>
-            <li><strong>Precipitação</strong> — gama, ajustada só sobre as horas chuvosas;</li>
+            <li data-clima-variable="precipitation" data-clima-family="weibull" hidden>
+              <strong>Precipitação</strong> — Weibull ajustada na grade da báscula, só sobre as horas chuvosas;
+            </li>
+            <li data-clima-variable="precipitation" data-clima-family="gamma" hidden>
+              <strong>Precipitação</strong> — gama, ajustada só sobre as horas chuvosas;
+            </li>
             <li><strong>Índice de claridade</strong> — densidade de Hollands e Huget;</li>
+            <li>
+              <strong>Onda curta incidente e refletida, PAR e saldo de radiação de dia</strong> — densidade induzida
+              pela lei do índice de claridade;
+            </li>
+            <li><strong>Onda longa incidente e saldo de radiação de noite</strong> — gaussiana;</li>
+            <li><strong>Onda longa emitida</strong> — mistura de dois regimes, dia e noite;</li>
             <li><strong>Direção do vento</strong> — rosa dos ventos com mistura de von Mises.</li>
           </ul>
           <p>
-            As barras são a frequência medida; a linha é a densidade ajustada por máxima verossimilhança aos mesmos
-            dados. As bordas dos intervalos são <strong>fixas</strong>, iguais em todos os recortes, para que verão,
-            inverno e modelo possam ser comparados no mesmo eixo.
+            As barras são a frequência medida (no recorte WRF, a do modelo). Nas leis de ajuste direto — Weibull,
+            gaussiana, beta e as misturas —, a linha é a densidade ajustada por máxima verossimilhança aos mesmos dados.
+            <span data-clima-variable="precipitation" data-clima-family="weibull" hidden>
+              Na precipitação, o ajuste é feito sobre as próprias básculas, e a linha é a probabilidade que ele dá a cada
+              barra, dividida pela largura dela, como as barras.
+            </span>
+            <span data-clima-variable="precipitation" data-clima-family="gamma" hidden>
+              Na precipitação, a gama também é ajustada assim.
+            </span>
+          </p>
+          <p>
+            O índice de claridade não é ajustado por verossimilhança: o Kt máximo é o percentil 99,5 da amostra, e λ é o
+            valor que reproduz a média medida. Na onda curta, na PAR e no saldo de dia, a linha não é um ajuste ao
+            fluxo: é a densidade que a lei do índice de claridade induz sobre ele, com λ e Kt máximo herdados do mesmo
+            recorte. À parte, estima-se só o ganho — o albedo na onda curta refletida, a fração PAR na PAR — ou, no
+            saldo de dia, a reta que liga o saldo à onda curta e a dispersão gaussiana em torno dela. As ressalvas de
+            cada variável detalham a construção.
+          </p>
+          <p>
+            As bordas dos intervalos são <strong>fixas</strong>, iguais em todos os recortes, para que verão, inverno e
+            modelo possam ser comparados no mesmo eixo.
           </p>
           <p class="compact-note">
             <small
@@ -56,7 +85,7 @@
       <hr class="mb-4 max-w-1000" />
     </div>
 
-    <div class="clima-empty" id="climaEmpty" hidden>
+    <div class="clima-empty is-loading" id="climaEmpty">
       <p id="climaEmptyMessage">Carregando distribuições…</p>
     </div>
 
@@ -73,6 +102,9 @@
         <div class="clima-control clima-control-actions">
           <button type="button" class="btn btn-sm btn-outline-lab" id="climaExport">Baixar CSV</button>
         </div>
+        <p class="clima-model-note" id="climaRecorteNota" hidden>
+          Recorte do WRF desativado: o modelo não publica esta variável.
+        </p>
       </div>
 
       <div class="theme-surface clima-panel">
@@ -104,7 +136,7 @@
 
       <div class="theme-surface clima-panel clima-fit" id="climaFitPanel">
         <h3 class="clima-panel-title" id="climaFitTitulo">Ajuste teórico</h3>
-        <div class="clima-fit-grid" id="climaFit"></div>
+        <dl class="clima-fit-grid" id="climaFit"></dl>
         <p class="clima-atoms" id="climaAtoms"></p>
       </div>
 
@@ -132,7 +164,7 @@
         </button>
       </div>
       <div id="climaTabelaWrap" hidden>
-        <div class="clima-table-scroll">
+        <section class="clima-table-scroll" tabindex="0" aria-labelledby="climaTabelaCaption">
           <table class="clima-table" id="climaTabela">
             <caption id="climaTabelaCaption">
               Valores do gráfico acima
@@ -150,16 +182,17 @@
             </thead>
             <tbody id="climaTabelaBody"></tbody>
           </table>
-        </div>
+        </section>
       </div>
 
       <div class="theme-surface clima-panel">
-        <h3 class="clima-panel-title">Cobertura do registro</h3>
+        <h3 class="clima-panel-title" id="climaCoberturaTitulo">Cobertura do registro</h3>
         <p class="clima-panel-note">
-          Horas válidas por ano após controle de qualidade. Um ano sem barra não tem observação: o painel existe
-          para que a extensão real do registro fique visível junto das distribuições.
+          Horas registradas pelo sensor em cada ano, antes dos cortes que cada variável lista nas suas ressalvas. Um
+          ano sem barra não tem observação: o painel existe para que a extensão real do registro fique visível junto
+          das distribuições.
         </p>
-        <div class="clima-coverage" id="climaCoverage"></div>
+        <section class="clima-coverage" id="climaCoverage" tabindex="0" aria-labelledby="climaCoberturaTitulo"></section>
         <p class="clima-panel-note" id="climaSeasons"></p>
       </div>
     </div>

@@ -11,8 +11,32 @@ const { discoverPublications } = require("./site-builder/publications.js");
 const {
   REQUIRED_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTIES,
-  inspectPublicationThemeCss,
+  parsePublicationThemeCss,
+  inspectPublicationTheme,
+  parseHexColor,
+  contrastRatio,
 } = require("./site-builder/theme-contract.js");
+
+const WCAG_AA_BODY_TEXT_CONTRAST = 4.5;
+const FOCUS_RING_MIN_CONTRAST_WITH_WHITE = 9;
+const WHITE_SRGB_CHANNELS = Object.freeze([255, 255, 255]);
+const TONES_CHECKED_AGAINST_WHITE = Object.freeze([
+  {
+    property: "map-accent-strong",
+    minContrast: WCAG_AA_BODY_TEXT_CONTRAST,
+    requirement: `the WCAG AA ${WCAG_AA_BODY_TEXT_CONTRAST}:1 for white body text on it`,
+  },
+  {
+    property: "brand-secondary-strong",
+    minContrast: WCAG_AA_BODY_TEXT_CONTRAST,
+    requirement: `the WCAG AA ${WCAG_AA_BODY_TEXT_CONTRAST}:1 for white body text on it`,
+  },
+  {
+    property: "brand-primary-strong",
+    minContrast: FOCUS_RING_MIN_CONTRAST_WITH_WHITE,
+    requirement: `the ${FOCUS_RING_MIN_CONTRAST_WITH_WHITE}:1 the focus ring and its white band need to reach 3:1 on any map background`,
+  },
+]);
 
 const cssRoot = path.join(root, "site", "assets", "css");
 const jsRoot = path.join(root, "site", "assets", "js");
@@ -39,6 +63,15 @@ function collectScripts(directory) {
       return entry.isFile() && entry.name.endsWith(".js") ? [candidate] : [];
     })
     .sort();
+}
+
+function resolveThemeTone(values, property) {
+  if (values.has(property)) return { value: values.get(property), source: `--${property}` };
+  const fallback = OPTIONAL_THEME_PROPERTIES.find((entry) => entry.property === property)?.fallback;
+  if (fallback === undefined) return { value: undefined, source: `--${property}` };
+  const reference = fallback.match(/^var\(--([a-z0-9-]+)\)$/);
+  if (reference) return resolveThemeTone(values, reference[1]);
+  return { value: fallback, source: `the contract fallback of --${property}` };
 }
 
 /** Matches `var(--token)` and `var(--token, fallback)` but never `var(--token-suffix)`. */
@@ -68,9 +101,33 @@ const sharedJs = sharedScripts.map((file) => fs.readFileSync(file, "utf8")).join
 
 for (const publication of publications) {
   const themePath = path.join(publication.directory, publication.theme);
-  const content = fs.readFileSync(themePath, "utf8");
-  for (const error of inspectPublicationThemeCss(content)) {
-    errors.push(`${path.relative(root, themePath)}: ${error}`);
+  const themeFile = path.relative(root, themePath);
+  const theme = parsePublicationThemeCss(fs.readFileSync(themePath, "utf8"));
+  for (const error of inspectPublicationTheme(theme)) {
+    errors.push(`${themeFile}: ${error}`);
+  }
+
+  const { values } = theme;
+  if (!values) continue;
+  for (const { property, minContrast, requirement } of TONES_CHECKED_AGAINST_WHITE) {
+    const { value, source } = resolveThemeTone(values, property);
+    if (value === undefined) {
+      errors.push(
+        `${themeFile}: ${source} is not declared, so the contrast of --${property} with white cannot be checked`
+      );
+      continue;
+    }
+    const channels = parseHexColor(value);
+    if (!channels) {
+      errors.push(`${themeFile}: ${source} must be #rgb or #rrggbb so its contrast with white can be checked`);
+      continue;
+    }
+    const contrast = contrastRatio(channels, WHITE_SRGB_CHANNELS);
+    if (contrast < minContrast) {
+      errors.push(
+        `${themeFile}: --${property} (${source === `--${property}` ? value : `${value} from ${source}`}) reaches ${contrast.toFixed(2)}:1 against white, below ${requirement}`
+      );
+    }
   }
 }
 
@@ -158,7 +215,8 @@ console.log(
     `and may opt into ${OPTIONAL_THEME_PROPERTIES.length} optional ones (${optionalCssTokens} read via var() in shared CSS, ${optionalJsTokens} read at runtime from site/assets/js).`,
     "Checked: theme files hold a single :root of contract tokens with matching #hex/RGB pairs;",
     "shared CSS carries no [data-publication]/[data-territory] branch and no literal assignment to a required token;",
-    "every contract token is actually consumed; the head template keeps the documented CSS cascade order",
+    `every contract token is actually consumed; white text on --map-accent-strong and --brand-secondary-strong reaches ${WCAG_AA_BODY_TEXT_CONTRAST}:1 and the focus ring tone reaches ${FOCUS_RING_MIN_CONTRAST_WITH_WHITE}:1 against white;`,
+    "the head template keeps the documented CSS cascade order",
     "and layouts link no stylesheet outside the head slots.",
   ].join(" ")
 );

@@ -8,8 +8,92 @@
  *   longer than a step are summed in the frontend over the N steps ending at
  *   the selected time.
  * - specificInfo(value, allValues): allValues holds the variable plus its
- *   relatedVariables, each as { value, label, unit }.
+ *   relatedVariables.
  */
+
+const BEAUFORT_FORCE_LOWER_BOUNDS_M_S = [0.3, 1.6, 3.4, 5.5, 8.0, 10.8, 13.9, 17.2, 20.8, 24.5, 28.5, 32.7];
+const BEAUFORT_FORCE_DESIGNATIONS = [
+  "Calmaria",
+  "Bafagem",
+  "Aragem",
+  "Fraco",
+  "Moderado",
+  "Fresco",
+  "Muito Fresco",
+  "Forte",
+  "Muito Forte",
+  "Duro",
+  "Muito Duro",
+  "Tempestuoso",
+  "Furacão",
+];
+
+const RAIN_HOURLY_SCALE_STOPS_MM = [0.1, 0.5, 1, 2.5, 5, 10, 20, 30, 50];
+const RAIN_WINDOW_TOTAL_NO_RAIN_BELOW_MM = 0.01;
+
+const TURBINE_CUT_IN_SPEED_M_S = 3;
+const TURBINE_RATED_SPEED_M_S = 12;
+const TURBINE_CUT_OUT_SPEED_M_S = 25;
+
+const DRY_AIR_GAS_CONSTANT_J_KG_K = 287.05;
+const VIRTUAL_TEMPERATURE_MIXING_RATIO_FACTOR = 0.61;
+const KELVIN_AT_ZERO_CELSIUS = 273.15;
+const PASCALS_PER_HECTOPASCAL = 100;
+const GRAMS_PER_KILOGRAM = 1000;
+
+const HEAT_INDEX_PRETEST_MIN_F = 80;
+const HEAT_INDEX_ADJUSTMENT_MIN_TEMPERATURE_F = 80;
+const HEAT_INDEX_DRY_ADJUSTMENT_MAX_HUMIDITY_PERCENT = 13;
+const HEAT_INDEX_DRY_ADJUSTMENT_MAX_TEMPERATURE_F = 112;
+const HEAT_INDEX_DRY_ADJUSTMENT_CENTER_TEMPERATURE_F = 95;
+const HEAT_INDEX_DRY_ADJUSTMENT_HALF_WIDTH_F = 17;
+const HEAT_INDEX_DRY_ADJUSTMENT_HUMIDITY_PERCENT_PER_F = 4;
+const HEAT_INDEX_HUMID_ADJUSTMENT_MIN_HUMIDITY_PERCENT = 85;
+const HEAT_INDEX_HUMID_ADJUSTMENT_MAX_TEMPERATURE_F = 87;
+const HEAT_INDEX_HUMID_ADJUSTMENT_HUMIDITY_PERCENT_PER_F = 10;
+const HEAT_INDEX_HUMID_ADJUSTMENT_TEMPERATURE_SPAN_F = 5;
+
+const KILOJOULES_PER_WATT_HOUR = 3.6;
+const JOULES_PER_KILOJOULE = 1000;
+const SECONDS_PER_MINUTE = 60;
+const NOMINAL_STEP_SECONDS = 3600;
+const STEP_IRRADIATION_SCALE_MAX_KJ_M2 = 4320;
+
+const SOLAR_STEP_ENERGY_SERIES = {
+  energyBasis: "step",
+  chartLabel: "Produção Energética do Passo",
+  csvLabel: "Produção no passo pela irradiação",
+};
+const SOLAR_INSTANT_ENERGY_SERIES = {
+  energyBasis: "instant",
+  chartLabel: "Produção Estimada (fluxo × 1h)",
+  csvLabel: "Produção em 1h estimada pelo fluxo instantâneo",
+};
+const WIND_INSTANT_ENERGY_SERIES = {
+  energyBasis: "instant",
+  chartLabel: "Produção Estimada (potência × 1h)",
+  csvLabel: "Produção em 1h estimada pela potência instantânea",
+};
+
+function formatStepDuration(seconds) {
+  const wholeSeconds = Math.round(seconds);
+  const minutes = Math.floor(wholeSeconds / SECONDS_PER_MINUTE);
+  const rest = wholeSeconds % SECONDS_PER_MINUTE;
+  return rest ? `${minutes} min ${rest} s` : `${minutes} min`;
+}
+
+function stepEnergyItem(energyKjM2, stepSeconds, icon, { prefix = "Energia", decimals = 1 } = {}) {
+  return {
+    label: stepSeconds ? `${prefix} em ${formatStepDuration(stepSeconds)}` : `${prefix} do Passo`,
+    value: energyKjM2.toFixed(decimals),
+    unit: "kJ/m²",
+    icon,
+  };
+}
+
+function stepMeanFluxWM2(energyKjM2, stepSeconds) {
+  return (energyKjM2 * JOULES_PER_KILOJOULE) / stepSeconds;
+}
 
 function getParameter(variableType, paramName, defaultValue) {
   if (typeof app === "undefined" || !app || !app.getCustomParameter) {
@@ -263,6 +347,7 @@ const VARIABLE_CONTEXTS = {
       "pressure",
       "wind",
       "globalRadiation",
+      "shortwaveIrradiation",
       "shortwaveUp",
       "netShortwave",
       "longwave",
@@ -273,6 +358,7 @@ const VARIABLE_CONTEXTS = {
       "lh",
       "skyEmissivity",
       "clearnessIndex",
+      "clearSkyIndex",
     ],
   },
   energy: {
@@ -296,15 +382,67 @@ function unavailableInfo(title) {
   };
 }
 
+const DEGREES_PER_RADIAN = 180 / Math.PI;
+const KT_SKY_CLASS_MIN_SOLAR_ELEVATION_DEG = 20;
+const KT_SKY_CLASS_MIN_SOLAR_ELEVATION_RAD = KT_SKY_CLASS_MIN_SOLAR_ELEVATION_DEG / DEGREES_PER_RADIAN;
+const CLEAR_SKY_INDEX_CLEAR_MIN = 0.95;
+const CLEAR_SKY_INDEX_SCALE_STOPS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+const CLEAR_SKY_INDEX_OVERCAST_BELOW = 0.3;
+const SKY_EMISSIVITY_DRY_BELOW = 0.8;
+const SKY_EMISSIVITY_OVERCAST_OR_HUMID_ABOVE = 0.9;
+const SURFACE_FLUX_PUBLISHED_RESOLUTION_W_M2 = 0.01;
+const SURFACE_FLUX_ZERO_TOLERANCE_W_M2 = SURFACE_FLUX_PUBLISHED_RESOLUTION_W_M2 / 2;
+
+function surfaceFluxDirectionItem(fluxWM2, upwardLabel, downwardLabel) {
+  if (Math.abs(fluxWM2) < SURFACE_FLUX_ZERO_TOLERANCE_W_M2) {
+    return { label: "Tipo", value: "Sem fluxo", icon: "fa-scale-balanced" };
+  }
+  return fluxWM2 > 0
+    ? { label: "Tipo", value: upwardLabel, icon: "fa-arrow-up" }
+    : { label: "Tipo", value: downwardLabel, icon: "fa-arrow-down" };
+}
+
+function clearnessSkyItem(kt, solarElevationRad, clearSkyIndex) {
+  if (Number.isFinite(clearSkyIndex)) {
+    return {
+      label: "Céu",
+      value:
+        clearSkyIndex >= CLEAR_SKY_INDEX_CLEAR_MIN
+          ? "Limpo"
+          : clearSkyIndex < CLEAR_SKY_INDEX_OVERCAST_BELOW
+            ? "Encoberto"
+            : "Parcialmente nublado",
+      icon: "fa-sun",
+    };
+  }
+  if (!Number.isFinite(solarElevationRad)) {
+    return { label: "Céu", value: "N/D", icon: "fa-sun" };
+  }
+  if (solarElevationRad < KT_SKY_CLASS_MIN_SOLAR_ELEVATION_RAD) {
+    return {
+      label: "Sol baixo",
+      value: `${Math.floor(solarElevationRad * DEGREES_PER_RADIAN)}°`,
+      unit: "de elevação; céu não classificado",
+      icon: "fa-exclamation-triangle",
+    };
+  }
+  return {
+    label: "Céu",
+    value: kt > 0.65 ? "Limpo" : kt <= 0.35 ? "Encoberto" : "Parcialmente nublado",
+    icon: "fa-sun",
+  };
+}
+
 const VARIABLES_CONFIG = {
   solar: {
     id: "SWDOWN",
-    relatedVariables: ["temperature"],
-    chartCompanions: ["temperature"],
+    publishedSteps: "daylight-zero-night",
+    relatedVariables: ["temperature", "shortwaveIrradiation"],
+    chartCompanions: ["temperature", "shortwaveIrradiation"],
     label: "Radiação Solar",
     optionLabel: "Potencial Fotovoltaico",
     icon: "☀️",
-    faIcon: "sun",
+    faIcon: "fa-sun",
     unit: "W/m²",
     sourceId: "SWDOWN",
     summary:
@@ -324,26 +462,42 @@ const VARIABLES_CONFIG = {
       const noct = getParameter("solar", "noct", 45);
 
       const nominalCellTemp = 25;
-      const cellTemp = airTemp + ((noct - 20) * value) / 800;
-      const energyGen =
-        (value / 1000) * panelEfficiency * inversorEfficiency * (1 + (ptc * (cellTemp - nominalCellTemp)) / 100);
+      const conversionEfficiency = (irradianceWM2) => {
+        const cellTemp = airTemp + ((noct - 20) * irradianceWM2) / 800;
+        return panelEfficiency * inversorEfficiency * (1 + (ptc * (cellTemp - nominalCellTemp)) / 100);
+      };
+
+      const irradiation = allValues.shortwaveIrradiation;
+      const hasStepIrradiation = Number.isFinite(irradiation?.value);
+      const incidentItem = hasStepIrradiation
+        ? stepEnergyItem(irradiation.value, irradiation.stepSeconds, "fa-sun", {
+            prefix: "Radiação Incidente",
+            decimals: 2,
+          })
+        : {
+            label: "Radiação Incidente Estimada (fluxo instantâneo × 1h)",
+            value: (value * KILOJOULES_PER_WATT_HOUR).toFixed(2),
+            unit: "kJ/m²",
+            icon: "fa-sun",
+          };
+      const energyWhM2 = hasStepIrradiation
+        ? (irradiation.value / KILOJOULES_PER_WATT_HOUR) *
+          conversionEfficiency(stepMeanFluxWM2(irradiation.value, irradiation.stepSeconds ?? NOMINAL_STEP_SECONDS))
+        : value * conversionEfficiency(value);
 
       return {
         title: "Geração Fotovoltaica",
         items: [
+          incidentItem,
           {
-            label: "Radiação Incidente Acumulada (1h)",
-            value: (value * 3.6).toFixed(2),
-            unit: "kJ/m²",
-            icon: "fa-sun",
-          },
-          {
-            label: "Produção Energética Acumulada (1h)",
-            value: (energyGen * 1000).toFixed(2),
+            label: hasStepIrradiation
+              ? "Produção Energética do Passo"
+              : "Produção Energética Estimada (fluxo instantâneo × 1h)",
+            value: energyWhM2.toFixed(2),
             unit: "Wh/m²",
             icon: "fa-solar-panel",
-            // Raw number for charts/CSV; `value` above is display-only.
-            energyValue: energyGen * 1000,
+            energyValue: energyWhM2,
+            ...(hasStepIrradiation ? SOLAR_STEP_ENERGY_SERIES : SOLAR_INSTANT_ENERGY_SERIES),
           },
         ],
       };
@@ -352,14 +506,14 @@ const VARIABLES_CONFIG = {
 
   eolico: {
     id: "POT_EOLICO_50M",
-    relatedVariables: ["temperature"],
-    chartCompanions: ["temperature"],
+    relatedVariables: ["temperature", "pressure", "humidity"],
+    chartCompanions: ["temperature", "pressure", "humidity"],
     id_100m: "POT_EOLICO_100M",
     id_150m: "POT_EOLICO_150M",
     label: "Velocidade do Vento",
     optionLabel: "Potencial Eólico",
     icon: "💨",
-    faIcon: "wind",
+    faIcon: "fa-wind",
     unit: "m/s",
     sourceId: "POT_EOLICO_50M / POT_EOLICO_100M / POT_EOLICO_150M",
     summary:
@@ -372,36 +526,60 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Geração Eólica");
       }
 
-      const tempValue = Number.isFinite(allValues.temperature?.value) ? allValues.temperature.value : 15;
-
-      const airDensity = getParameter("eolico", "airDensity", 1.225);
+      const airDensityKgM3 = moistAirDensityKgM3(
+        allValues.pressure?.value,
+        allValues.temperature?.value,
+        allValues.humidity?.value
+      );
       const rotorDiameter = getParameter("eolico", "rotorDiameter", 40);
       const Cp = getParameter("eolico", "Cp", getParameter("eolico", "powerCoefficient", 0.4));
 
-      const airDensityAtTemp = airDensity * (288 / (273 + tempValue));
       const rotorArea = Math.PI * Math.pow(rotorDiameter / 2, 2);
+      const operatingRange = {
+        label: "Faixa de Operação (turbina típica)",
+        ...describeTurbineOperatingRange(value),
+        icon: "fa-wind",
+      };
+
+      if (airDensityKgM3 === null) {
+        return {
+          title: "Geração Eólica",
+          items: [
+            operatingRange,
+            { label: "Densidade do Ar", value: "N/D", unit: "", icon: "fa-scale-balanced" },
+            { label: "Densidade de Potência", value: "N/D", unit: "", icon: "fa-fan" },
+            { label: "Produção Energética Estimada (potência × 1h)", value: "N/D", unit: "", icon: "fa-wind" },
+          ],
+        };
+      }
+
+      const powerDensityWM2 = 0.5 * airDensityKgM3 * Math.pow(value, 3);
+      const energyKWh = simplifiedTurbinePowerW(airDensityKgM3, rotorArea, Cp, value) / 1000;
 
       return {
         title: "Geração Eólica",
         items: [
+          operatingRange,
           {
-            label: "Categoria do Vento",
-            value: getWindCategory(value),
-            icon: "fa-wind",
+            label: "Densidade do Ar",
+            value: airDensityKgM3.toFixed(3),
+            unit: "kg/m³",
+            icon: "fa-scale-balanced",
           },
           {
             label: "Densidade de Potência",
-            value: (0.5 * airDensityAtTemp * Math.pow(value, 3)).toFixed(0),
+            value: powerDensityWM2.toFixed(0),
             unit: "W/m²",
             icon: "fa-fan",
           },
           {
-            label: `Produção Energética Acumulada (1h)`,
-            value: ((0.5 * airDensityAtTemp * Math.pow(value, 3) * rotorArea * Cp) / 1000).toFixed(1),
+            label: `Produção Energética Estimada (potência × 1h)`,
+            value: energyKWh.toFixed(1),
             unit: "kWh",
             icon: "fa-wind",
             // Raw number for charts/CSV; `value` above is display-only.
-            energyValue: (0.5 * airDensityAtTemp * Math.pow(value, 3) * rotorArea * Cp) / 1000,
+            energyValue: energyKWh,
+            ...WIND_INSTANT_ENERGY_SERIES,
           },
         ],
       };
@@ -415,7 +593,7 @@ const VARIABLES_CONFIG = {
     label: "Temperatura (2m)",
     optionLabel: "Temperatura",
     icon: "🌡️",
-    faIcon: "thermometer",
+    faIcon: "fa-thermometer",
     unit: "°C",
     sourceId: "TEMP",
     summary: "Temperatura do ar a 2 metros usada como referência meteorológica de superfície.",
@@ -459,7 +637,7 @@ const VARIABLES_CONFIG = {
     label: "Temperatura de Superfície",
     optionLabel: "Temperatura de Superfície",
     icon: "🌡️",
-    faIcon: "temperature-high",
+    faIcon: "fa-temperature-high",
     unit: "°C",
     sourceId: "TSK",
     summary: "Temperatura da superfície do modelo, útil para contraste com a temperatura do ar a 2 metros.",
@@ -504,7 +682,7 @@ const VARIABLES_CONFIG = {
     label: "Pressão Atmosférica",
     optionLabel: "Pressão Atmosférica",
     icon: "🎯",
-    faIcon: "cloud",
+    faIcon: "fa-cloud",
     unit: "hPa",
     sourceId: "PRES",
     summary: "Pressão atmosférica na superfície, exibida em hectopascal para leitura operacional.",
@@ -547,7 +725,7 @@ const VARIABLES_CONFIG = {
     label: "Umidade Específica (2m)",
     optionLabel: "Umidade Específica",
     icon: "💧",
-    faIcon: "droplet",
+    faIcon: "fa-droplet",
     unit: "g/kg",
     sourceId: "VAPOR",
     summary: "Conteúdo de vapor d'água do ar próximo à superfície, expresso em g/kg (derivado de Q2 do WRF).",
@@ -588,7 +766,7 @@ const VARIABLES_CONFIG = {
     label: "Umidade Relativa (2m)",
     optionLabel: "Umidade Relativa",
     icon: "💧",
-    faIcon: "droplet",
+    faIcon: "fa-droplet",
     unit: "%",
     sourceId: "RH2",
     summary:
@@ -627,18 +805,18 @@ const VARIABLES_CONFIG = {
 
   rain: {
     id: "RAIN",
+    stepTotal: true,
     label: "Precipitação",
     optionLabel: "Precipitação",
     icon: "🌧️",
-    faIcon: "cloud-rain",
+    faIcon: "fa-cloud-rain",
     unit: "mm",
     sourceId: "RAIN",
     summary:
       "Precipitação acumulada no timestep do modelo, somada na janela escolhida (1h ou 3h). Células sem chuva (< 0,01 mm) não são pintadas.",
-    scaleMin: 0,
-    scaleMax: 30,
+    scaleStops: RAIN_HOURLY_SCALE_STOPS_MM,
     // Below 0.01 mm WRF writes zeros over almost the whole grid.
-    hideBelow: 0.01,
+    hideBelow: RAIN_WINDOW_TOTAL_NO_RAIN_BELOW_MM,
     accumulation: {
       title: "Acumulado:",
       defaultHours: 1,
@@ -646,13 +824,11 @@ const VARIABLES_CONFIG = {
         {
           hours: 1,
           label: "1h",
-          scaleMax: 30,
           variableLabel: "Precipitação (1h)",
         },
         {
           hours: 3,
           label: "3h",
-          scaleMax: 60,
           variableLabel: "Precipitação acumulada (3h)",
         },
       ],
@@ -672,7 +848,14 @@ const VARIABLES_CONFIG = {
         items: [
           {
             label: "Intensidade",
-            value: hourlyRate < 0.01 ? "Sem chuva" : hourlyRate < 2.5 ? "Leve" : hourlyRate < 10 ? "Moderada" : "Forte",
+            value:
+              value < RAIN_WINDOW_TOTAL_NO_RAIN_BELOW_MM
+                ? "Sem chuva"
+                : hourlyRate < 2.5
+                  ? "Leve"
+                  : hourlyRate < 10
+                    ? "Moderada"
+                    : "Forte",
             icon: "fa-cloud-rain",
           },
           {
@@ -680,12 +863,6 @@ const VARIABLES_CONFIG = {
             value: value.toFixed(2),
             unit: "mm",
             icon: "fa-water",
-          },
-          {
-            // 5 mm is a VOLUME threshold, not a rate: hence the window in the label.
-            label: `Impacto Agrícola (${hours}h)`,
-            value: value > 5 ? "Benéfico" : "Insuficiente",
-            icon: "fa-leaf",
           },
         ],
       };
@@ -697,7 +874,7 @@ const VARIABLES_CONFIG = {
     label: "Velocidade do Vento (10m)",
     optionLabel: "Vento (10m)",
     icon: "🌬️",
-    faIcon: "wind",
+    faIcon: "fa-wind",
     unit: "m/s",
     sourceId: "WIND",
     summary: "Velocidade do vento a 10 metros calculada a partir das componentes U10 e V10.",
@@ -713,14 +890,9 @@ const VARIABLES_CONFIG = {
         title: "Informações do Vento",
         items: [
           {
-            label: "Categoria do Vento",
-            value: getWindCategory(value),
+            label: "Escala Beaufort",
+            ...describeBeaufortForce(value),
             icon: "fa-wind",
-          },
-          {
-            label: "Direção",
-            value: "Variável",
-            icon: "fa-compass",
           },
           {
             label: "Rajadas (est.)",
@@ -735,10 +907,12 @@ const VARIABLES_CONFIG = {
 
   globalRadiation: {
     id: "SWDOWN",
+    publishedSteps: "daylight-zero-night",
+    relatedVariables: ["shortwaveIrradiation"],
     label: "Radiação Global",
     optionLabel: "Radiação Global",
     icon: "☀️",
-    faIcon: "sun",
+    faIcon: "fa-sun",
     unit: "W/m²",
     sourceId: "SWDOWN",
     summary: "Radiação solar de onda curta incidente na superfície. Não inclui cálculo fotovoltaico nesta página.",
@@ -750,6 +924,17 @@ const VARIABLES_CONFIG = {
         return unavailableInfo("Radiação Global");
       }
 
+      const irradiation = allValues.shortwaveIrradiation;
+      const stepSeconds = irradiation?.stepSeconds;
+      const energyItem = Number.isFinite(irradiation?.value)
+        ? stepEnergyItem(irradiation.value, stepSeconds, "fa-chart-area")
+        : {
+            label: "Acumulado Estimado (fluxo instantâneo × 1h)",
+            value: (value * KILOJOULES_PER_WATT_HOUR).toFixed(1),
+            unit: "kJ/m²",
+            icon: "fa-chart-area",
+          };
+
       return {
         title: "Radiação Global",
         items: [
@@ -759,12 +944,7 @@ const VARIABLES_CONFIG = {
             unit: "W/m²",
             icon: "fa-sun",
           },
-          {
-            label: "Acumulado Estimado (1h)",
-            value: (value * 3.6).toFixed(1),
-            unit: "kJ/m²",
-            icon: "fa-chart-area",
-          },
+          energyItem,
           {
             label: "Condição",
             value: value >= 800 ? "Alta radiação" : value >= 300 ? "Radiação moderada" : "Baixa radiação",
@@ -775,12 +955,47 @@ const VARIABLES_CONFIG = {
     },
   },
 
+  shortwaveIrradiation: {
+    id: "SW_IRRAD",
+    stepTotal: true,
+    publishedSteps: "listed",
+    panelNeedsStepMetadata: true,
+    label: "Irradiação Solar do Passo",
+    optionLabel: "Irradiação Solar (energia do passo)",
+    icon: "☀️",
+    faIcon: "fa-sun",
+    unit: "kJ/m²",
+    sourceId: "SW_IRRAD",
+    summary:
+      "Energia solar que chegou à superfície no passo que termina no horário, pela diferença do ACSWDNB acumulado pelo modelo. O passo nem sempre dura 1 h exata: o painel mostra a duração real.",
+    scaleMin: 0,
+    scaleMax: STEP_IRRADIATION_SCALE_MAX_KJ_M2,
+    colors: SHORTWAVE_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.shortwaveIrradiation?.ausente) {
+        return unavailableInfo("Irradiação Solar do Passo");
+      }
+
+      const stepSeconds = allValues.shortwaveIrradiation?.stepSeconds;
+      const items = [stepEnergyItem(value, stepSeconds, "fa-sun")];
+      if (stepSeconds) {
+        items.push({
+          label: "Fluxo Médio no Passo",
+          value: stepMeanFluxWM2(value, stepSeconds).toFixed(0),
+          unit: "W/m²",
+          icon: "fa-chart-area",
+        });
+      }
+      return { title: "Irradiação Solar do Passo", items };
+    },
+  },
+
   longwave: {
     id: "GLW",
     label: "Radiação de Onda Longa",
     optionLabel: "Onda Longa Incidente",
     icon: "🌙",
-    faIcon: "moon",
+    faIcon: "fa-moon",
     unit: "W/m²",
     sourceId: "GLW",
     summary: "Radiação de onda longa incidente na superfície, usada no balanço radiativo.",
@@ -806,11 +1021,6 @@ const VARIABLES_CONFIG = {
             value: "Balanço radiativo",
             icon: "fa-scale-balanced",
           },
-          {
-            label: "Condição",
-            value: value > 420 ? "Atmosfera úmida/nublada" : value < 330 ? "Céu mais limpo" : "Intermediária",
-            icon: "fa-cloud",
-          },
         ],
       };
     },
@@ -822,10 +1032,11 @@ const VARIABLES_CONFIG = {
 
   shortwaveUp: {
     id: "SWUP",
+    publishedSteps: "daylight-zero-night",
     label: "Onda Curta Refletida",
     optionLabel: "Onda Curta Refletida",
     icon: "🪞",
-    faIcon: "arrow-up",
+    faIcon: "fa-arrow-up",
     unit: "W/m²",
     sourceId: "SWUP",
     summary: "Radiação solar refletida pela superfície (albedo x radiação incidente).",
@@ -858,10 +1069,11 @@ const VARIABLES_CONFIG = {
 
   netShortwave: {
     id: "SWNET",
+    publishedSteps: "daylight-zero-night",
     label: "Onda Curta Líquida",
     optionLabel: "Onda Curta Líquida",
     icon: "☀️",
-    faIcon: "sun",
+    faIcon: "fa-sun",
     unit: "W/m²",
     sourceId: "SWNET",
     summary: "Radiação solar efetivamente absorvida pela superfície.",
@@ -897,7 +1109,7 @@ const VARIABLES_CONFIG = {
     label: "Onda Longa Emitida",
     optionLabel: "Onda Longa Emitida",
     icon: "🌡️",
-    faIcon: "arrow-up",
+    faIcon: "fa-arrow-up",
     unit: "W/m²",
     sourceId: "LWUP",
     summary: "Onda longa que deixa a superfície: emissão de corpo cinza mais a fração do céu refletida.",
@@ -938,7 +1150,7 @@ const VARIABLES_CONFIG = {
     label: "Onda Longa Líquida",
     optionLabel: "Onda Longa Líquida",
     icon: "🌙",
-    faIcon: "moon",
+    faIcon: "fa-moon",
     unit: "W/m²",
     sourceId: "LWNET",
     summary: "Saldo de onda longa na superfície; quase sempre negativo, pois a superfície perde mais do que recebe.",
@@ -974,7 +1186,7 @@ const VARIABLES_CONFIG = {
     label: "Saldo de Radiação",
     optionLabel: "Saldo de Radiação",
     icon: "⚖️",
-    faIcon: "scale-balanced",
+    faIcon: "fa-scale-balanced",
     unit: "W/m²",
     sourceId: "RNET",
     summary:
@@ -996,9 +1208,9 @@ const VARIABLES_CONFIG = {
           icon: "fa-scale-balanced",
         },
         {
-          label: "Período",
-          value: value > 0 ? "Ganho (diurno)" : "Perda (noturno)",
-          icon: value > 0 ? "fa-sun" : "fa-moon",
+          label: "Balanço",
+          value: value < 0 ? "Perda radiativa" : "Ganho radiativo",
+          icon: "fa-scale-balanced",
         },
       ];
 
@@ -1023,10 +1235,10 @@ const VARIABLES_CONFIG = {
     label: "Emissividade do Céu",
     optionLabel: "Emissividade do Céu",
     icon: "☁️",
-    faIcon: "cloud",
+    faIcon: "fa-cloud",
     unit: "",
     sourceId: "EPS_SKY",
-    summary: "Emissividade efetiva do céu; sobe com umidade e nebulosidade, servindo de indicador de cobertura.",
+    summary: "Emissividade efetiva do céu; sobe com a umidade e com a nebulosidade.",
     scaleMin: 0.6,
     scaleMax: 1,
     colors: EMISSIVITY_COLORS,
@@ -1046,7 +1258,12 @@ const VARIABLES_CONFIG = {
           },
           {
             label: "Céu",
-            value: value > 0.9 ? "Encoberto/úmido" : value < 0.8 ? "Mais limpo" : "Intermediário",
+            value:
+              value > SKY_EMISSIVITY_OVERCAST_OR_HUMID_ABOVE
+                ? "Encoberto/úmido"
+                : value < SKY_EMISSIVITY_DRY_BELOW
+                  ? "Seco"
+                  : "Intermediário",
             icon: "fa-cloud-sun",
           },
         ],
@@ -1056,10 +1273,12 @@ const VARIABLES_CONFIG = {
 
   clearnessIndex: {
     id: "KT",
+    publishedSteps: "daylight",
+    relatedVariables: ["clearSkyIndex"],
     label: "Índice de Transparência",
     optionLabel: "Índice de Transparência (kt)",
     icon: "🌤️",
-    faIcon: "cloud-sun",
+    faIcon: "fa-cloud-sun",
     unit: "",
     sourceId: "KT",
     summary:
@@ -1067,24 +1286,62 @@ const VARIABLES_CONFIG = {
     scaleMin: 0,
     scaleMax: 0.85,
     colors: CLEARNESS_COLORS,
-    specificInfo: (value, allValues = {}) => {
+    specificInfo: (value, allValues = {}, { solarElevationRad = null } = {}) => {
       if (value === null || value === undefined || allValues.clearnessIndex?.ausente) {
         return unavailableInfo("Índice de Transparência");
       }
 
+      const clearSkyIndex = allValues.clearSkyIndex?.value;
+      const items = [
+        {
+          label: "kt",
+          value: value.toFixed(2),
+          unit: "",
+          icon: "fa-cloud-sun",
+        },
+      ];
+      if (Number.isFinite(clearSkyIndex)) {
+        items.push({
+          label: "k*",
+          value: clearSkyIndex.toFixed(2),
+          unit: "",
+          icon: "fa-cloud-sun",
+        });
+      }
+      items.push(clearnessSkyItem(value, solarElevationRad, clearSkyIndex));
+
+      return { title: "Índice de Transparência", items };
+    },
+  },
+
+  clearSkyIndex: {
+    id: "KSTAR",
+    publishedSteps: "listed",
+    label: "Índice de Céu Claro",
+    optionLabel: "Índice de Céu Claro (k*)",
+    icon: "🌤️",
+    faIcon: "fa-cloud-sun",
+    unit: "",
+    sourceId: "KSTAR",
+    summary:
+      "Radiação global do modelo dividida pela de céu claro da mesma chamada de radiação: vale 1 sem nuvem com o sol alto ou baixo. Publicado apenas com o sol acima de 10° de elevação. Num domínio externo, fica sem valor sobre a área coberta por um domínio mais fino.",
+    scaleMin: 0,
+    scaleMax: 1,
+    scaleStops: CLEAR_SKY_INDEX_SCALE_STOPS,
+    colors: CLEARNESS_COLORS,
+    specificInfo: (value, allValues = {}) => {
+      if (value === null || value === undefined || allValues.clearSkyIndex?.ausente) {
+        return unavailableInfo("Índice de Céu Claro");
+      }
+
       return {
-        title: "Índice de Transparência",
+        title: "Índice de Céu Claro",
         items: [
           {
-            label: "kt",
+            label: "k*",
             value: value.toFixed(2),
             unit: "",
             icon: "fa-cloud-sun",
-          },
-          {
-            label: "Céu",
-            value: value > 0.65 ? "Limpo" : value < 0.35 ? "Encoberto" : "Parcialmente nublado",
-            icon: "fa-sun",
           },
         ],
       };
@@ -1096,7 +1353,7 @@ const VARIABLES_CONFIG = {
     label: "Calor Sensível",
     optionLabel: "Calor Sensível",
     icon: "🔥",
-    faIcon: "fire",
+    faIcon: "fa-fire",
     unit: "W/m²",
     sourceId: "HFX",
     summary: "Fluxo turbulento de calor sensível entre superfície e atmosfera.",
@@ -1117,11 +1374,7 @@ const VARIABLES_CONFIG = {
             unit: "W/m²",
             icon: "fa-fire",
           },
-          {
-            label: "Tipo",
-            value: value > 0 ? "Aquecimento" : "Resfriamento",
-            icon: value > 0 ? "fa-arrow-up" : "fa-arrow-down",
-          },
+          surfaceFluxDirectionItem(value, "Aquecimento", "Resfriamento"),
           {
             label: "Magnitude",
             value: Math.abs(value) > 300 ? "Forte" : Math.abs(value) > 100 ? "Moderada" : "Fraca",
@@ -1137,7 +1390,7 @@ const VARIABLES_CONFIG = {
     label: "Calor Latente",
     optionLabel: "Calor Latente",
     icon: "💧",
-    faIcon: "water",
+    faIcon: "fa-water",
     unit: "W/m²",
     sourceId: "LH",
     summary: "Fluxo turbulento de calor latente associado a evaporação e condensação.",
@@ -1158,14 +1411,10 @@ const VARIABLES_CONFIG = {
             unit: "W/m²",
             icon: "fa-cloud",
           },
+          surfaceFluxDirectionItem(value, "Evaporação", "Condensação (orvalho)"),
           {
-            label: "Tipo",
-            value: value > 0 ? "Evaporação" : "Condensação",
-            icon: value > 0 ? "fa-arrow-up" : "fa-arrow-down",
-          },
-          {
-            label: "Atividade Convectiva",
-            value: Math.abs(value) > 300 ? "Intensa" : Math.abs(value) > 100 ? "Moderada" : "Fraca",
+            label: "Magnitude",
+            value: Math.abs(value) > 300 ? "Forte" : Math.abs(value) > 100 ? "Moderada" : "Fraca",
             icon: "fa-water",
           },
         ],
@@ -1176,16 +1425,15 @@ const VARIABLES_CONFIG = {
   windPowerDensity: {
     id: "WIND_POWER_DENSITY_10M",
     relatedVariables: ["wind"],
-    chartCompanions: ["wind"],
     label: "Densidade de Potência Eólica (10m)",
     optionLabel: "Densidade Eólica 10m",
     icon: "💨",
-    faIcon: "fan",
+    faIcon: "fa-fan",
     unit: "W/m²",
     sourceId: "WIND_POWER_DENSITY_10M",
     summary: "Densidade de potência disponível no vento a 10 metros. Não é geração real de turbina.",
     scaleMin: 0,
-    scaleMax: 1500,
+    scaleMax: 600,
     colors: WIND_COLORS,
     specificInfo: (value, allValues = {}) => {
       if (value === null || value === undefined || allValues.windPowerDensity?.ausente) {
@@ -1221,38 +1469,90 @@ const VARIABLES_CONFIG = {
   },
 };
 
-function getWindCategory(speed) {
-  if (speed < 2) return "Muito Fraco";
-  if (speed < 4) return "Fraco";
-  if (speed < 6) return "Moderado";
-  if (speed < 8) return "Forte";
-  if (speed < 10) return "Muito Forte";
-  return "Extremo";
+function describeBeaufortForce(speedMs) {
+  if (!Number.isFinite(speedMs) || speedMs < 0) return { value: "N/D", unit: "" };
+  const force = BEAUFORT_FORCE_LOWER_BOUNDS_M_S.filter((lowerBound) => speedMs >= lowerBound).length;
+  return { value: BEAUFORT_FORCE_DESIGNATIONS[force], unit: `força ${force}` };
+}
+
+function simplifiedTurbinePowerW(airDensityKgM3, rotorAreaM2, powerCoefficient, speedMs) {
+  if (speedMs < TURBINE_CUT_IN_SPEED_M_S || speedMs > TURBINE_CUT_OUT_SPEED_M_S) return 0;
+  const poweredSpeedMs = Math.min(speedMs, TURBINE_RATED_SPEED_M_S);
+  return 0.5 * airDensityKgM3 * rotorAreaM2 * powerCoefficient * Math.pow(poweredSpeedMs, 3);
+}
+
+function describeTurbineOperatingRange(speedMs) {
+  if (!Number.isFinite(speedMs) || speedMs < 0) return { value: "N/D", unit: "" };
+  if (speedMs < TURBINE_CUT_IN_SPEED_M_S) {
+    return { value: "Abaixo da partida", unit: `< ${TURBINE_CUT_IN_SPEED_M_S} m/s` };
+  }
+  if (speedMs < TURBINE_RATED_SPEED_M_S) {
+    return { value: "Carga parcial", unit: `${TURBINE_CUT_IN_SPEED_M_S} a ${TURBINE_RATED_SPEED_M_S} m/s` };
+  }
+  if (speedMs <= TURBINE_CUT_OUT_SPEED_M_S) {
+    return { value: "Potência nominal", unit: `${TURBINE_RATED_SPEED_M_S} a ${TURBINE_CUT_OUT_SPEED_M_S} m/s` };
+  }
+  return { value: "Acima do corte", unit: `> ${TURBINE_CUT_OUT_SPEED_M_S} m/s` };
+}
+
+function moistAirDensityKgM3(surfacePressureHpa, temperatureC, vaporMixingRatioGKg) {
+  if (![surfacePressureHpa, temperatureC, vaporMixingRatioGKg].every(Number.isFinite)) return null;
+  const vaporMixingRatioKgKg = vaporMixingRatioGKg / GRAMS_PER_KILOGRAM;
+  const virtualTemperatureK =
+    (temperatureC + KELVIN_AT_ZERO_CELSIUS) * (1 + VIRTUAL_TEMPERATURE_MIXING_RATIO_FACTOR * vaporMixingRatioKgKg);
+  return (surfacePressureHpa * PASCALS_PER_HECTOPASCAL) / (DRY_AIR_GAS_CONSTANT_J_KG_K * virtualTemperatureK);
+}
+
+function heatIndexHumidityAdjustmentF(temperatureF, humidityPercent) {
+  const isDryAndHot =
+    humidityPercent < HEAT_INDEX_DRY_ADJUSTMENT_MAX_HUMIDITY_PERCENT &&
+    temperatureF >= HEAT_INDEX_ADJUSTMENT_MIN_TEMPERATURE_F &&
+    temperatureF <= HEAT_INDEX_DRY_ADJUSTMENT_MAX_TEMPERATURE_F;
+  if (isDryAndHot) {
+    const distanceFromCenterF = Math.abs(temperatureF - HEAT_INDEX_DRY_ADJUSTMENT_CENTER_TEMPERATURE_F);
+    return (
+      -(
+        (HEAT_INDEX_DRY_ADJUSTMENT_MAX_HUMIDITY_PERCENT - humidityPercent) /
+        HEAT_INDEX_DRY_ADJUSTMENT_HUMIDITY_PERCENT_PER_F
+      ) *
+      Math.sqrt((HEAT_INDEX_DRY_ADJUSTMENT_HALF_WIDTH_F - distanceFromCenterF) / HEAT_INDEX_DRY_ADJUSTMENT_HALF_WIDTH_F)
+    );
+  }
+
+  const isHumidAndWarm =
+    humidityPercent > HEAT_INDEX_HUMID_ADJUSTMENT_MIN_HUMIDITY_PERCENT &&
+    temperatureF >= HEAT_INDEX_ADJUSTMENT_MIN_TEMPERATURE_F &&
+    temperatureF <= HEAT_INDEX_HUMID_ADJUSTMENT_MAX_TEMPERATURE_F;
+  if (isHumidAndWarm) {
+    return (
+      ((humidityPercent - HEAT_INDEX_HUMID_ADJUSTMENT_MIN_HUMIDITY_PERCENT) /
+        HEAT_INDEX_HUMID_ADJUSTMENT_HUMIDITY_PERCENT_PER_F) *
+      ((HEAT_INDEX_HUMID_ADJUSTMENT_MAX_TEMPERATURE_F - temperatureF) / HEAT_INDEX_HUMID_ADJUSTMENT_TEMPERATURE_SPAN_F)
+    );
+  }
+
+  return 0;
 }
 
 function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
-  if (humidity >= 40) {
-    const T = (temperatureC * 9) / 5 + 32;
-    const RH = humidity;
+  const T = (temperatureC * 9) / 5 + 32;
+  const RH = humidity;
 
-    // The NWS pretest, not a fixed °C threshold, decides whether the Rothfusz
-    // regression applies: it is only valid above ~80 °F.
-    const simpleHI_F = 0.5 * (T + 61 + (T - 68) * 1.2 + RH * 0.094);
+  const simpleHI_F = 0.5 * (T + 61 + (T - 68) * 1.2 + RH * 0.094);
 
-    if ((simpleHI_F + T) / 2 >= 80) {
-      const HI_F =
-        -42.379 +
-        2.04901523 * T +
-        10.14333127 * RH -
-        0.22475541 * T * RH -
-        0.00683783 * T * T -
-        0.05481717 * RH * RH +
-        0.00122874 * T * T * RH +
-        0.00085282 * T * RH * RH -
-        0.00000199 * T * T * RH * RH;
+  if ((simpleHI_F + T) / 2 >= HEAT_INDEX_PRETEST_MIN_F) {
+    const HI_F =
+      -42.379 +
+      2.04901523 * T +
+      10.14333127 * RH -
+      0.22475541 * T * RH -
+      0.00683783 * T * T -
+      0.05481717 * RH * RH +
+      0.00122874 * T * T * RH +
+      0.00085282 * T * RH * RH -
+      0.00000199 * T * T * RH * RH;
 
-      return ((HI_F - 32) * 5) / 9;
-    }
+    return ((HI_F + heatIndexHumidityAdjustmentF(T, RH) - 32) * 5) / 9;
   }
 
   if (temperatureC <= 10 && windSpeedMs >= 1.34) {
@@ -1266,6 +1566,23 @@ function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
 
   return temperatureC;
 }
+
+const PUBLISHED_STEPS_VALUES = new Set(["all", "daylight", "daylight-zero-night", "listed"]);
+
+function publishedStepsOf(config) {
+  return config.publishedSteps ?? "all";
+}
+
+function assertValidPublishedSteps(configs) {
+  for (const [type, config] of Object.entries(configs)) {
+    const publishedSteps = publishedStepsOf(config);
+    if (!PUBLISHED_STEPS_VALUES.has(publishedSteps)) {
+      throw new Error(`Unknown publishedSteps "${publishedSteps}" in ${type}`);
+    }
+  }
+}
+
+assertValidPublishedSteps(VARIABLES_CONFIG);
 
 window.VARIABLES_CONFIG = VARIABLES_CONFIG;
 window.VARIABLE_CONTEXTS = VARIABLE_CONTEXTS;

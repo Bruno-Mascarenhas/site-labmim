@@ -10,6 +10,11 @@ html.dark-theme {
   --chart-legend-color: var(--chart-legend-dark-color, #fff);
   --lab-header-bg: var(--lab-header-dark-bg);
   --lab-footer-bg: var(--lab-footer-dark-bg);
+  --focus-ring-color: var(--dark-accent);
+  --secondary-color-ink: var(--dark-accent);
+  --map-accent-ink: var(--dark-accent);
+  --map-accent-active-border: var(--map-accent);
+  --affiliation-ink: var(--brand-secondary);
 }
 
 [data-theme-toggle] {
@@ -40,15 +45,18 @@ html.dark-theme {
   background: var(--white) !important;
   border-color: rgba(var(--brand-secondary-rgb), 0.55) !important;
   box-shadow: 0 4px 12px rgba(var(--brand-primary-rgb), 0.18);
-  color: var(--brand-secondary) !important;
+  color: var(--secondary-color-ink) !important;
 }
 
 [data-theme-toggle]:focus-visible,
+.btn-outline-lab:focus-visible,
 .control-btn:focus-visible,
 .sidebar-close-btn:focus-visible,
+.sky-guide-open:focus-visible,
+.variable-select:focus-visible,
 input:focus-visible {
-  outline: 3px solid rgba(var(--brand-secondary-rgb), 0.35);
-  outline-offset: 3px;
+  outline: 3px solid var(--focus-ring-color);
+  outline-offset: 2px;
 }
 
 .dark-theme body,
@@ -73,7 +81,7 @@ input:focus-visible {
 }
 
 .dark-theme [data-theme-toggle]:hover {
-  background: rgba(var(--brand-secondary-rgb), 0.88) !important;
+  background: var(--secondary-color-strong) !important;
   border-color: var(--dark-accent) !important;
   color: var(--white) !important;
 }
@@ -91,7 +99,13 @@ input:focus-visible {
   color: var(--bg-primary) !important;
 }
 
+.dark-theme .navbar [data-theme-toggle] {
+  --focus-ring-color: var(--ink-on-dark, #f8fbff);
+}
+
 .dark-theme .navbar .btn-outline-lab {
+  --focus-ring-color: var(--ink-on-dark, #f8fbff);
+
   background-color: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.48) !important;
   color: var(--ink-on-dark, #f8fbff) !important;
@@ -105,6 +119,20 @@ input:focus-visible {
   border-color: rgba(255, 255, 255, 0.82) !important;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
   color: var(--white) !important;
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--text-secondary);
+  --bs-btn-border-color: var(--text-secondary);
+}
+
+.dark-theme .btn-outline-secondary {
+  --bs-btn-hover-bg: var(--text-secondary);
+  --bs-btn-hover-border-color: var(--text-secondary);
+  --bs-btn-hover-color: var(--bg-primary);
+  --bs-btn-active-bg: var(--text-secondary);
+  --bs-btn-active-border-color: var(--text-secondary);
+  --bs-btn-active-color: var(--bg-primary);
 }
 
 .dark-theme h1,
@@ -161,6 +189,11 @@ input:focus-visible {
   border-color: var(--border-color) !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28) !important;
   color: var(--text-primary) !important;
+}
+
+.dark-theme .control-btn.active {
+  background: var(--map-accent-strong) !important;
+  border-color: var(--map-accent-active-border) !important;
 }
 
 .dark-theme .partner-logo-text,
@@ -225,6 +258,10 @@ input:focus-visible {
   color: var(--text-secondary) !important;
 }
 
+.dark-theme .doc-tab:hover {
+  background-color: var(--bg-secondary);
+}
+
 .dark-theme .doc-tab.active {
   background-color: var(--bg-secondary) !important;
   border-bottom-color: var(--map-accent) !important;
@@ -244,6 +281,10 @@ input:focus-visible {
   background-color: var(--bg-primary) !important;
   border-color: var(--border-color) !important;
   color: var(--text-primary) !important;
+}
+
+.dark-theme .variable-select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e0e0e0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
 }
 
 /* The energy-parameter placeholder carries the calculation's default value, so
@@ -269,8 +310,7 @@ input:focus-visible {
 
 .dark-theme .info-value,
 .dark-theme .slider-time,
-.dark-theme .parameters-toggle-label,
-.dark-theme .stat-card-value {
+.dark-theme .parameters-toggle-label {
   color: var(--dark-accent) !important;
 }
 
@@ -390,6 +430,8 @@ input:focus-visible {
     --border-color: #999;
     --chart-grid-color: rgba(0, 0, 0, 0.2);
     --chart-legend-color: #000;
+    --secondary-color-ink: var(--secondary-color-strong);
+    --map-accent-ink: var(--map-accent-strong);
   }
 
   body,
@@ -428,6 +470,12 @@ input:focus-visible {
 
   .monitor-controls {
     position: static !important;
+  }
+
+  .monitor-card {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 
   .clima-chart,

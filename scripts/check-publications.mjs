@@ -12,6 +12,7 @@ const { defaultPublication, discoverPublications } = require("./site-builder/pub
 const { htmlReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
 const { finishWithFailure, makeRestore, installSignalRestore } = require("./site-builder/cli.js");
 const { publicationOperationalPaths, isOperationalPath } = require("./site-builder/operational-paths.js");
+const { collectFiles } = require("./site-builder/corpus.js");
 const publications = discoverPublications(root);
 const defaultSite = defaultPublication(publications);
 const buildScript = path.join(root, "scripts", "build-site.mjs");
@@ -103,6 +104,111 @@ function assertLocalReferences(publication) {
   }
 }
 
+function readableText(html) {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function assertRunNotesStayWithTheirDataset(publication) {
+  const pages = [...publication.pages.map((page) => page.file), "404.html"].map((pageFile) => ({
+    pageFile,
+    text: readableText(fs.readFileSync(path.join(root, "site", pageFile), "utf8")),
+  }));
+  const ownNotes = Object.entries(publication.dataset.runNotes ?? {}).map(([key, note]) => [key, readableText(note)]);
+  const ownTexts = new Set(ownNotes.map(([, text]) => text));
+  const problems = [];
+
+  for (const [key, text] of ownNotes) {
+    if (!pages.some((page) => page.text.includes(text))) {
+      problems.push(`dataset ${publication.dataset.id} runNotes.${key} appears on no page`);
+    }
+  }
+  for (const other of publications) {
+    if (other.dataset.id === publication.dataset.id) continue;
+    for (const [key, note] of Object.entries(other.dataset.runNotes ?? {})) {
+      const text = readableText(note);
+      if (ownTexts.has(text)) continue;
+      for (const page of pages.filter((candidate) => candidate.text.includes(text))) {
+        problems.push(`${page.pageFile}: carries runNotes.${key} of dataset ${other.dataset.id}`);
+      }
+    }
+  }
+
+  if (problems.length) {
+    throw new Error(
+      `Run notes of ${publication.id} do not match its dataset (${publication.dataset.id}):\n` +
+        problems.map((item) => `  - ${item}`).join("\n") +
+        "\nRun-specific text belongs in dataset.runNotes, rendered through a RUN_NOTE_* slot, never in a shared template."
+    );
+  }
+}
+
+const LITERAL_FORECAST_HORIZON =
+  /\b(?:antecedência|horizonte)(?: (?:de|previsão))* \+?\d+(?:,\d+)? ?(?:horas|h)\b|\+?\d+(?:,\d+)? ?(?:horas|h) de (?:previsão|antecedência)\b/gi;
+
+function assertForecastHorizonIsNeverLiteral() {
+  const literals = collectFiles(root, "src", [".html", ".js"]).flatMap((file) =>
+    [...readableText(fs.readFileSync(path.join(root, file), "utf8")).matchAll(LITERAL_FORECAST_HORIZON)].map(
+      ([statement]) => `${file}: "${statement}"`
+    )
+  );
+
+  if (literals.length) {
+    throw new Error(
+      `Forecast horizon written as a number in src/:\n${literals.map((item) => `  - ${item}`).join("\n")}\n` +
+        "Write {{FORECAST_HORIZON_HOURS}} instead: the renderer derives it from timeline.defaultMaxLayer × stepHours."
+    );
+  }
+}
+
+function assertForecastHorizonMatchesPublishedRun(publication) {
+  const manifestPath = publication.dataset.paths.manifest;
+  const manifestFile = path.join(root, "site", manifestPath);
+  if (!fs.existsSync(manifestFile)) {
+    console.log(`build-check: forecast horizon of ${publication.id} not checked; site/${manifestPath} is absent`);
+    return;
+  }
+  const { index_max: indexMax } = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+  if (!Number.isInteger(indexMax)) {
+    console.log(
+      `build-check: forecast horizon of ${publication.id} not checked; site/${manifestPath} has no index_max`
+    );
+    return;
+  }
+
+  const { defaultMaxLayer } = publication.dataset.timeline;
+  if (defaultMaxLayer !== indexMax) {
+    throw new Error(
+      `Forecast horizon of ${publication.id} does not match the published run: dataset ${publication.dataset.id} ` +
+        `timeline.defaultMaxLayer is ${defaultMaxLayer}, but the run in site/${manifestPath} declares index_max ${indexMax}`
+    );
+  }
+}
+
+const APACHE_REDIRECT_TARGET = /^\s*Redirect\s+\d+\s+"[^"]*"\s+"([^"]*)"/;
+
+function assertFragmentRedirectsStopQueryAppend(publication) {
+  const htaccess = fs.readFileSync(path.join(root, "site", ".htaccess"), "utf8");
+  const exposed = htaccess
+    .split(/\r?\n/)
+    .filter((line) => {
+      const target = line.match(APACHE_REDIRECT_TARGET)?.[1];
+      return target?.includes("#") && !target.split("#", 1)[0].includes("?");
+    })
+    .map((line) => line.trim());
+
+  if (exposed.length > 0) {
+    throw new Error(
+      `.htaccess of ${publication.id} redirects to a fragment without a "?" before the "#":\n${exposed
+        .map((line) => `  - ${line}`)
+        .join("\n")}\nmod_alias appends the request query to any target without "?", after the fragment, ` +
+        `where the browser reads it as part of the anchor. End the path in "?" before "#".`
+    );
+  }
+}
+
 function assertNoUntrackedOutput(publication) {
   const result = spawnSync("git", ["ls-files", "--others", "--exclude-standard", "--", "site"], {
     cwd: root,
@@ -111,10 +217,17 @@ function assertNoUntrackedOutput(publication) {
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error("could not inspect untracked generated output");
 
-  const untracked = result.stdout
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .filter((file) => !isOperationalDataPath(publication, file.replace(/^site\//, "")));
+  const untracked = result.stdout.split(/\r?\n/).filter(Boolean);
+  const unignoredOperational = untracked.filter((file) =>
+    isOperationalDataPath(publication, file.replace(/^site\//, ""))
+  );
+  if (unignoredOperational.length > 0) {
+    throw new Error(
+      `Operational data directory holds files .gitignore does not cover:\n${unignoredOperational
+        .map((file) => `  - ${file}`)
+        .join("\n")}\nIgnore it by directory: "site/<directory>/*" plus "!site/<directory>/.keep".`
+    );
+  }
   if (untracked.length > 0) {
     throw new Error(
       `Generated output is untracked; add it to the change or ignore operational data:\n${untracked
@@ -168,6 +281,9 @@ function buildAndValidate(publication) {
   }
   if (/\{\{[^}]+\}\}/.test(index)) throw new Error(`Generated index for ${publication.id} contains unresolved tokens`);
   assertLocalReferences(publication);
+  assertRunNotesStayWithTheirDataset(publication);
+  if (publication.id === defaultSite.id) assertForecastHorizonMatchesPublishedRun(publication);
+  assertFragmentRedirectsStopQueryAppend(publication);
 }
 
 const restoreDefault = makeRestore({
@@ -182,6 +298,7 @@ installSignalRestore(restoreDefault, { label: "build-check", defaultId: defaultS
 let failure;
 try {
   assertOperationalDataIgnored();
+  assertForecastHorizonIsNeverLiteral();
   for (const publication of publications) buildAndValidate(publication);
 } catch (error) {
   failure = error;

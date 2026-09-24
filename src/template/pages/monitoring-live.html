@@ -9,6 +9,8 @@
     <p id="monitorPeriodo">Janela móvel de 7 dias — atualização a cada 1h</p>
   </div>
 
+  <div id="monitorAtraso" role="status"></div>
+
   <div class="text-center mb-3">
     <button
       class="btn btn-sm btn-outline-secondary"
@@ -31,8 +33,8 @@
           <strong>três camadas sobrepostas</strong> para cada variável:
         </p>
         <ul class="explanation-list-center">
-          <li><strong>Bruto</strong> — cada amostra do datalogger, no intervalo original de 5 minutos;</li>
-          <li><strong>Média horária</strong> — a agregação desenhada por cima do dado que a originou;</li>
+          <li><strong>Bruto</strong> — cada amostra do datalogger, no intervalo original de 5 minutos (num gráfico com várias séries, só a primeira aparece bruta, com o nome na legenda, e o CSV traz o bruto de todas);</li>
+          <li><strong>Média horária</strong> — a agregação de cada hora, centrada nela e sobreposta ao dado que a originou;</li>
           <li><strong>WRF</strong> — a série do modelo para o mesmo período, quando existe para aquela variável.</li>
         </ul>
         <p>
@@ -42,10 +44,11 @@
         </p>
         <p class="compact-note">
           <small
-            >As informações são recebidas em tempo quase real e processadas diretamente para visualização. Os dados
-            são resultados de aquisições de pesquisa, não havendo garantia total para utilização irrestrita. Clique
-            em um item da legenda para ocultar aquela camada; passe o cursor sobre o gráfico para ler os valores
-            instantâneos das camadas visíveis.</small
+            >Em operação normal, as informações chegam em tempo quase real e são processadas diretamente para
+            visualização; quando a estação deixa de enviar dados por mais tempo que o esperado, um aviso no topo da
+            página diz desde quando. Os dados são resultados de aquisições de pesquisa, não havendo garantia total para
+            utilização irrestrita. Clique em um item da legenda para ocultar aquela camada; passe o cursor sobre o
+            gráfico para ler os valores instantâneos das camadas visíveis.</small
           >
         </p>
       </div>
@@ -53,7 +56,7 @@
     <hr class="mb-4 max-w-1000" />
   </div>
 
-  <div class="clima-empty" id="monitorEmpty" hidden>
+  <div class="clima-empty is-loading" id="monitorEmpty">
     <p id="monitorEmptyMessage">Carregando observações…</p>
   </div>
 
@@ -70,6 +73,7 @@
       <div class="monitor-control monitor-control-meta">
         <span class="monitor-updated" id="monitorAtualizado"></span>
       </div>
+      <p class="clima-model-note" id="monitorModelo" hidden></p>
     </div>
 
     <div class="monitor-grid" id="monitorGrid"></div>

@@ -4,8 +4,7 @@
  *
  * Nothing is computed here. Bins, fit, theoretical curve and goodness-of-fit arrive ready from the Python exporter
  * (`labmim-climatology`), curve already rescaled by one minus the atom mass; a second numerical path in JavaScript
- * would be free to diverge from the parameters printed beside it. The curve is sampled AT THE BIN CENTERS, one value
- * per bar, so bars and line share one categorical axis with no interpolation — logarithmic rainfall bins included.
+ * would be free to diverge from the parameters printed beside it.
  *
  * Nothing is publication-specific: every label comes from the JSON. The directory holds operational data, so in a
  * development checkout and in CI it is empty and the page has to say so instead of breaking.
@@ -22,6 +21,7 @@
 
   const ROSE_RINGS = 4;
   const COMPASS = ["N", "NE", "L", "SE", "S", "SO", "O", "NO"];
+  const MODEL_SOURCE_ID = "wrf";
 
   const state = {
     base: "",
@@ -34,7 +34,7 @@
     seq: 0,
   };
 
-  const { el, decimal, integer, percent, downloadCsv } = window.labmimChartPage;
+  const { el, isDark, decimal, integer, percent, showEmpty, downloadCsv } = window.labmimChartPage;
 
   function digitsToDistinguishBins(edges) {
     let smallest = Infinity;
@@ -47,10 +47,6 @@
 
   // Chart.js keeps nothing from the CSS, so re-reading the tokens when the theme class flips is enough — the same
   // runtime read as charts-manager.js.
-
-  function isDark() {
-    return document.documentElement.classList.contains("dark-theme");
-  }
 
   function themeColors() {
     const root = getComputedStyle(document.documentElement);
@@ -90,9 +86,30 @@
     return state.variable.subsets[state.subsetId] || null;
   }
 
+  function subsetEntry(id) {
+    return state.manifest.subsets.find((item) => item.id === id);
+  }
+
   function subsetLabel(id) {
-    const entry = state.manifest.subsets.find((item) => item.id === id);
+    const entry = subsetEntry(id);
     return entry ? entry.label : id;
+  }
+
+  function isModelSubset(id) {
+    const entry = subsetEntry(id);
+    return entry ? entry.source === MODEL_SOURCE_ID : false;
+  }
+
+  function sampleNoun(id) {
+    return isModelSubset(id) ? "horas do modelo" : "observações";
+  }
+
+  function capitalized(text) {
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  function frequencyNoun(id) {
+    return isModelSubset(id) ? "frequência do modelo" : "frequência medida";
   }
 
   function buildControls() {
@@ -130,12 +147,26 @@
     el("climaExport").addEventListener("click", exportCsv);
   }
 
+  function modelSubsetWithoutHours(id) {
+    if (!state.variable || !isModelSubset(id)) return false;
+    const subset = state.variable.subsets[id];
+    return !subset || !subset.n;
+  }
+
   function markActiveSubset() {
+    const note = el("climaRecorteNota");
+    let anyDisabled = false;
     for (const button of el("climaRecorte").children) {
       const active = button.dataset.subset === state.subsetId;
       button.setAttribute("aria-pressed", String(active));
       button.classList.toggle("is-active", active);
+      const disabled = !active && modelSubsetWithoutHours(button.dataset.subset);
+      button.disabled = disabled;
+      if (disabled) button.setAttribute("aria-describedby", note.id);
+      else button.removeAttribute("aria-describedby");
+      anyDisabled = anyDisabled || disabled;
     }
+    note.hidden = !anyDisabled;
   }
 
   function binLabels(edges, digits) {
@@ -151,10 +182,11 @@
     const digits = digitsToDistinguishBins(variable.edges);
     const labels = binLabels(variable.edges, digits);
     const axisWindow = variable.display_range || [0, labels.length - 1];
+    const countLabel = capitalized(sampleNoun(state.subsetId));
     const datasets = [
       {
         type: "bar",
-        label: "Frequência medida",
+        label: capitalized(frequencyNoun(state.subsetId)),
         data: subset.density,
         backgroundColor: theme.empirical,
         borderColor: theme.empirical,
@@ -221,7 +253,7 @@
                   return `${item.dataset.label}: ${decimal(item.parsed.y, 4)}`;
                 }
                 const count = subset.counts[item.dataIndex];
-                return [`Densidade: ${decimal(item.parsed.y, 4)}`, `Observações: ${integer(count)}`];
+                return [`Densidade: ${decimal(item.parsed.y, 4)}`, `${countLabel}: ${integer(count)}`];
               },
             },
           },
@@ -425,7 +457,7 @@
     const unit = state.variable.unit ? ` ${state.variable.unit}` : "";
     const tiles = el("climaStats");
     tiles.replaceChildren();
-    tiles.appendChild(statTile("Observações", integer(subset.n)));
+    tiles.appendChild(statTile(capitalized(sampleNoun(state.subsetId)), integer(subset.n)));
 
     if (state.variable.chart === "rose") {
       const circular = subset.circular || {};
@@ -542,17 +574,22 @@
       return;
     }
     panel.hidden = false;
+    const unit = state.variable.unit ? ` ${state.variable.unit}` : "";
 
     for (const [label, value] of parameterRows(subset.fit)) {
       grid.appendChild(fitRow(label, value));
     }
+    if (Number.isFinite(subset.fit.truncation)) {
+      grid.appendChild(fitRow("Condicionada a partir de", `${decimal(subset.fit.truncation, 3)}${unit}`));
+    }
 
     const quality = subset.quality || {};
-    if (quality.ks_distance !== undefined && quality.ks_distance !== null) {
+    if (quality.lattice_ks_distance !== undefined && quality.lattice_ks_distance !== null) {
+      grid.appendChild(fitRow("KS na grade da báscula", percent(quality.lattice_ks_distance, 2)));
+    } else if (quality.ks_distance !== undefined && quality.ks_distance !== null) {
       grid.appendChild(fitRow("Maior discrepância acumulada (KS)", percent(quality.ks_distance, 2)));
     }
     if (quality.quantile_gap !== undefined && quality.quantile_gap !== null) {
-      const unit = state.variable.unit ? ` ${state.variable.unit}` : "";
       grid.appendChild(fitRow("Erro médio de quantil", `${decimal(quality.quantile_gap, 3)}${unit}`));
     }
     if (quality.density_r_squared !== undefined && quality.density_r_squared !== null) {
@@ -674,7 +711,7 @@
       return { header, rows };
     }
     const digits = digitsToDistinguishBins(variable.edges);
-    const header = ["Intervalo", "Observações", "Densidade", "Densidade teórica"];
+    const header = ["Intervalo", capitalized(sampleNoun(state.subsetId)), "Densidade", "Densidade teórica"];
     const rows = subset.counts.map((count, index) => [
       `${decimal(variable.edges[index], digits)} – ${decimal(variable.edges[index + 1], digits)}`,
       integer(count),
@@ -682,6 +719,13 @@
       subset.curve ? decimal(subset.curve[index], 5) : "—",
     ]);
     return { header, rows };
+  }
+
+  function clearTableHead() {
+    for (const cell of el("climaTabelaHead").children) {
+      cell.textContent = "";
+      cell.hidden = true;
+    }
   }
 
   function renderTable(subset) {
@@ -712,11 +756,11 @@
       }
       body.appendChild(line);
     }
-    // The caption counts the BARS, not the subset: samples outside the histogram edges are in `subset.n` but have
-    // no row here, so announcing `n` over this table would promise rows it does not have.
-    const binned = (subset.counts || []).reduce((total, count) => total + count, 0);
+    const isRose = state.variable.chart === "rose";
+    const counted = isRose ? subset.n : (subset.counts || []).reduce((total, count) => total + count, 0);
+    const marks = isRose ? "pétalas" : "barras";
     el("climaTabelaCaption").textContent =
-      `${state.variable.label} — ${subsetLabel(state.subsetId)} (${integer(binned)} observações nas barras)`;
+      `${state.variable.label} — ${subsetLabel(state.subsetId)} (${integer(counted)} ${sampleNoun(state.subsetId)} nas ${marks})`;
   }
 
   function exportCsv() {
@@ -746,13 +790,13 @@
       column.setAttribute("role", "img");
       column.setAttribute(
         "aria-label",
-        hours ? `${entry.year}: ${integer(hours)} horas válidas` : `${entry.year}: sem observação`
+        hours ? `${entry.year}: ${integer(hours)} horas registradas` : `${entry.year}: sem observação`
       );
 
       const bar = document.createElement("div");
       bar.className = "clima-coverage-bar";
       bar.style.height = `${Math.round((hours / (peak || 1)) * 100)}%`;
-      bar.title = `${entry.year}: ${integer(hours)} horas válidas`;
+      bar.title = `${entry.year}: ${integer(hours)} horas registradas`;
 
       const track = document.createElement("div");
       track.className = "clima-coverage-track";
@@ -771,7 +815,7 @@
     // out the same for every variable and contradicts the per-variable bars just above.
     const seasons = (state.manifest.coverage && state.manifest.coverage.seasons) || [];
     const seasonNote = seasons
-      .map((season) => `${season.season}: ${integer((season.hours || {})[state.variableId] || 0)} horas válidas`)
+      .map((season) => `${season.season}: ${integer((season.hours || {})[state.variableId] || 0)} horas registradas`)
       .join(" · ");
     // With the per-variable scale the top of the track means something different for each one, so without the peak
     // written out a sparsely measured variable would look as well covered as temperature.
@@ -779,16 +823,17 @@
     el("climaSeasons").textContent = [scaleNote, seasonNote].filter(Boolean).join(" ");
   }
 
-  function showEmpty(message) {
-    el("climaApp").hidden = true;
-    const empty = el("climaEmpty");
-    empty.hidden = false;
-    el("climaEmptyMessage").textContent = message;
+  function showFamilyExplanations() {
+    for (const node of document.querySelectorAll("[data-clima-family]")) {
+      const entry = state.manifest.variables.find((item) => item.id === node.dataset.climaVariable);
+      node.hidden = !entry || entry.family !== node.dataset.climaFamily;
+    }
   }
 
   function render() {
     const subset = currentSubset();
     const isRose = state.variable.chart === "rose";
+    markActiveSubset();
     el("climaChartWrap").hidden = isRose;
     el("climaRoseWrap").hidden = !isRose;
     el("climaTitulo").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)}`;
@@ -800,7 +845,19 @@
     renderCoverage();
 
     if (!subset || !subset.n) {
-      el("climaStatus").textContent = "Sem observações válidas neste recorte.";
+      const modelSilence = "o modelo WRF não publica esta variável";
+      const emptyText = isModelSubset(state.subsetId)
+        ? {
+            absence: `${modelSilence} neste recorte`,
+            status: `${capitalized(modelSilence)} neste recorte.`,
+            count: modelSilence,
+          }
+        : {
+            absence: "sem observações neste recorte",
+            status: "Sem observações válidas neste recorte.",
+            count: "0 observações",
+          };
+      el("climaStatus").textContent = emptyText.status;
       el("climaStats").replaceChildren();
       el("climaFitPanel").hidden = true;
       el("climaAtoms").textContent = "";
@@ -808,11 +865,13 @@
       // Emptied by hand instead of through renderTable(): there may be no subset object at all, and a rose with no
       // observations may be missing `frequencies`.
       el("climaTabelaBody").replaceChildren();
-      el("climaTabelaCaption").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)} (0 observações)`;
+      clearTableHead();
+      el("climaTabelaCaption").textContent =
+        `${state.variable.label} — ${subsetLabel(state.subsetId)} (${emptyText.count})`;
       el("climaExport").disabled = true;
       el("climaCanvas").setAttribute(
         "aria-label",
-        `Histograma de ${state.variable.label} — ${subsetLabel(state.subsetId)}: sem observações neste recorte.`
+        `Histograma de ${state.variable.label} — ${subsetLabel(state.subsetId)}: ${emptyText.absence}.`
       );
       if (state.chart) {
         state.chart.destroy();
@@ -822,7 +881,7 @@
         el("climaRose").replaceChildren();
         el("climaRose").setAttribute(
           "aria-label",
-          `Rosa dos ventos — ${subsetLabel(state.subsetId)}: sem observações neste recorte.`
+          `Rosa dos ventos — ${subsetLabel(state.subsetId)}: ${emptyText.absence}.`
         );
       }
       return;
@@ -847,14 +906,14 @@
     const marks = isRose ? "Pétalas" : "Barras";
     const legend = el("climaLegenda");
     if (subset.curve) {
-      legend.replaceChildren(document.createTextNode(`${marks}: frequência medida. Linha: `));
+      legend.replaceChildren(document.createTextNode(`${marks}: ${frequencyNoun(state.subsetId)}. Linha: `));
       legend.appendChild(withReferences(state.variable.family_label));
       legend.appendChild(document.createTextNode("."));
     } else {
-      legend.textContent = `${marks}: frequência medida. Esta variável não tem densidade teórica canônica.`;
+      legend.textContent = `${marks}: ${frequencyNoun(state.subsetId)}. Esta variável não tem densidade teórica canônica.`;
     }
     el("climaStatus").textContent =
-      `${state.variable.label}, ${subsetLabel(state.subsetId)}: ${integer(subset.n)} observações.` +
+      `${state.variable.label}, ${subsetLabel(state.subsetId)}: ${integer(subset.n)} ${sampleNoun(state.subsetId)}.` +
       overflowNote(subset);
   }
 
@@ -865,6 +924,7 @@
     console.error(error);
     // Mandatory: keeps the previous variable's chart and table from sitting under the label of the one that failed.
     state.variable = null;
+    markActiveSubset();
     const entry = (state.manifest.variables || []).find((item) => item.id === state.variableId);
     const label = entry ? entry.label : state.variableId;
 
@@ -876,6 +936,7 @@
     el("climaFitPanel").hidden = true;
     el("climaAtoms").textContent = "";
     el("climaTabelaBody").replaceChildren();
+    clearTableHead();
     el("climaTabelaCaption").textContent = "Sem dados para exibir.";
     el("climaExport").disabled = true;
     el("climaCaveats").replaceChildren();
@@ -891,6 +952,16 @@
     }
     // Depends only on the manifest and on the chosen id, so it stays correct.
     renderCoverage();
+  }
+
+  function redrawSubset() {
+    const subset = currentSubset();
+    if (!subset || !subset.n) return;
+    if (state.variable.chart === "rose") {
+      drawRose(subset);
+    } else {
+      drawHistogram(subset);
+    }
   }
 
   async function refresh() {
@@ -913,19 +984,19 @@
     if (!root) return;
     state.base = (root.dataset.climatologyBase || "").replace(/\/$/, "");
     if (!state.base) {
-      showEmpty("Esta publicação ainda não declara um diretório de climatologia.");
+      showEmpty("clima", "Esta publicação ainda não declara um diretório de climatologia.");
       return;
     }
     if (typeof Chart === "undefined") {
-      showEmpty("A biblioteca de gráficos não carregou.");
+      showEmpty("clima", "A biblioteca de gráficos não carregou.");
       return;
     }
 
-    el("climaEmpty").hidden = false;
     try {
       state.manifest = await fetchJson(`${state.base}/manifest.json`);
     } catch {
       showEmpty(
+        "clima",
         "Os dados de climatologia ainda não foram publicados para esta região. " +
           "Eles são anexados ao site no deploy, separadamente das páginas."
       );
@@ -936,9 +1007,10 @@
     refs().register(state.manifest.references);
 
     if (!state.manifest.variables || !state.manifest.variables.length) {
-      showEmpty("O conjunto publicado não declara nenhuma variável.");
+      showEmpty("clima", "O conjunto publicado não declara nenhuma variável.");
       return;
     }
+    showFamilyExplanations();
 
     state.variableId = state.manifest.variables[0].id;
     state.subsetId = state.manifest.selector[0];
@@ -955,14 +1027,9 @@
     el("climaApp").hidden = false;
     await refresh();
 
-    window.addEventListener("labmim-theme-change", () => {
-      const subset = currentSubset();
-      if (!subset || !subset.n) return;
-      if (state.variable.chart === "rose") {
-        drawRose(subset);
-      } else {
-        drawHistogram(subset);
-      }
+    window.addEventListener("labmim-theme-change", redrawSubset);
+    window.addEventListener("labmim-print-change", (event) => {
+      if (event.detail.paletteChanged) redrawSubset();
     });
   }
 

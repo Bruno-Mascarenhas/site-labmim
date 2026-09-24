@@ -30,7 +30,10 @@
 <main class="container-main" id="main">
   <h1 class="visually-hidden">{{h1}}</h1>
 
-  <div id="map"></div>
+  <div id="map">
+    <!-- Decorative overlay: a mute canvas only clutters the a11y tree. -->
+    <canvas id="windVectorCanvas" aria-hidden="true"></canvas>
+  </div>
 
   <div class="sidebar" id="sidebar">
     <div class="sidebar-logo-header">
@@ -40,12 +43,12 @@
     </div>
     <div class="sidebar-header">
       <!-- h2, not h3: first heading after the h1, so h3 would skip a level. -->
-      <h2>Detalhes da Célula</h2>
+      <h2 id="sidebarTitle">Detalhes da Célula</h2>
       <button type="button" class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Fechar painel de detalhes">
-        <i class="fas fa-times" aria-hidden="true"></i>
+        <i class="fas fa-times"></i>
       </button>
     </div>
-    <div class="sidebar-content" id="sidebarContent" aria-live="polite"></div>
+    <section class="sidebar-content" id="sidebarContent" tabindex="0" aria-labelledby="sidebarTitle" aria-live="polite"></section>
   </div>
 
   <div class="colorbar-container">
@@ -70,6 +73,7 @@
       <input
         type="range"
         id="layerSlider"
+        aria-describedby="layerSliderTimezoneNote"
         min="1"
         max="{{TIMELINE_MAX}}"
         step="1"
@@ -79,8 +83,10 @@
         <span class="slider-time" id="layerLabel">Carregando...</span>
         <i
           class="fas fa-question-circle slider-helper-icon"
+          aria-hidden="true"
           title="Horários convertidos das saídas WRF para {{TIMEZONE_LABEL}}."
         ></i>
+        <span class="visually-hidden" id="layerSliderTimezoneNote">Horários convertidos das saídas WRF para {{TIMEZONE_LABEL}}.</span>
       </div>
     </div>
 
@@ -132,9 +138,6 @@
     </label>
   </div>
 
-  <!-- Decorative overlay: a mute canvas only clutters the a11y tree. -->
-  <canvas id="windVectorCanvas" aria-hidden="true"></canvas>
-
   <div class="documentation-btn-container">
     <button type="button" class="documentation-btn" id="docBtn" title="Abrir Documentação">
       <i class="fas fa-question-circle"></i>
@@ -182,15 +185,15 @@
       <div class="documentation-header">
         <h2 id="documentationModalTitle">{{docModalTitle}}</h2>
         <button type="button" class="documentation-close" id="docCloseBtn" aria-label="Fechar documentação">
-          <i class="fas fa-times" aria-hidden="true"></i>
+          <i class="fas fa-times"></i>
         </button>
       </div>
 
       <div class="documentation-tabs" role="tablist" aria-label="Seções da documentação">
-        <button type="button" class="doc-tab active" role="tab" id="docTab-overview" aria-selected="true" tabindex="0" aria-controls="docPanel-overview" data-tab="overview"><i class="fas fa-map" aria-hidden="true"></i> Visão Geral</button>
-        <button type="button" class="doc-tab" role="tab" id="docTab-features" aria-selected="false" tabindex="-1" aria-controls="docPanel-features" data-tab="features"><i class="fas fa-cogs" aria-hidden="true"></i> Funcionalidades</button>
-        <button type="button" class="doc-tab" role="tab" id="docTab-variables" aria-selected="false" tabindex="-1" aria-controls="docPanel-variables" data-tab="variables"><i class="fas fa-chart-bar" aria-hidden="true"></i> Variáveis</button>
-        <button type="button" class="doc-tab" role="tab" id="docTab-wrf" aria-selected="false" tabindex="-1" aria-controls="docPanel-wrf" data-tab="wrf"><i class="fas fa-database" aria-hidden="true"></i> Dados WRF</button>
+        <button type="button" class="doc-tab active" role="tab" id="docTab-overview" aria-selected="true" tabindex="0" aria-controls="docPanel-overview" data-tab="overview"><i class="fas fa-map"></i> Visão Geral</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-features" aria-selected="false" tabindex="-1" aria-controls="docPanel-features" data-tab="features"><i class="fas fa-cogs"></i> Funcionalidades</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-variables" aria-selected="false" tabindex="-1" aria-controls="docPanel-variables" data-tab="variables"><i class="fas fa-chart-bar"></i> Variáveis</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-wrf" aria-selected="false" tabindex="-1" aria-controls="docPanel-wrf" data-tab="wrf"><i class="fas fa-database"></i> Dados WRF</button>
       </div>
 
       <div class="documentation-body">
@@ -220,7 +223,7 @@
           <i class="fas fa-download"></i> CSV
         </button>
         <button type="button" class="chart-modal-close" id="timeSeriesCloseBtn" title="Fechar" aria-label="Fechar série temporal">
-          <i class="fas fa-times" aria-hidden="true"></i>
+          <i class="fas fa-times"></i>
         </button>
       </div>
     </div>
@@ -243,8 +246,6 @@
 </div>
 
 {{> scripts}}
-
-    <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
 
     <script src="assets/js/variables-config.js" defer></script>
     <script src="assets/js/data-service.js" defer></script>

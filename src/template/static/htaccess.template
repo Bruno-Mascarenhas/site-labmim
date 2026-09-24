@@ -85,9 +85,13 @@ ErrorDocument 404 /404.html
 
   # Vendored libraries are versioned at deploy time and immutable. EXCEPTION:
   # fa-solid-900.woff2 is a regenerable SUBSET — its content changes without the
-  # URL changing — so it stays on the 7-day font rule above.
+  # URL changing — so it is revalidated on every request (no-cache) below.
   <If "%{REQUEST_URI} =~ m#^/assets/vendor/# && %{REQUEST_URI} !~ m#^/assets/vendor/fontawesome/webfonts/#">
     Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+
+  <If "%{REQUEST_URI} =~ m#^/assets/vendor/fontawesome/webfonts/fa-solid-900\.woff2$#">
+    Header set Cache-Control "no-cache"
   </If>
 
   # Monitoring charts: regenerated under the SAME file name by the station.
@@ -112,8 +116,8 @@ ErrorDocument 404 /404.html
   # configuration is merged, which is what lets this override the short CSS/JS
   # rule. Web Workers are included: without the labmim-asset-hashes meta tag
   # their URL comes out with no ?v= and falls back to that short rule.
-  <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(css|js)$#">
-    Header set Cache-Control "public, max-age=31536000, immutable"
+  <If "%{QUERY_STRING} =~ /(^|&)v=[0-9a-f]{8}(&|$)/ && %{REQUEST_URI} =~ m#^/assets/.+\.(css|js)$#">
+    Header set Cache-Control "public, max-age=86400"
   </If>
 
   # Versioned forecast data: 24h rather than a year, so the ceiling limits the

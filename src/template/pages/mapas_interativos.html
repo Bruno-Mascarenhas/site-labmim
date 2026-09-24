@@ -110,12 +110,15 @@
               <p>Pressão atmosférica na superfície obtida da variável <code>PSFC</code>.</p>
               <pre class="doc-formula"><code>PRES_hPa = PSFC_Pa / 100</code></pre>
               <p>
-                Representa a pressão do ar junto à superfície. É útil para interpretação de sistemas meteorológicos,
-                gradientes de pressão e condições sinóticas.
+                É a pressão ao nível do terreno, sem redução ao nível do mar. Ela cai com a altitude, cerca de 11 hPa a
+                cada 100 m, e por isso o mapa é quase um retrato do relevo: valor baixo indica terreno alto, e não
+                sistema de baixa pressão. Pontos em altitudes diferentes não se comparam.
               </p>
               <p>
-                Valores mais baixos podem estar associados a maior instabilidade ou sistemas de baixa pressão; valores
-                mais altos tendem a indicar maior estabilidade atmosférica.
+                A série de uma célula, aberta ao clicar no mapa, mostra como a pressão ao nível do terreno varia ao longo
+                da previsão. {{RUN_NOTE_PRES_MASS_FIELD}} Para sistemas meteorológicos e gradientes horizontais de
+                pressão, use a sobreposição <strong>Isóbaras ao nível do mar</strong>, descrita na aba Funcionalidades.
+                Ela não aparece sobre este campo: ative-a com o vento, a temperatura ou a chuva no mapa.
               </p>
             </div>
           </details>
@@ -196,7 +199,9 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
               </p>
               <p>
                 No mapa, o seletor <strong>Acumulado</strong> escolhe a janela exibida: <code>1h</code> mostra o passo
-                horário do modelo e <code>3h</code> soma os três passos que terminam no horário selecionado. Células com
+                horário do modelo e <code>3h</code> soma os três passos que terminam no horário selecionado. Nas duas
+                primeiras horas da rodada ainda não há três passos: a soma usa os disponíveis, o rótulo mostra
+                <code>(1h de 3h)</code> ou <code>(2h de 3h)</code> e a barra de cores acompanha as horas somadas. Células com
                 menos de <code>0,01 mm</code> na janela escolhida ficam transparentes, para que só apareça onde
                 efetivamente chove.
               </p>
@@ -215,6 +220,13 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 Radiação solar de onda curta incidente na superfície. Na página de Previsões, é tratada como variável
                 radiativa meteorológica, sem cálculo de geração fotovoltaica.
               </p>
+              <p>
+                O <code>SWDOWN</code> é um fluxo instantâneo, e não a média da hora:
+                multiplicado por 1 h, erra para mais ou para menos conforme o sol e as nuvens mudam dentro do passo. Por
+                isso, quando a rodada publica a <strong>Irradiação Solar do Passo</strong> (<code>SW_IRRAD</code>), o
+                painel da célula mostra a energia do passo a partir dela, com a duração real. Sem ela, o painel volta à
+                estimativa pelo fluxo instantâneo × 1 h e a rotula assim.
+              </p>
               <pre class="doc-formula"><code>Rn = SWDOWN - SWUP + GLW - LWUP</code></pre>
               <ul class="doc-list">
                 <li><code>Rn</code> é a radiação líquida.</li>
@@ -228,6 +240,51 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 indicam céu mais limpo e maior insolação. Os demais termos da equação acima também são exibidos no mapa
                 — <code>SWUP</code>, <code>SWNET</code>, <code>LWUP</code>, <code>LWNET</code> e o saldo
                 <code>RNET</code>.
+              </p>
+              <p>
+                Quando a rodada usa <code>SWINT_OPT = 0</code>, o <code>SWDOWN</code> de cada horário é o da última
+                chamada de radiação do domínio, calculada para o sol de um instante que pode ficar vários minutos antes ou
+                depois do horário e que muda de um domínio para outro. Se a rodada informa esse instante, o painel da
+                célula o mostra em <strong>Cálculo da radiação</strong>, também para <code>SWUP</code>,
+                <code>SWNET</code>, <code>RNET</code>, <code>KT</code> e <code>KSTAR</code>.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>☀️ Irradiação Solar do Passo (SW_IRRAD)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: kJ/m²</span>
+                <span class="doc-var-badge">JSON id: SW_IRRAD</span>
+                <span class="doc-var-badge">Fonte WRF: ACSWDNB</span>
+              </div>
+              <p>
+                Energia solar de onda curta que chegou à superfície durante o passo que termina no horário exibido: o
+                valor das 12h cobre das 11h às 12h, a mesma convenção da precipitação. À noite vale zero.
+              </p>
+              <pre class="doc-formula"><code>SW_IRRAD(t) = (ACSWDNB(t) - ACSWDNB(t-1)) / 1000</code></pre>
+              <ul class="doc-list">
+                <li>
+                  <code>ACSWDNB</code> é a onda curta descendente na superfície que o WRF acumula desde o início da
+                  rodada, em J/m².
+                </li>
+                <li>Dividir por 1000 leva de J/m² a kJ/m²; dividir kJ/m² por 3,6 dá Wh/m².</li>
+              </ul>
+              <p>
+                Ao contrário do <code>SWDOWN</code>, que é um fluxo instantâneo, a diferença do
+                acumulado soma o sol de todo o passo. É dela que o painel tira a energia do passo na Radiação Global e a
+                produção fotovoltaica em Potenciais Energéticos.
+              </p>
+              <p>
+                O passo de integração do modelo nem sempre divide a hora exatamente, então o intervalo entre duas saídas
+                seguidas pode ficar alguns segundos ou minutos acima ou abaixo de 1 h. A duração real de cada horário vem
+                no metadado <code>step_seconds</code>, e o painel a mostra junto da energia e do fluxo médio do passo.
+              </p>
+              <p>
+                Na área coberta por um domínio mais fino, o valor do domínio externo é a energia calculada pelo domínio
+                interno. A escala de cores vai de 0 a 4.320 kJ/m², o equivalente a 1.200 W/m² durante 1 h, o mesmo teto
+                do <code>SWDOWN</code>.
               </p>
             </div>
           </details>
@@ -243,21 +300,26 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
               </div>
               <p>
                 Parcela da radiação solar incidente devolvida pela superfície. O <code>wrfout</code> traz os fluxos
-                incidentes diretamente, mas os ascendentes só quando os diagnósticos de fundo de atmosfera do RRTMG
-                estão ligados — <code>SWUPB</code>/<code>LWUPB</code> não existem em nenhuma grade da rodada
-                operacional, então o backend os reconstrói a partir de campos que toda rodada carrega.
+                incidentes diretamente, mas os ascendentes na superfície só quando o esquema de radiação da banda os
+                grava, como faz o RRTMG: o <code>SWUPB</code> na onda curta e o <code>LWUPB</code> na onda longa. O
+                RRTM de onda longa não grava o <code>LWUPB</code>. {{RUN_NOTE_SWUP_MISSING_DIAGNOSTICS}} Por
+                isso o backend reconstrói os dois a partir de campos que toda rodada carrega, e cada termo sai da mesma
+                fórmula em qualquer rodada.
               </p>
               <pre class="doc-formula"><code>SWUP = ALBEDO * SWDOWN</code></pre>
               <p>
                 O albedo depende do uso do solo: água e vegetação densa refletem pouco, solo exposto e áreas urbanas
-                refletem mais. Nesta rodada os valores implícitos ficam entre 0,08 e 0,28, dentro da faixa que o
-                <code>VEGPARM.TBL</code> do WRF permite (0,08 para água a 0,38 para solo exposto).
+                refletem mais. A faixa que o <code>VEGPARM.TBL</code> do WRF permite vai de 0,08 para água a 0,38 para
+                solo exposto. {{RUN_NOTE_SWUP_ALBEDO_RANGE}}
               </p>
               <p>
-                Usar <code>ALBEDO · SWDOWN</code> é deliberado: o <code>SWUPB</code> do RRTMG fica congelado na última
-                chamada de radiação (<code>RADT</code> = 30 min), enquanto <code>SWDOWN</code> é reescalado pelo ângulo
-                zenital a cada passo. Reconstruir mantém <code>SWUP</code>, <code>SWNET</code> e <code>RNET</code>
-                coerentes com o <code>SWDOWN</code> publicado ao lado. É publicada apenas na janela diurna.
+                Com <code>SWINT_OPT = 0</code>, o <code>SWDOWN</code> e o <code>SWUPB</code> vêm da mesma chamada de
+                radiação, e <code>ALBEDO · SWDOWN</code> reproduz o <code>SWUPB</code> nas células que o próprio
+                domínio calcula. Quando o retorno dos ninhos está ligado (<code>FEEDBACK = 1</code>), na área coberta
+                por um domínio mais fino o <code>SWUPB</code> do domínio externo passa a ser a média do domínio interno,
+                e o <code>SWDOWN</code> e o <code>ALBEDO</code> continuam os dele. {{RUN_NOTE_SWUP_NEST_FEEDBACK}}
+                Reconstruir como <code>ALBEDO · SWDOWN</code> mantém <code>SWUP</code>, <code>SWNET</code> e
+                <code>RNET</code> coerentes com o <code>SWDOWN</code> publicado. É publicada apenas na janela diurna.
               </p>
             </div>
           </details>
@@ -322,10 +384,12 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 <li>A parcela <code>(1 − EMISS) · GLW</code> é a reflexão da onda longa do céu.</li>
               </ul>
               <p>
-                Não é uma aproximação do que o WRF faz — é a própria expressão do modelo: o <code>rtrnmc</code> do RRTMG
-                monta a radiância ascendente como <code>rad0 + reflect · radld</code>, com
-                <code>rad0 = ε·B(Ts)</code> e <code>reflect = 1 − ε</code>, e o ramo urbano do Noah a escreve por
-                extenso. Descartar o termo refletido abriria o fechamento do balanço de energia em cerca de 22 W/m².
+                Não é uma aproximação do que o WRF faz — é a própria expressão do modelo. Os dois esquemas de onda
+                longa montam a radiância ascendente assim: o <code>rtrn</code> do RRTM como
+                <code>raduemit + (1 − semis) · radld</code> e o <code>rtrnmc</code> do RRTMG como
+                <code>rad0 + reflect · radld</code>, ambos com a emissão <code>ε·B(Ts)</code> e a refletância
+                <code>1 − ε</code>; o ramo urbano do Noah a escreve por extenso. Descartar o termo refletido abriria o
+                fechamento do balanço de energia. {{RUN_NOTE_LWUP_REFLECTED_TERM}}
               </p>
               <p>
                 Cresce com a quarta potência da temperatura da superfície, então acompanha de perto o aquecimento
@@ -350,8 +414,7 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                 aproxima o saldo de zero.
               </p>
               <p>
-                Nesta rodada o saldo é negativo em 99,5% a 99,9% das células de terra, com magnitude mediana de 53 a
-                61 W/m², coerente com a faixa de 75 a 125 W/m² que Oke (1987) dá para o valor típico.
+                Oke (1987) dá a faixa de 75 a 125 W/m² para o valor típico da perda. {{RUN_NOTE_LWNET_LAND_CELLS}}
               </p>
             </div>
           </details>
@@ -373,17 +436,19 @@ RNET = H + LE + G</code></pre>
               <ul class="doc-list">
                 <li><code>H</code> é o fluxo de calor sensível (<code>HFX</code>).</li>
                 <li><code>LE</code> é o fluxo de calor latente (<code>LH</code>).</li>
-                <li><code>G</code> é o fluxo de calor no solo, não exibido no mapa.</li>
+                <li><code>G</code> é o fluxo de calor no solo, positivo para dentro do solo, não exibido no mapa.</li>
               </ul>
               <p>
                 Positivo de dia, quando a onda curta domina, e negativo à noite, quando resta apenas a perda de onda
-                longa. Ao clicar numa célula, o painel mostra <code>H</code> e <code>LE</code> ao lado do saldo, de modo
-                que a fração que sobra para o solo fica legível na própria caixa.
+                longa. A troca de sinal não coincide com o nascer e o pôr do sol: o saldo cruza zero pouco depois do
+                nascer e pouco antes do pôr, quando o sol baixo não basta para cobrir a perda de onda longa. Por isso o
+                painel diz apenas se há ganho ou perda radiativa, sem deduzir se é dia ou noite. Ao clicar numa célula, o
+                painel mostra <code>H</code> e <code>LE</code> ao lado do saldo, de modo que a fração que sobra para o
+                solo fica legível na própria caixa.
               </p>
               <p>
                 O fechamento do balanço é o que valida os termos reconstruídos nas grades que não trazem
-                <code>LWUPB</code>: mediado sobre três dias inteiros, <code>Rn + G = H + LE</code> fecha com resíduo de
-                0,6 a 1,4 W/m² nos quatro domínios.
+                <code>LWUPB</code>. {{RUN_NOTE_RNET_CLOSURE}}
               </p>
             </div>
           </details>
@@ -455,10 +520,17 @@ RNET = H + LE + G</code></pre>
                 temperatura do ar em abrigo — no denominador, e não a temperatura da superfície.
               </p>
               <p>
-                Sobe com umidade e nebulosidade, o que a torna um indicador prático de cobertura do céu; o painel
-                classifica acima de 0,90 como encoberto ou ar muito úmido e abaixo de 0,80 como céu mais limpo. Para
-                comparação, Herrero &amp; Polo (2012) medem média de 0,68 em céu limpo e acima de 0,95 em céu encoberto,
-                chegando a 1. Como é uma razão, não tem unidade.
+                Sobe com a umidade e com a nebulosidade. O painel classifica acima de 0,90 como encoberto ou ar muito
+                úmido e abaixo de 0,80 como céu seco. A faixa do meio não separa céu limpo de céu com nuvens: pela
+                fórmula de [[prata1996]], com a temperatura e a umidade típicas do litoral tropical, a emissividade de
+                céu limpo fica entre cerca de 0,84 e 0,88, dentro da faixa do meio. {{RUN_NOTE_EPS_SKY_CLEAR_CELLS}}
+                Como é uma razão, não tem unidade.
+              </p>
+              <p>
+                A média de 0,68 em céu limpo, medida por [[herrero2012]], vem de uma estação a 2.500 m de altitude na
+                Sierra Nevada, na Espanha, em clima mediterrâneo. Lá há muito menos vapor d'água acima do sensor, e o
+                céu limpo emite bem menos que num litoral tropical úmido. No mesmo trabalho, o céu encoberto passa de
+                0,95.
               </p>
             </div>
           </details>
@@ -485,15 +557,62 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                 <li><code>cos(z)</code> é o cosseno do ângulo zenital solar (<code>COSZEN</code>).</li>
               </ul>
               <p>
-                O painel classifica acima de 0,65 como céu limpo e abaixo de 0,35 como encoberto. Acima de 0,80 há
-                pouquíssimas observações na literatura (Duffie &amp; Beckman), o que a rodada confirma: apenas 0,19% a
-                3,4% das células passam desse valor.
+                Onde a rodada publica o <strong>Índice de Céu Claro</strong> (<code>KSTAR</code>), a classe Céu do
+                painel vem dele, e não do <code>kt</code>: limpo a partir de 0,95, encoberto abaixo de 0,3 e parcialmente
+                nublado entre os dois, com o sol alto ou baixo. O painel mostra os dois índices lado a lado.
+              </p>
+              <p>
+                Sem o <code>KSTAR</code>, seja numa rodada que não o publica, seja numa célula ou num passo em que ele
+                fica sem valor, o painel classifica pelo <code>kt</code>: acima de 0,65 como céu limpo e até 0,35 como
+                encoberto. Esses limiares supõem o sol alto: com o sol baixo, a luz atravessa mais atmosfera e mesmo o céu
+                sem nuvem pode ficar abaixo de 0,65. Por isso, nesse caso, com o sol abaixo de 20° de elevação, calculada
+                para o centro da célula no instante mostrado em <strong>Cálculo da radiação</strong> ou, quando a rodada
+                não o informa, na hora do passo, o painel mostra um aviso de sol baixo no lugar da classe. Acima
+                de 0,80 há pouquíssimas observações na literatura (Duffie &amp; Beckman). {{RUN_NOTE_KT_HIGH_VALUES}}
               </p>
               <p>
                 Com o sol muito baixo o denominador tende a zero e o índice fica instável, então só é publicado acima de
                 10° de elevação solar (ângulo zenital &lt; 80°, o limiar de dia usado pelo ARM
-                <code>DOE/SC-ARM/TR-008</code>). Fora dessa faixa as células aparecem como dado indisponível. Como é uma
-                razão, não tem unidade.
+                <code>DOE/SC-ARM/TR-008</code>). Fora dessa faixa as células aparecem como dado indisponível. O corte
+                usa a elevação dada pelo <code>COSZEN</code> do próprio modelo, que pode ficar alguns graus distante da
+                que o painel calcula para o centro da célula na hora do passo, quando a rodada não informa o instante do
+                cálculo da radiação: por isso o aviso de sol baixo pode
+                mostrar menos de 10° numa célula publicada. Como é uma razão, não tem unidade.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>🌤️ Índice de Céu Claro (KSTAR)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Adimensional</span>
+                <span class="doc-var-badge">JSON id: KSTAR</span>
+                <span class="doc-var-badge">Fonte: SWDOWN + SWDNBC</span>
+                <span class="doc-var-badge">Sol acima de 10°</span>
+              </div>
+              <p>
+                Razão entre a radiação global do modelo e a que ele calcula para o céu sem nuvem na mesma chamada de
+                radiação. O símbolo é <code>k*</code>.
+              </p>
+              <pre class="doc-formula"><code>k* = SWDOWN / SWDNBC</code></pre>
+              <ul class="doc-list">
+                <li>
+                  <code>SWDNBC</code> é a onda curta descendente de céu claro na superfície, que o esquema de radiação
+                  calcula junto com o <code>SWDOWN</code>, para o mesmo sol e a mesma atmosfera, só que sem nuvem.
+                </li>
+              </ul>
+              <p>
+                O <code>kt</code> divide pelo topo da atmosfera e cai com o sol baixo mesmo sem nuvem. O
+                <code>k*</code> compara com o céu claro do próprio modelo na mesma elevação e vale 1 sem nuvem, com o sol
+                alto ou baixo. Por isso a classe Céu do painel do Índice de Transparência vem do <code>k*</code> quando
+                ele existe: limpo a partir de 0,95, encoberto abaixo de 0,3 e parcialmente nublado entre os dois.
+              </p>
+              <p>
+                Fica sem valor com o sol abaixo de 10° de elevação, pelo mesmo corte do <code>kt</code>, no passo
+                inicial da rodada, antes da primeira chamada de radiação, e, num domínio externo, sobre a área coberta por
+                um domínio mais fino. Só aparece quando a saída do modelo traz o <code>SWDNBC</code>. Como é uma razão, não
+                tem unidade.
               </p>
             </div>
           </details>
@@ -508,7 +627,8 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
               </p>
               <ul class="doc-list">
                 <li>
-                  <strong>Forma de corpo cinza:</strong> código-fonte do WRF — <code>rtrnmc</code> do RRTMG em
+                  <strong>Forma de corpo cinza:</strong> código-fonte do WRF — <code>rtrn</code> do RRTM em
+                  <code>phys/module_ra_rrtm.F</code>, <code>rtrnmc</code> do RRTMG em
                   <code>phys/module_ra_rrtmg_lw.F</code> e o ramo urbano do Noah em
                   <code>phys/module_sf_noahdrv.F</code>.
                 </li>
@@ -525,12 +645,13 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                 </li>
                 <li>
                   <strong>Emissividade do céu:</strong> Yang, J. <em>et al.</em> (2023),
-                  <em>Atmos. Chem. Phys.</em> 23(8), 4419-4430,
+                  <em>Atmos. Chem. Phys.</em> 23(7), 4419-4430,
                   <a href="https://doi.org/10.5194/acp-23-4419-2023" rel="noopener" target="_blank">doi:10.5194/acp-23-4419-2023</a>
                   (define ε = DLR/σTa⁴); Herrero, J. &amp; Polo, M. J. (2012), <em>Hydrol. Earth Syst. Sci.</em> 16,
                   3139-3147,
                   <a href="https://doi.org/10.5194/hess-16-3139-2012" rel="noopener" target="_blank">doi:10.5194/hess-16-3139-2012</a>;
-                  Brutsaert, W. (1975), <em>Water Resour. Res.</em> 11(5), 742-744, para a curva de céu limpo.
+                  Brutsaert, W. (1975), <em>Water Resour. Res.</em> 11(5), 742-744, para a curva de céu limpo;
+                  [[prata1996]], para a emissividade de céu limpo do litoral úmido.
                 </li>
                 <li>
                   <strong>Índice de transparência:</strong> Duffie, J. A. &amp; Beckman, W. A.
