@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
-const { GLYPH_RULE, glyphCodepoints } = require("./site-builder/fontawesome-glyphs.js");
+const { GLYPH_RULE, glyphCodepoints, manifestDisagreements } = require("./site-builder/fontawesome-glyphs.js");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fontAwesomeDir = path.join(root, "site", "assets", "vendor", "fontawesome");
@@ -43,22 +43,17 @@ function isSubsetFontFace(rule) {
 }
 
 function manifestGlyphRules(manifest, codepoints) {
-  const problems = [];
-  const rules = Object.entries(manifest.glyphs)
-    .sort(([left], [right]) => left.localeCompare(right, "en"))
-    .map(([name, code]) => {
-      const expected = codepoints.get(name);
-      if (!expected) problems.push(`${name}: no :before rule in all.min.css`);
-      else if (expected !== code.toLowerCase())
-        problems.push(`${name}: manifest says ${code}, all.min.css says ${expected}`);
-      return `.${name}:before{content:"\\${expected}"}`;
-    });
+  const problems = manifestDisagreements(manifest, codepoints).map(({ name, declared, found }) =>
+    found ? `${name}: manifest says ${declared}, all.min.css says ${found}` : `${name}: no :before rule in all.min.css`
+  );
   if (problems.length > 0) {
     throw new Error(
       `subset-glyphs.json disagrees with all.min.css:\n${problems.map((item) => `  - ${item}`).join("\n")}`
     );
   }
-  return rules;
+  return Object.keys(manifest.glyphs)
+    .sort((left, right) => left.localeCompare(right, "en"))
+    .map((name) => `.${name}:before{content:"\\${codepoints.get(name)}"}`);
 }
 
 function subsetCss(fullCss, manifest) {
@@ -68,14 +63,11 @@ function subsetCss(fullCss, manifest) {
   const topLevelGlyphRules = rules.filter((rule) => GLYPH_RULE.test(rule)).join("");
   const glyphRules = manifestGlyphRules(manifest, glyphCodepoints(topLevelGlyphRules));
 
+  const firstGlyphRule = rules.findIndex((rule) => GLYPH_RULE.test(rule));
   const kept = [];
-  let glyphsPlaced = false;
-  for (const rule of rules) {
-    if (GLYPH_RULE.test(rule)) {
-      if (!glyphsPlaced) kept.push(...glyphRules);
-      glyphsPlaced = true;
-      continue;
-    }
+  for (const [index, rule] of rules.entries()) {
+    if (index === firstGlyphRule) kept.push(...glyphRules);
+    if (GLYPH_RULE.test(rule)) continue;
     if (rule.startsWith("@font-face") && !isSubsetFontFace(rule)) continue;
     kept.push(rule);
   }

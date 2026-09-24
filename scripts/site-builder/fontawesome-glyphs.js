@@ -15,10 +15,17 @@ function glyphCodepoints(css) {
   return codepoints;
 }
 
+function manifestDisagreements(manifest, codepoints) {
+  return Object.entries(manifest.glyphs)
+    .sort(([left], [right]) => left.localeCompare(right, "en"))
+    .filter(([name, code]) => codepoints.get(name) !== code.toLowerCase())
+    .map(([name, code]) => ({ name, declared: code, found: codepoints.get(name) }));
+}
+
 function hasFontAwesomeClass(tagAttributes) {
   const classAttribute = tagAttributes.match(CLASS_ATTRIBUTE);
   const classes = (classAttribute?.[1] ?? classAttribute?.[2] ?? "").split(/\s+/);
   return classes.some((name) => FONT_AWESOME_CLASS.test(name));
 }
 
-module.exports = { GLYPH_RULE, I_TAG, glyphCodepoints, hasFontAwesomeClass };
+module.exports = { GLYPH_RULE, I_TAG, glyphCodepoints, hasFontAwesomeClass, manifestDisagreements };
