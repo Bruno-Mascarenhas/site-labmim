@@ -869,14 +869,6 @@
   color: var(--text-secondary);
 }
 
-.monitor-model-note {
-  width: 0;
-  min-width: 100%;
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
 /* A seven-day window is ~2000 raw samples: narrower than this and the series
    smear into a smudge. */
 .monitor-grid {
