@@ -708,6 +708,13 @@
     return { header, rows };
   }
 
+  function clearTableHead() {
+    for (const cell of el("climaTabelaHead").children) {
+      cell.textContent = "";
+      cell.hidden = true;
+    }
+  }
+
   function renderTable(subset) {
     const { header, rows } = tableRows(subset);
     const head = el("climaTabelaHead");
@@ -839,6 +846,7 @@
       // Emptied by hand instead of through renderTable(): there may be no subset object at all, and a rose with no
       // observations may be missing `frequencies`.
       el("climaTabelaBody").replaceChildren();
+      clearTableHead();
       const emptyCount = modelSilent ? "o modelo WRF não publica esta variável" : "0 observações";
       el("climaTabelaCaption").textContent = `${state.variable.label} — ${subsetLabel(state.subsetId)} (${emptyCount})`;
       el("climaExport").disabled = true;
@@ -905,6 +913,7 @@
     el("climaFitPanel").hidden = true;
     el("climaAtoms").textContent = "";
     el("climaTabelaBody").replaceChildren();
+    clearTableHead();
     el("climaTabelaCaption").textContent = "Sem dados para exibir.";
     el("climaExport").disabled = true;
     el("climaCaveats").replaceChildren();
