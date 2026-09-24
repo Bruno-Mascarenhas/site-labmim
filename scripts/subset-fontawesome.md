@@ -35,6 +35,14 @@ bloqueia PRs. O que o check varre:
   `dist/<id>/*.html`, ignorando `vendor/` e `node_modules/`. Nomes que não
   são glifos reais (utilitários como `fa-2x`/`fa-fw`) são filtrados via
   `all.min.css`.
+- Classe montada por template string nesses mesmos arquivos (`fa-${nome}`,
+  `fa-arrow-${lado}`): o check falha, porque o nome do glifo não aparece
+  no código e ficaria fora do subset. Guarde o nome completo na
+  configuração (`faIcon: "fa-fan"`) e interpole a classe inteira
+  (`class="fas ${icone}"`).
+- `faIcon` com valor literal sem o prefixo `fa-` (`faIcon: "snowflake"`):
+  o check falha, porque a classe interpolada no título do modal não casaria
+  com glifo nenhum e o nome não entraria na conferência do subset.
 - Codepoints usados direto em CSS: regras `content: "\fXXX"` em
   `site/assets/css/**/*.css`, em `src/**/*.css` (o CSS por publicação) e
   nos bundles `dist/<id>/assets/css/**/*.css` (ex.: maps.css usa `\f078`).

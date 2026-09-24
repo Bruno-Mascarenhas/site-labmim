@@ -1691,7 +1691,7 @@ $ labmim-wrf-geojson -v UST \
 frictionVelocity: {
   id: "UST", sourceId: "UST", // == {VAR}
   label: "Velocidade de fricção", unit: "m/s",
-  faIcon: "wind",
+  faIcon: "fa-wind",
   colors: ["#f7fbff", /* rampa editorial */ "#08306b"],
   scaleMin: 0, scaleMax: 2, // validar com dados reais
   summary: "Escala turbulenta próxima à superfície.",

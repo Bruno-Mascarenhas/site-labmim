@@ -26,11 +26,44 @@ const sources = [
 ];
 
 const usedNames = new Set();
+const templatedIconClasses = [];
+const unprefixedFaIcons = [];
 for (const file of sources) {
   const text = readFileSync(join(root, file), "utf8");
   for (const match of text.matchAll(/\bfa-[a-z0-9-]+/g)) {
     usedNames.add(match[0]);
   }
+  for (const match of text.matchAll(/\bfa-[a-z0-9-]*\$\{/g)) {
+    const line = text.slice(0, match.index).split("\n").length;
+    templatedIconClasses.push(`${file}:${line}: ${match[0]}`);
+  }
+  for (const match of text.matchAll(/\bfaIcon\s*:\s*["'`](?!fa-)[^"'`]*["'`]/g)) {
+    const line = text.slice(0, match.index).split("\n").length;
+    unprefixedFaIcons.push(`${file}:${line}: ${match[0]}`);
+  }
+}
+
+if (templatedIconClasses.length > 0) {
+  console.error(
+    "✗ Classe Font Awesome montada por template string " +
+      "(o nome do glifo não aparece no código, e o subset pode ficar sem ele):"
+  );
+  for (const entry of templatedIconClasses) console.error(`  - ${entry}`);
+  console.error(
+    '\nGuarde o nome completo na configuração ("fa-fan", não "fan") e interpole a classe inteira: ' +
+      'class="fas ${icone}".'
+  );
+  process.exit(1);
+}
+
+if (unprefixedFaIcons.length > 0) {
+  console.error(
+    "✗ faIcon sem o prefixo fa- (a classe do título do modal não casaria com glifo nenhum, " +
+      "e o check não veria o nome para conferir o subset):"
+  );
+  for (const entry of unprefixedFaIcons) console.error(`  - ${entry}`);
+  console.error('\nEscreva o nome completo do glifo: faIcon: "fa-fan", não "fan".');
+  process.exit(1);
 }
 
 // First-party CSS can consume a glyph by raw codepoint (maps.css uses content: "\f078"
