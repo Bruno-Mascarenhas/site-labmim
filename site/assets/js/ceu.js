@@ -3828,18 +3828,18 @@
     return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
   }
 
+  async function paintInTurns(...steps) {
+    for (const step of steps) {
+      await afterNextPaint();
+      await step();
+    }
+  }
+
   async function onThemeChange() {
     buildClassToggles();
     buildModelToggles();
     renderPredictionCard();
-    await afterNextPaint();
-    drawChart();
-    await afterNextPaint();
-    drawCumulative();
-    await afterNextPaint();
-    await drawTimeline();
-    await afterNextPaint();
-    drawModelCard();
+    await paintInTurns(drawChart, drawCumulative, drawTimeline, drawModelCard);
   }
 
   function applyChartPayload(chart) {
@@ -4008,30 +4008,31 @@
     window.addEventListener("labmim-print-change", (event) => {
       if (event.detail.paletteChanged) onThemeChange();
     });
-    await afterNextPaint();
-    await drawTimeline();
-    announceStatusChanges();
-    await afterNextPaint();
-    drawModelCard();
-    // Last, so it sees every citation the page ended up making — the static prose already decorated by
-    // references.js, plus the markers the payloads brought in.
-    renderReferences();
-    await afterNextPaint();
-    drawChart();
-    await afterNextPaint();
-    drawCumulative();
-
-    followPublications();
-
-    await afterNextPaint();
-    applyChartPayload(await chartRequest);
-    if (state.layers.has("points")) ensurePoints();
-    registerPayloadReferences();
-    renderHeader();
-    buildCaveatsAndToggles();
-    renderReferences();
-    drawChart();
-    settleEmptyState();
+    await paintInTurns(
+      async () => {
+        await drawTimeline();
+        announceStatusChanges();
+      },
+      () => {
+        drawModelCard();
+        renderReferences();
+      },
+      drawChart,
+      () => {
+        drawCumulative();
+        followPublications();
+      },
+      async () => {
+        applyChartPayload(await chartRequest);
+        if (state.layers.has("points")) ensurePoints();
+        registerPayloadReferences();
+        renderHeader();
+        buildCaveatsAndToggles();
+        renderReferences();
+        drawChart();
+        settleEmptyState();
+      }
+    );
   }
 
   if (document.readyState === "loading") {
