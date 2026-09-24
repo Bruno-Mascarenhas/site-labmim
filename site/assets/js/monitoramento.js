@@ -67,7 +67,7 @@
   const STALE_UTC_RECORD_AFTER_MS = 3 * HOUR_MS;
   const UTC_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
   const CSV_STAMP_HEADER = "instante (bruto: fim do intervalo de 5 min, horária: agrega os brutos de hh:00 a hh:55)";
-  const UNPLACED = Object.freeze({ shiftMs: 0, intervalMs: null, pairsByInterval: false });
+  const UNPLACED = Object.freeze({ covers: null, shiftMs: 0, intervalMs: null, pairsByInterval: false });
 
   const state = {
     base: "",
@@ -83,6 +83,10 @@
     plots: new Map(),
     empties: new Map(),
     caveats: new Map(),
+    placements: new Map(),
+    modelCaveats: new Map(),
+    model: null,
+    stationEndUtcMs: null,
     // `redrawAll` works from this recorded intent, not from `charts`: a chart leaves
     // `charts` whenever no selected layer has data, and the observer only fires again
     // when the card crosses the margin it watches.
@@ -198,6 +202,7 @@
       const [fromMs, toMs] = covers.map((minutes) => minutes * MINUTE_MS);
       const isInterval = covers[0] !== covers[1];
       return {
+        covers,
         shiftMs: (fromMs + toMs) / 2,
         intervalMs: isInterval ? [fromMs, toMs] : null,
         pairsByInterval: isInterval,
@@ -205,20 +210,13 @@
     }
     if (layerId === "hourly") {
       return {
+        covers: null,
         shiftMs: HOURLY_CENTER_OFFSET_MS,
         intervalMs: [0, layer.axis.step_minutes * MINUTE_MS],
         pairsByInterval: false,
       };
     }
     return UNPLACED;
-  }
-
-  function placedLayerPoints(chart, layerId, seriesId, from) {
-    const layer = chart.layers[layerId];
-    if (!layer) return null;
-    const placement = layerPlacement(layer, layerId);
-    const points = layerPoints(layer, seriesId, from, placement.shiftMs);
-    return points ? { points, placement } : null;
   }
 
   function layerHasData(layer, seriesId, from) {
@@ -397,10 +395,13 @@
     const from = windowStart();
     const datasets = [];
     const pushPlacedDataset = (layerId, seriesId, makeDataset) => {
-      const placed = placedLayerPoints(chart, layerId, seriesId, from);
-      if (!placed) return;
-      const dataset = makeDataset(placed.points);
-      dataset.labmimPlacement = placed.placement;
+      const layer = chart.layers[layerId];
+      if (!layer) return;
+      const placement = state.placements.get(layer);
+      const points = layerPoints(layer, seriesId, from, placement.shiftMs);
+      if (!points) return;
+      const dataset = makeDataset(points);
+      dataset.labmimPlacement = placement;
       datasets.push(dataset);
     };
     if (state.layers.has("raw")) {
@@ -679,7 +680,7 @@
   }
 
   function csvStampHeader(chart, layers) {
-    const conventions = layers.map((layer) => ({ layer, covers: declaredCovers(chart.layers[layer.id], layer.id) }));
+    const conventions = layers.map((layer) => ({ layer, covers: state.placements.get(chart.layers[layer.id]).covers }));
     if (conventions.some(({ covers }) => !covers)) return CSV_STAMP_HEADER;
     const parts = conventions.map(({ layer, covers }) => `${layerLabel(chart, layer)}: ${coversText(covers)}`);
     return `instante t (${parts.join(", ")})`;
@@ -940,7 +941,7 @@
       );
     }
 
-    const modelCaveats = modelCaveatIndices(chart);
+    const modelCaveats = state.modelCaveats.get(chart.id);
     if (chart.caveats && chart.caveats.length) {
       const list = node("ul", "clima-caveats");
       chart.caveats.forEach((caveat, index) => {
@@ -969,8 +970,8 @@
     return model;
   }
 
-  function modelAbsenceNote(payloadModel) {
-    const model = declaredModel(payloadModel);
+  function modelAbsenceNote() {
+    const model = state.model;
     if (model === null || model.hours_in_window > 0) return null;
     if (!model.loaded || model.end === null) return "Modelo WRF sem dados nesta janela.";
     const end = parseStationTime(model.end);
@@ -1069,12 +1070,11 @@
     return parseStationTime(utcEnd);
   }
 
-  function stationSilence(windowInfo, stationEnd) {
-    const utcEndMs = stationEndUtcMs(windowInfo);
-    if (utcEndMs === null) {
+  function stationSilence(stationEnd) {
+    if (state.stationEndUtcMs === null) {
       return { silenceMs: Date.now() - stationEnd, staleAfterMs: STALE_NAIVE_RECORD_AFTER_MS };
     }
-    return { silenceMs: Date.now() - utcEndMs, staleAfterMs: STALE_UTC_RECORD_AFTER_MS };
+    return { silenceMs: Date.now() - state.stationEndUtcMs, staleAfterMs: STALE_UTC_RECORD_AFTER_MS };
   }
 
   function formatSilence(silenceMs) {
@@ -1117,22 +1117,23 @@
           ? `${recordText}; modelo até ${formatStampYear(end)}`
           : recordText;
     }
-    renderStaleRecordNotice(stationEnd, stationSilence(windowInfo, stationEnd));
+    renderStaleRecordNotice(stationEnd, stationSilence(stationEnd));
     const generated = parseStationTime(state.payload.generated_utc || "");
     el("monitorAtualizado").textContent = Number.isFinite(generated)
       ? `Publicado em ${formatStampYear(generated)} UTC`
       : "";
   }
 
-  function assertDeclaredFields(payload) {
+  function normalizePayload(payload) {
     for (const chart of payload.charts) {
       for (const { id } of LAYERS) {
-        if (chart.layers[id]) declaredCovers(chart.layers[id], id);
+        const layer = chart.layers[id];
+        if (layer) state.placements.set(layer, layerPlacement(layer, id));
       }
-      modelCaveatIndices(chart);
+      state.modelCaveats.set(chart.id, modelCaveatIndices(chart));
     }
-    stationEndUtcMs(payload.window || {});
-    declaredModel(payload.model);
+    state.stationEndUtcMs = stationEndUtcMs(payload.window || {});
+    state.model = declaredModel(payload.model);
   }
 
   async function start() {
@@ -1186,7 +1187,7 @@
     }
 
     try {
-      assertDeclaredFields(state.payload);
+      normalizePayload(state.payload);
     } catch (error) {
       console.error(error);
       showEmpty("monitor", "O documento de monitoramento publicado tem um campo fora do formato esperado.");
@@ -1194,7 +1195,7 @@
     }
 
     renderHeader();
-    const modelAbsence = modelAbsenceNote(state.payload.model);
+    const modelAbsence = modelAbsenceNote();
     buildLayerToggles(modelAbsence);
     buildWindowChips();
 
