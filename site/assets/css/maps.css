@@ -1448,6 +1448,7 @@ header.maps-header {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   color: white;
   font-weight: 500;
+  pointer-events: none;
   animation: slideInRight 0.3s ease;
 }
 
