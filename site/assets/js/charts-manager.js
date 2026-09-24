@@ -14,6 +14,7 @@ const CHART_SERIES_FALLBACK = "#0d6efd";
 const PARTIAL_COVERAGE_POINT_RADIUS_PX = 5;
 const PARTIAL_COVERAGE_POINT_BORDER_WIDTH_PX = 2;
 const HOLLOW_POINT_FILL = "rgba(0, 0, 0, 0)";
+const INSTANT_UPDATE_MODE_REFRESHING_POINT_OPTIONS = "instantRefresh";
 
 function relativeLuminance(hex) {
   const channel = (offset) => {
@@ -691,7 +692,7 @@ class ChartsManager {
       chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
       this._applyPreviewPoints(chartInstance, gapped, chartColor);
       this._applyChartTheme(chartInstance, chartColor);
-      chartInstance.update("none");
+      chartInstance.update(INSTANT_UPDATE_MODE_REFRESHING_POINT_OPTIONS);
       return;
     }
 
@@ -700,7 +701,6 @@ class ChartsManager {
     chartInstance = new Chart(canvas.getContext("2d"), previewConfig);
     chartInstance.options.plugins.legend.display = false;
     chartInstance.options.scales.x.ticks.maxTicksLimit = 6;
-    chartInstance.options.elements = { point: { radius: 0 } };
     chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
     chartInstance.update("none");
     this.previewCharts.set(canvasId, chartInstance);
@@ -788,7 +788,7 @@ class ChartsManager {
       chartInstance.options.scales.y.title.text = chartUnit;
       chartInstance.options.plugins.tooltip.callbacks.label = (ctx) => `${ctx.parsed.y.toFixed(2)} ${chartUnit}`;
       this._applyChartTheme(chartInstance, chartColor);
-      chartInstance.update("none");
+      chartInstance.update(INSTANT_UPDATE_MODE_REFRESHING_POINT_OPTIONS);
     } else {
       const ctx = canvas?.getContext("2d");
       if (!ctx) return;
@@ -901,6 +901,7 @@ class ChartsManager {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { intersect: false, mode: "index" },
+        transitions: { [INSTANT_UPDATE_MODE_REFRESHING_POINT_OPTIONS]: { animation: { duration: 0 } } },
         plugins: {
           legend: {
             display: true,

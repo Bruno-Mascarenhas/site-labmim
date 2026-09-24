@@ -567,7 +567,7 @@ Ao clicar em uma célula:
 - **Preferência**: série da célula via `series.bin` (uma requisição Range) e resumo do domínio via `summary.json` — ambos habilitados pelos descritores `features` do manifest.
 - **Fallback**: varredura hora-a-hora (`_collectHourlySeries`, lotes de 12 para série de célula e 8 para resumo de domínio), com `AbortController` para cancelar carregamentos anteriores.
 - Mantém `timeSeriesCache` e `domainSummaryCache` com chaves que embutem a **versão da rodada**; grava apenas quando não houve falha transitória (um 404 estrutural, como horas noturnas de `SWDOWN`, não bloqueia o cache). `clearCaches()` é chamado na troca de rodada.
-- Reutiliza instâncias Chart.js com `.update("none")`; todos os gráficos são de linha (Chart.js 3.9.1).
+- Reutiliza instâncias Chart.js e as atualiza no modo `instantRefresh`, uma transição de duração zero declarada em `_buildChartConfig`, e não com `.update("none")`: nos modos `"none"` e `"reset"` o Chart.js 3.9.1 não recalcula as opções compartilhadas dos pontos, e a cor e o raio ficariam os da primeira variável aberta. Todos os gráficos são de linha (Chart.js 3.9.1).
 - Formata rótulos e CSV com `timeZone: "UTC"` para **preservar os dígitos de horário local** das saídas WRF, consistente com o rótulo do mapa; datas de metadados são parseadas por `parseDateTime`/`_parseMetadataDate` (seguro no Safari/WebKit).
 - Exporta CSV com data, hora, latitude, longitude, domínio, variável e valores (+ coluna de produção para `solar`/`eolico`).
 - Acessibilidade do modal: ao abrir, o foco vai ao botão de fechar; Tab/Shift+Tab ficam presos dentro do modal (focus trap); Escape fecha; ao fechar, o foco volta ao elemento de origem.
