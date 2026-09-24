@@ -436,8 +436,7 @@ function clearnessSkyItem(kt, solarElevationRad, clearSkyIndex) {
 const VARIABLES_CONFIG = {
   solar: {
     id: "SWDOWN",
-    publishedSteps: "daylight",
-    daylightMeanLabelSinceNightFluxIsZero: true,
+    publishedSteps: "daylight-zero-night",
     relatedVariables: ["temperature", "shortwaveIrradiation"],
     chartCompanions: ["temperature", "shortwaveIrradiation"],
     label: "Radiação Solar",
@@ -908,8 +907,7 @@ const VARIABLES_CONFIG = {
 
   globalRadiation: {
     id: "SWDOWN",
-    publishedSteps: "daylight",
-    daylightMeanLabelSinceNightFluxIsZero: true,
+    publishedSteps: "daylight-zero-night",
     relatedVariables: ["shortwaveIrradiation"],
     label: "Radiação Global",
     optionLabel: "Radiação Global",
@@ -1034,8 +1032,7 @@ const VARIABLES_CONFIG = {
 
   shortwaveUp: {
     id: "SWUP",
-    publishedSteps: "daylight",
-    daylightMeanLabelSinceNightFluxIsZero: true,
+    publishedSteps: "daylight-zero-night",
     label: "Onda Curta Refletida",
     optionLabel: "Onda Curta Refletida",
     icon: "🪞",
@@ -1072,8 +1069,7 @@ const VARIABLES_CONFIG = {
 
   netShortwave: {
     id: "SWNET",
-    publishedSteps: "daylight",
-    daylightMeanLabelSinceNightFluxIsZero: true,
+    publishedSteps: "daylight-zero-night",
     label: "Onda Curta Líquida",
     optionLabel: "Onda Curta Líquida",
     icon: "☀️",
@@ -1571,16 +1567,17 @@ function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
   return temperatureC;
 }
 
-const PUBLISHED_STEPS_VALUES = new Set(["all", "daylight", "listed"]);
+const PUBLISHED_STEPS_VALUES = new Set(["all", "daylight", "daylight-zero-night", "listed"]);
+
+function publishedStepsOf(config) {
+  return config.publishedSteps ?? "all";
+}
 
 function assertValidPublishedSteps(configs) {
   for (const [type, config] of Object.entries(configs)) {
-    const publishedSteps = config.publishedSteps ?? "all";
+    const publishedSteps = publishedStepsOf(config);
     if (!PUBLISHED_STEPS_VALUES.has(publishedSteps)) {
       throw new Error(`Unknown publishedSteps "${publishedSteps}" in ${type}`);
-    }
-    if ("daylightMeanLabelSinceNightFluxIsZero" in config && publishedSteps !== "daylight") {
-      throw new Error(`daylightMeanLabelSinceNightFluxIsZero without publishedSteps "daylight" in ${type}`);
     }
   }
 }

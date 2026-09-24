@@ -588,7 +588,7 @@ class MeteoMapManager {
     if (Array.isArray(ranges)) {
       return ranges.some((range) => index >= range[0] && index <= range[1]);
     }
-    const publishedSteps = config.publishedSteps ?? "all";
+    const publishedSteps = publishedStepsOf(config);
     if (publishedSteps === "listed") return false;
     if (publishedSteps === "all") return true;
     const date = this.calculateTargetDateFromIndex(index);

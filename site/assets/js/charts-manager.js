@@ -627,7 +627,7 @@ class ChartsManager {
   }
 
   _meanCoversDaylightOnly(variableType, config, domain) {
-    if (config.publishedSteps !== "daylight" || !config.daylightMeanLabelSinceNightFluxIsZero) return false;
+    if (config.publishedSteps !== "daylight-zero-night") return false;
 
     const variableId = this._getVariableId(variableType, config);
     const ranges = this.app?.availabilityRanges?.(variableId, domain);
