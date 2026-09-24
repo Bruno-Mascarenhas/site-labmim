@@ -12,6 +12,7 @@ const { defaultPublication, discoverPublications } = require("./site-builder/pub
 const { htmlReferences, isExternalReference, assetKey } = require("./site-builder/references.js");
 const { finishWithFailure, makeRestore, installSignalRestore } = require("./site-builder/cli.js");
 const { publicationOperationalPaths, isOperationalPath } = require("./site-builder/operational-paths.js");
+const { collectFiles } = require("./site-builder/corpus.js");
 const publications = discoverPublications(root);
 const defaultSite = defaultPublication(publications);
 const buildScript = path.join(root, "scripts", "build-site.mjs");
@@ -144,8 +145,23 @@ function assertRunNotesStayWithTheirDataset(publication) {
   }
 }
 
-const FORECAST_HORIZON_STATEMENT =
-  /(?:antecedência de|horizonte de(?: previsão de)?) (\d+(?:,\d+)?) horas|até \+(\d+(?:,\d+)?) h de previsão/g;
+const LITERAL_FORECAST_HORIZON =
+  /\b(?:antecedência|horizonte)(?: (?:de|previsão))* \+?\d+(?:,\d+)? ?(?:horas|h)\b|\+?\d+(?:,\d+)? ?(?:horas|h) de (?:previsão|antecedência)\b/gi;
+
+function assertForecastHorizonIsNeverLiteral() {
+  const literals = collectFiles(root, "src", [".html", ".js"]).flatMap((file) =>
+    [...readableText(fs.readFileSync(path.join(root, file), "utf8")).matchAll(LITERAL_FORECAST_HORIZON)].map(
+      ([statement]) => `${file}: "${statement}"`
+    )
+  );
+
+  if (literals.length) {
+    throw new Error(
+      `Forecast horizon written as a number in src/:\n${literals.map((item) => `  - ${item}`).join("\n")}\n` +
+        "Write {{FORECAST_HORIZON_HOURS}} instead: the renderer derives it from timeline.defaultMaxLayer × stepHours."
+    );
+  }
+}
 
 function assertForecastHorizonMatchesPublishedRun(publication) {
   const manifestPath = publication.dataset.paths.manifest;
@@ -162,29 +178,11 @@ function assertForecastHorizonMatchesPublishedRun(publication) {
     return;
   }
 
-  const { defaultMaxLayer, stepHours } = publication.dataset.timeline;
-  const expectedHours = String(indexMax * stepHours).replace(".", ",");
-  const problems = [];
+  const { defaultMaxLayer } = publication.dataset.timeline;
   if (defaultMaxLayer !== indexMax) {
-    problems.push(
-      `dataset ${publication.dataset.id} timeline.defaultMaxLayer is ${defaultMaxLayer}, but the run in site/${manifestPath} declares index_max ${indexMax}`
-    );
-  }
-  let statementCount = 0;
-  for (const pageFile of publication.pages.map((page) => page.file)) {
-    const text = readableText(fs.readFileSync(path.join(root, "site", pageFile), "utf8"));
-    for (const statement of text.matchAll(FORECAST_HORIZON_STATEMENT)) {
-      statementCount += 1;
-      const statedHours = statement[1] ?? statement[2];
-      if (statedHours !== expectedHours) problems.push(`${pageFile}: "${statement[0]}" instead of ${expectedHours} h`);
-    }
-  }
-  if (statementCount === 0) problems.push("no page states the forecast horizon");
-
-  if (problems.length) {
     throw new Error(
-      `Forecast horizon of ${publication.id} does not match the published run (index_max ${indexMax}, step ${stepHours} h):\n` +
-        problems.map((item) => `  - ${item}`).join("\n")
+      `Forecast horizon of ${publication.id} does not match the published run: dataset ${publication.dataset.id} ` +
+        `timeline.defaultMaxLayer is ${defaultMaxLayer}, but the run in site/${manifestPath} declares index_max ${indexMax}`
     );
   }
 }
@@ -300,6 +298,7 @@ installSignalRestore(restoreDefault, { label: "build-check", defaultId: defaultS
 let failure;
 try {
   assertOperationalDataIgnored();
+  assertForecastHorizonIsNeverLiteral();
   for (const publication of publications) buildAndValidate(publication);
 } catch (error) {
   failure = error;
