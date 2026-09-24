@@ -198,11 +198,13 @@
     const source = declaredConditions(payload) || FALLBACK_CLASSES;
     return source.map((entry, index) => {
       const id = String(entry.id || ROMAN[index] || index + 1).toLowerCase();
-      const roman = ROMAN[(entry.condition || index + 1) - 1] || String(entry.condition || index + 1);
+      const condition = entry.condition || index + 1;
+      const roman = ROMAN[condition - 1] || String(condition);
       const cited = FALLBACK_CLASSES.find((known) => known.id === id);
       const name = (cited && cited.name_pt) || entry.name_pt || SHORT_LABELS[id] || id;
       return {
         id,
+        condition,
         roman,
         label: SHORT_LABELS[id] || name,
         full: `Condição de céu ${roman}, ${name}`,
@@ -246,7 +248,16 @@
   function pointsFieldIndex(payload) {
     const declared = payload && payload.points_format;
     const order = Array.isArray(declared) && declared.length ? declared : DEFAULT_POINTS_FORMAT;
-    return { kt: order.indexOf("kt"), kd: order.indexOf("kd"), t: order.indexOf("t") };
+    return {
+      kt: order.indexOf("kt"),
+      kd: order.indexOf("kd"),
+      t: order.indexOf("t"),
+      condition: order.indexOf("condition"),
+    };
+  }
+
+  function pointCondition(value) {
+    return Number.isInteger(value) && value > 0 ? value : null;
   }
 
   function readPoints(payload) {
@@ -262,7 +273,11 @@
       const kd = positional ? entry[at.kd] : entry && entry.kd;
       const stamp = positional ? (at.t < 0 ? "" : entry[at.t]) : entry && entry.t;
       if (!Number.isFinite(kt) || !Number.isFinite(kd)) continue;
-      points.push({ x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", observed: true });
+      const point = { x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", observed: true };
+      if (positional ? at.condition >= 0 : entry.condition !== undefined) {
+        point.condition = pointCondition(positional ? entry[at.condition] : entry.condition);
+      }
+      points.push(point);
     }
     return points;
   }
@@ -387,6 +402,11 @@
 
   function classOf(kt) {
     return state.classes.find((entry) => kt <= entry.max) || state.classes[state.classes.length - 1] || null;
+  }
+
+  function pointClass(point) {
+    if (point.condition === undefined) return classOf(point.x);
+    return state.classes.find((entry) => entry.condition === point.condition) || null;
   }
 
   const ATTRIBUTION_ALT =
@@ -1107,8 +1127,8 @@
   function visiblePoints() {
     if (!visiblePointsCache) {
       visiblePointsCache = state.points.filter((point) => {
-        const entry = classOf(point.x);
-        return !entry || !state.hidden.has(entry.id);
+        const entry = pointClass(point);
+        return Boolean(entry) && !state.hidden.has(entry.id);
       });
     }
     return visiblePointsCache;
@@ -1371,7 +1391,7 @@
     if (showingPoints()) {
       const grouped = new Map(state.classes.map((entry) => [entry.id, []]));
       for (const point of state.points) {
-        const entry = classOf(point.x);
+        const entry = pointClass(point);
         if (!entry || !grouped.has(entry.id)) continue;
         const bucket = grouped.get(entry.id);
         point.dataIndex = bucket.length;
@@ -1532,7 +1552,7 @@
               },
               label: (item) => {
                 if (item.dataset.labmimModel) return modelLine(item, hoveredObservation(item.chart.tooltip.dataPoints));
-                const entry = classOf(item.parsed.x);
+                const entry = pointClass(item.raw);
                 const suffix = entry ? ` — ${entry.roman} · ${entry.label}` : "";
                 return `Kd medido: ${decimal(item.parsed.y, 3)}${suffix}`;
               },
@@ -1997,7 +2017,7 @@
       const iso = date
         ? `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`
         : "";
-      const entry = classOf(point.x);
+      const entry = pointClass(point);
       // Decimal comma with `;` as separator: what Excel in pt-BR opens without
       // going through the import wizard.
       rows.push(
