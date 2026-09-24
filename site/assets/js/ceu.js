@@ -134,6 +134,7 @@
     timelineChart: null,
     stripChart: null,
     timelineDrawToken: 0,
+    themeDrawToken: 0,
     curveChart: null,
     classes: [],
     models: [],
@@ -3836,10 +3837,17 @@
   }
 
   async function onThemeChange() {
+    const token = ++state.themeDrawToken;
+    const current = () => token === state.themeDrawToken;
     buildClassToggles();
     buildModelToggles();
     renderPredictionCard();
-    await paintInTurns(drawChart, drawCumulative, drawTimeline, drawModelCard);
+    await paintInTurns(
+      () => current() && drawChart(),
+      () => current() && drawCumulative(),
+      () => current() && drawTimeline(),
+      () => current() && drawModelCard()
+    );
   }
 
   function applyChartPayload(chart) {
