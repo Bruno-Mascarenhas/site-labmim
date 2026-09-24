@@ -87,7 +87,7 @@ juntos**, sempre.
    muda.
 6. Rode `npm run lint:icons` para confirmar.
 
-## Cache (por que a URL da fonte não tem `?v=`)
+## Cache (por que a fonte vai com `no-cache`)
 
 A URL da fonte não muda quando o subset muda: a estampagem de hash
 (`stampAssetVersions`, em `scripts/site-builder/assets.js`, aplicada pelo
@@ -97,15 +97,21 @@ A URL da fonte não muda quando o subset muda: a estampagem de hash
 A webfont fica de fora nos dois pontos: o `href` do preload não recebe `?v=`,
 e o `url(../webfonts/fa-solid-900.woff2)` **dentro** do `fa.subset.min.css`
 (que, por sua vez, recebe `?v=` de hash e a regra de 24 h do `.htaccess`
-para URLs carimbadas) nem sequer é alcançável por esse regex. Por isso
-o `.htaccess` serve `assets/vendor/fontawesome/webfonts/` com a regra de
-7 dias das fontes (e NÃO com o `immutable` de 1 ano do resto do vendor).
-Após um resubset, visitantes recorrentes pegam a fonte nova em até 7 dias.
+para URLs carimbadas) nem sequer é alcançável por esse regex. Com a regra
+de 7 dias das fontes, um resubset chegaria ao visitante recorrente com o
+HTML e o CSS novos sobre a fonte antiga do cache, e todo ícone
+recém-adicionado ficaria sem glifo por até 7 dias. Por isso o `.htaccess` serve
+`fa-solid-900.woff2` com `no-cache`: o navegador revalida a fonte a cada
+navegação e recebe a nova assim que ela sobe. O custo é uma requisição
+condicional por página, respondida com 304 sem corpo, num arquivo de ~5,5 KB.
+As demais fontes de `webfonts/`, que nenhuma página carrega, seguem na regra
+de 7 dias; nenhuma entra no `immutable` de 1 ano do resto do vendor.
 
-Não mover as webfonts de volta para a regra imutável sem também versionar a
-URL da fonte nos DOIS lugares: o preload no `src/template/partials/head.html`
-(`rel=preload as=font crossorigin` — o `crossorigin` é obrigatório mesmo
-same-origin, senão a fonte baixa duas vezes) e o `url()` dentro do
+Não trocar o `no-cache` por cache longo, nem mover as webfonts para a regra
+imutável, sem também versionar a URL da fonte nos DOIS lugares: o preload
+no `src/template/partials/head.html` (`rel=preload as=font crossorigin` —
+o `crossorigin` é obrigatório mesmo same-origin, senão a fonte baixa duas
+vezes) e o `url()` dentro do
 `fa.subset.min.css` (que o gerador teria de reescrever).
 
 Observação: brands (`fab`) e regular (`far`) não são usados no site. O
