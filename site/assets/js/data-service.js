@@ -1,18 +1,10 @@
 const DATA_SERVICE_CACHE_LIMIT = 400;
 const DATA_SERVICE_CACHE_BUDGET_BYTES = 32 * 1024 * 1024;
-const RETAINED_BYTES_PER_JSON_NUMBER = 16;
+const RETAINED_BYTES_PER_BODY_CHAR = 3;
 // Deterministic 404s (files the pipeline never exports) stay cached for a full
 // minute; transient failures may recover at any moment.
 const DATA_SERVICE_FAILURE_TTL_MS = 60000;
 const DATA_SERVICE_TRANSIENT_FAILURE_TTL_MS = 4000;
-
-function countJsonNumbers(node) {
-  if (typeof node === "number") return 1;
-  if (node === null || typeof node !== "object") return 0;
-  let count = 0;
-  for (const child of Array.isArray(node) ? node : Object.values(node)) count += countJsonNumbers(child);
-  return count;
-}
 
 class LabmimDataService {
   constructor(options = {}) {
@@ -43,7 +35,7 @@ class LabmimDataService {
     }
 
     this._worker.onmessage = (e) => {
-      const { id, data, error, status } = e.data;
+      const { id, data, bodyLength, error, status } = e.data;
       const callback = this._workerCallbacks.get(id);
       if (!callback) return;
       this._workerCallbacks.delete(id);
@@ -53,7 +45,7 @@ class LabmimDataService {
         // indistinguishable console errors.
         callback.reject(Number.isFinite(status) ? this._httpError(status, callback.url) : new Error(error));
       } else {
-        callback.resolve(data);
+        callback.resolve({ data, bodyLength });
       }
     };
 
@@ -121,8 +113,8 @@ class LabmimDataService {
     let inflight = this._inflight.get(url);
     if (!inflight) {
       inflight = this._fetchAndParse(url)
-        .then((data) => {
-          this._storeInCache(url, data);
+        .then(({ data, bodyLength }) => {
+          this._storeInCache(url, data, bodyLength);
           return data;
         })
         .catch((err) => {
@@ -158,9 +150,10 @@ class LabmimDataService {
   }
 
   _mainThreadFetch(url) {
-    return fetch(url).then((res) => {
+    return fetch(url).then(async (res) => {
       if (!res.ok) throw this._httpError(res.status, url);
-      return res.json();
+      const body = await res.text();
+      return { data: JSON.parse(body), bodyLength: body.length };
     });
   }
 
@@ -191,8 +184,8 @@ class LabmimDataService {
     return error;
   }
 
-  _storeInCache(url, data) {
-    const bytes = countJsonNumbers(data) * RETAINED_BYTES_PER_JSON_NUMBER;
+  _storeInCache(url, data, bodyLength) {
+    const bytes = bodyLength * RETAINED_BYTES_PER_BODY_CHAR;
     this._removeFromCache(url);
     this._cache.set(url, { data, bytes });
     this._cacheBytes += bytes;
