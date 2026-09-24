@@ -3408,6 +3408,14 @@
     },
   };
 
+  function curveMemberName(bestEpoch) {
+    const members = servedBlock().members;
+    const matches = Array.isArray(members)
+      ? members.filter((entry) => entry && entry.best_metric && entry.best_metric.epoch === bestEpoch)
+      : [];
+    return matches.length === 1 && typeof matches[0].name === "string" ? matches[0].name : null;
+  }
+
   function drawTrainingCurve(theme) {
     if (state.curveChart) {
       state.curveChart.destroy();
@@ -3424,11 +3432,17 @@
       note.textContent = "";
       return;
     }
-    const noteParts = [`MAE de ${kindexSymbol()} por época, no treino e na validação`];
-    if (finite(curve.best_epoch)) noteParts.push(`a parada antecipada escolheu a época ${integer(curve.best_epoch)}`);
+    const member = finite(curve.best_epoch) ? curveMemberName(curve.best_epoch) : null;
+    const noteParts = [
+      `MAE de ${kindexSymbol()} por época${member ? ` do membro ${member}` : ""}, no treino e na validação`,
+    ];
+    if (finite(curve.best_epoch))
+      noteParts.push(
+        `o checkpoint servido ${member ? "desse membro " : ""}é o da melhor época na validação (${integer(curve.best_epoch)})`
+      );
     const served = servedBlock();
-    if (served.training && finite(served.training.epochs))
-      noteParts.push(`${integer(served.training.epochs)} épocas previstas`);
+    const budget = served.training?.epochs_budget ?? served.training?.epochs;
+    if (finite(budget)) noteParts.push(`orçamento de ${integer(budget)} épocas`);
     note.textContent = `${noteParts.join(" · ")}.`;
     const datasets = [];
     if (train) {
