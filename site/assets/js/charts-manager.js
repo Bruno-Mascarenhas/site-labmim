@@ -8,6 +8,7 @@ const CSV_EXCEL_UTF8_BOM = "\ufeff";
 const CSV_FIELD_SEPARATOR = ";";
 const CSV_VALUE_FRACTION_DIGITS = 2;
 const CSV_COORDINATE_FRACTION_DIGITS = 4;
+const TIME_SERIES_CACHE_ENTRY_LIMIT = 200;
 const STEPPED_MODE_FILLING_STEP_BEFORE_EACH_POINT = "after";
 const STEP_ENDING_AT_CURSOR_INTERACTION_MODE = "stepEndingAtCursor";
 
@@ -1115,7 +1116,7 @@ class ChartsManager {
     const maxHour = this._getAvailableHourCount();
     // Run version in the key: see _loadDomainMeanSeries.
     const cacheKey = `${this.app?.dataVersion || "v0"}:${domain}:${variableId}:${cellIndex}:${maxHour}`;
-    const cached = this.timeSeriesCache.get(cacheKey);
+    const cached = this._cachedTimeSeries(cacheKey);
     if (cached) return cached;
 
     // One ~300-byte Range request instead of dozens of full-domain JSONs read
@@ -1125,7 +1126,7 @@ class ChartsManager {
     });
     if (binarySeries) {
       const result = { config, data: binarySeries };
-      this.timeSeriesCache.set(cacheKey, result);
+      this._cacheTimeSeries(cacheKey, result);
       return result;
     }
     if (rangeReadOnly) return null;
@@ -1149,9 +1150,26 @@ class ChartsManager {
 
     const result = { config, data: series };
     if (transientFailures === 0) {
-      this.timeSeriesCache.set(cacheKey, result);
+      this._cacheTimeSeries(cacheKey, result);
     }
     return result;
+  }
+
+  _cachedTimeSeries(cacheKey) {
+    const cached = this.timeSeriesCache.get(cacheKey);
+    if (cached) {
+      this.timeSeriesCache.delete(cacheKey);
+      this.timeSeriesCache.set(cacheKey, cached);
+    }
+    return cached;
+  }
+
+  _cacheTimeSeries(cacheKey, result) {
+    this.timeSeriesCache.delete(cacheKey);
+    this.timeSeriesCache.set(cacheKey, result);
+    if (this.timeSeriesCache.size > TIME_SERIES_CACHE_ENTRY_LIMIT) {
+      this.timeSeriesCache.delete(this.timeSeriesCache.keys().next().value);
+    }
   }
 
   /**
