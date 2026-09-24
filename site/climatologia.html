@@ -295,7 +295,7 @@
             </button>
           </div>
           <div id="climaTabelaWrap" hidden>
-            <div class="clima-table-scroll">
+            <section class="clima-table-scroll" tabindex="0" aria-labelledby="climaTabelaCaption">
               <table class="clima-table" id="climaTabela">
                 <caption id="climaTabelaCaption">
                   Valores do gráfico acima
@@ -313,17 +313,22 @@
                 </thead>
                 <tbody id="climaTabelaBody"></tbody>
               </table>
-            </div>
+            </section>
           </div>
 
           <div class="theme-surface clima-panel">
-            <h3 class="clima-panel-title">Cobertura do registro</h3>
+            <h3 class="clima-panel-title" id="climaCoberturaTitulo">Cobertura do registro</h3>
             <p class="clima-panel-note">
               Horas registradas pelo sensor em cada ano, antes dos cortes que cada variável lista nas suas ressalvas. Um
               ano sem barra não tem observação: o painel existe para que a extensão real do registro fique visível junto
               das distribuições.
             </p>
-            <div class="clima-coverage" id="climaCoverage"></div>
+            <section
+              class="clima-coverage"
+              id="climaCoverage"
+              tabindex="0"
+              aria-labelledby="climaCoberturaTitulo"
+            ></section>
             <p class="clima-panel-note" id="climaSeasons"></p>
           </div>
         </div>

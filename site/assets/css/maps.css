@@ -176,6 +176,11 @@ header.maps-header {
   padding: 0;
 }
 
+.sidebar-content:focus-visible {
+  outline: 3px solid var(--focus-ring-color);
+  outline-offset: -3px;
+}
+
 .info-section {
   padding: 20px;
   border-bottom: 1px solid #e9ecef;

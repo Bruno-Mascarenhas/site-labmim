@@ -43,12 +43,12 @@
     </div>
     <div class="sidebar-header">
       <!-- h2, not h3: first heading after the h1, so h3 would skip a level. -->
-      <h2>Detalhes da Célula</h2>
+      <h2 id="sidebarTitle">Detalhes da Célula</h2>
       <button type="button" class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Fechar painel de detalhes">
         <i class="fas fa-times" aria-hidden="true"></i>
       </button>
     </div>
-    <div class="sidebar-content" id="sidebarContent" aria-live="polite"></div>
+    <section class="sidebar-content" id="sidebarContent" tabindex="0" aria-labelledby="sidebarTitle" aria-live="polite"></section>
   </div>
 
   <div class="colorbar-container">

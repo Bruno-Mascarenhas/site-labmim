@@ -228,9 +228,9 @@
         ></canvas>
       </div>
       <ul class="sky-inline-legend" id="ceuLinhaLegenda" hidden></ul>
-      <div class="clima-table-scroll" id="ceuDiasWrap" hidden>
+      <section class="clima-table-scroll" id="ceuDiasWrap" tabindex="0" aria-labelledby="ceuDiasLegenda" hidden>
         <table class="clima-table">
-          <caption>Resumo por dia</caption>
+          <caption id="ceuDiasLegenda">Resumo por dia</caption>
           <thead>
             <tr>
               <th scope="col">Dia</th>
@@ -242,7 +242,7 @@
           </thead>
           <tbody id="ceuDiasCorpo"></tbody>
         </table>
-      </div>
+      </section>
       </div>
       <p class="clima-status" id="ceuLinhaStatus"></p>
     </div>
@@ -274,8 +274,8 @@
       </div>
 
       <div id="ceuModeloDetalhes" hidden>
-        <h4 class="sky-block-title">Braços avaliados nas mesmas linhas de teste</h4>
-        <div class="clima-table-scroll">
+        <h4 class="sky-block-title" id="ceuBracosTitulo">Braços avaliados nas mesmas linhas de teste</h4>
+        <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuBracosTitulo">
           <table class="clima-table">
             <caption id="ceuBracosLegenda"></caption>
             <thead>
@@ -296,10 +296,10 @@
             </thead>
             <tbody id="ceuBracosCorpo"></tbody>
           </table>
-        </div>
+        </section>
 
-        <h4 class="sky-block-title">Referências e habilidade</h4>
-        <div class="clima-table-scroll">
+        <h4 class="sky-block-title" id="ceuReferenciasTitulo">Referências e habilidade</h4>
+        <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuReferenciasTitulo">
           <table class="clima-table">
             <caption>Habilidade = 1 − RMSE do modelo / RMSE da referência, sobre as mesmas linhas pareadas</caption>
             <thead>
@@ -314,13 +314,13 @@
             </thead>
             <tbody id="ceuReferenciasCorpo"></tbody>
           </table>
-        </div>
+        </section>
 
-        <h4 class="sky-block-title">Por condição de céu</h4>
+        <h4 class="sky-block-title" id="ceuClassesTitulo">Por condição de céu</h4>
         <div class="sky-two-columns">
-          <div class="clima-table-scroll">
+          <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuClassesTitulo ceuClassesLegenda">
             <table class="clima-table">
-              <caption>Por condição verdadeira</caption>
+              <caption id="ceuClassesLegenda">Por condição verdadeira</caption>
               <thead>
                 <tr>
                   <th scope="col">Condição</th>
@@ -332,10 +332,10 @@
               </thead>
               <tbody id="ceuClassesCorpo"></tbody>
             </table>
-          </div>
-          <div class="clima-table-scroll">
+          </section>
+          <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuClassesTitulo ceuConfusaoLegenda">
             <table class="clima-table sky-confusion">
-              <caption>Matriz de confusão — linhas: condição verdadeira; colunas: condição prevista</caption>
+              <caption id="ceuConfusaoLegenda">Matriz de confusão — linhas: condição verdadeira; colunas: condição prevista</caption>
               <thead>
                 <tr id="ceuConfusaoCabecalho">
                   <th scope="col">Verdadeira ↓ · Prevista →</th>
@@ -343,12 +343,12 @@
               </thead>
               <tbody id="ceuConfusaoCorpo"></tbody>
             </table>
-          </div>
+          </section>
         </div>
 
-        <h4 class="sky-block-title">Erro da difusa por estrato</h4>
+        <h4 class="sky-block-title" id="ceuEstratosTitulo">Erro da difusa por estrato</h4>
         <div class="sky-two-columns">
-          <div class="clima-table-scroll">
+          <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuEstratosTitulo ceuElevacaoLegenda">
             <table class="clima-table">
               <caption id="ceuElevacaoLegenda">Por faixa de elevação solar</caption>
               <thead>
@@ -362,8 +362,8 @@
               </thead>
               <tbody id="ceuElevacaoCorpo"></tbody>
             </table>
-          </div>
-          <div class="clima-table-scroll">
+          </section>
+          <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuEstratosTitulo ceuEstratoClasseLegenda">
             <table class="clima-table">
               <caption id="ceuEstratoClasseLegenda">Por condição de céu verdadeira</caption>
               <thead>
@@ -377,11 +377,11 @@
               </thead>
               <tbody id="ceuEstratoClasseCorpo"></tbody>
             </table>
-          </div>
+          </section>
         </div>
 
-        <h4 class="sky-block-title">Por dia de teste</h4>
-        <div class="clima-table-scroll">
+        <h4 class="sky-block-title" id="ceuDiasTesteTitulo">Por dia de teste</h4>
+        <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuDiasTesteTitulo">
           <table class="clima-table">
             <caption>RMSE da difusa por dia, do modelo e das duas referências</caption>
             <thead>
@@ -396,7 +396,7 @@
             </thead>
             <tbody id="ceuDiasTesteCorpo"></tbody>
           </table>
-        </div>
+        </section>
 
         <h4 class="sky-block-title">Curva de treino</h4>
         <p class="clima-legend" id="ceuCurvaNota"></p>
@@ -408,8 +408,8 @@
           ></canvas>
         </div>
 
-        <h4 class="sky-block-title">Sementes</h4>
-        <div class="clima-table-scroll">
+        <h4 class="sky-block-title" id="ceuSementesTitulo">Sementes</h4>
+        <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuSementesTitulo">
           <table class="clima-table">
             <caption id="ceuSementesLegenda"></caption>
             <thead>
@@ -427,11 +427,11 @@
             </thead>
             <tbody id="ceuSementesCorpo"></tbody>
           </table>
-        </div>
+        </section>
 
-        <h4 class="sky-block-title">Conjunto de dados e divisão</h4>
+        <h4 class="sky-block-title" id="ceuDivisaoTitulo">Conjunto de dados e divisão</h4>
         <p class="clima-legend" id="ceuDadosNota"></p>
-        <div class="clima-table-scroll">
+        <section class="clima-table-scroll" tabindex="0" aria-labelledby="ceuDivisaoTitulo">
           <table class="clima-table">
             <caption id="ceuDivisaoLegenda"></caption>
             <thead>
@@ -446,7 +446,7 @@
             </thead>
             <tbody id="ceuDivisaoCorpo"></tbody>
           </table>
-        </div>
+        </section>
 
         <h4 class="sky-block-title">Proveniência</h4>
         <dl class="sky-facts sky-facts-wide" id="ceuProveniencia"></dl>
