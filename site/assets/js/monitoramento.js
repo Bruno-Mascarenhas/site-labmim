@@ -1046,6 +1046,14 @@
     for (const card of el("monitorGrid").children) observer.observe(card);
   }
 
+  function drawAllForPrint() {
+    for (const chart of state.payload.charts) {
+      el(`monitor-card-${chart.id}`).classList.add("is-visible");
+      state.revealed.add(chart.id);
+      if (!state.charts.has(chart.id)) drawChart(chart);
+    }
+  }
+
   function stationEndUtcMs(windowInfo) {
     const utcEnd = windowInfo.station_end_utc;
     if (utcEnd === undefined) return null;
@@ -1192,6 +1200,8 @@
     el("monitorApp").hidden = false;
     observeCards();
 
+    window.addEventListener("beforeprint", drawAllForPrint);
+    window.matchMedia("print").addEventListener("change", redrawAll);
     window.addEventListener("labmim-theme-change", redrawAll);
   }
 

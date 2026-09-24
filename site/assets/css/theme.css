@@ -471,6 +471,12 @@ input:focus-visible {
     position: static !important;
   }
 
+  .monitor-card {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
   .clima-chart,
   .chart-container,
   .monitor-card,
