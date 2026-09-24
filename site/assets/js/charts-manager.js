@@ -338,9 +338,8 @@ class ChartsManager {
 
     this._clearModalEmptyState();
 
-    const isSolarOrWind = variableType === "solar" || variableType === "eolico";
     const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
-    const energySeries = isSolarOrWind ? this._prepareChartData(variableType, "energy", config, timeData) : null;
+    const energySeries = this._prepareChartData(variableType, "energy", config, timeData);
     const sharedAxisOpensHourBefore = energySeries?.stepTotal === true && Number.isFinite(energySeries.data[0]);
 
     this._updateOrCreateChart(
@@ -1063,7 +1062,6 @@ class ChartsManager {
       };
     }
 
-    const unit = variableType === "solar" ? "Wh/m²" : "kWh";
     const color = variableType === "solar" ? "#b16d00" : "#4783a9";
     const companionValuesByHour = new Map(
       (config.chartCompanions || []).map((key) => [
@@ -1071,32 +1069,30 @@ class ChartsManager {
         new Map((this.timeSeriesData?.[key]?.data || []).map((entry) => [entry.hour, entry.value])),
       ])
     );
-    const irradiationByHour = companionValuesByHour.get("shortwaveIrradiation");
-    const stepIrradiationByHour = variableType === "solar" && irradiationByHour?.size ? irradiationByHour : null;
-    const data = timeData.map((entry) => {
-      // Hour with no exported radiation/wind: the catch below would turn
-      // `specificInfo`'s unavailable payload into a 0 — invented production
-      // where the line should have a hole.
+    const energyItems = timeData.map((entry) => {
       if (entry.value === null || entry.value === undefined) return null;
-      if (stepIrradiationByHour && !Number.isFinite(stepIrradiationByHour.get(entry.hour))) return null;
-      try {
-        const allValues = { [variableType]: { value: entry.value } };
-        companionValuesByHour.forEach((valueByHour, key) => {
-          allValues[key] = { value: valueByHour.get(entry.hour) };
-        });
-        const info = config.specificInfo(entry.value, allValues);
-        // `energyValue` is the raw number; the sibling fields are display text.
-        const item = info?.items?.find((it) => Number.isFinite(it.energyValue));
-        return item ? item.energyValue : null;
-      } catch {
-        return 0;
-      }
+      const allValues = { [variableType]: { value: entry.value } };
+      companionValuesByHour.forEach((valueByHour, key) => {
+        allValues[key] = { value: valueByHour.get(entry.hour) };
+      });
+      const info = config.specificInfo(entry.value, allValues);
+      return info?.items?.find((item) => Number.isFinite(item.energyValue)) ?? null;
     });
 
-    const solarLabel = stepIrradiationByHour ? "Produção Energética do Passo" : "Produção Estimada (fluxo × 1h)";
-    const label = variableType === "solar" ? solarLabel : "Produção Estimada (potência × 1h)";
-    const stepTotal = stepIrradiationByHour !== null;
-    return { data, label, unit, color, stepIrradiationByHour, stepTotal };
+    const basis = energyItems.some((item) => item?.energyBasis === "step") ? "step" : "instant";
+    const seriesItem = energyItems.find((item) => item?.energyBasis === basis);
+    if (!seriesItem) return null;
+
+    const stepTotal = basis === "step";
+    return {
+      data: energyItems.map((item) => (item?.energyBasis === basis ? item.energyValue : null)),
+      label: seriesItem.chartLabel,
+      csvLabel: seriesItem.csvLabel,
+      unit: seriesItem.unit,
+      color,
+      stepIrradiationByHour: stepTotal ? companionValuesByHour.get("shortwaveIrradiation") : null,
+      stepTotal,
+    };
   }
 
   _getRequiredVariableKeys(variableType) {
@@ -1282,21 +1278,10 @@ class ChartsManager {
       "Variável",
       `Valor(${config.unit})`,
     ];
-    const isEnergy = type === "solar" || type === "eolico";
-    let chartDataEnergy = null;
-    let stepIrradiationByHour = null;
-
-    if (isEnergy) {
-      const energyConfig = this._prepareChartData(type, "energy", config, timeData);
-      chartDataEnergy = energyConfig.data;
-      stepIrradiationByHour = energyConfig.stepIrradiationByHour;
-      if (stepIrradiationByHour) header.push(`Irradiação do passo(${VARIABLES_CONFIG.shortwaveIrradiation.unit})`);
-      const solarColumn = stepIrradiationByHour
-        ? "Produção no passo pela irradiação"
-        : "Produção em 1h estimada pelo fluxo instantâneo";
-      const energyColumn = type === "solar" ? solarColumn : "Produção em 1h estimada pela potência instantânea";
-      header.push(`${energyColumn}(${energyConfig.unit})`);
-    }
+    const energySeries = this._prepareChartData(type, "energy", config, timeData);
+    const stepIrradiationByHour = energySeries?.stepIrradiationByHour ?? null;
+    if (stepIrradiationByHour) header.push(`Irradiação do passo(${VARIABLES_CONFIG.shortwaveIrradiation.unit})`);
+    if (energySeries) header.push(`${energySeries.csvLabel}(${energySeries.unit})`);
     const rows = [header.join(CSV_FIELD_SEPARATOR)];
 
     timeData.forEach((entry, i) => {
@@ -1319,7 +1304,7 @@ class ChartsManager {
         this._formatCsvValue(chartDataValue[i]),
       ];
       if (stepIrradiationByHour) cells.push(this._formatCsvValue(stepIrradiationByHour.get(entry.hour)));
-      if (isEnergy && chartDataEnergy) cells.push(this._formatCsvValue(chartDataEnergy[i]));
+      if (energySeries) cells.push(this._formatCsvValue(energySeries.data[i]));
       rows.push(cells.join(CSV_FIELD_SEPARATOR));
     });
 

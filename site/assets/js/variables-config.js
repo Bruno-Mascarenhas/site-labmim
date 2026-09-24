@@ -59,6 +59,22 @@ const SECONDS_PER_MINUTE = 60;
 const NOMINAL_STEP_SECONDS = 3600;
 const STEP_IRRADIATION_SCALE_MAX_KJ_M2 = 4320;
 
+const SOLAR_STEP_ENERGY_SERIES = {
+  energyBasis: "step",
+  chartLabel: "Produção Energética do Passo",
+  csvLabel: "Produção no passo pela irradiação",
+};
+const SOLAR_INSTANT_ENERGY_SERIES = {
+  energyBasis: "instant",
+  chartLabel: "Produção Estimada (fluxo × 1h)",
+  csvLabel: "Produção em 1h estimada pelo fluxo instantâneo",
+};
+const WIND_INSTANT_ENERGY_SERIES = {
+  energyBasis: "instant",
+  chartLabel: "Produção Estimada (potência × 1h)",
+  csvLabel: "Produção em 1h estimada pela potência instantânea",
+};
+
 function formatStepDuration(seconds) {
   const wholeSeconds = Math.round(seconds);
   const minutes = Math.floor(wholeSeconds / SECONDS_PER_MINUTE);
@@ -482,6 +498,7 @@ const VARIABLES_CONFIG = {
             unit: "Wh/m²",
             icon: "fa-solar-panel",
             energyValue: energyWhM2,
+            ...(hasStepIrradiation ? SOLAR_STEP_ENERGY_SERIES : SOLAR_INSTANT_ENERGY_SERIES),
           },
         ],
       };
@@ -563,6 +580,7 @@ const VARIABLES_CONFIG = {
             icon: "fa-wind",
             // Raw number for charts/CSV; `value` above is display-only.
             energyValue: energyKWh,
+            ...WIND_INSTANT_ENERGY_SERIES,
           },
         ],
       };
