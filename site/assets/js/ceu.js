@@ -146,6 +146,7 @@
     activeModels: new Set(),
     framesMissing: 0,
     payloadsCheckedAt: 0,
+    announcedStatus: new Map(),
     hoverCell: null,
     cumulativePayload: null,
     cumulativeSubsetId: "",
@@ -432,6 +433,7 @@
   const AGE_REFRESH_INTERVAL_MS = MINUTE_MS;
   const PAYLOAD_RECHECK_INTERVAL_MS = 5 * MINUTE_MS;
   const PAYLOAD_RECHECK_MIN_GAP_MS = MINUTE_MS;
+  const AGE_SUFFIX_PATTERN = / \(há [^)]*\)/g;
 
   function finite(value) {
     return typeof value === "number" && Number.isFinite(value);
@@ -3847,6 +3849,47 @@
     if (state.timelinePayload && timelineBounds()) renderTimelineStatus();
   }
 
+  function frameAnnouncementKey() {
+    const frame = state.framePayload;
+    const info = (frame && frame.status) || {};
+    return JSON.stringify([
+      state.frameStatus,
+      Boolean(frame),
+      info.scored === false,
+      info.reason,
+      info.watch_alive === false,
+      Boolean(frame && frame.solar && frame.solar.extrapolation === true),
+      Boolean(clockOffsetText(info.camera_clock_drift_s)),
+    ]);
+  }
+
+  function timelineAnnouncementKey() {
+    const payload = state.timelinePayload;
+    const latest = (payload && payload.latest) || {};
+    const measured = (payload && payload.measured_status) || {};
+    return JSON.stringify([
+      state.timelineStatus,
+      Boolean(payload && timelineBounds()),
+      latest.last_block_status,
+      latest.reason,
+      measured.reason,
+    ]);
+  }
+
+  function announceStatusChanges() {
+    const announcements = [];
+    for (const [id, key] of [
+      ["ceuQuadroStatus", frameAnnouncementKey()],
+      ["ceuLinhaStatus", timelineAnnouncementKey()],
+    ]) {
+      const changed = key !== state.announcedStatus.get(id);
+      state.announcedStatus.set(id, key);
+      const content = el(id).textContent.replace(AGE_SUFFIX_PATTERN, "");
+      if (content && changed) announcements.push(node("p", null, content));
+    }
+    if (announcements.length) el("ceuAnuncio").replaceChildren(...announcements);
+  }
+
   function publishedAnew(current, reply) {
     if (reply.status !== "ok" || !reply.payload) return false;
     const version = reply.payload.version;
@@ -3874,6 +3917,7 @@
     if (frameChanged && modelCardUsable()) renderProvenance();
     buildCaveats();
     renderReferences();
+    announceStatusChanges();
   }
 
   function refreshLiveView(recheckAfterMs) {
@@ -3945,6 +3989,7 @@
     window.addEventListener("labmim-theme-change", onThemeChange);
     await afterNextPaint();
     await drawTimeline();
+    announceStatusChanges();
     await afterNextPaint();
     drawModelCard();
     // Last, so it sees every citation the page ended up making — the static prose already decorated by
