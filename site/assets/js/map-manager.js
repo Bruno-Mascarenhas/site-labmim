@@ -2761,6 +2761,8 @@ class MeteoMapManager {
 
     return L.marker([lat, lng], {
       icon: pingIcon,
+      interactive: false,
+      keyboard: false,
       zIndexOffset: 1000,
     }).addTo(this.map);
   }
