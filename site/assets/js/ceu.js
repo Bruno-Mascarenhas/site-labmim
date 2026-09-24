@@ -428,14 +428,28 @@
     return text(value);
   }
 
-  function geometryText(geometry) {
+  function centredCropStart(frameExtent, cropExtent, offset) {
+    const box = Math.min(cropExtent, frameExtent);
+    const start = Math.floor((frameExtent - box) / 2) + offset;
+    return { box, start: Math.min(Math.max(start, 0), frameExtent - box) };
+  }
+
+  function cropText(crop, image) {
+    const frameKnown = image && finite(image.original_width) && finite(image.original_height);
+    if (frameKnown && finite(crop.left) && finite(crop.top)) {
+      const columns = centredCropStart(image.original_width, crop.width, crop.left);
+      const rows = centredCropStart(image.original_height, crop.height, crop.top);
+      return `recorte de ${integer(columns.box)} × ${integer(rows.box)} px com canto em (${integer(columns.start)}, ${integer(rows.start)})`;
+    }
+    return `recorte centrado de ${integer(crop.width)} × ${integer(crop.height)} px, deslocado (${integer(crop.left)}, ${integer(crop.top)}) px`;
+  }
+
+  function geometryText(geometry, image) {
     if (!geometry || typeof geometry !== "object") return text(geometry, "");
     const parts = [];
     const crop = geometry.crop;
     if (crop && typeof crop === "object" && crop.enabled !== false && finite(crop.width) && finite(crop.height)) {
-      parts.push(
-        `recorte de ${integer(crop.width)} × ${integer(crop.height)} px em (${integer(crop.left)}, ${integer(crop.top)})`
-      );
+      parts.push(cropText(crop, image));
     }
     const padding = geometry.pad;
     if (padding && typeof padding === "object" && padding.enabled !== false) {
@@ -3575,7 +3589,7 @@
     const inputs = served.inputs;
     if (inputs && typeof inputs === "object") {
       const details = [];
-      const geometry = geometryText(inputs.image_geometry);
+      const geometry = geometryText(inputs.image_geometry, frameSection("image"));
       if (geometry) details.push(geometry);
       details.push(inputs.scalars_consumed === false ? "não consome escalares" : "consome escalares");
       if (inputs.radiometry_forbidden === true) details.push("radiometria proibida na entrada");
