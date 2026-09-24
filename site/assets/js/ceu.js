@@ -2999,7 +2999,7 @@
     return "O documento da linha do tempo não traz blocos pontuados.";
   }
 
-  async function drawTimeline() {
+  async function drawTimeline({ stripInSameTurn = false } = {}) {
     const token = ++state.timelineDrawToken;
     destroyTimelineCharts();
     const payload = state.timelinePayload;
@@ -3032,8 +3032,10 @@
     renderLiveStats();
     renderTimelineDays();
     renderTimelineStatus();
-    await afterNextPaint();
-    if (token !== state.timelineDrawToken) return;
+    if (!stripInSameTurn) {
+      await afterNextPaint();
+      if (token !== state.timelineDrawToken) return;
+    }
     drawConditionStrip(theme, bounds, runs, series.kindex);
   }
 
@@ -3846,12 +3848,25 @@
     }
   }
 
-  async function onThemeChange() {
-    const token = ++state.themeDrawToken;
-    const current = () => token === state.themeDrawToken;
+  function repaintThemedControls() {
     buildClassToggles();
     buildModelToggles();
     renderPredictionCard();
+  }
+
+  function repaintForPrint() {
+    state.themeDrawToken += 1;
+    repaintThemedControls();
+    drawChart();
+    drawCumulative();
+    drawTimeline({ stripInSameTurn: true });
+    drawModelCard();
+  }
+
+  async function onThemeChange() {
+    const token = ++state.themeDrawToken;
+    const current = () => token === state.themeDrawToken;
+    repaintThemedControls();
     await paintInTurns(
       () => current() && drawChart(),
       () => current() && drawCumulative(),
@@ -4028,7 +4043,9 @@
     el("ceuApp").hidden = false;
     window.addEventListener("labmim-theme-change", onThemeChange);
     window.addEventListener("labmim-print-change", (event) => {
-      if (event.detail.paletteChanged) onThemeChange();
+      if (!event.detail.paletteChanged) return;
+      if (event.detail.printing) repaintForPrint();
+      else onThemeChange();
     });
     await paintInTurns(
       async () => {
