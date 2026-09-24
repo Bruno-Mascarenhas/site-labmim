@@ -66,10 +66,10 @@ function formatStepDuration(seconds) {
   return rest ? `${minutes} min ${rest} s` : `${minutes} min`;
 }
 
-function stepEnergyItem(energyKjM2, stepSeconds, icon) {
+function stepEnergyItem(energyKjM2, stepSeconds, icon, { prefix = "Energia", decimals = 1 } = {}) {
   return {
-    label: stepSeconds ? `Energia em ${formatStepDuration(stepSeconds)}` : "Energia do Passo",
-    value: energyKjM2.toFixed(1),
+    label: stepSeconds ? `${prefix} em ${formatStepDuration(stepSeconds)}` : `${prefix} do Passo`,
+    value: energyKjM2.toFixed(decimals),
     unit: "kJ/m²",
     icon,
   };
@@ -453,50 +453,35 @@ const VARIABLES_CONFIG = {
       };
 
       const irradiation = allValues.shortwaveIrradiation;
-      if (Number.isFinite(irradiation?.value)) {
-        const stepSeconds = irradiation.stepSeconds;
-        const meanIrradianceWM2 = stepMeanFluxWM2(irradiation.value, stepSeconds ?? NOMINAL_STEP_SECONDS);
-        const stepEnergyWhM2 = (irradiation.value / KILOJOULES_PER_WATT_HOUR) * conversionEfficiency(meanIrradianceWM2);
-        return {
-          title: "Geração Fotovoltaica",
-          items: [
-            {
-              label: stepSeconds
-                ? `Radiação Incidente em ${formatStepDuration(stepSeconds)}`
-                : "Radiação Incidente do Passo",
-              value: irradiation.value.toFixed(2),
-              unit: "kJ/m²",
-              icon: "fa-sun",
-            },
-            {
-              label: "Produção Energética do Passo",
-              value: stepEnergyWhM2.toFixed(2),
-              unit: "Wh/m²",
-              icon: "fa-solar-panel",
-              energyValue: stepEnergyWhM2,
-            },
-          ],
-        };
-      }
-
-      const energyGen = (value / 1000) * conversionEfficiency(value);
+      const hasStepIrradiation = Number.isFinite(irradiation?.value);
+      const incidentItem = hasStepIrradiation
+        ? stepEnergyItem(irradiation.value, irradiation.stepSeconds, "fa-sun", {
+            prefix: "Radiação Incidente",
+            decimals: 2,
+          })
+        : {
+            label: "Radiação Incidente Estimada (fluxo instantâneo × 1h)",
+            value: (value * KILOJOULES_PER_WATT_HOUR).toFixed(2),
+            unit: "kJ/m²",
+            icon: "fa-sun",
+          };
+      const energyWhM2 = hasStepIrradiation
+        ? (irradiation.value / KILOJOULES_PER_WATT_HOUR) *
+          conversionEfficiency(stepMeanFluxWM2(irradiation.value, irradiation.stepSeconds ?? NOMINAL_STEP_SECONDS))
+        : value * conversionEfficiency(value);
 
       return {
         title: "Geração Fotovoltaica",
         items: [
+          incidentItem,
           {
-            label: "Radiação Incidente Estimada (fluxo instantâneo × 1h)",
-            value: (value * 3.6).toFixed(2),
-            unit: "kJ/m²",
-            icon: "fa-sun",
-          },
-          {
-            label: "Produção Energética Estimada (fluxo instantâneo × 1h)",
-            value: (energyGen * 1000).toFixed(2),
+            label: hasStepIrradiation
+              ? "Produção Energética do Passo"
+              : "Produção Energética Estimada (fluxo instantâneo × 1h)",
+            value: energyWhM2.toFixed(2),
             unit: "Wh/m²",
             icon: "fa-solar-panel",
-            // Raw number for charts/CSV; `value` above is display-only.
-            energyValue: energyGen * 1000,
+            energyValue: energyWhM2,
           },
         ],
       };
