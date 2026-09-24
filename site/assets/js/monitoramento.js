@@ -645,14 +645,17 @@
     };
   }
 
+  function destroyChart(chartId) {
+    const existing = state.charts.get(chartId);
+    if (!existing) return;
+    existing.destroy();
+    state.charts.delete(chartId);
+  }
+
   function drawChart(chart) {
     const canvas = state.canvases.get(chart.id);
     if (!canvas) return;
-    const existing = state.charts.get(chart.id);
-    if (existing) {
-      existing.destroy();
-      state.charts.delete(chart.id);
-    }
+    destroyChart(chart.id);
     const config = chartConfig(chart, themeColors());
     syncCardText(chart, config.data.datasets.length);
     if (!config.data.datasets.length) return;
@@ -1046,11 +1049,16 @@
     for (const card of el("monitorGrid").children) observer.observe(card);
   }
 
-  function drawAllForPrint() {
+  function drawForPrint({ printing, paletteChanged }) {
     for (const chart of state.payload.charts) {
-      el(`monitor-card-${chart.id}`).classList.add("is-visible");
-      state.revealed.add(chart.id);
-      if (!state.charts.has(chart.id)) drawChart(chart);
+      if (state.revealed.has(chart.id)) {
+        if (paletteChanged) drawChart(chart);
+      } else if (!printing) {
+        destroyChart(chart.id);
+      } else if (paletteChanged || !state.charts.has(chart.id)) {
+        el(`monitor-card-${chart.id}`).classList.add("is-visible");
+        drawChart(chart);
+      }
     }
   }
 
@@ -1198,8 +1206,7 @@
     el("monitorApp").hidden = false;
     observeCards();
 
-    window.addEventListener("beforeprint", drawAllForPrint);
-    window.addEventListener("labmim-print-change", redrawAll);
+    window.addEventListener("labmim-print-change", (event) => drawForPrint(event.detail));
     window.addEventListener("labmim-theme-change", redrawAll);
   }
 

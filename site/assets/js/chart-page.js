@@ -23,13 +23,13 @@
     return hasDarkTheme() && !PRINT_MEDIA.matches;
   }
 
-  PRINT_MEDIA.addEventListener("change", () => {
-    window.dispatchEvent(
-      new CustomEvent("labmim-print-change", {
-        detail: { printing: PRINT_MEDIA.matches, paletteChanged: hasDarkTheme() },
-      })
-    );
-  });
+  function dispatchPrintChange(printing, paletteChanged) {
+    window.dispatchEvent(new CustomEvent("labmim-print-change", { detail: { printing, paletteChanged } }));
+  }
+
+  PRINT_MEDIA.addEventListener("change", () => dispatchPrintChange(PRINT_MEDIA.matches, hasDarkTheme()));
+  window.addEventListener("beforeprint", () => dispatchPrintChange(true, false));
+  window.addEventListener("afterprint", () => dispatchPrintChange(false, false));
 
   function node(tag, className, text) {
     const element = document.createElement(tag);
