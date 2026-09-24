@@ -188,7 +188,7 @@ A rota `monitoring` tem duas implementações e o build cobra a fonte de dados d
 
 ### 4. Páginas
 
-O catálogo em `src/template/page-types.js` contém os tipos `home`, `monitoring`, `sky`, `team`, `climatology`, `forecast` e `energy`. `page()` preenche arquivo, layout e fonte comum quando disponíveis. `home` e `team` exigem conteúdo próprio da publicação.
+O catálogo em `src/template/page-types.js` contém os tipos `home`, `monitoring`, `sky`, `team`, `climatology`, `forecast`, `energy` e `annual-means`. O `annual-means` (`medias_anuais.html`) ainda é só o esboço institucional da futura página WebGIS de médias anuais do WRF, e a UFES o publica com `indexable: false`. `page()` preenche arquivo, layout e fonte comum quando disponíveis. `home` e `team` exigem conteúdo próprio da publicação.
 
 ```js
 "use strict";

@@ -50,7 +50,7 @@ _O mesmo WebGIS no tema escuro: a preferência fica no navegador e os gráficos 
 
 Cada publicação traz ainda as páginas institucionais — início e equipe —, com identidade visual e SEO próprios.
 
-Quais dessas páginas existem é decidido publicação a publicação, no `pages.js` de cada uma. A UFBA publica as sete — as cinco de dados acima, mais início e equipe; o LEAL, que não tem estação nem câmera all-sky próprias, publica só as institucionais e os dois WebGIS.
+Quais dessas páginas existem é decidido publicação a publicação, no `pages.js` de cada uma. A UFBA publica as sete — as cinco de dados acima, mais início e equipe. O LEAL, que não tem câmera all-sky própria, publica as institucionais, os dois WebGIS, o monitoramento e a climatologia da estação dele, e reserva a rota de médias anuais do WRF, ainda em preparação e fora do sitemap.
 
 ## Como rodar localmente
 
