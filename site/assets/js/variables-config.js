@@ -1417,8 +1417,8 @@ const VARIABLES_CONFIG = {
           },
           surfaceFluxDirectionItem(value, "Evaporação", "Condensação (orvalho)"),
           {
-            label: "Atividade Convectiva",
-            value: Math.abs(value) > 300 ? "Intensa" : Math.abs(value) > 100 ? "Moderada" : "Fraca",
+            label: "Magnitude",
+            value: Math.abs(value) > 300 ? "Forte" : Math.abs(value) > 100 ? "Moderada" : "Fraca",
             icon: "fa-water",
           },
         ],
