@@ -717,11 +717,11 @@
       }
       body.appendChild(line);
     }
-    // The caption counts the BARS, not the subset: samples outside the histogram edges are in `subset.n` but have
-    // no row here, so announcing `n` over this table would promise rows it does not have.
-    const binned = (subset.counts || []).reduce((total, count) => total + count, 0);
+    const isRose = state.variable.chart === "rose";
+    const counted = isRose ? subset.n : (subset.counts || []).reduce((total, count) => total + count, 0);
+    const marks = isRose ? "pétalas" : "barras";
     el("climaTabelaCaption").textContent =
-      `${state.variable.label} — ${subsetLabel(state.subsetId)} (${integer(binned)} observações nas barras)`;
+      `${state.variable.label} — ${subsetLabel(state.subsetId)} (${integer(counted)} observações nas ${marks})`;
   }
 
   function exportCsv() {
