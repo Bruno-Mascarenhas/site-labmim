@@ -603,6 +603,12 @@ class MeteoMapManager {
   }
 
   hasPublishedSteps(type = this.state.type, domain = this.state.domain) {
+    const ranges = VARIABLES_CONFIG[type] ? this.availabilityRanges(this.getVariableId(type), domain) : null;
+    if (Array.isArray(ranges)) {
+      return ranges.some(
+        ([first, last]) => Math.max(first, this.timeline.indexMin) <= Math.min(last, this.state.maxLayer)
+      );
+    }
     for (let index = this.timeline.indexMin; index <= this.state.maxLayer; index++) {
       if (this.isIndexAvailable(index, type, domain)) return true;
     }
