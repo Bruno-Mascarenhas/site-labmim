@@ -11,6 +11,8 @@ html.dark-theme {
   --lab-header-bg: var(--lab-header-dark-bg);
   --lab-footer-bg: var(--lab-footer-dark-bg);
   --focus-ring-color: var(--dark-accent);
+  --secondary-color-ink: var(--dark-accent);
+  --map-accent-ink: var(--dark-accent);
 }
 
 [data-theme-toggle] {
@@ -41,7 +43,7 @@ html.dark-theme {
   background: var(--white) !important;
   border-color: rgba(var(--brand-secondary-rgb), 0.55) !important;
   box-shadow: 0 4px 12px rgba(var(--brand-primary-rgb), 0.18);
-  color: var(--secondary-color-strong) !important;
+  color: var(--secondary-color-ink) !important;
 }
 
 [data-theme-toggle]:focus-visible,
@@ -219,10 +221,6 @@ input:focus-visible {
   color: var(--dark-accent) !important;
 }
 
-.dark-theme .page-header i {
-  color: var(--dark-accent);
-}
-
 .dark-theme .partner-logo:hover,
 .dark-theme .feature-card:hover,
 .dark-theme .team-group:hover {
@@ -311,8 +309,7 @@ input:focus-visible {
 
 .dark-theme .info-value,
 .dark-theme .slider-time,
-.dark-theme .parameters-toggle-label,
-.dark-theme .stat-card-value {
+.dark-theme .parameters-toggle-label {
   color: var(--dark-accent) !important;
 }
 
@@ -432,6 +429,8 @@ input:focus-visible {
     --border-color: #999;
     --chart-grid-color: rgba(0, 0, 0, 0.2);
     --chart-legend-color: #000;
+    --secondary-color-ink: var(--secondary-color-strong);
+    --map-accent-ink: var(--map-accent-strong);
   }
 
   body,

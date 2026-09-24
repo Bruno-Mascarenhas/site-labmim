@@ -322,7 +322,7 @@
 }
 
 .team-group a:hover {
-  color: var(--secondary-color-strong);
+  color: var(--secondary-color-ink);
   text-decoration: underline;
 }
 
