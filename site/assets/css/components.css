@@ -1355,14 +1355,9 @@
   color: var(--text-secondary);
 }
 
-.sky-notes [aria-expanded="true"] .fa-chevron-down {
-  transform: rotate(180deg);
-}
-
-.sky-notes-toggle .fa-chevron-down {
+.sky-notes-toggle i {
   font-size: 0.8em;
   color: var(--text-secondary);
-  transition: transform 0.2s ease;
 }
 
 .sky-notes #ceuCaveats {
