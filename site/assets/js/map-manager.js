@@ -59,6 +59,7 @@ const FORECAST_UTC_OFFSET_HOURS = DATA_SITE_CONFIG.timeline.utcOffsetHours;
 const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_MINUTE = 60 * 1000;
 const RADIATION_INSTANT_FORMAT = "radiation-instant-v1";
+const STEP_SECONDS_FORMAT = "step-seconds-v1";
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const RADIANS_PER_DEGREE = 1 / DEGREES_PER_RADIAN;
 const SPENCER_DAYS_PER_YEAR = 365;
@@ -327,6 +328,7 @@ class MeteoMapManager {
       features: null,
       startLocal: null,
       radiationInstant: null,
+      stepSeconds: null,
     };
 
     this._colorWorker = null;
@@ -486,6 +488,13 @@ class MeteoMapManager {
       radiationInstant.offset_minutes !== null &&
       typeof radiationInstant.offset_minutes === "object"
         ? radiationInstant
+        : null;
+    const stepSeconds = manifest?.step_seconds;
+    this.timeline.stepSeconds =
+      stepSeconds?.format === STEP_SECONDS_FORMAT &&
+      stepSeconds.seconds !== null &&
+      typeof stepSeconds.seconds === "object"
+        ? stepSeconds.seconds
         : null;
 
     this.configureVariableSelect();
@@ -1612,6 +1621,11 @@ class MeteoMapManager {
     if (!instant?.variables.includes(this.getVariableId(this.state.type))) return null;
     const offsetMinutes = instant.offset_minutes[this.state.domain]?.[this.state.index];
     return Number.isFinite(offsetMinutes) ? offsetMinutes : null;
+  }
+
+  manifestStepSeconds(index, domain = this.state.domain) {
+    const seconds = this.timeline.stepSeconds?.[domain]?.[index];
+    return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
   }
 
   formatRadiationSun(offsetMinutes) {
@@ -2845,8 +2859,9 @@ class MeteoMapManager {
         return;
       }
 
+      const stepSeconds = config.panelNeedsStepMetadata ? this.manifestStepSeconds(stepIndex) : null;
       const cellSeries =
-        this.chartsManager && !config.panelNeedsStepMetadata
+        this.chartsManager && (!config.panelNeedsStepMetadata || stepSeconds !== null)
           ? this.chartsManager._loadVariableSeries(varType, this.state.domain, foundCell.cellIndex, null, {
               rangeReadOnly: true,
             })
@@ -2860,6 +2875,7 @@ class MeteoMapManager {
                 value: series.data.find((entry) => entry.hour === stepIndex)?.value ?? null,
                 label: config.label,
                 unit: config.unit,
+                metadata: stepSeconds === null ? undefined : { step_seconds: stepSeconds },
               };
               return null;
             }
