@@ -930,6 +930,7 @@ const VARIABLES_CONFIG = {
   shortwaveIrradiation: {
     id: "SW_IRRAD",
     publishedOnlyWhenListed: true,
+    panelNeedsStepMetadata: true,
     label: "Irradiação Solar do Passo",
     optionLabel: "Irradiação Solar (energia do passo)",
     icon: "☀️",

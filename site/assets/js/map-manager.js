@@ -2789,6 +2789,7 @@ class MeteoMapManager {
 
   loadAllVariableValuesForCell(foundCell) {
     const allValues = {};
+    const stepIndex = this.state.index;
 
     const promises = [];
 
@@ -2805,7 +2806,7 @@ class MeteoMapManager {
         return;
       }
 
-      if (!this.isIndexAvailable(this.state.index, varType)) {
+      if (!this.isIndexAvailable(stepIndex, varType)) {
         allValues[varType] = {
           value: null,
           label: config.label,
@@ -2815,30 +2816,47 @@ class MeteoMapManager {
         return;
       }
 
+      const cellSeries =
+        this.chartsManager && !config.panelNeedsStepMetadata
+          ? this.chartsManager._loadVariableSeries(varType, this.state.domain, foundCell.cellIndex, null, {
+              rangeReadOnly: true,
+            })
+          : Promise.resolve(null);
+
       promises.push(
-        this.loadValueDataOnly(this.state.index, varType)
-          .then((valueData) => {
-            if (
-              valueData &&
-              Array.isArray(valueData.values) &&
-              foundCell.cellIndex >= 0 &&
-              foundCell.cellIndex < valueData.values.length
-            ) {
-              const loadedValue = valueData.values[foundCell.cellIndex];
+        cellSeries
+          .then((series) => {
+            if (series) {
               allValues[varType] = {
-                value: loadedValue,
+                value: series.data.find((entry) => entry.hour === stepIndex)?.value ?? null,
                 label: config.label,
                 unit: config.unit,
-                metadata: valueData.metadata,
               };
-            } else {
-              allValues[varType] = {
-                value: null,
-                label: config.label,
-                unit: config.unit,
-                ausente: true,
-              };
+              return null;
             }
+            return this.loadValueDataOnly(stepIndex, varType).then((valueData) => {
+              if (
+                valueData &&
+                Array.isArray(valueData.values) &&
+                foundCell.cellIndex >= 0 &&
+                foundCell.cellIndex < valueData.values.length
+              ) {
+                const loadedValue = valueData.values[foundCell.cellIndex];
+                allValues[varType] = {
+                  value: loadedValue,
+                  label: config.label,
+                  unit: config.unit,
+                  metadata: valueData.metadata,
+                };
+              } else {
+                allValues[varType] = {
+                  value: null,
+                  label: config.label,
+                  unit: config.unit,
+                  ausente: true,
+                };
+              }
+            });
           })
           .catch(() => {
             allValues[varType] = {

@@ -39,6 +39,8 @@ class ChartsManager {
     this.timeSeriesData = {};
     this.timeSeriesCache = new Map();
     this.domainSummaryCache = new Map();
+    this.unusableCellSeriesFiles = new Set();
+    this.cellSeriesFilesSkippedByPanel = new Set();
     this.abortController = null;
     this.previewAbortController = null;
     this.chartJsLoading = null;
@@ -346,6 +348,8 @@ class ChartsManager {
   clearCaches() {
     this.timeSeriesCache.clear();
     this.domainSummaryCache.clear();
+    this.unusableCellSeriesFiles.clear();
+    this.cellSeriesFilesSkippedByPanel.clear();
   }
 
   async renderDomainSummary(variableType, domain, elements = {}) {
@@ -976,7 +980,7 @@ class ChartsManager {
     return [...keys];
   }
 
-  async _loadVariableSeries(variableKey, domain, cellIndex, signal) {
+  async _loadVariableSeries(variableKey, domain, cellIndex, signal, { rangeReadOnly = false } = {}) {
     const config = VARIABLES_CONFIG[variableKey];
     if (!config?.id) return null;
     if (this.app?.hasPublishedSteps && !this.app.hasPublishedSteps(variableKey, domain)) return null;
@@ -990,12 +994,15 @@ class ChartsManager {
 
     // One ~300-byte Range request instead of dozens of full-domain JSONs read
     // for a single cell each.
-    const binarySeries = await this._loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal);
+    const binarySeries = await this._loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal, {
+      rangeReadOnly,
+    });
     if (binarySeries) {
       const result = { config, data: binarySeries };
       this.timeSeriesCache.set(cacheKey, result);
       return result;
     }
+    if (rangeReadOnly) return null;
 
     const { series, transientFailures } = await this._collectHourlySeries(
       variableId,
@@ -1024,11 +1031,9 @@ class ChartsManager {
   /**
    * Reads one cell's series from {D}_{VAR}.series.bin (cell-series-int32-le-v1:
    * row-major cells x steps int32 LE, value = raw * scale, `missing` sentinel)
-   * via a Range request. A server without Range support answers 200 with the
-   * full body, sliced locally. Null on any error — callers fall back to the
-   * legacy per-hour path.
+   * via a Range request.
    */
-  async _loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal) {
+  async _loadCellSeriesFromBinary(variableId, domain, cellIndex, maxHour, signal, { rangeReadOnly = false } = {}) {
     const feature = this.app?.timeline?.features?.cell_series;
     if (
       feature?.format !== "cell-series-int32-le-v1" ||
@@ -1040,6 +1045,10 @@ class ChartsManager {
     ) {
       return null;
     }
+
+    const fileKey = `${this.app?.dataVersion || "v0"}:${domain}:${variableId}`;
+    if (this.unusableCellSeriesFiles.has(fileKey)) return null;
+    if (rangeReadOnly && this.cellSeriesFilesSkippedByPanel.has(fileKey)) return null;
 
     const steps = feature.index_max - feature.index_min + 1;
     if (steps <= 0) return null;
@@ -1064,18 +1073,27 @@ class ChartsManager {
         const totalMatch = /\/(\d+)\s*$/.exec(res.headers.get("Content-Range") || "");
         const total = totalMatch ? parseInt(totalMatch[1], 10) : null;
         if (total !== null && (total % bytesPerCell !== 0 || (expectedTotal !== null && total !== expectedTotal))) {
+          this.unusableCellSeriesFiles.add(fileKey);
           return null;
         }
+        if (rangeReadOnly && (total === null || total !== expectedTotal)) return null;
         buffer = await res.arrayBuffer();
         if (buffer.byteLength < bytesPerCell) return null;
       } else if (res.ok) {
+        this.cellSeriesFilesSkippedByPanel.add(fileKey);
+        if (rangeReadOnly) {
+          await res.body?.cancel();
+          return null;
+        }
         const full = await res.arrayBuffer();
         if (full.byteLength % bytesPerCell !== 0 || (expectedTotal !== null && full.byteLength !== expectedTotal)) {
+          this.unusableCellSeriesFiles.add(fileKey);
           return null;
         }
         if (full.byteLength < offset + bytesPerCell) return null;
         buffer = full.slice(offset, offset + bytesPerCell);
       } else {
+        if (rangeReadOnly && res.status === 404) this.cellSeriesFilesSkippedByPanel.add(fileKey);
         return null;
       }
 
