@@ -13,6 +13,8 @@ html.dark-theme {
   --focus-ring-color: var(--dark-accent);
   --secondary-color-ink: var(--dark-accent);
   --map-accent-ink: var(--dark-accent);
+  --map-accent-active-border: var(--map-accent);
+  --affiliation-ink: var(--brand-secondary);
 }
 
 [data-theme-toggle] {
@@ -133,10 +135,6 @@ input:focus-visible {
   --bs-btn-active-color: var(--bg-primary);
 }
 
-.dark-theme .site-affiliation-text small {
-  color: var(--brand-secondary);
-}
-
 .dark-theme h1,
 .dark-theme h2,
 .dark-theme h3,
@@ -195,11 +193,7 @@ input:focus-visible {
 
 .dark-theme .control-btn.active {
   background: var(--map-accent-strong) !important;
-  border-color: var(--map-accent) !important;
-}
-
-.dark-theme .segmented-btn.active {
-  border-color: var(--map-accent);
+  border-color: var(--map-accent-active-border) !important;
 }
 
 .dark-theme .partner-logo-text,

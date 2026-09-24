@@ -4,6 +4,7 @@
   --secondary-color: var(--brand-secondary);
   --secondary-color-strong: var(--brand-secondary-strong, var(--brand-secondary));
   --secondary-color-ink: var(--secondary-color-strong);
+  --affiliation-ink: var(--secondary-color-strong);
   --danger-color: #e74c3c;
   --warning-color: #f1c40f;
   --text-dark: #2c3e50;
@@ -18,6 +19,7 @@
   --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.15);
   --map-accent-gradient: linear-gradient(135deg, var(--map-accent-strong), var(--map-accent-2));
   --map-accent-ink: var(--map-accent-strong);
+  --map-accent-active-border: var(--map-accent-strong);
   --navbar-height: 76px;
   --wcag-min-target: 24px;
   --focus-ring-color: var(--brand-primary-strong, var(--brand-primary));
@@ -194,7 +196,7 @@ button {
 }
 
 .site-affiliation-text small {
-  color: var(--secondary-color-strong);
+  color: var(--affiliation-ink);
   font-size: 0.78rem;
   letter-spacing: 0.08em;
 }

@@ -415,7 +415,7 @@ header.maps-header {
 .control-btn.active {
   background: var(--map-accent-strong);
   color: white;
-  border-color: var(--map-accent-strong);
+  border-color: var(--map-accent-active-border);
 }
 
 .variable-selector-wrapper {
@@ -524,7 +524,7 @@ header.maps-header {
 .segmented-btn.active {
   background: var(--map-accent-strong);
   color: white;
-  border-color: var(--map-accent-strong);
+  border-color: var(--map-accent-active-border);
 }
 
 .wind-layer-toggle {
