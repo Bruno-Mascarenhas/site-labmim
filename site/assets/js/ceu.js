@@ -443,7 +443,6 @@
   const AGE_REFRESH_INTERVAL_MS = MINUTE_MS;
   const PAYLOAD_RECHECK_INTERVAL_MS = 5 * MINUTE_MS;
   const PAYLOAD_RECHECK_MIN_GAP_MS = MINUTE_MS;
-  const AGE_SUFFIX_PATTERN = / \(há [^)]*\)/g;
 
   function finite(value) {
     return typeof value === "number" && Number.isFinite(value);
@@ -673,9 +672,25 @@
     return `há ${Math.floor(hours / 24)} dias`;
   }
 
-  function withAge(payload, localStamp) {
-    const age = ageText(Date.now() - stationToUtcMs(payload, localStamp));
+  function ageSuffix(sinceUtcMs) {
+    const age = ageText(Date.now() - sinceUtcMs);
     return age ? ` (${age})` : "";
+  }
+
+  function ageNode(payload, localStamp) {
+    const sinceUtcMs = stationToUtcMs(payload, localStamp);
+    const age = node("span", null, ageSuffix(sinceUtcMs));
+    age.dataset.ageSince = String(sinceUtcMs);
+    return age;
+  }
+
+  function statusContent(parts, separator) {
+    const content = document.createDocumentFragment();
+    parts.forEach((part, index) => {
+      if (index) content.append(separator);
+      for (const piece of [part].flat()) content.append(typeof piece === "string" ? withReferences(piece) : piece);
+    });
+    return content;
   }
 
   function clockOffsetText(offsetSeconds) {
@@ -909,13 +924,13 @@
       parts.push(text(info.reason_pt, REASON_PT[info.reason] || "nenhum quadro pontuado"));
       const latest = parseStationTime(info.latest_scored_at || "");
       if (Number.isFinite(latest)) {
-        parts.push(`último quadro pontuado em ${formatStamp(latest)}${withAge(frame, info.latest_scored_at)}`);
+        parts.push([`último quadro pontuado em ${formatStamp(latest)}`, ageNode(frame, info.latest_scored_at)]);
       }
       parts.push("as imagens são as últimas publicadas");
     } else {
       const captured = parseStationTime(frame.captured_at || "");
       if (Number.isFinite(captured)) {
-        parts.push(`quadro capturado em ${formatStamp(captured)}${withAge(frame, frame.captured_at)}`);
+        parts.push([`quadro capturado em ${formatStamp(captured)}`, ageNode(frame, frame.captured_at)]);
       }
       if (info.reason && info.reason !== "fresh")
         parts.push(text(info.reason_pt, REASON_PT[info.reason] || info.reason));
@@ -927,7 +942,7 @@
     if (info.watch_alive === false) parts.push("a vigília da câmera parece parada");
     const clock = clockOffsetText(info.camera_clock_drift_s);
     if (clock) parts.push(clock);
-    status.replaceChildren(withReferences(parts.join(" · ")));
+    status.replaceChildren(statusContent(parts, " · "));
   }
 
   function factRow(list, term, detail) {
@@ -2908,13 +2923,13 @@
     const parts = [];
     const stamp = parseStationTime(latest.last_scored_block || "");
     if (Number.isFinite(stamp))
-      parts.push(`Último bloco pontuado: ${formatStamp(stamp)}${withAge(payload, latest.last_scored_block)}`);
+      parts.push([`Último bloco pontuado: ${formatStamp(stamp)}`, ageNode(payload, latest.last_scored_block)]);
     if (latest.last_block_status && latest.last_block_status !== "scored")
       parts.push(`estado do último bloco: ${BLOCK_STATUS_PT[latest.last_block_status] || latest.last_block_status}`);
     const labels = payload.reason_labels_pt || (payload.skipped && payload.skipped.reason_labels_pt) || {};
     if (latest.reason && latest.reason !== "fresh")
       parts.push(text(labels[latest.reason], REASON_PT[latest.reason] || latest.reason));
-    return parts.length ? `${parts.join(" · ")}.` : "";
+    return parts.length ? [statusContent(parts, " · "), "."] : "";
   }
 
   function measuredSentence(payload) {
@@ -3025,9 +3040,7 @@
   function renderTimelineStatus() {
     const payload = state.timelinePayload;
     el("ceuLinhaStatus").replaceChildren(
-      withReferences(
-        [latestSentence(payload), skippedSummary(payload), measuredSentence(payload)].filter(Boolean).join(" ")
-      )
+      statusContent([latestSentence(payload), skippedSummary(payload), measuredSentence(payload)].filter(Boolean), " ")
     );
   }
 
@@ -3871,8 +3884,10 @@
   }
 
   function refreshAges() {
-    renderFrameStatus();
-    if (state.timelinePayload && timelineBounds()) renderTimelineStatus();
+    for (const age of el("ceuApp").querySelectorAll("[data-age-since]")) {
+      const suffix = ageSuffix(Number(age.dataset.ageSince));
+      if (age.textContent !== suffix) age.textContent = suffix;
+    }
   }
 
   function frameAnnouncementKey() {
@@ -3910,7 +3925,9 @@
     ]) {
       const changed = key !== state.announcedStatus.get(id);
       state.announcedStatus.set(id, key);
-      const content = el(id).textContent.replace(AGE_SUFFIX_PATTERN, "");
+      const status = el(id).cloneNode(true);
+      for (const age of status.querySelectorAll("[data-age-since]")) age.remove();
+      const content = status.textContent;
       if (content && changed) announcements.push(node("p", null, content));
     }
     if (announcements.length) el("ceuAnuncio").replaceChildren(...announcements);
