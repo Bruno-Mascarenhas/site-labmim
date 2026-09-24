@@ -207,6 +207,15 @@ const COLOR_RGB_PAIRS = Object.freeze([
 
 const PAIRED_RGB_PROPERTIES = new Set(COLOR_RGB_PAIRS.map(([, rgbProperty]) => rgbProperty));
 
+const WCAG_CONTRAST_FLARE = 0.05;
+const WCAG_LUMINANCE_WEIGHTS = Object.freeze([0.2126, 0.7152, 0.0722]);
+const SRGB_CHANNEL_MAX = 255;
+const SRGB_LINEAR_SEGMENT_LIMIT = 0.04045;
+const SRGB_LINEAR_SEGMENT_SLOPE = 12.92;
+const SRGB_GAMMA_OFFSET = 0.055;
+const SRGB_GAMMA_SCALE = 1.055;
+const SRGB_GAMMA_EXPONENT = 2.4;
+
 function parseHexColor(value) {
   const match = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
   if (!match) return null;
@@ -221,7 +230,25 @@ function parseRgbChannels(value) {
   return channels.every((channel) => channel <= 255) ? channels : null;
 }
 
-function inspectPublicationThemeCss(content) {
+function relativeLuminance(channels) {
+  return channels.reduce((sum, channel, index) => {
+    const unit = channel / SRGB_CHANNEL_MAX;
+    const linear =
+      unit <= SRGB_LINEAR_SEGMENT_LIMIT
+        ? unit / SRGB_LINEAR_SEGMENT_SLOPE
+        : ((unit + SRGB_GAMMA_OFFSET) / SRGB_GAMMA_SCALE) ** SRGB_GAMMA_EXPONENT;
+    return sum + WCAG_LUMINANCE_WEIGHTS[index] * linear;
+  }, 0);
+}
+
+function contrastRatio(firstChannels, secondChannels) {
+  const [lighter, darker] = [relativeLuminance(firstChannels), relativeLuminance(secondChannels)].sort(
+    (left, right) => right - left
+  );
+  return (lighter + WCAG_CONTRAST_FLARE) / (darker + WCAG_CONTRAST_FLARE);
+}
+
+function parsePublicationThemeCss(content) {
   const errors = [];
   const withoutComments = content.replace(/\/\*[\s\S]*?\*\//g, "").trim();
   // `[^{}]` stops the match from swallowing the next rule when the last declaration has
@@ -229,7 +256,7 @@ function inspectPublicationThemeCss(content) {
   const root = withoutComments.match(/^:root\s*\{([^{}@]*)\}\s*$/);
 
   if (!root) {
-    return ["must contain exactly one :root block and no publication-specific selectors"];
+    return { values: null, errors: ["must contain exactly one :root block and no publication-specific selectors"] };
   }
 
   const declarations = root[1]
@@ -259,8 +286,15 @@ function inspectPublicationThemeCss(content) {
     }
   }
 
+  return { values, errors };
+}
+
+function inspectPublicationThemeCss(content) {
+  const { values, errors } = parsePublicationThemeCss(content);
+  if (!values) return errors;
+
   for (const property of REQUIRED_THEME_PROPERTIES) {
-    if (!seen.has(property)) {
+    if (!values.has(property)) {
       errors.push(
         `missing required custom property --${property}; declare it, or move it to OPTIONAL_THEME_PROPERTIES in ` +
           `scripts/site-builder/theme-contract.js if the shared CSS/JS can fall back without it`
@@ -295,6 +329,8 @@ module.exports = {
   REQUIRED_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTY_NAMES,
+  parsePublicationThemeCss,
   inspectPublicationThemeCss,
   parseHexColor,
+  contrastRatio,
 };

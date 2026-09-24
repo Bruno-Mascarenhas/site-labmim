@@ -11,37 +11,28 @@ const { discoverPublications } = require("./site-builder/publications.js");
 const {
   REQUIRED_THEME_PROPERTIES,
   OPTIONAL_THEME_PROPERTIES,
+  parsePublicationThemeCss,
   inspectPublicationThemeCss,
   parseHexColor,
+  contrastRatio,
 } = require("./site-builder/theme-contract.js");
 
 const WCAG_AA_BODY_TEXT_CONTRAST = 4.5;
 const FOCUS_RING_MIN_CONTRAST_WITH_WHITE = 9;
-const WCAG_CONTRAST_FLARE = 0.05;
-const WCAG_LUMINANCE_WEIGHTS = [0.2126, 0.7152, 0.0722];
-const SRGB_CHANNEL_MAX = 255;
-const SRGB_LINEAR_SEGMENT_LIMIT = 0.04045;
-const SRGB_LINEAR_SEGMENT_SLOPE = 12.92;
-const SRGB_GAMMA_OFFSET = 0.055;
-const SRGB_GAMMA_SCALE = 1.055;
-const SRGB_GAMMA_EXPONENT = 2.4;
-const WHITE_RELATIVE_LUMINANCE = 1;
+const WHITE_SRGB_CHANNELS = Object.freeze([255, 255, 255]);
 const TONES_CHECKED_AGAINST_WHITE = Object.freeze([
   {
     property: "map-accent-strong",
-    fallbackProperty: null,
     minContrast: WCAG_AA_BODY_TEXT_CONTRAST,
     requirement: `the WCAG AA ${WCAG_AA_BODY_TEXT_CONTRAST}:1 for white body text on it`,
   },
   {
     property: "brand-secondary-strong",
-    fallbackProperty: "brand-secondary",
     minContrast: WCAG_AA_BODY_TEXT_CONTRAST,
     requirement: `the WCAG AA ${WCAG_AA_BODY_TEXT_CONTRAST}:1 for white body text on it`,
   },
   {
     property: "brand-primary-strong",
-    fallbackProperty: "brand-primary",
     minContrast: FOCUS_RING_MIN_CONTRAST_WITH_WHITE,
     requirement: `the ${FOCUS_RING_MIN_CONTRAST_WITH_WHITE}:1 the focus ring and its white band need to reach 3:1 on any map background`,
   },
@@ -74,23 +65,13 @@ function collectScripts(directory) {
     .sort();
 }
 
-function relativeLuminance(channels) {
-  return channels.reduce((sum, channel, index) => {
-    const unit = channel / SRGB_CHANNEL_MAX;
-    const linear =
-      unit <= SRGB_LINEAR_SEGMENT_LIMIT
-        ? unit / SRGB_LINEAR_SEGMENT_SLOPE
-        : ((unit + SRGB_GAMMA_OFFSET) / SRGB_GAMMA_SCALE) ** SRGB_GAMMA_EXPONENT;
-    return sum + WCAG_LUMINANCE_WEIGHTS[index] * linear;
-  }, 0);
-}
-
-function contrastWithWhite(channels) {
-  return (WHITE_RELATIVE_LUMINANCE + WCAG_CONTRAST_FLARE) / (relativeLuminance(channels) + WCAG_CONTRAST_FLARE);
-}
-
-function declaredThemeValue(themeCss, property) {
-  return themeCss.match(new RegExp(`(?<![\\w-])--${property}\\s*:\\s*([^;}]+)`))?.[1].trim();
+function resolveThemeTone(values, property) {
+  if (values.has(property)) return { value: values.get(property), source: `--${property}` };
+  const fallback = OPTIONAL_THEME_PROPERTIES.find((entry) => entry.property === property)?.fallback;
+  if (fallback === undefined) return { value: undefined, source: `--${property}` };
+  const reference = fallback.match(/^var\(--([a-z0-9-]+)\)$/);
+  if (reference) return resolveThemeTone(values, reference[1]);
+  return { value: fallback, source: `the contract fallback of --${property}` };
 }
 
 /** Matches `var(--token)` and `var(--token, fallback)` but never `var(--token-suffix)`. */
@@ -125,22 +106,27 @@ for (const publication of publications) {
     errors.push(`${path.relative(root, themePath)}: ${error}`);
   }
 
-  const declarations = content.replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const { property, fallbackProperty, minContrast, requirement } of TONES_CHECKED_AGAINST_WHITE) {
-    const resolvedProperty =
-      declaredThemeValue(declarations, property) === undefined && fallbackProperty ? fallbackProperty : property;
-    const value = declaredThemeValue(declarations, resolvedProperty);
-    const channels = value && parseHexColor(value);
-    if (!channels) {
+  const { values } = parsePublicationThemeCss(content);
+  if (!values) continue;
+  for (const { property, minContrast, requirement } of TONES_CHECKED_AGAINST_WHITE) {
+    const { value, source } = resolveThemeTone(values, property);
+    if (value === undefined) {
       errors.push(
-        `${path.relative(root, themePath)}: --${resolvedProperty} must be #rgb or #rrggbb so its contrast with white can be checked`
+        `${path.relative(root, themePath)}: ${source} is not declared, so the contrast of --${property} with white cannot be checked`
       );
       continue;
     }
-    const contrast = contrastWithWhite(channels);
+    const channels = parseHexColor(value);
+    if (!channels) {
+      errors.push(
+        `${path.relative(root, themePath)}: ${source} must be #rgb or #rrggbb so its contrast with white can be checked`
+      );
+      continue;
+    }
+    const contrast = contrastRatio(channels, WHITE_SRGB_CHANNELS);
     if (contrast < minContrast) {
       errors.push(
-        `${path.relative(root, themePath)}: --${property} (${resolvedProperty === property ? value : `${value} from --${resolvedProperty}`}) reaches ${contrast.toFixed(2)}:1 against white, below ${requirement}`
+        `${path.relative(root, themePath)}: --${property} (${source === `--${property}` ? value : `${value} from ${source}`}) reaches ${contrast.toFixed(2)}:1 against white, below ${requirement}`
       );
     }
   }
