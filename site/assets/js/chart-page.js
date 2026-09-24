@@ -6,6 +6,9 @@
   const STAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
   const COMPACT_STAMP = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/;
 
+  const INTEGER_FORMAT = new Intl.NumberFormat("pt-BR");
+  const decimalFormatsByDigits = new Map();
+
   const el = (id) => document.getElementById(id);
 
   const pad = (value) => String(value).padStart(2, "0");
@@ -25,17 +28,26 @@
     return tile;
   }
 
+  function decimalFormat(digits) {
+    let format = decimalFormatsByDigits.get(digits);
+    if (!format) {
+      format = new Intl.NumberFormat("pt-BR", {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      });
+      decimalFormatsByDigits.set(digits, format);
+    }
+    return format;
+  }
+
   function decimal(value, digits) {
     if (!Number.isFinite(value)) return "—";
-    return new Intl.NumberFormat("pt-BR", {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
-    }).format(value);
+    return decimalFormat(digits).format(value);
   }
 
   function integer(value) {
     if (!Number.isFinite(value)) return "—";
-    return new Intl.NumberFormat("pt-BR").format(Math.round(value));
+    return INTEGER_FORMAT.format(Math.round(value));
   }
 
   function percent(fraction, digits = 1) {
