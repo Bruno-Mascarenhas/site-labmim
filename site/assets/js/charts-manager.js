@@ -5,12 +5,16 @@ const CHART_TIMELINE_FIRST_INDEX = 1;
 // CSV must format in UTC too — local time would shift them off the map.
 const CHART_FORECAST_TIME_ZONE = "UTC";
 const CHART_JS_SRC = "assets/vendor/chartjs/chart.min.js?v=3.9.1";
+const STEPPED_MODE_FILLING_STEP_BEFORE_EACH_POINT = "after";
+const STEP_ENDING_AT_CURSOR_INTERACTION_MODE = "stepEndingAtCursor";
 
 // The two card surfaces a series is drawn on: assets/css/maps.css and the dark override in
 // assets/css/theme.css (.chart-modal-body, div[id^="chartContainer"]).
 const CHART_SURFACES = ["#ffffff", "#161b22"];
 const CHART_SERIES_FALLBACK = "#0d6efd";
 
+const SERIES_POINT_RADIUS_PX = 3;
+const MOST_POINTS_DRAWN_WITH_MARKERS = 96;
 const PARTIAL_COVERAGE_POINT_RADIUS_PX = 5;
 const PARTIAL_COVERAGE_POINT_BORDER_WIDTH_PX = 2;
 const HOLLOW_POINT_FILL = "rgba(0, 0, 0, 0)";
@@ -33,6 +37,16 @@ function themeInvariantSeriesColor(colors) {
   if (!Array.isArray(colors) || !colors.length) return CHART_SERIES_FALLBACK;
   const worstContrast = (color) => Math.min(...CHART_SURFACES.map((surface) => contrastRatio(color, surface)));
   return colors.reduce((best, color) => (worstContrast(color) > worstContrast(best) ? color : best), colors[0]);
+}
+
+function itemsOfStepEndingAtCursor(chart, event, options, useFinalPosition) {
+  const cursorX = Chart.helpers.getRelativePosition(event, chart).x;
+  return chart.getSortedVisibleDatasetMetas().flatMap((meta) => {
+    const index = meta.data.findIndex((point) => point.getProps(["x"], useFinalPosition).x >= cursorX);
+    const point = meta.data[index];
+    const closesNoStep = chart.data.datasets[meta.index].openingStepAnchorIndexes.has(index);
+    return point && !point.skip && !closesNoStep ? [{ element: point, datasetIndex: meta.index, index }] : [];
+  });
 }
 
 class ChartsManager {
@@ -321,18 +335,20 @@ class ChartsManager {
 
     const isSolarOrWind = variableType === "solar" || variableType === "eolico";
     const timeData = this._seriesWithHourGaps(this.timeSeriesData[variableType].data);
+    const energySeries = isSolarOrWind ? this._prepareChartData(variableType, "energy", config, timeData) : null;
+    const sharedAxisOpensHourBefore = energySeries?.stepTotal === true && Number.isFinite(energySeries.data[0]);
 
     this._updateOrCreateChart(
       "chartCanvasValue",
       timeData,
-      this._prepareChartData(variableType, "value", config, timeData)
+      this._prepareChartData(variableType, "value", config, timeData),
+      sharedAxisOpensHourBefore
     );
 
-    const energySeries = isSolarOrWind ? this._prepareChartData(variableType, "energy", config, timeData) : null;
     const energyContainer = this.ui.chartEnergyContainer;
     if (energySeries?.data.some(Number.isFinite)) {
       energyContainer.style.display = "block";
-      this._updateOrCreateChart("chartCanvasEnergy", timeData, energySeries);
+      this._updateOrCreateChart("chartCanvasEnergy", timeData, energySeries, sharedAxisOpensHourBefore);
     } else {
       energyContainer.style.display = "none";
     }
@@ -653,8 +669,14 @@ class ChartsManager {
     if (!canvas || typeof Chart === "undefined") return;
     this._clearPreviewChartNotice(canvasId);
 
+    const stepTotal = config.stepTotal === true;
     const gapped = this._seriesWithHourGaps(series);
-    const labels = gapped.map((entry) =>
+    const drawn = this._withOpeningStepAnchors(
+      gapped,
+      gapped.map((entry) => entry.value),
+      stepTotal
+    );
+    const labels = drawn.entries.map((entry) =>
       new Date(entry.timestamp).toLocaleString("pt-BR", {
         timeZone: CHART_FORECAST_TIME_ZONE,
         day: "2-digit",
@@ -662,12 +684,13 @@ class ChartsManager {
         hour: "2-digit",
       })
     );
-    const chartData = gapped.map((entry) => entry.value);
+    const chartData = drawn.data;
+    const firstSeriesLabel = labels[drawn.entries.length - gapped.length];
     const chartColor = themeInvariantSeriesColor(config.colors);
     const chartLabel = `Média do domínio · ${this._stepLabel(config)}`;
     const tooltipLabel = (ctx) => {
       const value = this._formatPreviewValue(ctx.parsed.y, config.unit);
-      const entry = gapped[ctx.dataIndex];
+      const entry = drawn.entries[ctx.dataIndex];
       return this._coversPartOfDomain(entry) ? [value, this._domainCoverageLabel(entry)] : value;
     };
 
@@ -677,7 +700,7 @@ class ChartsManager {
       canvas.setAttribute(
         "aria-label",
         `Média do domínio para ${this._stepLabel(config)}${config.unit ? ` em ${config.unit}` : ""}, ` +
-          `de ${labels[0]} a ${labels[labels.length - 1]}. ` +
+          `de ${firstSeriesLabel} a ${labels[labels.length - 1]}. ` +
           (meanCoversDaylightOnly
             ? "As estatísticas do resumo desta prévia cobrem só as horas diurnas publicadas; a noite não entra na média."
             : "As estatísticas do período estão no resumo desta prévia.")
@@ -688,16 +711,18 @@ class ChartsManager {
 
     if (chartInstance) {
       this._applySeriesToChart(chartInstance, labels, chartData, chartLabel, chartColor);
+      this._applySeriesShape(chartInstance, stepTotal, drawn.anchorIndexes);
       chartInstance.options.scales.y.title.text = config.unit;
       chartInstance.options.plugins.tooltip.callbacks.label = tooltipLabel;
-      this._applyPreviewPoints(chartInstance, gapped, chartColor);
+      this._applyPreviewPoints(chartInstance, drawn.entries, chartColor);
       this._applyChartTheme(chartInstance, chartColor);
       chartInstance.update(INSTANT_UPDATE_MODE_REFRESHING_POINT_OPTIONS);
       return;
     }
 
     const previewConfig = this._buildChartConfig(chartData, labels, chartLabel, chartColor, config.unit);
-    this._applyPreviewPoints(previewConfig, gapped, chartColor);
+    this._applySeriesShape(previewConfig, stepTotal, drawn.anchorIndexes);
+    this._applyPreviewPoints(previewConfig, drawn.entries, chartColor);
     chartInstance = new Chart(canvas.getContext("2d"), previewConfig);
     chartInstance.options.plugins.legend.display = false;
     chartInstance.options.scales.x.ticks.maxTicksLimit = 6;
@@ -753,8 +778,15 @@ class ChartsManager {
     return `${numericValue.toFixed(precision)} ${unit}`;
   }
 
-  _updateOrCreateChart(canvasId, timeData, { data: chartData, label: chartLabel, unit: chartUnit, color: chartColor }) {
-    const labels = timeData.map((entry) => {
+  _updateOrCreateChart(
+    canvasId,
+    timeData,
+    { data: seriesData, label: chartLabel, unit: chartUnit, color: chartColor, stepTotal },
+    sharedAxisOpensHourBefore = false
+  ) {
+    const drawn = this._withOpeningStepAnchors(timeData, seriesData, stepTotal, sharedAxisOpensHourBefore);
+    const chartData = drawn.data;
+    const labels = drawn.entries.map((entry) => {
       if (!entry._formattedLabel) {
         entry._formattedLabel = new Date(entry.timestamp).toLocaleString("pt-BR", {
           timeZone: CHART_FORECAST_TIME_ZONE,
@@ -768,13 +800,14 @@ class ChartsManager {
     });
 
     const canvas = this._getChartCanvas(canvasId);
+    const firstSeriesLabel = labels[drawn.entries.length - timeData.length];
     // A <canvas> exposes no content to the accessibility tree (WCAG 1.1.1).
     if (canvas && labels.length) {
       canvas.setAttribute("role", "img");
       canvas.setAttribute(
         "aria-label",
         `Série temporal de ${chartLabel}${chartUnit ? ` em ${chartUnit}` : ""}, ` +
-          `de ${labels[0]} a ${labels[labels.length - 1]}. ` +
+          `de ${firstSeriesLabel} a ${labels[labels.length - 1]}. ` +
           "Use o botão CSV para a versão textual dos dados."
       );
     }
@@ -783,7 +816,8 @@ class ChartsManager {
 
     if (chartInstance) {
       this._applySeriesToChart(chartInstance, labels, chartData, chartLabel, chartColor);
-      chartInstance.data.datasets[0].pointRadius = chartData.length > 96 ? 0 : 3;
+      this._applySeriesShape(chartInstance, stepTotal, drawn.anchorIndexes);
+      chartInstance.data.datasets[0].pointRadius = this._seriesPointRadii(drawn);
       chartInstance.data.datasets[0].pointBackgroundColor = chartColor;
       chartInstance.options.scales.y.title.text = chartUnit;
       chartInstance.options.plugins.tooltip.callbacks.label = (ctx) => `${ctx.parsed.y.toFixed(2)} ${chartUnit}`;
@@ -792,7 +826,10 @@ class ChartsManager {
     } else {
       const ctx = canvas?.getContext("2d");
       if (!ctx) return;
-      chartInstance = new Chart(ctx, this._buildChartConfig(chartData, labels, chartLabel, chartColor, chartUnit));
+      const chartConfig = this._buildChartConfig(chartData, labels, chartLabel, chartColor, chartUnit);
+      this._applySeriesShape(chartConfig, stepTotal, drawn.anchorIndexes);
+      chartConfig.data.datasets[0].pointRadius = this._seriesPointRadii(drawn);
+      chartInstance = new Chart(ctx, chartConfig);
       this.charts.set(canvasId, chartInstance);
     }
   }
@@ -863,6 +900,41 @@ class ChartsManager {
     chartInstance.data.datasets[0].backgroundColor = `${color}20`;
   }
 
+  _applySeriesShape(chartOrConfig, stepTotal, openingStepAnchorIndexes) {
+    Chart.Interaction.modes[STEP_ENDING_AT_CURSOR_INTERACTION_MODE] = itemsOfStepEndingAtCursor;
+    chartOrConfig.data.datasets[0].stepped = stepTotal ? STEPPED_MODE_FILLING_STEP_BEFORE_EACH_POINT : false;
+    chartOrConfig.data.datasets[0].openingStepAnchorIndexes = openingStepAnchorIndexes;
+    chartOrConfig.options.scales.y.beginAtZero = stepTotal;
+    chartOrConfig.options.interaction.mode = stepTotal ? STEP_ENDING_AT_CURSOR_INTERACTION_MODE : "index";
+  }
+
+  _withOpeningStepAnchors(entries, values, stepTotal, sharedAxisOpensHourBefore = false) {
+    const opensHourBefore = sharedAxisOpensHourBefore || (stepTotal && Number.isFinite(values[0]));
+    const drawnEntries = [...entries];
+    const data = [...values];
+    if (opensHourBefore) {
+      const openingHour = entries[0].hour - 1;
+      drawnEntries.unshift({ hour: openingHour, value: null, timestamp: this._timestampForHour(openingHour, null) });
+      data.unshift(null);
+    }
+    const anchorIndexes = new Set();
+    if (!stepTotal) return { entries: drawnEntries, data, anchorIndexes };
+    for (let index = 1; index < data.length; index++) {
+      const opensRun = Number.isFinite(data[index]) && !Number.isFinite(data[index - 1]);
+      const anchorFollowsGapOrEdge = index === 1 || !Number.isFinite(data[index - 2]);
+      if (opensRun && anchorFollowsGapOrEdge) {
+        data[index - 1] = data[index];
+        anchorIndexes.add(index - 1);
+      }
+    }
+    return { entries: drawnEntries, data, anchorIndexes };
+  }
+
+  _seriesPointRadii(drawn) {
+    const radius = drawn.data.length > MOST_POINTS_DRAWN_WITH_MARKERS ? 0 : SERIES_POINT_RADIUS_PX;
+    return drawn.data.map((_, index) => (drawn.anchorIndexes.has(index) ? 0 : radius));
+  }
+
   _getThemeColors() {
     const rootStyles = getComputedStyle(document.documentElement);
     return {
@@ -889,7 +961,7 @@ class ChartsManager {
             borderWidth: 3,
             fill: true,
             tension: 0.4,
-            pointRadius: chartData.length > 96 ? 0 : 3,
+            pointRadius: chartData.length > MOST_POINTS_DRAWN_WITH_MARKERS ? 0 : SERIES_POINT_RADIUS_PX,
             pointBackgroundColor: chartColor,
             pointBorderColor: "#fff",
             pointBorderWidth: 2,
@@ -977,6 +1049,7 @@ class ChartsManager {
         label: this._stepLabel(config),
         unit: config.unit,
         color: themeInvariantSeriesColor(config.colors),
+        stepTotal: config.stepTotal === true,
       };
     }
 
@@ -1011,8 +1084,9 @@ class ChartsManager {
     });
 
     const solarLabel = stepIrradiationByHour ? "Produção Energética do Passo" : "Produção Estimada (fluxo × 1h)";
-    const label = variableType === "solar" ? solarLabel : "Produção Energética Acumulada (1h)";
-    return { data, label, unit, color, stepIrradiationByHour };
+    const label = variableType === "solar" ? solarLabel : "Produção Estimada (potência × 1h)";
+    const stepTotal = stepIrradiationByHour !== null;
+    return { data, label, unit, color, stepIrradiationByHour, stepTotal };
   }
 
   _getRequiredVariableKeys(variableType) {
@@ -1201,7 +1275,7 @@ class ChartsManager {
       const solarColumn = stepIrradiationByHour
         ? "Produção no passo pela irradiação"
         : "Produção em 1h estimada pelo fluxo instantâneo";
-      const energyColumn = type === "solar" ? solarColumn : "Produção";
+      const energyColumn = type === "solar" ? solarColumn : "Produção em 1h estimada pela potência instantânea";
       csv += `,${energyColumn}(${energyConfig.unit})`;
     }
     csv += "\n";

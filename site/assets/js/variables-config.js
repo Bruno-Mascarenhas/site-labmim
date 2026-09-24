@@ -552,7 +552,7 @@ const VARIABLES_CONFIG = {
             operatingRange,
             { label: "Densidade do Ar", value: "N/D", unit: "", icon: "fa-scale-balanced" },
             { label: "Densidade de Potência", value: "N/D", unit: "", icon: "fa-fan" },
-            { label: "Produção Energética Acumulada (1h)", value: "N/D", unit: "", icon: "fa-wind" },
+            { label: "Produção Energética Estimada (potência × 1h)", value: "N/D", unit: "", icon: "fa-wind" },
           ],
         };
       }
@@ -577,7 +577,7 @@ const VARIABLES_CONFIG = {
             icon: "fa-fan",
           },
           {
-            label: `Produção Energética Acumulada (1h)`,
+            label: `Produção Energética Estimada (potência × 1h)`,
             value: energyKWh.toFixed(1),
             unit: "kWh",
             icon: "fa-wind",
@@ -808,6 +808,7 @@ const VARIABLES_CONFIG = {
 
   rain: {
     id: "RAIN",
+    stepTotal: true,
     label: "Precipitação",
     optionLabel: "Precipitação",
     icon: "🌧️",
@@ -960,6 +961,7 @@ const VARIABLES_CONFIG = {
 
   shortwaveIrradiation: {
     id: "SW_IRRAD",
+    stepTotal: true,
     publishedSteps: "listed",
     panelNeedsStepMetadata: true,
     label: "Irradiação Solar do Passo",
