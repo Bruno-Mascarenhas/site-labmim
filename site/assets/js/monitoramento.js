@@ -120,17 +120,18 @@
 
   function themeColors() {
     const root = getComputedStyle(document.documentElement);
-    const series = isDark() ? PALETTE.dark : PALETTE.light;
+    const dark = isDark() && !window.matchMedia("print").matches;
+    const series = dark ? PALETTE.dark : PALETTE.light;
     return {
       series,
-      raw: isDark() ? RAW_COLOR.dark : RAW_COLOR.light,
-      rawOverBar: isDark() ? RAW_OVER_BAR_COLOR.dark : RAW_OVER_BAR_COLOR.light,
+      raw: dark ? RAW_COLOR.dark : RAW_COLOR.light,
+      rawOverBar: dark ? RAW_OVER_BAR_COLOR.dark : RAW_OVER_BAR_COLOR.light,
       textSecondary: root.getPropertyValue("--text-secondary").trim() || "#888",
       legendText: root.getPropertyValue("--chart-legend-color").trim() || "#666",
       grid: root.getPropertyValue("--chart-grid-color").trim() || "#f0f0f0",
       tooltipBg: root.getPropertyValue("--tooltip-bg").trim() || "rgba(18, 18, 18, 0.96)",
       tooltipText: root.getPropertyValue("--tooltip-text").trim() || "#fff",
-      crosshair: isDark() ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
+      crosshair: dark ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
     };
   }
 
