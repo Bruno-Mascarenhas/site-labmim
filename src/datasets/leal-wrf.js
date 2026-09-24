@@ -9,10 +9,10 @@ module.exports = {
   // No `model` block: the WRF namelist comes from DEFAULT_MODEL (renderer), and
   // this simulation diverges from it in no field.
 
-  // No `observations`: LEAL has no station of its own, and the LabMiM PNGs are
-  // not reusable (they measure Salvador, under a burned-in "LabMiM ... UFBA"
-  // watermark). When LEAL publishes one, declare `paths.graphs` here too, so the
-  // build keeps the two graph directories in separate bundles.
+  // No `observations`: the LabMiM PNGs are not reusable (they measure Salvador,
+  // under a burned-in "LabMiM ... UFBA" watermark). When LEAL publishes static
+  // graphs of its own, declare `paths.graphs` here too, so the build keeps the
+  // two graph directories in separate bundles.
   paths: {
     manifest: "JSON/manifest.json",
     values: "JSON",
