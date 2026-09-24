@@ -92,4 +92,33 @@ if (staleSubsetCss.length > 0) {
   process.exit(1);
 }
 
+const FONT_AWESOME_CLASS = /^fa(?:[srbl]?$|-)/;
+let scriptIconCount = 0;
+const scriptIconsWithoutAriaHidden = [];
+for (const file of collectFiles(root, "site/assets/js", [".js"])) {
+  const text = readFileSync(join(root, file), "utf8");
+  for (const tag of text.matchAll(/<i\b((?:[^>"']|"[^"]*"|'[^']*')*)>/g)) {
+    const classAttribute = tag[1].match(/(?<![\w-])class\s*=\s*(?:"([^"]*)"|'([^']*)')/);
+    const classes = (classAttribute?.[1] ?? classAttribute?.[2] ?? "").split(/\s+/);
+    if (!classes.some((name) => FONT_AWESOME_CLASS.test(name))) continue;
+    scriptIconCount += 1;
+    if (/(?<![\w-])aria-hidden\s*=\s*["']true["']/.test(tag[1])) continue;
+    const line = text.slice(0, tag.index).split("\n").length;
+    scriptIconsWithoutAriaHidden.push(`${file}:${line}: ${tag[0].replace(/\s+/g, " ")}`);
+  }
+}
+
+if (scriptIconsWithoutAriaHidden.length > 0) {
+  console.error(
+    '✗ Ícones Font Awesome montados em JS sem aria-hidden="true" ' +
+      "(o leitor de tela anunciaria o glifo de uso privado no nome do controle):"
+  );
+  for (const entry of scriptIconsWithoutAriaHidden) console.error(`  - ${entry}`);
+  console.error(
+    '\nAcrescente aria-hidden="true" ao <i>. Se o ícone for o único conteúdo do controle, dê aria-label ao controle.'
+  );
+  process.exit(1);
+}
+
 console.log(`✓ Subset Font Awesome cobre todos os ${subsetted.size} glifos usados`);
+console.log(`✓ Os ${scriptIconCount} ícones montados por string HTML em site/assets/js têm aria-hidden="true"`);

@@ -19,6 +19,18 @@ const writeOutput = (filePath, content) => {
 const escapeAttribute = (value) =>
   String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+const FONT_AWESOME_CLASS = /^fa(?:[srbl]?$|-)/;
+
+function hideDecorativeIcons(html) {
+  return html.replace(/<i\b((?:[^>"']|"[^"]*"|'[^']*')*)>/g, (tag, attributes) => {
+    const classAttribute = attributes.match(/(?<![\w-])class\s*=\s*(?:"([^"]*)"|'([^']*)')/);
+    const classes = (classAttribute?.[1] ?? classAttribute?.[2] ?? "").split(/\s+/);
+    const isIcon = classes.some((name) => FONT_AWESOME_CLASS.test(name));
+    const declaresAria = /(?<![\w-])aria-[a-z]+\s*=/.test(attributes);
+    return isIcon && !declaresAria ? `<i${attributes.trimEnd()} aria-hidden="true">` : tag;
+  });
+}
+
 // Ignored by assertResolved, then expanded right after it, so a page can document the
 // template syntax itself without failing the unresolved-token check.
 const LITERAL_BRACES = Object.freeze({ "{{LITERAL_OPEN}}": "{{", "{{LITERAL_CLOSE}}": "}}" });
@@ -500,6 +512,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     html = applySiteTokens(html);
     assertResolved(page.file, html);
     html = resolveLiteralBraces(html);
+    html = hideDecorativeIcons(html);
     html = assetPipeline.stampAssetVersions(html);
     writeOutput(path.join(outputDir, page.file), html);
     return page.file;
@@ -520,6 +533,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     let notFound = applySiteTokens(read(path.join(staticDir, "404.html")));
     assertResolved("404.html", notFound);
     notFound = resolveLiteralBraces(notFound);
+    notFound = hideDecorativeIcons(notFound);
     notFound = assetPipeline.stampAssetVersions(notFound);
     writeOutput(path.join(outputDir, "404.html"), notFound);
 
