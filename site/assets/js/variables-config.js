@@ -40,6 +40,18 @@ const KELVIN_AT_ZERO_CELSIUS = 273.15;
 const PASCALS_PER_HECTOPASCAL = 100;
 const GRAMS_PER_KILOGRAM = 1000;
 
+const HEAT_INDEX_PRETEST_MIN_F = 80;
+const HEAT_INDEX_ADJUSTMENT_MIN_TEMPERATURE_F = 80;
+const HEAT_INDEX_DRY_ADJUSTMENT_MAX_HUMIDITY_PERCENT = 13;
+const HEAT_INDEX_DRY_ADJUSTMENT_MAX_TEMPERATURE_F = 112;
+const HEAT_INDEX_DRY_ADJUSTMENT_CENTER_TEMPERATURE_F = 95;
+const HEAT_INDEX_DRY_ADJUSTMENT_HALF_WIDTH_F = 17;
+const HEAT_INDEX_DRY_ADJUSTMENT_HUMIDITY_PERCENT_PER_F = 4;
+const HEAT_INDEX_HUMID_ADJUSTMENT_MIN_HUMIDITY_PERCENT = 85;
+const HEAT_INDEX_HUMID_ADJUSTMENT_MAX_TEMPERATURE_F = 87;
+const HEAT_INDEX_HUMID_ADJUSTMENT_HUMIDITY_PERCENT_PER_F = 10;
+const HEAT_INDEX_HUMID_ADJUSTMENT_TEMPERATURE_SPAN_F = 5;
+
 const KILOJOULES_PER_WATT_HOUR = 3.6;
 const JOULES_PER_KILOJOULE = 1000;
 const SECONDS_PER_MINUTE = 60;
@@ -1489,29 +1501,56 @@ function moistAirDensityKgM3(surfacePressureHpa, temperatureC, vaporMixingRatioG
   return (surfacePressureHpa * PASCALS_PER_HECTOPASCAL) / (DRY_AIR_GAS_CONSTANT_J_KG_K * virtualTemperatureK);
 }
 
+function heatIndexHumidityAdjustmentF(temperatureF, humidityPercent) {
+  const isDryAndHot =
+    humidityPercent < HEAT_INDEX_DRY_ADJUSTMENT_MAX_HUMIDITY_PERCENT &&
+    temperatureF >= HEAT_INDEX_ADJUSTMENT_MIN_TEMPERATURE_F &&
+    temperatureF <= HEAT_INDEX_DRY_ADJUSTMENT_MAX_TEMPERATURE_F;
+  if (isDryAndHot) {
+    const distanceFromCenterF = Math.abs(temperatureF - HEAT_INDEX_DRY_ADJUSTMENT_CENTER_TEMPERATURE_F);
+    return (
+      -(
+        (HEAT_INDEX_DRY_ADJUSTMENT_MAX_HUMIDITY_PERCENT - humidityPercent) /
+        HEAT_INDEX_DRY_ADJUSTMENT_HUMIDITY_PERCENT_PER_F
+      ) *
+      Math.sqrt((HEAT_INDEX_DRY_ADJUSTMENT_HALF_WIDTH_F - distanceFromCenterF) / HEAT_INDEX_DRY_ADJUSTMENT_HALF_WIDTH_F)
+    );
+  }
+
+  const isHumidAndWarm =
+    humidityPercent > HEAT_INDEX_HUMID_ADJUSTMENT_MIN_HUMIDITY_PERCENT &&
+    temperatureF >= HEAT_INDEX_ADJUSTMENT_MIN_TEMPERATURE_F &&
+    temperatureF <= HEAT_INDEX_HUMID_ADJUSTMENT_MAX_TEMPERATURE_F;
+  if (isHumidAndWarm) {
+    return (
+      ((humidityPercent - HEAT_INDEX_HUMID_ADJUSTMENT_MIN_HUMIDITY_PERCENT) /
+        HEAT_INDEX_HUMID_ADJUSTMENT_HUMIDITY_PERCENT_PER_F) *
+      ((HEAT_INDEX_HUMID_ADJUSTMENT_MAX_TEMPERATURE_F - temperatureF) / HEAT_INDEX_HUMID_ADJUSTMENT_TEMPERATURE_SPAN_F)
+    );
+  }
+
+  return 0;
+}
+
 function getTemperatureFeelsLike(temperatureC, humidity, windSpeedMs) {
-  if (humidity >= 40) {
-    const T = (temperatureC * 9) / 5 + 32;
-    const RH = humidity;
+  const T = (temperatureC * 9) / 5 + 32;
+  const RH = humidity;
 
-    // The NWS pretest, not a fixed °C threshold, decides whether the Rothfusz
-    // regression applies: it is only valid above ~80 °F.
-    const simpleHI_F = 0.5 * (T + 61 + (T - 68) * 1.2 + RH * 0.094);
+  const simpleHI_F = 0.5 * (T + 61 + (T - 68) * 1.2 + RH * 0.094);
 
-    if ((simpleHI_F + T) / 2 >= 80) {
-      const HI_F =
-        -42.379 +
-        2.04901523 * T +
-        10.14333127 * RH -
-        0.22475541 * T * RH -
-        0.00683783 * T * T -
-        0.05481717 * RH * RH +
-        0.00122874 * T * T * RH +
-        0.00085282 * T * RH * RH -
-        0.00000199 * T * T * RH * RH;
+  if ((simpleHI_F + T) / 2 >= HEAT_INDEX_PRETEST_MIN_F) {
+    const HI_F =
+      -42.379 +
+      2.04901523 * T +
+      10.14333127 * RH -
+      0.22475541 * T * RH -
+      0.00683783 * T * T -
+      0.05481717 * RH * RH +
+      0.00122874 * T * T * RH +
+      0.00085282 * T * RH * RH -
+      0.00000199 * T * T * RH * RH;
 
-      return ((HI_F - 32) * 5) / 9;
-    }
+    return ((HI_F + heatIndexHumidityAdjustmentF(T, RH) - 32) * 5) / 9;
   }
 
   if (temperatureC <= 10 && windSpeedMs >= 1.34) {
