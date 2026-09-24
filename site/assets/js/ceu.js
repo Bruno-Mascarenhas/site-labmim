@@ -140,6 +140,7 @@
     layers: new Set(["density"]),
     activeModels: new Set(),
     framesMissing: 0,
+    payloadsCheckedAt: 0,
     hoverCell: null,
     cumulativePayload: null,
     cumulativeSubsetId: "",
@@ -397,6 +398,9 @@
   const MINUTE_MS = 60000;
   const HOUR_MS = 3600000;
   const DAY_MS = 86400000;
+  const AGE_REFRESH_INTERVAL_MS = MINUTE_MS;
+  const PAYLOAD_RECHECK_INTERVAL_MS = 5 * MINUTE_MS;
+  const PAYLOAD_RECHECK_MIN_GAP_MS = MINUTE_MS;
 
   function finite(value) {
     return typeof value === "number" && Number.isFinite(value);
@@ -2965,6 +2969,11 @@
     renderTimelineLegend(theme, runs, series);
     renderLiveStats();
     renderTimelineDays();
+    renderTimelineStatus();
+  }
+
+  function renderTimelineStatus() {
+    const payload = state.timelinePayload;
     el("ceuLinhaStatus").replaceChildren(
       withReferences(
         [latestSentence(payload), skippedSummary(payload), measuredSentence(payload)].filter(Boolean).join(" ")
@@ -3732,6 +3741,54 @@
     buildModelToggles();
   }
 
+  function refreshAges() {
+    renderFrameStatus();
+    if (state.timelinePayload && timelineBounds()) renderTimelineStatus();
+  }
+
+  function publishedAnew(current, reply) {
+    if (reply.status !== "ok" || !reply.payload) return false;
+    const version = reply.payload.version;
+    return typeof version !== "string" || !version || !current || version !== current.version;
+  }
+
+  async function recheckPayloads() {
+    state.payloadsCheckedAt = Date.now();
+    const [frame, timeline] = await Promise.all([loadJson(FRAME_PAYLOAD), loadJson(TIMELINE_PAYLOAD)]);
+    const frameChanged = publishedAnew(state.framePayload, frame);
+    const timelineChanged = publishedAnew(state.timelinePayload, timeline);
+    if (!frameChanged && !timelineChanged) return;
+    if (frameChanged) {
+      state.framePayload = frame.payload;
+      state.frameStatus = frame.status;
+    }
+    if (timelineChanged) {
+      state.timelinePayload = timeline.payload;
+      state.timelineStatus = timeline.status;
+    }
+    registerPayloadReferences();
+    renderHeader();
+    if (frameChanged) renderFrames();
+    if (timelineChanged) drawTimeline();
+    buildCaveats();
+    renderReferences();
+  }
+
+  function refreshLiveView(recheckAfterMs) {
+    if (document.hidden) return;
+    refreshAges();
+    if (Date.now() - state.payloadsCheckedAt >= recheckAfterMs) recheckPayloads();
+  }
+
+  function followPublications() {
+    state.payloadsCheckedAt = Date.now();
+    setInterval(() => refreshLiveView(PAYLOAD_RECHECK_INTERVAL_MS), AGE_REFRESH_INTERVAL_MS);
+    document.addEventListener("visibilitychange", () => refreshLiveView(PAYLOAD_RECHECK_MIN_GAP_MS));
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) refreshLiveView(PAYLOAD_RECHECK_MIN_GAP_MS);
+    });
+  }
+
   async function start() {
     const root = document.querySelector("[data-sky-base]");
     if (!root) return;
@@ -3787,6 +3844,7 @@
     drawCumulative();
 
     window.addEventListener("labmim-theme-change", onThemeChange);
+    followPublications();
 
     applyChartPayload(await chartRequest);
     if (state.layers.has("points")) ensurePoints();
