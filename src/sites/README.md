@@ -147,7 +147,7 @@ module.exports = {
     sky: "Ceu",
   },
   timeline: {
-    defaultMaxLayer: 73,
+    defaultMaxLayer: 72,
     initialIndex: 7,
     stepHours: 1,
     label: "Horário local (UTC−03)",
@@ -168,6 +168,8 @@ module.exports = {
   ],
 };
 ```
+
+`timeline.defaultMaxLayer` é o `index_max` da rodada publicada, com o índice 0 na inicialização, e o horizonte que as páginas declaram é `defaultMaxLayer × stepHours`, conferido pelo `build:check` contra o [manifesto](../../Architecture.md#manifest-de-dados-e-ciclo-de-vida-da-rodada) só na publicação padrão.
 
 `defaultDomain` deve existir em `domains`. Os IDs são parte dos nomes dos arquivos operacionais e não devem ser usados apenas como labels de interface.
 

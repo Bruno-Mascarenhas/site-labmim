@@ -131,7 +131,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   const model = { ...DEFAULT_MODEL, ...declaredFields(dataset.model) };
   const observationCharts = dataset.observations?.charts ?? [];
   const defaultDomain = domains.find((domain) => domain.id === dataset.defaultDomain);
-  const forecastHorizonHours = (dataset.timeline.defaultMaxLayer - 1) * dataset.timeline.stepHours;
+  const forecastHorizonHours = dataset.timeline.defaultMaxLayer * dataset.timeline.stepHours;
   const timelineFrequency =
     dataset.timeline.stepHours === 1
       ? "horárias"

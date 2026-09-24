@@ -144,6 +144,51 @@ function assertRunNotesStayWithTheirDataset(publication) {
   }
 }
 
+const FORECAST_HORIZON_STATEMENT =
+  /(?:antecedência de|horizonte de(?: previsão de)?) (\d+(?:,\d+)?) horas|até \+(\d+(?:,\d+)?) h de previsão/g;
+
+function assertForecastHorizonMatchesPublishedRun(publication) {
+  const manifestPath = publication.dataset.paths.manifest;
+  const manifestFile = path.join(root, "site", manifestPath);
+  if (!fs.existsSync(manifestFile)) {
+    console.log(`build-check: forecast horizon of ${publication.id} not checked; site/${manifestPath} is absent`);
+    return;
+  }
+  const { index_max: indexMax } = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+  if (!Number.isInteger(indexMax)) {
+    console.log(
+      `build-check: forecast horizon of ${publication.id} not checked; site/${manifestPath} has no index_max`
+    );
+    return;
+  }
+
+  const { defaultMaxLayer, stepHours } = publication.dataset.timeline;
+  const expectedHours = String(indexMax * stepHours).replace(".", ",");
+  const problems = [];
+  if (defaultMaxLayer !== indexMax) {
+    problems.push(
+      `dataset ${publication.dataset.id} timeline.defaultMaxLayer is ${defaultMaxLayer}, but the run in site/${manifestPath} declares index_max ${indexMax}`
+    );
+  }
+  let statementCount = 0;
+  for (const pageFile of publication.pages.map((page) => page.file)) {
+    const text = readableText(fs.readFileSync(path.join(root, "site", pageFile), "utf8"));
+    for (const statement of text.matchAll(FORECAST_HORIZON_STATEMENT)) {
+      statementCount += 1;
+      const statedHours = statement[1] ?? statement[2];
+      if (statedHours !== expectedHours) problems.push(`${pageFile}: "${statement[0]}" instead of ${expectedHours} h`);
+    }
+  }
+  if (statementCount === 0) problems.push("no page states the forecast horizon");
+
+  if (problems.length) {
+    throw new Error(
+      `Forecast horizon of ${publication.id} does not match the published run (index_max ${indexMax}, step ${stepHours} h):\n` +
+        problems.map((item) => `  - ${item}`).join("\n")
+    );
+  }
+}
+
 function assertNoUntrackedOutput(publication) {
   const result = spawnSync("git", ["ls-files", "--others", "--exclude-standard", "--", "site"], {
     cwd: root,
@@ -210,6 +255,7 @@ function buildAndValidate(publication) {
   if (/\{\{[^}]+\}\}/.test(index)) throw new Error(`Generated index for ${publication.id} contains unresolved tokens`);
   assertLocalReferences(publication);
   assertRunNotesStayWithTheirDataset(publication);
+  if (publication.id === defaultSite.id) assertForecastHorizonMatchesPublishedRun(publication);
 }
 
 const restoreDefault = makeRestore({
