@@ -2390,6 +2390,7 @@
   const BLOCK_STATUS_PT = { scored: "pontuado", skipped: "pulado", pending: "pendente", failed: "falhou" };
   const ARM_KIND_PT = { served: "servido", ensemble: "conjunto servido", member: "membro", control: "controle" };
   const SERVED_ARM_KINDS = ["served", "ensemble"];
+  const TRAIN_ELEVATION_TOLERANCE_DEG = 0.05;
   const METRIC_PT = {
     dhi_rmse: "RMSE DHI",
     dhi_mae: "MAE DHI",
@@ -3010,6 +3011,14 @@
     return served && typeof served === "object" ? served : {};
   }
 
+  function attributionMemberName() {
+    const served = servedBlock();
+    const members = Array.isArray(served.members) ? served.members : [];
+    return finite(served.attribution_member)
+      ? (members[served.attribution_member] || {}).name
+      : served.attribution_member;
+  }
+
   function armKind(arm) {
     if (typeof arm.kind === "string") return arm.kind;
     const served = servedBlock();
@@ -3262,11 +3271,34 @@
     });
   }
 
+  function bandBounds(row) {
+    const bounds = /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/.exec(text(row.stratum, ""));
+    return bounds ? [Number(bounds[1]), Number(bounds[2])] : null;
+  }
+
   function bandLabel(row) {
-    const stratum = text(row.stratum, "");
-    const bounds = /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/.exec(stratum);
-    if (bounds) return `${decimal(Number(bounds[1]), 1)}–${decimal(Number(bounds[2]), 1)}°`;
-    return stratum || "—";
+    const bounds = bandBounds(row);
+    if (bounds) return `${decimal(bounds[0], 1)}–${decimal(bounds[1], 1)}°`;
+    return text(row.stratum, "") || "—";
+  }
+
+  function declaredElevationRange(part) {
+    const declared = part && part.solar_elevation_range_deg;
+    if (Array.isArray(declared)) return declared;
+    return declared && typeof declared === "object" ? [declared.min, declared.max] : [];
+  }
+
+  function trainElevationMaxDeg() {
+    const split = ((state.modelPayload && state.modelPayload.dataset) || {}).split || {};
+    const range = declaredElevationRange(split.train);
+    return range.length === 2 && finite(range[1]) ? range[1] : null;
+  }
+
+  function bandExtrapolationSuffix(entry, trainMaxDeg) {
+    const bounds = bandBounds(entry);
+    if (trainMaxDeg !== null && bounds && bounds[1] > trainMaxDeg + TRAIN_ELEVATION_TOLERANCE_DEG)
+      return ` — passa do máximo do treino (${decimal(trainMaxDeg, 1)}°)`;
+    return entry.extrapolation === true ? " — extrapolação" : "";
   }
 
   function errorCells(row, entry) {
@@ -3281,13 +3313,17 @@
     const model = state.modelPayload;
     const elevationBody = el("ceuElevacaoCorpo");
     elevationBody.replaceChildren();
-    el("ceuElevacaoLegenda").textContent = stratified.member
-      ? `Por faixa de elevação solar — membro ${stratified.member}, difusa em ${dhiUnit()}`
+    const member = stratified.member || attributionMemberName();
+    el("ceuElevacaoLegenda").textContent = member
+      ? `Por faixa de elevação solar — membro ${member}, difusa em ${dhiUnit()}`
       : `Por faixa de elevação solar, difusa em ${dhiUnit()}`;
+    el("ceuEstratoClasseLegenda").textContent = member
+      ? `Por condição de céu verdadeira — membro ${member}, difusa em ${dhiUnit()}`
+      : `Por condição de céu verdadeira, difusa em ${dhiUnit()}`;
+    const trainMaxDeg = trainElevationMaxDeg();
     for (const entry of rowsOf(stratified.solar_elevation, "stratum")) {
       const row = node("tr");
-      const extrapolated = entry.extrapolation === true ? " — extrapolação" : "";
-      cell(row, `${bandLabel(entry)}${extrapolated}`);
+      cell(row, `${bandLabel(entry)}${bandExtrapolationSuffix(entry, trainMaxDeg)}`);
       errorCells(row, entry);
       elevationBody.appendChild(row);
     }
@@ -3537,12 +3573,7 @@
         Number.isFinite(partStart) && Number.isFinite(partEnd) ? `${formatDay(partStart)} a ${formatDay(partEnd)}` : "—"
       );
       cell(row, integer(part.rows));
-      const declared = part.solar_elevation_range_deg;
-      const range = Array.isArray(declared)
-        ? declared
-        : declared && typeof declared === "object"
-          ? [declared.min, declared.max]
-          : [];
+      const range = declaredElevationRange(part);
       cell(row, range.length === 2 ? `${decimal(range[0], 1)}° a ${decimal(range[1], 1)}°` : "—");
       cell(row, shareBar(model, part.class_share));
       body.appendChild(row);
@@ -3566,9 +3597,7 @@
       details.push(`pesos ${shortHash(member.checkpoint_sha256)}`);
       factRow(list, `Membro ${text(member.name)}`, details.join(" · "));
     }
-    const attributionMember = finite(served.attribution_member)
-      ? (members[served.attribution_member] || {}).name
-      : served.attribution_member;
+    const attributionMember = attributionMemberName();
     if (attributionMember) factRow(list, "Membro do mapa de sensibilidade", text(attributionMember));
     const roles = served.roles;
     if (roles && typeof roles === "object") {
