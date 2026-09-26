@@ -744,7 +744,7 @@ class MeteoMapManager {
 
     if (!complete) {
       const warning = document.createElement("p");
-      warning.className = "annual-means-coverage-warning";
+      warning.className = "doc-warning annual-means-coverage-warning";
       warning.textContent = coverage
         ? `Ano incompleto: as médias de ${year} cobrem ${coverage.dayCount} de ${daysInYear} dias e não representam o ano inteiro.`
         : `Ano incompleto: as médias de ${year} não representam o ano inteiro.`;

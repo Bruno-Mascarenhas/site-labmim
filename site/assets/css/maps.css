@@ -2716,10 +2716,8 @@ header.maps-header {
 
 .annual-means-coverage-warning {
   padding: 6px 8px;
-  border-left: 4px solid #ffc107;
-  border-radius: 4px;
-  background: #fff3cd;
-  color: #664d03;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 @media (width < 992px) {
