@@ -39,7 +39,7 @@ O diretório `src/sites/` é o registro. A descoberta ordena os diretórios que 
 
 A rota `monitoring.html` tem duas fontes possíveis, escolhidas por `source:` na declaração da página: a variante viva (`src/template/pages/monitoring-live.html` + `assets/js/monitoramento.js`), para publicações que declaram `dataset.paths.monitoring`, e a variante estática (`src/template/pages/monitoring.html`), que desenha os PNGs de `dataset.observations` e é a fonte padrão do tipo `monitoring` em `page-types.js`. Hoje nenhuma publicação usa a estática: o LabMiM e o LEAL sobrescrevem o `source:` pela variante viva, cada um com o `paths.monitoring` do próprio dataset. Os PNGs em `assets/graphs/` trazem a marca d'água do LabMiM e não servem ao LEAL. O catálogo de gráficos que preencheria `dataset.observations.charts` existe em `src/datasets/labmim-station-charts.js`, mas nenhum dataset o importa. O mesmo vale para `climatologia.html`, que só faz sentido com `dataset.paths.climatology` declarado. `ceu.html` tem fonte única e a mesma dependência: declará-la sem `dataset.paths.sky` falha o build (o diretório ainda ausente na árvore é só um aviso, o normal em CI), e hoje só o LabMiM a oferece, porque a câmera all-sky é dele.
 
-`medias_anuais.html` (tipo `annual-means`) é um terceiro WebGIS, publicado hoje só pelo LEAL e fora do sitemap. Ele mostra a média de cada hora local do dia sobre um ano de rodadas do WRF e lê um diretório próprio, `dataset.paths.annualMeans`, com manifesto e grades próprios; declarar a página sem esse caminho falha o build. O contrato está em [Médias Anuais](#médias-anuais).
+`medias_anuais.html` (tipo `annual-means`) é um terceiro WebGIS, publicado hoje só pelo LEAL e fora do sitemap. Ele mostra a média de cada hora local do dia sobre um ano de rodadas do WRF e lê um diretório próprio, `dataset.paths.annualMeans`, com manifesto e grades próprios; declarar a página sem esse caminho falha o build, porque o tipo declara `requiresDatasetPath: "annualMeans"` em `page-types.js`, como `climatology` e `sky` declaram os seus. O contrato está em [Médias Anuais](#médias-anuais).
 
 Todas são declaradas no array de `src/sites/<id>/pages.js` e geradas por `build.js`. A fonte de `404.html` fica em `src/template/static/404.html` e mantém caminhos absolutos `/assets/...` para resolver em qualquer profundidade.
 
@@ -304,7 +304,7 @@ O primeiro carregamento espera a corrida do manifest e então `applyManifest` �
 
 ### Estado Principal
 
-`MeteoMapManager` lê `data-map-context` no `<body>` para separar os contextos `forecast`, `energy` e `annual-means`. `mapas_interativos.html` inicia apenas com variáveis meteorológicas/radiativas; `potenciais_energeticos.html` apenas com produtos energéticos; `medias_anuais.html` com as médias por hora local. O contexto `annual-means` declara `timeAxis: "hour-of-day"` em `VARIABLE_CONTEXTS`, e `usesHourOfDayAxis()` troca o comportamento de data pelo de hora do dia: o passo é uma média e não um instante (ver [Médias Anuais](#médias-anuais)). O `<select id="variableSelect">` é montado em runtime por `configureVariableSelect()` (o HTML traz só um placeholder desabilitado).
+`MeteoMapManager` lê `data-map-context` no `<body>` para separar os contextos `forecast`, `energy` e `annual-means`. `mapas_interativos.html` inicia apenas com variáveis meteorológicas/radiativas; `potenciais_energeticos.html` apenas com produtos energéticos; `medias_anuais.html` com as médias por hora local. O contexto `annual-means` declara `timeAxis: "hour-of-day"` em `VARIABLE_CONTEXTS`, e `usesHourOfDayAxis()` troca os rótulos de data pelos de hora do dia: o passo é uma média e não um instante (ver [Médias Anuais](#médias-anuais)). O mesmo contexto desliga em `features` os recursos que não se aplicam a uma média, lidos por `hasFeature()`; um contexto que não declara `features` mantém todos. Os caminhos dos arquivos de dados saem de `dataPaths`: fixos na previsão e nos potenciais, montados a partir dos `templates` do manifesto nas médias. O `<select id="variableSelect">` é montado em runtime por `configureVariableSelect()` (o HTML traz só um placeholder desabilitado).
 
 `MeteoMapManager` mantém estado em `this.state`:
 
@@ -450,21 +450,22 @@ MediasAnuais/{ano}/{D}_{VAR}_{NNN}.json
 MediasAnuais/{ano}/GeoJSON/{D}.grid.json   (+ {D}.geojson)
 ```
 
-Produzidos pelo `mm-wrf-means` do micrometeorology. O renderer dá à página do contexto `annual-means` um `site-config` próprio: `manifestPath` é `<paths.annualMeans>/manifest.json`, o slider vai de 0 a 24 e começa em 24, e os botões de domínio saem com o ID técnico, nunca com os labels do dataset, porque as médias podem vir de rodadas de outra região. Os demais arquivos são resolvidos pelo manifesto (formato `wrf-means-v1`, validado por `annualMeansFromManifest()` em `map-manager.js`; um manifesto inválido cai no aviso de dados não publicados e registra o motivo no console):
+Produzidos pelo `mm-wrf-means` do micrometeorology. O renderer dá à página do tipo `annual-means` um `site-config` próprio: `manifestPath` é `<paths.annualMeans>/manifest.json`, o slider vai de 0 a 24 e começa em 24, e os botões de domínio saem com o ID técnico, nunca com os labels do dataset, porque as médias podem vir de rodadas de outra região. Os demais arquivos são resolvidos pelo manifesto (formato `wrf-means-v1`, validado por `annualMeansFromManifest()` em `map-manager.js`; um manifesto inválido cai no aviso de dados não publicados e registra o motivo no console):
 
-| Campo                           | Uso                                                                                                                      |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `version`                       | Versão → `?v=` de todas as URLs de dados, como na previsão                                                               |
-| `steps.labels`                  | Um rótulo por passo (`"00h"` … `"23h"`, `"Todas as horas"`); o tamanho precisa ser `steps.count`                         |
-| `templates.values/grid/geojson` | Caminhos relativos ao diretório do manifesto, com `{year}`, `{domain}`, `{variable}` e `{step}` (este com `step_digits`) |
-| `years.<ano>`                   | O site mostra o ano mais recente                                                                                         |
-| `years.<ano>.source`            | Texto obrigatório com a origem e a região das rodadas, exibido no painel de cobertura                                    |
-| `years.<ano>.domain_labels`     | Rótulos dos botões de domínio; ausente, o botão mostra o ID                                                              |
-| `years.<ano>.domains/variables` | Domínios exibidos (os outros botões somem) e variáveis publicadas nos 25 passos                                          |
-| `years.<ano>.complete`          | `false` → aviso "ano incompleto" no painel de cobertura                                                                  |
-| `years.<ano>.coverage.<D>`      | `runs`, `days`, `day_count`, `full_day_count` e `hours_per_step` (25 contagens) do domínio exibido                       |
+| Campo                           | Uso                                                                                                                  |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `version`                       | Versão → `?v=` de todas as URLs de dados, como na previsão                                                           |
+| `steps.labels`                  | Um rótulo por passo (`"00h"` … `"23h"`, `"Todas as horas"`); o tamanho precisa ser `steps.count`                     |
+| `templates.values/grid/geojson` | Caminhos relativos a `paths.annualMeans`, com `{year}`, `{domain}`, `{variable}` e `{step}` (este com `step_digits`) |
+| `years.<ano>`                   | O site mostra o ano mais recente                                                                                     |
+| `years.<ano>.source`            | Texto obrigatório com a origem e a região das rodadas, exibido no painel de cobertura                                |
+| `years.<ano>.domain_labels`     | Rótulos dos botões de domínio; ausente, o botão mostra o ID                                                          |
+| `years.<ano>.domains/variables` | Domínios exibidos (os outros botões somem) e variáveis publicadas nos 25 passos                                      |
+| `years.<ano>.complete`          | `false` → aviso "ano incompleto" no painel de cobertura                                                              |
+| `years.<ano>.days_in_year`      | Dias do ano, citados no aviso de ano incompleto ("cobrem N de `days_in_year` dias")                                  |
+| `years.<ano>.coverage.<D>`      | `runs`, `days`, `day_count`, `full_day_count` e `hours_per_step` (25 contagens) do domínio exibido                   |
 
-Os passos 0 a 23 são a média de cada hora local do dia e o 24 é a média de todas as horas. O arquivo de valores tem o formato de `JSON/`, sem `date_time`: nenhum rótulo vira data. No contexto, o painel da célula mostra a hora e as horas da média, sem o `specificInfo` (sensação térmica, rajada ou produção de energia calculadas sobre uma média não descrevem nenhum instante), o modal de séries e a prévia do domínio não abrem, os vetores de vento e o recorte por estado somem, não há autoplay e o mapa se enquadra na grade de cada domínio no primeiro desenho.
+Os passos 0 a 23 são a média de cada hora local do dia e o 24 é a média de todas as horas. O arquivo de valores tem o formato de `JSON/`, sem `date_time`: nenhum rótulo vira data. No contexto, o painel da célula mostra a hora e as horas da média. Os recursos a seguir são desligados em `features`: sem o `specificInfo` (sensação térmica, rajada ou produção de energia calculadas sobre uma média não descrevem nenhum instante), o modal de séries e a prévia do domínio não abrem, os vetores de vento e o recorte por estado somem, não há autoplay (e, sem ele, os passos seguintes só são pré-carregados durante o Play) e o mapa se enquadra na grade de cada domínio no primeiro desenho, em vez de voar para o centro configurado do domínio.
 
 ### Condição Do Céu
 
