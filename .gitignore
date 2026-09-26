@@ -51,6 +51,8 @@ site/Monitoramento/*
 # além de JSON. O .keep segue rastreado para o diretório existir sem os dados.
 site/Ceu/*
 !site/Ceu/.keep
+site/MediasAnuais/*
+!site/MediasAnuais/.keep
 
 # Onboarding deck (docs/) — versiona a fonte e o PDF; ignora gerados/pesados.
 # node_modules/ e dist/ (assets/dist) já caem nas regras acima.
