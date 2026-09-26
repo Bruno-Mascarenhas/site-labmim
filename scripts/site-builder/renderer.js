@@ -6,6 +6,7 @@ const { createAssetPipeline, writePublicationTheme } = require("./assets");
 const { I_TAG, hasFontAwesomeClass } = require("./fontawesome-glyphs");
 const { publicationOperationalPaths } = require("./operational-paths");
 const { SITE_REFERENCES } = require("../../src/template/references");
+const { mapContextOf } = require("../../src/template/page-types");
 
 const read = (filePath) => fs.readFileSync(filePath, "utf8");
 const replaceAll = (text, token, value) => text.split(token).join(value);
@@ -32,6 +33,10 @@ function hideDecorativeIcons(html) {
 const LITERAL_BRACES = Object.freeze({ "{{LITERAL_OPEN}}": "{{", "{{LITERAL_CLOSE}}": "}}" });
 
 const DEFAULT_FAVICON_EMOJI = "🌦️";
+
+const ANNUAL_MEANS_MAP_CONTEXT = "annual-means";
+const ANNUAL_MEANS_MANIFEST_FILE = "manifest.json";
+const ANNUAL_MEANS_ALL_HOURS_STEP = 24;
 
 // WRF namelist defaults, overridable per dataset through an optional `model` block.
 // The `[[key]]` markers are citations, expanded in the browser by assets/js/references.js.
@@ -246,13 +251,48 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     };
   }
 
-  function domainButtons() {
+  function domainButtons(labelOf = (domain) => domain.label) {
     return domains
       .map((domain) => {
         const active = domain.id === dataset.defaultDomain ? " active" : "";
-        return `<button type="button" class="domain-btn${active}" aria-pressed="${domain.id === dataset.defaultDomain}" data-domain="${escapeAttribute(domain.id)}" data-zoom="${domain.zoom}">${escapeAttribute(domain.label)}</button>`;
+        return `<button type="button" class="domain-btn${active}" aria-pressed="${domain.id === dataset.defaultDomain}" data-domain="${escapeAttribute(domain.id)}" data-zoom="${domain.zoom}">${escapeAttribute(labelOf(domain))}</button>`;
       })
       .join("\n");
+  }
+
+  function annualMeansRuntimeConfig() {
+    const config = runtimeConfig();
+    const directory = dataset.paths.annualMeans;
+    return {
+      ...config,
+      data: {
+        manifestPath: `${directory}/${ANNUAL_MEANS_MANIFEST_FILE}`,
+        valuesBase: directory,
+        gridsBase: directory,
+        timeline: {
+          ...dataset.timeline,
+          defaultMaxLayer: ANNUAL_MEANS_ALL_HOURS_STEP,
+          initialIndex: ANNUAL_MEANS_ALL_HOURS_STEP,
+        },
+      },
+      map: {
+        ...config.map,
+        domains: Object.fromEntries(
+          domains.map((domain) => [domain.id, { label: domain.id, center: domain.center, zoom: domain.zoom }])
+        ),
+      },
+    };
+  }
+
+  function mapContextTokens(page) {
+    if (mapContextOf(page.bodyAttrs ?? "") !== ANNUAL_MEANS_MAP_CONTEXT) return {};
+    return {
+      SITE_CONFIG: escapeAttribute(JSON.stringify(annualMeansRuntimeConfig())),
+      DOMAIN_BUTTONS: domainButtons((domain) => domain.id),
+      DEFAULT_DOMAIN_LABEL: escapeAttribute(dataset.defaultDomain),
+      TIMELINE_MAX: String(ANNUAL_MEANS_ALL_HOURS_STEP),
+      TIMELINE_INITIAL_INDEX: String(ANNUAL_MEANS_ALL_HOURS_STEP),
+    };
   }
 
   function cumulusCoverage() {
@@ -520,6 +560,9 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     html = applyPageScripts(page, html);
     html = replaceAll(html, "{{content}}", pageContent(page));
     html = replaceAll(html, "{{h1}}", escapeAttribute(page.seo.h1));
+    for (const [name, value] of Object.entries(mapContextTokens(page))) {
+      html = replaceAll(html, `{{${name}}}`, value);
+    }
     html = applySiteTokens(html);
     assertResolved(page.file, html);
     html = resolveLiteralBraces(html);

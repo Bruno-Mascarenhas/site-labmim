@@ -99,18 +99,21 @@ const PAGE_TYPES = Object.freeze({
   "annual-means": Object.freeze({
     id: "annual-means",
     file: "medias_anuais.html",
-    layout: "institutional",
+    layout: "webgis",
     source: templateSource("pages/medias_anuais.html"),
     append: Object.freeze([]),
     seo: Object.freeze({ h1: "Médias Anuais" }),
     nav: Object.freeze({ label: "Médias Anuais", icon: "fa-layer-group", order: 25, elementId: "nav-medias-anuais" }),
+    bodyAttrs: ' data-map-context="annual-means"',
+    kicker: "Médias Anuais",
+    docModalTitle: "Documentação - Médias Anuais",
   }),
 });
 
 // Mirrors VARIABLE_CONTEXTS in assets/js/variables-config.js. Anything else
 // falls back to "forecast" silently in the browser, so the build refuses it
 // rather than render a map with the wrong set of variables.
-const KNOWN_MAP_CONTEXTS = Object.freeze(["forecast", "energy"]);
+const KNOWN_MAP_CONTEXTS = Object.freeze(["forecast", "energy", "annual-means"]);
 
 function mapContextOf(bodyAttrs) {
   const match = /\bdata-map-context="([^"]+)"/.exec(bodyAttrs);
@@ -399,6 +402,7 @@ function customPage(options = {}) {
 }
 
 module.exports = {
+  mapContextOf,
   PAGE_TYPES,
   PAGE_OPTION_KEYS,
   CUSTOM_PAGE_OPTION_KEYS,
