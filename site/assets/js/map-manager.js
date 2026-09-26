@@ -491,7 +491,7 @@ class MeteoMapManager {
     this.initMap();
     this.setupEventListeners();
     this.setupDomainIndicators();
-    this.loadStateGeoJson();
+    if (this.hasFeature("stateClip")) this.loadStateGeoJson();
     this.loadCustomParameters();
   }
 
@@ -513,6 +513,10 @@ class MeteoMapManager {
     return this.contextConfig.timeAxis === HOUR_OF_DAY_TIME_AXIS;
   }
 
+  hasFeature(name) {
+    return this.contextConfig.features?.[name] !== false;
+  }
+
   getVisibleVariableTypes() {
     return this.contextConfig.variables.filter(
       (variableType) => VARIABLES_CONFIG[variableType] && this.hasPublishedSteps(variableType)
@@ -524,7 +528,7 @@ class MeteoMapManager {
    * visible one would pull ~10 full-domain files per click to show three numbers.
    */
   getRelatedVariableTypes() {
-    if (this.usesHourOfDayAxis()) return [this.state.type];
+    if (!this.hasFeature("specificInfo")) return [this.state.type];
     const variables = new Set([this.state.type]);
     (VARIABLES_CONFIG[this.state.type]?.relatedVariables || []).forEach((variableType) => {
       if (VARIABLES_CONFIG[variableType]) variables.add(variableType);
@@ -1684,7 +1688,7 @@ class MeteoMapManager {
 
     if (!this.ui.variableOverviewPanel || !this.ui.variableCardsGrid) return;
     const previewCard = this.ui.variableOverviewPanel.querySelector(".variable-preview-card");
-    if (previewCard) previewCard.hidden = this.usesHourOfDayAxis();
+    if (previewCard) previewCard.hidden = !this.hasFeature("domainPreview");
 
     this._debouncedPreviewRefresh = _debounce(() => this.refreshVariableOverviewPreview(), 250);
     this.updateVariableOverviewToggle();
@@ -1789,9 +1793,9 @@ class MeteoMapManager {
 
   refreshVariableOverviewPreview(variableType = this.state.type) {
     this.updateVariableGuideSelection(variableType);
+    if (!this.hasFeature("domainPreview")) return;
     this.updateVariablePreviewShell(variableType);
 
-    if (this.usesHourOfDayAxis()) return;
     if (!this.chartsManager || !this.ui.variableOverviewPanel) return;
     if (this.ui.variableOverviewPanel.classList.contains("is-collapsed")) return;
 
@@ -1819,7 +1823,7 @@ class MeteoMapManager {
       .then((geojson) => {
         const boundaryFeature = geojson.features[0];
         this.stateEdgeIndex = boundaryFeature ? new StateEdgeIndex(boundaryFeature) : null;
-        if (this.ui.clipStateBtn && !this.usesHourOfDayAxis()) {
+        if (this.ui.clipStateBtn) {
           this.ui.clipStateBtn.innerHTML = `<i class="fas fa-map" aria-hidden="true"></i> ${stateCode} Off`;
           this.ui.clipStateBtn.style.display = "inline-block";
         }
@@ -1981,7 +1985,7 @@ class MeteoMapManager {
    * Motion never starts unrequested (WCAG 2.3.3); Play stays available to everyone.
    */
   startInitialPlayback() {
-    if (this.usesHourOfDayAxis()) return;
+    if (!this.hasFeature("autoplay")) return;
     if (this.state.hasUserControlledPlayback) return;
     if (prefersReducedMotion()) return;
     this.setPlaybackState(true);
@@ -2073,7 +2077,8 @@ class MeteoMapManager {
   }
 
   updateWindLayerToggleVisibility(variableType = this.state.type) {
-    const shouldShowWindToggle = !this.usesHourOfDayAxis() && (variableType === "eolico" || variableType === "wind");
+    const shouldShowWindToggle =
+      this.hasFeature("windVectors") && (variableType === "eolico" || variableType === "wind");
 
     if (this.ui.windLayerToggle) {
       this.ui.windLayerToggle.classList.toggle("active", shouldShowWindToggle);
@@ -2387,7 +2392,7 @@ class MeteoMapManager {
   }
 
   frameGridOnFirstPaint(gridLayer, domain) {
-    if (!this.usesHourOfDayAxis() || this._framedDomain === domain) return;
+    if (this.hasFeature("domainFlyTo") || this._framedDomain === domain) return;
     this._framedDomain = domain;
     this.map.fitBounds(gridLayer.getBounds(), {
       padding: [ANNUAL_MEANS_GRID_FIT_PADDING_PX, ANNUAL_MEANS_GRID_FIT_PADDING_PX],
@@ -2476,7 +2481,7 @@ class MeteoMapManager {
         this.updateDomainIndicator();
         this.refreshVariableOverviewPreview();
 
-        if (this.usesHourOfDayAxis()) {
+        if (!this.hasFeature("domainFlyTo")) {
           this.closeSidebar();
           this.applyMapChanges();
           return;
@@ -3202,9 +3207,9 @@ class MeteoMapManager {
             </div>
         `;
 
-    const specificInfo = this.usesHourOfDayAxis()
-      ? null
-      : config.specificInfo(cell.value, cell.allValues, this._specificInfoContext(cell));
+    const specificInfo = this.hasFeature("specificInfo")
+      ? config.specificInfo(cell.value, cell.allValues, this._specificInfoContext(cell))
+      : null;
     if (specificInfo) {
       html += `<div class="info-section variable-specific">${this._specificInfoHtml(specificInfo)}</div>`;
     }

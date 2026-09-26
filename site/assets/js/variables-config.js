@@ -371,6 +371,15 @@ const VARIABLE_CONTEXTS = {
     defaultVariable: "temperature",
     timeAxis: "hour-of-day",
     variables: ["temperature", "relativeHumidity", "humidity", "pressure", "wind", "globalRadiation", "eolico"],
+    features: {
+      specificInfo: false,
+      seriesModal: false,
+      domainPreview: false,
+      windVectors: false,
+      stateClip: false,
+      autoplay: false,
+      domainFlyTo: false,
+    },
   },
 };
 
