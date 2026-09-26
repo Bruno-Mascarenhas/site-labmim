@@ -366,6 +366,12 @@ const VARIABLE_CONTEXTS = {
     defaultVariable: "solar",
     variables: ["solar", "eolico", "windPowerDensity"],
   },
+  "annual-means": {
+    optionGroupLabel: "Médias por hora local",
+    defaultVariable: "temperature",
+    timeAxis: "hour-of-day",
+    variables: ["temperature", "relativeHumidity", "humidity", "pressure", "wind", "globalRadiation", "eolico"],
+  },
 };
 
 function unavailableInfo(title) {
