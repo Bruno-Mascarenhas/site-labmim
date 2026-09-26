@@ -681,8 +681,8 @@ Em `density.counts`, linhas são faixas de Kd e colunas faixas de Kt; o renderiz
 cuja altura não case com `kd_edges`, porque transposta ela desenharia espelhada em silêncio. A condição
 do quadro é lida por `prediction.sky.condition` (1–4) ou por `.id`, nunca por um inteiro solto: a classe
 interna do exportador é 0-based. Declarar a página sem declarar `dataset.paths.sky` reprova o build,
-como em climatologia (`validateSkyHasData()`); o diretório ainda ausente na árvore é só um aviso, o
-normal em CI.
+como em climatologia (`validatePagesHaveData()`, a partir do `requiresDatasetPath` do tipo); o
+diretório ainda ausente na árvore é só um aviso, o normal em CI.
 
 ---
 

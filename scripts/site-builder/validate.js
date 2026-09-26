@@ -5,7 +5,7 @@ const path = require("path");
 const { inspectPublicationThemeCss } = require("./theme-contract");
 const { observationModalId, DEFAULT_MODEL, RUN_NOTE_SLOTS } = require("./renderer");
 const { DEFAULT_GRAPHS_DIRECTORY } = require("./operational-paths");
-const { closestKey, LAYOUT_CONTRACTS } = require("../../src/template/page-types");
+const { closestKey, LAYOUT_CONTRACTS, PAGE_TYPES } = require("../../src/template/page-types");
 
 const REDIRECT_STATUSES = new Set([301, 302, 307, 308]);
 const GEOJSON_CODE_PROPERTIES = ["SIGLA", "sigla", "UF", "uf", "stateCode", "code", "PK_sigla"];
@@ -657,38 +657,17 @@ function validateMonitoringHasData(errors, publication, templateDirectory, publi
   }
 }
 
-function validateClimatologyHasData(errors, publication) {
+function validatePagesHaveData(errors, publication) {
   if (!Array.isArray(publication.pages)) return;
-  const hasClimatology = publication.pages.some(
-    (page) => page && (page.id === "climatology" || page.file === "climatologia.html")
-  );
-  if (!hasClimatology) return;
-  if (!isNonEmptyString(publication.dataset?.paths?.climatology)) {
-    errors.push(
-      "dataset.paths.climatology: the climatology page requires a data directory; declare it or drop the page"
-    );
-  }
-}
-
-function validateSkyHasData(errors, publication) {
-  if (!Array.isArray(publication.pages)) return;
-  const hasSky = publication.pages.some((page) => page && (page.id === "sky" || page.file === "ceu.html"));
-  if (!hasSky) return;
-  if (!isNonEmptyString(publication.dataset?.paths?.sky)) {
-    errors.push("dataset.paths.sky: the sky-condition page requires a data directory; declare it or drop the page");
-  }
-}
-
-function validateAnnualMeansHasData(errors, publication) {
-  if (!Array.isArray(publication.pages)) return;
-  const hasAnnualMeans = publication.pages.some(
-    (page) => page && (page.id === "annual-means" || page.file === "medias_anuais.html")
-  );
-  if (!hasAnnualMeans) return;
-  if (!isNonEmptyString(publication.dataset?.paths?.annualMeans)) {
-    errors.push(
-      "dataset.paths.annualMeans: the annual-means page requires a data directory; declare it or drop the page"
-    );
+  for (const type of Object.values(PAGE_TYPES)) {
+    const pathKey = type.requiresDatasetPath;
+    if (!pathKey) continue;
+    const offered = publication.pages.some((page) => page && (page.id === type.id || page.file === type.file));
+    if (offered && !isNonEmptyString(publication.dataset?.paths?.[pathKey])) {
+      errors.push(
+        `dataset.paths.${pathKey}: the ${type.id} page requires a data directory; declare it or drop the page`
+      );
+    }
   }
 }
 
@@ -1266,9 +1245,7 @@ function validatePublication({ root, templateRoot, siteDir, publication } = {}) 
   const computedBoundaryBounds = validateTerritory(errors, publication.territory, siteDirectory);
   validateDataset(errors, warnings, publication.dataset, siteDirectory, computedBoundaryBounds);
   validateMonitoringHasData(errors, publication, templateDirectory, publicationDirectory);
-  validateClimatologyHasData(errors, publication);
-  validateSkyHasData(errors, publication);
-  validateAnnualMeansHasData(errors, publication);
+  validatePagesHaveData(errors, publication);
   const pageOutputs = validatePages(errors, publication.pages, templateDirectory, publicationDirectory, siteDirectory);
   validateRedirects(errors, publication.redirects, pageOutputs);
 

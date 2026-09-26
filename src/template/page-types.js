@@ -53,6 +53,7 @@ const PAGE_TYPES = Object.freeze({
     // what a reader arriving from a search result reads.
     seo: Object.freeze({ h1: "Condição do Céu" }),
     nav: Object.freeze({ label: "Céu", icon: "fa-cloud", order: 35, elementId: "nav-ceu" }),
+    requiresDatasetPath: "sky",
   }),
   team: Object.freeze({
     id: "team",
@@ -71,6 +72,7 @@ const PAGE_TYPES = Object.freeze({
     append: Object.freeze([]),
     seo: Object.freeze({ h1: "Climatologia" }),
     nav: Object.freeze({ label: "Climatologia", icon: "fa-cloud-sun", order: 40, elementId: "nav-climatologia" }),
+    requiresDatasetPath: "climatology",
   }),
   forecast: Object.freeze({
     id: "forecast",
@@ -107,6 +109,7 @@ const PAGE_TYPES = Object.freeze({
     bodyAttrs: ' data-map-context="annual-means"',
     kicker: "Médias Anuais",
     docModalTitle: "Documentação - Médias Anuais",
+    requiresDatasetPath: "annualMeans",
   }),
 });
 
@@ -362,6 +365,7 @@ function finalizePage(definition, options, typeName) {
     seo,
   };
   delete result.requiresSiteSource;
+  delete result.requiresDatasetPath;
   delete result.nav;
   if (nav) result.nav = nav;
   return result;
