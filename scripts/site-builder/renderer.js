@@ -273,12 +273,6 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
           initialIndex: ANNUAL_MEANS_ALL_HOURS_STEP,
         },
       },
-      map: {
-        ...siteRuntimeConfig.map,
-        domains: Object.fromEntries(
-          domains.map((domain) => [domain.id, { label: domain.id, center: domain.center, zoom: domain.zoom }])
-        ),
-      },
     };
   }
 
@@ -295,7 +289,6 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     return {
       ...mapTokens(annualMeansRuntimeConfig()),
       DOMAIN_BUTTONS: domainButtons((domain) => domain.id),
-      DEFAULT_DOMAIN_LABEL: escapeAttribute(dataset.defaultDomain),
     };
   }
 
