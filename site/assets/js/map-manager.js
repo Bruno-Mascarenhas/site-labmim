@@ -1856,13 +1856,7 @@ class MeteoMapManager {
 
   updateDateTime() {
     if (this.ui.layerLabel) {
-      const hasData = this.isIndexAvailable(this.state.index);
-      const targetDate = this.calculateTargetDateFromIndex(this.state.index);
-      const label = this._noPublishedDataNotice
-        ? this._noPublishedDataNotice
-        : this.usesHourOfDayAxis()
-          ? this.annualMeansStepLabel(this.state.index)
-          : this.formatForecastDateTimeLabel(targetDate, hasData);
+      const label = this._noPublishedDataNotice ? this._noPublishedDataNotice : this.stepLabel(this.state.index);
       this.ui.layerLabel.textContent = label;
       // The slider value is a WRF timestep index: assistive tech would say "10 of 75".
       if (this.ui.slider) this.ui.slider.setAttribute("aria-valuetext", label);
@@ -1939,6 +1933,11 @@ class MeteoMapManager {
         sunUtcMs
       ),
     };
+  }
+
+  stepLabel(index) {
+    if (this.usesHourOfDayAxis()) return this.annualMeansStepLabel(index);
+    return this.formatForecastDateTimeLabel(this.calculateTargetDateFromIndex(index), this.isIndexAvailable(index));
   }
 
   calculateDateTimeFromIndex(index) {
