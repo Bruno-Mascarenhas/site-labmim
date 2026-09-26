@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { inspectPublicationThemeCss } = require("./theme-contract");
 const { observationModalId, DEFAULT_MODEL, RUN_NOTE_SLOTS } = require("./renderer");
-const { DEFAULT_GRAPHS_DIRECTORY } = require("./operational-paths");
+const { DEFAULT_GRAPHS_DIRECTORY, OPTIONAL_DATA_DIRECTORY_KEYS } = require("./operational-paths");
 const { closestKey, LAYOUT_CONTRACTS, PAGE_TYPES } = require("../../src/template/page-types");
 
 const REDIRECT_STATUSES = new Set([301, 302, 307, 308]);
@@ -726,38 +726,19 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
         allowAssets: true,
       });
     }
-    // Optional: precomputed observed distributions derived from the laboratory's own sensor
-    // archive, which is not public — deploy-supplied and gitignored like the model output.
-    if (dataset.paths.climatology !== undefined && dataset.paths.climatology !== null) {
-      validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.climatology, "dataset.paths.climatology", {
-        directory: true,
-      });
-    }
-    // Optional: the rolling seven-day window, rewritten hourly by the deploy from that same
-    // non-public archive.
-    if (dataset.paths.monitoring !== undefined && dataset.paths.monitoring !== null) {
-      validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.monitoring, "dataset.paths.monitoring", {
-        directory: true,
-      });
-    }
-
-    // Optional: the all-sky frame with the network's prediction and occlusion-sensitivity
-    // map, the block timeline, the model card and the radiation payload of the Kt × Kd
-    // chart. Same non-public archive, same deploy-only route.
-    if (dataset.paths.sky !== undefined && dataset.paths.sky !== null) {
-      validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.sky, "dataset.paths.sky", {
-        directory: true,
-      });
-    }
-
-    if (dataset.paths.annualMeans !== undefined && dataset.paths.annualMeans !== null) {
-      validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.annualMeans, "dataset.paths.annualMeans", {
+    // Optional, one per data page: the observed distributions and the rolling seven-day
+    // window from the laboratory's non-public sensor archive, the all-sky frame with its
+    // timeline and model card, and the WRF hour-of-day means. All are deploy-supplied and
+    // gitignored like the model output.
+    for (const key of OPTIONAL_DATA_DIRECTORY_KEYS) {
+      if (dataset.paths[key] === undefined || dataset.paths[key] === null) continue;
+      validateDatasetPath(errors, warnings, siteDirectory, dataset.paths[key], `dataset.paths.${key}`, {
         directory: true,
       });
     }
 
     const seen = new Map();
-    for (const key of ["manifest", "values", "grids", "graphs", "climatology", "monitoring", "sky", "annualMeans"]) {
+    for (const key of ["manifest", "values", "grids", "graphs", ...OPTIONAL_DATA_DIRECTORY_KEYS]) {
       const value = dataset.paths[key];
       if (!isNonEmptyString(value)) continue;
       const normalized = path.posix.normalize(value);

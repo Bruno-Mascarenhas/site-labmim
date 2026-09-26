@@ -11,25 +11,18 @@
 // laboratory's watermark burnt into the image.
 const DEFAULT_GRAPHS_DIRECTORY = "assets/graphs";
 
+const OPTIONAL_DATA_DIRECTORY_KEYS = Object.freeze(["climatology", "monitoring", "sky", "annualMeans"]);
+const DATA_DIRECTORY_KEYS = Object.freeze(["values", "grids", ...OPTIONAL_DATA_DIRECTORY_KEYS]);
+
 // Bundling excludes the station plots, or one laboratory's bundle ships the other's
 // watermark. The link check needs to see them: the PNGs are versioned, so a typo in a
 // `dataset.observations` src must break the gate instead of passing as deploy-delivered data.
 function publicationOperationalPaths(publication, { includeGraphs = true } = {}) {
-  const {
-    manifest,
-    values,
-    grids,
-    climatology,
-    monitoring,
-    sky,
-    annualMeans,
-    graphs = DEFAULT_GRAPHS_DIRECTORY,
-  } = publication.dataset.paths;
+  const paths = publication.dataset.paths;
+  const { manifest, graphs = DEFAULT_GRAPHS_DIRECTORY } = paths;
   return {
     directories: [
-      ...new Set(
-        [values, grids, climatology, monitoring, sky, annualMeans, includeGraphs ? graphs : null].filter(Boolean)
-      ),
+      ...new Set([...DATA_DIRECTORY_KEYS.map((key) => paths[key]), includeGraphs ? graphs : null].filter(Boolean)),
     ],
     files: new Set([manifest].filter(Boolean)),
   };
@@ -54,6 +47,7 @@ function isOperationalPath(relativePath, { directories, files }) {
 
 module.exports = {
   DEFAULT_GRAPHS_DIRECTORY,
+  OPTIONAL_DATA_DIRECTORY_KEYS,
   publicationOperationalPaths,
   allOperationalPaths,
   isOperationalPath,
