@@ -402,7 +402,6 @@ function customPage(options = {}) {
 }
 
 module.exports = {
-  mapContextOf,
   PAGE_TYPES,
   PAGE_OPTION_KEYS,
   CUSTOM_PAGE_OPTION_KEYS,
