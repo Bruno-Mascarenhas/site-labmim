@@ -38,7 +38,8 @@ module.exports = [
     indexable: false,
     seo: {
       title: "LEAL — Médias Anuais · UFES",
-      description: "LEAL — Médias Anuais: médias anuais das saídas do modelo WRF para o Espírito Santo, em preparação.",
+      description:
+        "LEAL — Médias Anuais: médias por hora local das saídas do modelo WRF ao longo do ano, com a cobertura e a origem das rodadas declaradas no mapa.",
     },
   }),
   page("climatology", {
