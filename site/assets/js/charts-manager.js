@@ -895,7 +895,7 @@ class ChartsManager {
   }
 
   _artifactUrl(template, domain, variableId) {
-    const path = template.replace("{domain}", domain).replace("{variable}", variableId);
+    const path = expandTemplate(template, { domain, variable: variableId });
     return this.app?.dataUrl ? this.app.dataUrl(path) : path;
   }
 

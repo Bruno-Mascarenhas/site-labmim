@@ -33,6 +33,10 @@ const LITERAL_BRACES = Object.freeze({ "{{LITERAL_OPEN}}": "{{", "{{LITERAL_CLOS
 
 const DEFAULT_FAVICON_EMOJI = "🌦️";
 
+const ANNUAL_MEANS_PAGE_ID = "annual-means";
+const ANNUAL_MEANS_MANIFEST_FILE = "manifest.json";
+const ANNUAL_MEANS_ALL_HOURS_STEP = 24;
+
 // WRF namelist defaults, overridable per dataset through an optional `model` block.
 // The `[[key]]` markers are citations, expanded in the browser by assets/js/references.js.
 // They sit beside the scheme name so a laboratory that runs MYNN instead of YSU changes
@@ -246,13 +250,46 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     };
   }
 
-  function domainButtons() {
+  function domainButtons(labelOf = (domain) => domain.label) {
     return domains
       .map((domain) => {
         const active = domain.id === dataset.defaultDomain ? " active" : "";
-        return `<button type="button" class="domain-btn${active}" aria-pressed="${domain.id === dataset.defaultDomain}" data-domain="${escapeAttribute(domain.id)}" data-zoom="${domain.zoom}">${escapeAttribute(domain.label)}</button>`;
+        return `<button type="button" class="domain-btn${active}" aria-pressed="${domain.id === dataset.defaultDomain}" data-domain="${escapeAttribute(domain.id)}" data-zoom="${domain.zoom}">${escapeAttribute(labelOf(domain))}</button>`;
       })
       .join("\n");
+  }
+
+  function annualMeansRuntimeConfig() {
+    const directory = dataset.paths.annualMeans;
+    return {
+      ...siteRuntimeConfig,
+      data: {
+        manifestPath: `${directory}/${ANNUAL_MEANS_MANIFEST_FILE}`,
+        valuesBase: directory,
+        gridsBase: directory,
+        timeline: {
+          ...dataset.timeline,
+          defaultMaxLayer: ANNUAL_MEANS_ALL_HOURS_STEP,
+          initialIndex: ANNUAL_MEANS_ALL_HOURS_STEP,
+        },
+      },
+    };
+  }
+
+  function mapTokens(config) {
+    return {
+      SITE_CONFIG: escapeAttribute(JSON.stringify(config)),
+      TIMELINE_MAX: String(config.data.timeline.defaultMaxLayer),
+      TIMELINE_INITIAL_INDEX: String(config.data.timeline.initialIndex),
+    };
+  }
+
+  function pageTokens(page) {
+    if (page.id !== ANNUAL_MEANS_PAGE_ID) return {};
+    return {
+      ...mapTokens(annualMeansRuntimeConfig()),
+      DOMAIN_BUTTONS: domainButtons((domain) => domain.id),
+    };
   }
 
   function cumulusCoverage() {
@@ -282,10 +319,11 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
       .join("\n");
   }
 
+  const siteRuntimeConfig = runtimeConfig();
   const siteTokens = {
     PUBLICATION_ID: escapeAttribute(publication.id),
     TERRITORY_ID: escapeAttribute(territory.id),
-    SITE_CONFIG: escapeAttribute(JSON.stringify(runtimeConfig())),
+    ...mapTokens(siteRuntimeConfig),
     BRAND_NAME: escapeAttribute(brand.name),
     BRAND_FULL_NAME: escapeAttribute(brand.fullName),
     BRAND_NAV_PICTURE: brandPicture(brand.logos.nav, { loading: "eager" }),
@@ -308,8 +346,6 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     DOMAIN_LABELS: escapeAttribute(naturalList(domains.map((domain) => domain.label))),
     CUMULUS_COVERAGE: escapeAttribute(cumulusCoverage()),
     DOMAIN_DOCUMENTATION: domainDocumentation(),
-    TIMELINE_MAX: String(dataset.timeline.defaultMaxLayer),
-    TIMELINE_INITIAL_INDEX: String(dataset.timeline.initialIndex),
     TIMELINE_STEP_COUNT: String(dataset.timeline.defaultMaxLayer),
     FORECAST_HORIZON_HOURS: String(forecastHorizonHours).replace(".", ","),
     TIMELINE_OUTPUT_FREQUENCY: timelineFrequency,
@@ -336,9 +372,9 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     ...Object.fromEntries(Object.entries(RUN_NOTE_SLOTS).map(([key, token]) => [token, dataset.runNotes?.[key] ?? ""])),
   };
 
-  function applySiteTokens(html) {
+  function applySiteTokens(html, overrides = {}) {
     let output = html;
-    for (const [name, value] of Object.entries(siteTokens)) {
+    for (const [name, value] of Object.entries({ ...siteTokens, ...overrides })) {
       output = replaceAll(output, `{{${name}}}`, value);
     }
     return output;
@@ -520,7 +556,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     html = applyPageScripts(page, html);
     html = replaceAll(html, "{{content}}", pageContent(page));
     html = replaceAll(html, "{{h1}}", escapeAttribute(page.seo.h1));
-    html = applySiteTokens(html);
+    html = applySiteTokens(html, pageTokens(page));
     assertResolved(page.file, html);
     html = resolveLiteralBraces(html);
     html = hideDecorativeIcons(html);

@@ -61,6 +61,23 @@ const MS_PER_HOUR = 60 * 60 * 1000;
 const MS_PER_MINUTE = 60 * 1000;
 const MINUTES_PER_HOUR = MS_PER_HOUR / MS_PER_MINUTE;
 const RADIATION_INSTANT_FORMAT = "radiation-instant-v1";
+const HOUR_OF_DAY_TIME_AXIS = "hour-of-day";
+const ANNUAL_MEANS_MANIFEST_FORMAT = "wrf-means-v1";
+const ANNUAL_MEANS_TEMPLATE_FIELDS = {
+  values: ["year", "domain", "variable", "step"],
+  grid: ["year", "domain"],
+  geojson: ["year", "domain"],
+};
+const TEMPLATE_FIELD_PATTERN = /\{(\w+)\}/g;
+const DATA_FILE_STEP_DIGITS = 3;
+const FORECAST_DATA_PATHS = Object.freeze({
+  values: `${DATA_SITE_CONFIG.valuesBase}/{domain}_{variable}_{step}.json`,
+  grid: `${DATA_SITE_CONFIG.gridsBase}/{domain}.grid.json`,
+  geojson: `${DATA_SITE_CONFIG.gridsBase}/{domain}.geojson`,
+  stepDigits: DATA_FILE_STEP_DIGITS,
+});
+const ANNUAL_MEANS_YEAR_PATTERN = /^\d{4}$/;
+const MAP_FIT_PADDING_PX = [20, 20];
 const STEP_SECONDS_FORMAT = "step-seconds-v1";
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const RADIANS_PER_DEGREE = Math.PI / 180;
@@ -107,6 +124,88 @@ function twoDigits(value) {
 
 function wallClockHoursMinutes(date) {
   return `${twoDigits(date.getUTCHours())}:${twoDigits(date.getUTCMinutes())}`;
+}
+
+function expandTemplate(template, fields) {
+  return template.replace(TEMPLATE_FIELD_PATTERN, (token, name) =>
+    Object.hasOwn(fields, name) ? String(fields[name]) : token
+  );
+}
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function annualMeansFromManifest(manifest) {
+  if (manifest?.format !== ANNUAL_MEANS_MANIFEST_FORMAT) {
+    throw new Error(`formato ${JSON.stringify(manifest?.format)} em vez de ${ANNUAL_MEANS_MANIFEST_FORMAT}`);
+  }
+  const labels = manifest.steps?.labels;
+  if (!Array.isArray(labels) || labels.length !== manifest.steps.count || !labels.every(isNonEmptyString)) {
+    throw new Error("steps.labels não tem steps.count rótulos");
+  }
+  const templates = manifest.templates;
+  for (const [key, fields] of Object.entries(ANNUAL_MEANS_TEMPLATE_FIELDS)) {
+    if (!isNonEmptyString(templates?.[key])) throw new Error(`templates.${key} ausente`);
+    const unknown = [...templates[key].matchAll(TEMPLATE_FIELD_PATTERN)].filter(([, name]) => !fields.includes(name));
+    if (unknown.length) throw new Error(`templates.${key}: campo desconhecido ${unknown[0][0]}`);
+  }
+  const year = Object.keys(manifest.years ?? {})
+    .filter((key) => ANNUAL_MEANS_YEAR_PATTERN.test(key))
+    .sort()
+    .at(-1);
+  if (!year) throw new Error("manifesto sem nenhum ano em years");
+  const entry = manifest.years[year];
+  if (!Array.isArray(entry.domains) || !Array.isArray(entry.variables) || !isNonEmptyString(entry.source)) {
+    throw new Error(`years.${year} precisa de domains, variables e source`);
+  }
+  return {
+    year,
+    labels,
+    templates,
+    stepDigits: Number.isInteger(templates.step_digits) ? templates.step_digits : DATA_FILE_STEP_DIGITS,
+    domains: entry.domains,
+    variables: entry.variables,
+    domainLabels: entry.domain_labels ?? {},
+    source: entry.source,
+    complete: entry.complete === true,
+    daysInYear: entry.days_in_year,
+    coverage: Object.fromEntries(
+      Object.entries(entry.coverage ?? {}).map(([domain, coverage]) => [domain, annualMeansCoverageSummary(coverage)])
+    ),
+  };
+}
+
+function annualMeansCoverageSummary(coverage) {
+  const days = coverage.days ?? [];
+  const period = days.length ? ` (${formatLocalDate(days[0])} a ${formatLocalDate(days.at(-1))})` : "";
+  return {
+    dayCount: coverage.day_count,
+    runs: (coverage.runs ?? []).map(formatRunInitialization).join(", ") || "nenhuma",
+    days: `${coverage.day_count}, ${coverage.full_day_count ?? 0} completos${period}`,
+    hoursPerStep: coverage.hours_per_step ?? [],
+  };
+}
+
+function annualMeansDataPaths({ templates, year, stepDigits }) {
+  const inYear = (template) => `${DATA_SITE_CONFIG.valuesBase}/${expandTemplate(template, { year })}`;
+  return {
+    values: inYear(templates.values),
+    grid: inYear(templates.grid),
+    geojson: inYear(templates.geojson),
+    stepDigits,
+  };
+}
+
+function formatRunInitialization(isoUtc) {
+  const date = new Date(isoUtc);
+  if (Number.isNaN(date.getTime())) return String(isoUtc);
+  return `${twoDigits(date.getUTCDate())}/${twoDigits(date.getUTCMonth() + 1)}/${date.getUTCFullYear()} ${twoDigits(date.getUTCHours())} UTC`;
+}
+
+function formatLocalDate(isoDate) {
+  const [year, month, day] = String(isoDate).split("-");
+  return year && month && day ? `${day}/${month}/${year}` : String(isoDate);
 }
 
 function positiveSecondsOrNull(seconds) {
@@ -319,6 +418,8 @@ class MeteoMapManager {
   constructor() {
     this.mapContext = this.resolveMapContext();
     this.contextConfig = VARIABLE_CONTEXTS[this.mapContext] || VARIABLE_CONTEXTS.forecast;
+    this.annualMeans = null;
+    this.dataPaths = this.usesHourOfDayAxis() ? null : FORECAST_DATA_PATHS;
     // Pipeline run version from the manifest, appended as ?v= to every data URL so
     // the fixed-name files can be cached long-term.
     this.dataVersion = null;
@@ -342,6 +443,7 @@ class MeteoMapManager {
       indexMin: 1,
       indexMax: null,
       availability: null,
+      availabilityComplete: false,
       domainAvailability: null,
       features: null,
       startLocal: null,
@@ -402,7 +504,7 @@ class MeteoMapManager {
     this.initMap();
     this.setupEventListeners();
     this.setupDomainIndicators();
-    this.loadStateGeoJson();
+    if (this.hasFeature("stateClip")) this.loadStateGeoJson();
     this.loadCustomParameters();
   }
 
@@ -416,7 +518,16 @@ class MeteoMapManager {
   }
 
   getDomainLabel(domain = this.state.domain) {
+    if (this.usesHourOfDayAxis()) return this.annualMeans?.domainLabels[domain] || domain;
     return this.getDomainConfig(domain).label;
+  }
+
+  usesHourOfDayAxis() {
+    return this.contextConfig.timeAxis === HOUR_OF_DAY_TIME_AXIS;
+  }
+
+  hasFeature(name) {
+    return this.contextConfig.features?.[name] !== false;
   }
 
   getVisibleVariableTypes() {
@@ -430,6 +541,7 @@ class MeteoMapManager {
    * visible one would pull ~10 full-domain files per click to show three numbers.
    */
   getRelatedVariableTypes() {
+    if (!this.hasFeature("specificInfo")) return [this.state.type];
     const variables = new Set([this.state.type]);
     (VARIABLES_CONFIG[this.state.type]?.relatedVariables || []).forEach((variableType) => {
       if (VARIABLES_CONFIG[variableType]) variables.add(variableType);
@@ -447,16 +559,21 @@ class MeteoMapManager {
     return this.dataVersion ? `${path}?v=${encodeURIComponent(this.dataVersion)}` : path;
   }
 
+  hasDataSource() {
+    return this.dataPaths !== null;
+  }
+
   valuesJsonPath(domain, variableId, index) {
-    return `${DATA_SITE_CONFIG.valuesBase}/${domain}_${variableId}_${String(index).padStart(3, "0")}.json`;
+    const { values, stepDigits } = this.dataPaths;
+    return expandTemplate(values, { domain, variable: variableId, step: String(index).padStart(stepDigits, "0") });
   }
 
   gridJsonPath(domain) {
-    return `${DATA_SITE_CONFIG.gridsBase}/${domain}.grid.json`;
+    return expandTemplate(this.dataPaths.grid, { domain });
   }
 
   gridGeoJsonPath(domain) {
-    return `${DATA_SITE_CONFIG.gridsBase}/${domain}.geojson`;
+    return expandTemplate(this.dataPaths.geojson, { domain });
   }
 
   /**
@@ -464,6 +581,10 @@ class MeteoMapManager {
    * contract, so a longer run or a newly gated variable never requires an edit here.
    */
   applyManifest(manifest) {
+    if (this.usesHourOfDayAxis()) {
+      this.applyAnnualMeansManifest(manifest);
+      return;
+    }
     if (typeof manifest?.version === "string" && manifest.version) {
       this.dataVersion = manifest.version;
     }
@@ -515,10 +636,7 @@ class MeteoMapManager {
         ? stepSeconds.seconds
         : null;
 
-    const visibleTypes = this.getVisibleVariableTypes();
-    this.configureVariableSelect(visibleTypes);
-    if (this.ui.variableCardsGrid) this.renderVariableGuideCards(visibleTypes);
-    this.updateIsobarToggleVisibility();
+    this.refreshVariableControls();
 
     // start_local is the local datetime of FILE INDEX 0, so it always pairs with
     // initialIndex 0 — never index_min, which a skip-first run pushes above 0.
@@ -540,6 +658,132 @@ class MeteoMapManager {
     this._snapIndexToAvailable();
 
     this.updateDateTime();
+  }
+
+  applyAnnualMeansManifest(manifest) {
+    if (!manifest) return;
+    try {
+      this.annualMeans = annualMeansFromManifest(manifest);
+    } catch (error) {
+      console.error(`Manifesto das médias anuais inválido: ${error.message}`);
+      this.annualMeans = null;
+      this.dataPaths = null;
+      return;
+    }
+    const annualMeans = this.annualMeans;
+    this.dataPaths = annualMeansDataPaths(annualMeans);
+    const indexMax = annualMeans.labels.length - 1;
+    this.dataVersion = manifest.version;
+    this._framedDomain = null;
+    this.timeline.indexMin = 0;
+    this.timeline.indexMax = indexMax;
+    this.timeline.availability = Object.fromEntries(annualMeans.variables.map((id) => [id, [[0, indexMax]]]));
+    this.timeline.availabilityComplete = true;
+    this.state.maxLayer = indexMax;
+    this.state.index = Math.min(Math.max(this.state.index, 0), indexMax);
+    if (this.ui.slider) {
+      this.ui.slider.min = "0";
+      this.ui.slider.max = String(indexMax);
+      this.ui.slider.value = String(this.state.index);
+    }
+
+    this.configureAnnualMeansDomains();
+    this.refreshVariableControls();
+    this.ui.heightSelector?.classList.toggle("active", this.state.type === "eolico");
+    this.updateDateTime();
+  }
+
+  refreshVariableControls() {
+    const visibleTypes = this.getVisibleVariableTypes();
+    this.configureVariableSelect(visibleTypes);
+    if (this.ui.variableCardsGrid) this.renderVariableGuideCards(visibleTypes);
+    this.updateIsobarToggleVisibility();
+  }
+
+  configureAnnualMeansDomains() {
+    const published = this.annualMeans.domains;
+    const buttons = this.ui.domainButtons;
+    buttons.forEach((button) => {
+      button.hidden = !published.includes(button.dataset.domain);
+    });
+    if (!published.includes(this.state.domain)) {
+      const firstPublished = buttons.find((button) => published.includes(button.dataset.domain));
+      if (firstPublished) this.state.domain = firstPublished.dataset.domain;
+    }
+    this.updateDomainIndicator();
+  }
+
+  renderAnnualMeansCoverage() {
+    if (!this.annualMeans) return;
+    const coverageKey = `${this.dataVersion}:${this.state.domain}`;
+    if (this._annualMeansCoverageKey !== coverageKey) {
+      this._annualMeansCoverageKey = coverageKey;
+      this.fillAnnualMeansCoverage();
+    }
+    if (this.ui.annualMeansHours) this.ui.annualMeansHours.textContent = this.annualMeansHoursText();
+  }
+
+  fillAnnualMeansCoverage() {
+    const panel = this.ui.annualMeansCoverage ?? this.createAnnualMeansCoveragePanel();
+    const { year, complete, daysInYear, source } = this.annualMeans;
+    const coverage = this.annualMeans.coverage[this.state.domain];
+
+    panel.querySelector(".annual-means-coverage-title").textContent = `Cobertura das médias de ${year}`;
+    const badge = panel.querySelector(".annual-means-coverage-badge");
+    badge.classList.toggle("is-incomplete", !complete);
+    badge.textContent = complete ? "ano completo" : "ano incompleto";
+
+    const rows = [];
+    const line = (label, value) => {
+      const paragraph = document.createElement("p");
+      const strong = document.createElement("strong");
+      strong.textContent = `${label}: `;
+      paragraph.append(strong, value);
+      rows.push(paragraph);
+    };
+
+    if (!complete) {
+      const warning = document.createElement("p");
+      warning.className = "doc-warning annual-means-coverage-warning";
+      warning.textContent = coverage
+        ? `Ano incompleto: as médias de ${year} cobrem ${coverage.dayCount} de ${daysInYear} dias e não representam o ano inteiro.`
+        : `Ano incompleto: as médias de ${year} não representam o ano inteiro.`;
+      rows.push(warning);
+    }
+    line("Fonte", source);
+    line("Domínio", `${this.getDomainLabel()} (${this.state.domain})`);
+    this.ui.annualMeansHours = null;
+    if (coverage) {
+      line("Rodadas incluídas", coverage.runs);
+      line("Dias com dados", coverage.days);
+      this.ui.annualMeansHours = document.createElement("span");
+      line("Horas nesta média", this.ui.annualMeansHours);
+    } else {
+      line("Cobertura", "o manifesto não descreve este domínio");
+    }
+    panel.querySelector(".annual-means-coverage-body").replaceChildren(...rows);
+  }
+
+  createAnnualMeansCoveragePanel() {
+    document
+      .getElementById("main")
+      .insertAdjacentHTML(
+        "beforeend",
+        '<details id="annualMeansCoverage" class="annual-means-coverage"><summary><span class="annual-means-coverage-title"></span> <span class="annual-means-coverage-badge"></span></summary><div class="annual-means-coverage-body" aria-live="polite"></div></details>'
+      );
+    const panel = document.getElementById("annualMeansCoverage");
+    panel.open = getComputedStyle(panel).position !== "static";
+    this.ui.annualMeansCoverage = panel;
+    return panel;
+  }
+
+  annualMeansHoursText() {
+    const hours = this.annualMeans?.coverage[this.state.domain]?.hoursPerStep[this.state.index];
+    return Number.isInteger(hours) ? String(hours) : "sem informação";
+  }
+
+  annualMeansStepLabel(index) {
+    return this.annualMeans?.labels[index] ?? "Carregando...";
   }
 
   /**
@@ -605,7 +849,9 @@ class MeteoMapManager {
 
   availabilityRanges(variableId, domain = this.state.domain) {
     const domainRanges = this.timeline.domainAvailability?.[domain]?.[variableId];
-    return Array.isArray(domainRanges) ? domainRanges : this.timeline.availability?.[variableId];
+    if (Array.isArray(domainRanges)) return domainRanges;
+    const ranges = this.timeline.availability?.[variableId];
+    return ranges === undefined && this.timeline.availabilityComplete ? [] : ranges;
   }
 
   hasPublishedSteps(type = this.state.type, domain = this.state.domain) {
@@ -1093,7 +1339,7 @@ class MeteoMapManager {
       fitBounds.every((corner) => Array.isArray(corner) && corner.length === 2)
     ) {
       this.map.fitBounds(fitBounds, {
-        padding: [20, 20],
+        padding: MAP_FIT_PADDING_PX,
         maxZoom: MAP_SITE_CONFIG.fitMaxZoom || DEFAULT_MAP_ZOOM,
       });
     } else {
@@ -1447,6 +1693,8 @@ class MeteoMapManager {
     this.ui.variablePreviewDomain = document.getElementById("variablePreviewDomain");
 
     if (!this.ui.variableOverviewPanel || !this.ui.variableCardsGrid) return;
+    const previewCard = this.ui.variableOverviewPanel.querySelector(".variable-preview-card");
+    if (previewCard) previewCard.hidden = !this.hasFeature("domainPreview");
 
     this._debouncedPreviewRefresh = _debounce(() => this.refreshVariableOverviewPreview(), 250);
     this.updateVariableOverviewToggle();
@@ -1551,6 +1799,7 @@ class MeteoMapManager {
 
   refreshVariableOverviewPreview(variableType = this.state.type) {
     this.updateVariableGuideSelection(variableType);
+    if (!this.hasFeature("domainPreview")) return;
     this.updateVariablePreviewShell(variableType);
 
     if (!this.chartsManager || !this.ui.variableOverviewPanel) return;
@@ -1609,15 +1858,12 @@ class MeteoMapManager {
 
   updateDateTime() {
     if (this.ui.layerLabel) {
-      const hasData = this.isIndexAvailable(this.state.index);
-      const targetDate = this.calculateTargetDateFromIndex(this.state.index);
-      const label = this._noPublishedDataNotice
-        ? this._noPublishedDataNotice
-        : this.formatForecastDateTimeLabel(targetDate, hasData);
+      const label = this._noPublishedDataNotice ? this._noPublishedDataNotice : this.stepLabel(this.state.index);
       this.ui.layerLabel.textContent = label;
       // The slider value is a WRF timestep index: assistive tech would say "10 of 75".
       if (this.ui.slider) this.ui.slider.setAttribute("aria-valuetext", label);
     }
+    this.renderAnnualMeansCoverage();
   }
 
   /**
@@ -1691,6 +1937,11 @@ class MeteoMapManager {
     };
   }
 
+  stepLabel(index) {
+    if (this.usesHourOfDayAxis()) return this.annualMeansStepLabel(index);
+    return this.formatForecastDateTimeLabel(this.calculateTargetDateFromIndex(index), this.isIndexAvailable(index));
+  }
+
   calculateDateTimeFromIndex(index) {
     const date = this.calculateTargetDateFromIndex(index);
     if (!date) return `Hora ${index}`;
@@ -1738,6 +1989,7 @@ class MeteoMapManager {
    * Motion never starts unrequested (WCAG 2.3.3); Play stays available to everyone.
    */
   startInitialPlayback() {
+    if (!this.hasFeature("autoplay")) return;
     if (this.state.hasUserControlledPlayback) return;
     if (prefersReducedMotion()) return;
     this.setPlaybackState(true);
@@ -1829,7 +2081,8 @@ class MeteoMapManager {
   }
 
   updateWindLayerToggleVisibility(variableType = this.state.type) {
-    const shouldShowWindToggle = variableType === "eolico" || variableType === "wind";
+    const shouldShowWindToggle =
+      this.hasFeature("windVectors") && (variableType === "eolico" || variableType === "wind");
 
     if (this.ui.windLayerToggle) {
       this.ui.windLayerToggle.classList.toggle("active", shouldShowWindToggle);
@@ -2002,6 +2255,7 @@ class MeteoMapManager {
   }
 
   applyMapChanges() {
+    if (!this.hasDataSource()) return Promise.resolve(null);
     if (!this.isIndexAvailable(this.state.index)) {
       this._clearCurrentData();
       this._removeSelectedMarker();
@@ -2115,6 +2369,7 @@ class MeteoMapManager {
         this.applyValuesToGrid(gridLayer, valueData);
 
         this.showGeoJsonLayer(gridLayer);
+        this.frameGridOnFirstPaint(gridLayer, domain);
         this.updateUIFromMetadata(valueData.metadata, index);
 
         if (this.ui.windCheckbox && this.ui.windCheckbox.checked) {
@@ -2140,6 +2395,15 @@ class MeteoMapManager {
       });
   }
 
+  frameGridOnFirstPaint(gridLayer, domain) {
+    if (this.hasFeature("domainFlyTo") || this._framedDomain === domain) return;
+    this._framedDomain = domain;
+    this.map.fitBounds(gridLayer.getBounds(), {
+      padding: MAP_FIT_PADDING_PX,
+      animate: !prefersReducedMotion(),
+    });
+  }
+
   /**
    * Degraded-mode playback. Without a v2 manifest or a timeline anchor, unavailable
    * indices can only be discovered by fetching, so hop to the next one instead of
@@ -2163,6 +2427,7 @@ class MeteoMapManager {
    */
   _prefetchUpcoming(index, type, count = PREFETCH_AHEAD_STEPS) {
     if (navigator.connection?.saveData) return;
+    if (!this.hasFeature("autoplay") && !this.state.isPlaying) return;
     const config = VARIABLES_CONFIG[type];
     if (!config) return;
     const domain = this.state.domain;
@@ -2220,6 +2485,12 @@ class MeteoMapManager {
         this.updateDateTime();
         this.updateDomainIndicator();
         this.refreshVariableOverviewPreview();
+
+        if (!this.hasFeature("domainFlyTo")) {
+          this.closeSidebar();
+          this.applyMapChanges();
+          return;
+        }
 
         // A click invalidates the framing the previous one asked for; both branches
         // below end in an async flyTo, so they share a token.
@@ -2340,6 +2611,7 @@ class MeteoMapManager {
   }
 
   loadGridLayer(domain) {
+    if (!this.hasDataSource()) return Promise.resolve(null);
     const cacheKey = domain;
 
     if (this.gridLayers[cacheKey]) {
@@ -2895,6 +3167,7 @@ class MeteoMapManager {
     const config = this.getVariableConfig();
     const sidebar = this.ui.sidebar;
     const content = this.ui.sidebarContent;
+    const hourOfDay = this.usesHourOfDayAxis();
     const sunOffsetMinutes = this.radiationOffsetMinutes();
     const sunItemHtml =
       sunOffsetMinutes === null
@@ -2903,6 +3176,13 @@ class MeteoMapManager {
                     <span class="info-label">Cálculo da radiação</span>
                     <span class="info-value">${this.formatRadiationSun(sunOffsetMinutes)}</span>
                 </div>`;
+
+    const meanHoursItemHtml = hourOfDay
+      ? `<div class="info-item">
+                    <span class="info-label">Horas na média</span>
+                    <span class="info-value">${this.annualMeansHoursText()}</span>
+                </div>`
+      : "";
 
     let html = `
             <div class="info-section">
@@ -2932,14 +3212,17 @@ class MeteoMapManager {
                     <span class="info-value">${cell.value.toFixed(2)}<span class="info-unit">${config.unit}</span></span>
                 </div>
                 <div class="info-item">
-                    <span class="info-label">Data/Hora</span>
-                    <span class="info-value">${this.calculateDateTimeFromIndex(this.state.index)}</span>
+                    <span class="info-label">${hourOfDay ? "Hora local" : "Data/Hora"}</span>
+                    <span class="info-value">${hourOfDay ? this.annualMeansStepLabel(this.state.index) : this.calculateDateTimeFromIndex(this.state.index)}</span>
                 </div>
                 ${sunItemHtml}
+                ${meanHoursItemHtml}
             </div>
         `;
 
-    const specificInfo = config.specificInfo(cell.value, cell.allValues, this._specificInfoContext(cell));
+    const specificInfo = this.hasFeature("specificInfo")
+      ? config.specificInfo(cell.value, cell.allValues, this._specificInfoContext(cell))
+      : null;
     if (specificInfo) {
       html += `<div class="info-section variable-specific">${this._specificInfoHtml(specificInfo)}</div>`;
     }

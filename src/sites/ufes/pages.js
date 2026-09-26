@@ -1,6 +1,6 @@
 "use strict";
 
-const { page, siteSource } = require("../../template/page-types");
+const { page, siteSource, templateSource } = require("../../template/page-types");
 
 module.exports = [
   page("home", {
@@ -12,10 +12,6 @@ module.exports = [
         "LEAL - Laboratório de Energias Alternativas da UFES. Pesquisa, monitoramento ambiental e previsão de disponibilidade de energias eólica e solar em Vitória e Espírito Santo.",
     },
   }),
-  // No monitoring page: the only station charts that exist are LabMiM's, they
-  // measure Salvador under a "LabMiM ... UFBA" watermark, and both publications
-  // resolve the same default `assets/graphs/` path. Restore `page("monitoring")`
-  // once LEAL declares `paths.graphs` and `observations.charts` of its own.
   page("team", {
     source: siteSource("pages/team.html"),
     seo: {
@@ -24,8 +20,6 @@ module.exports = [
         "LEAL — Equipe do Laboratório de Energias Alternativas da UFES: pesquisadores, colaboradores e estudantes.",
     },
   }),
-  // No climatology page, for the same reason: the only published distributions
-  // are the Salvador station's, while this route's SEO promises Espírito Santo.
   page("forecast", {
     seo: {
       title: "LEAL — Mapas Interativos WRF · UFES",
@@ -38,6 +32,37 @@ module.exports = [
       title: "LEAL — Potenciais Energéticos · UFES",
       description:
         "LEAL — Potenciais Energéticos: mapas interativos de potencial fotovoltaico, potencial eólico e densidade eólica para o Espírito Santo.",
+    },
+  }),
+  page("annual-means", {
+    indexable: false,
+    seo: {
+      title: "LEAL — Médias Anuais · UFES",
+      description:
+        "LEAL — Médias Anuais: médias por hora local das saídas do modelo WRF ao longo do ano, com a cobertura e a origem das rodadas declaradas no mapa.",
+    },
+  }),
+  page("climatology", {
+    vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+    scripts: ["assets/js/chart-page.js", "assets/js/climatologia.js"],
+    seo: {
+      title: "LEAL — Climatologia · UFES",
+      description:
+        "LEAL — Climatologia: distribuições estatísticas do registro observado da estação micrometeorológica do LEAL em Vitória, com as densidades teóricas da literatura. Laboratório de Energias Alternativas, UFES.",
+    },
+  }),
+  page("monitoring", {
+    // Interactive variant, reading the hourly payload from
+    // `dataset.paths.monitoring`; pages/monitoring.html is the static one.
+    source: templateSource("pages/monitoring-live.html"),
+    // Chart.js is declared per page: loading it from the institutional layout
+    // would cost 200 KB on the routes that draw nothing.
+    vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
+    scripts: ["assets/js/chart-page.js", "assets/js/monitoramento.js"],
+    seo: {
+      title: "LEAL — Monitoramento Ambiental · UFES",
+      description:
+        "LEAL — Monitoramento Ambiental: variáveis meteorológicas da última semana registrada por estações micrometeorológicas em Vitória, Espírito Santo.",
     },
   }),
 ];

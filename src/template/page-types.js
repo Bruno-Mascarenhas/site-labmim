@@ -53,6 +53,7 @@ const PAGE_TYPES = Object.freeze({
     // what a reader arriving from a search result reads.
     seo: Object.freeze({ h1: "Condição do Céu" }),
     nav: Object.freeze({ label: "Céu", icon: "fa-cloud", order: 35, elementId: "nav-ceu" }),
+    requiresDatasetPath: "sky",
   }),
   team: Object.freeze({
     id: "team",
@@ -71,6 +72,7 @@ const PAGE_TYPES = Object.freeze({
     append: Object.freeze([]),
     seo: Object.freeze({ h1: "Climatologia" }),
     nav: Object.freeze({ label: "Climatologia", icon: "fa-cloud-sun", order: 40, elementId: "nav-climatologia" }),
+    requiresDatasetPath: "climatology",
   }),
   forecast: Object.freeze({
     id: "forecast",
@@ -96,12 +98,25 @@ const PAGE_TYPES = Object.freeze({
     kicker: "Potenciais Energéticos",
     docModalTitle: "Documentação - Potenciais Energéticos",
   }),
+  "annual-means": Object.freeze({
+    id: "annual-means",
+    file: "medias_anuais.html",
+    layout: "webgis",
+    source: templateSource("pages/medias_anuais.html"),
+    append: Object.freeze([]),
+    seo: Object.freeze({ h1: "Médias Anuais" }),
+    nav: Object.freeze({ label: "Médias Anuais", icon: "fa-layer-group", order: 25, elementId: "nav-medias-anuais" }),
+    bodyAttrs: ' data-map-context="annual-means"',
+    kicker: "Médias Anuais",
+    docModalTitle: "Documentação - Médias Anuais",
+    requiresDatasetPath: "annualMeans",
+  }),
 });
 
 // Mirrors VARIABLE_CONTEXTS in assets/js/variables-config.js. Anything else
 // falls back to "forecast" silently in the browser, so the build refuses it
 // rather than render a map with the wrong set of variables.
-const KNOWN_MAP_CONTEXTS = Object.freeze(["forecast", "energy"]);
+const KNOWN_MAP_CONTEXTS = Object.freeze(["forecast", "energy", "annual-means"]);
 
 function mapContextOf(bodyAttrs) {
   const match = /\bdata-map-context="([^"]+)"/.exec(bodyAttrs);
@@ -350,6 +365,7 @@ function finalizePage(definition, options, typeName) {
     seo,
   };
   delete result.requiresSiteSource;
+  delete result.requiresDatasetPath;
   delete result.nav;
   if (nav) result.nav = nav;
   return result;

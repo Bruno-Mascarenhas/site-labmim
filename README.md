@@ -50,7 +50,7 @@ _O mesmo WebGIS no tema escuro: a preferência fica no navegador e os gráficos 
 
 Cada publicação traz ainda as páginas institucionais — início e equipe —, com identidade visual e SEO próprios.
 
-Quais dessas páginas existem é decidido publicação a publicação, no `pages.js` de cada uma. A UFBA publica as sete — as cinco de dados acima, mais início e equipe; o LEAL, que não tem estação nem câmera all-sky próprias, publica só as institucionais e os dois WebGIS.
+Quais dessas páginas existem é decidido publicação a publicação, no `pages.js` de cada uma. A UFBA publica as sete — as cinco de dados acima, mais início e equipe. O LEAL, que não tem câmera all-sky própria, publica as institucionais, os dois WebGIS, o monitoramento e a climatologia da estação dele, e um terceiro WebGIS, o de médias anuais do WRF, que mostra a média de cada hora local do dia e a cobertura do ano; por enquanto ele roda sobre dados de teste e fica fora do sitemap.
 
 ## Como rodar localmente
 
@@ -91,7 +91,7 @@ A lista completa dos scripts npm e dos atalhos do `Makefile` está em [CONTRIBUT
 
 ## De onde vêm os dados
 
-Os campos do WebGIS (`site/JSON/`, `site/GeoJSON/`) são produzidos pelo pipeline WRF do repositório irmão [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), **nunca por este build**. O acervo do laboratório (`site/Ceu/`, `site/Climatologia/`, `site/Monitoramento/`) vem da câmera all-sky e dos sensores da estação.
+Os campos do WebGIS (`site/JSON/`, `site/GeoJSON/`, `site/MediasAnuais/`) são produzidos pelo pipeline WRF do repositório irmão [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), **nunca por este build**. O acervo do laboratório (`site/Ceu/`, `site/Climatologia/`, `site/Monitoramento/`) vem da câmera all-sky e dos sensores da estação.
 
 **Nenhum desses dados é versionado**: o git rastreia apenas o `.keep` que mantém cada diretório, e quem entrega o conteúdo é o deploy. Não abra, varra, formate nem reprocesse esses caminhos em manutenção comum — são arquivos grandes, gerados fora daqui, e mexer neles não conserta nada do lado do site.
 
@@ -119,4 +119,4 @@ O deploy é manual: publica-se o site completo junto do `.htaccess`, nunca o `.h
 
 O código deste repositório está sob a [Licença MIT](LICENSE): qualquer pessoa pode usar, copiar, modificar e redistribuir — inclusive em fork ou em uso comercial — sem pagar nada, desde que **mantenha o aviso de copyright e a licença** e cite este repositório como origem.
 
-A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados operacionais publicados em produção (`site/JSON/`, `site/GeoJSON/`, `site/Climatologia/`, `site/Monitoramento/`, `site/Ceu/`, `site/assets/graphs/`), que pertencem às instituições correspondentes — os do WebGIS vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), os demais do acervo de sensores e da câmera all-sky do laboratório. Um fork deve substituir ambos pela própria identidade e pelos próprios dados. As bibliotecas vendorizadas em `site/assets/vendor/` mantêm suas licenças originais (Bootstrap, Leaflet, Chart.js e Font Awesome).
+A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados operacionais publicados em produção (`site/JSON/`, `site/GeoJSON/`, `site/MediasAnuais/`, `site/Climatologia/`, `site/Monitoramento/`, `site/Ceu/`, `site/assets/graphs/`), que pertencem às instituições correspondentes — os do WebGIS vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), os demais do acervo de sensores e da câmera all-sky do laboratório. Um fork deve substituir ambos pela própria identidade e pelos próprios dados. As bibliotecas vendorizadas em `site/assets/vendor/` mantêm suas licenças originais (Bootstrap, Leaflet, Chart.js e Font Awesome).
