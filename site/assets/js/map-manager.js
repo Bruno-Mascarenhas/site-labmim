@@ -1942,7 +1942,6 @@ class MeteoMapManager {
   }
 
   calculateDateTimeFromIndex(index) {
-    if (this.usesHourOfDayAxis()) return this.annualMeansStepLabel(index);
     const date = this.calculateTargetDateFromIndex(index);
     if (!date) return `Hora ${index}`;
     return this.formatForecastDateTimeLabel(date, true);
@@ -3167,6 +3166,7 @@ class MeteoMapManager {
     const config = this.getVariableConfig();
     const sidebar = this.ui.sidebar;
     const content = this.ui.sidebarContent;
+    const hourOfDay = this.usesHourOfDayAxis();
     const sunOffsetMinutes = this.radiationOffsetMinutes();
     const sunItemHtml =
       sunOffsetMinutes === null
@@ -3175,6 +3175,13 @@ class MeteoMapManager {
                     <span class="info-label">Cálculo da radiação</span>
                     <span class="info-value">${this.formatRadiationSun(sunOffsetMinutes)}</span>
                 </div>`;
+
+    const meanHoursItemHtml = hourOfDay
+      ? `<div class="info-item">
+                    <span class="info-label">Horas na média</span>
+                    <span class="info-value">${this.annualMeansHoursText()}</span>
+                </div>`
+      : "";
 
     let html = `
             <div class="info-section">
@@ -3204,11 +3211,11 @@ class MeteoMapManager {
                     <span class="info-value">${cell.value.toFixed(2)}<span class="info-unit">${config.unit}</span></span>
                 </div>
                 <div class="info-item">
-                    <span class="info-label">${this.usesHourOfDayAxis() ? "Hora local" : "Data/Hora"}</span>
-                    <span class="info-value">${this.calculateDateTimeFromIndex(this.state.index)}</span>
+                    <span class="info-label">${hourOfDay ? "Hora local" : "Data/Hora"}</span>
+                    <span class="info-value">${hourOfDay ? this.annualMeansStepLabel(this.state.index) : this.calculateDateTimeFromIndex(this.state.index)}</span>
                 </div>
                 ${sunItemHtml}
-                ${this.usesHourOfDayAxis() ? this._annualMeansHoursItemHtml() : ""}
+                ${meanHoursItemHtml}
             </div>
         `;
 
@@ -3223,13 +3230,6 @@ class MeteoMapManager {
     sidebar.classList.add("active");
 
     this.setupParametersEditorListeners(this.state.type);
-  }
-
-  _annualMeansHoursItemHtml() {
-    return `<div class="info-item">
-                    <span class="info-label">Horas na média</span>
-                    <span class="info-value">${this.annualMeansHoursText()}</span>
-                </div>`;
   }
 
   closeSidebar() {
