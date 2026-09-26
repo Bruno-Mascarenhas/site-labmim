@@ -2423,6 +2423,7 @@ class MeteoMapManager {
    */
   _prefetchUpcoming(index, type, count = PREFETCH_AHEAD_STEPS) {
     if (navigator.connection?.saveData) return;
+    if (!this.hasFeature("autoplay") && !this.state.isPlaying) return;
     const config = VARIABLES_CONFIG[type];
     if (!config) return;
     const domain = this.state.domain;
