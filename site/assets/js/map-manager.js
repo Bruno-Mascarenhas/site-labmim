@@ -171,7 +171,20 @@ function annualMeansFromManifest(manifest) {
     source: entry.source,
     complete: entry.complete === true,
     daysInYear: entry.days_in_year,
-    coverage: entry.coverage ?? {},
+    coverage: Object.fromEntries(
+      Object.entries(entry.coverage ?? {}).map(([domain, coverage]) => [domain, annualMeansCoverageSummary(coverage)])
+    ),
+  };
+}
+
+function annualMeansCoverageSummary(coverage) {
+  const days = coverage.days ?? [];
+  const period = days.length ? ` (${formatLocalDate(days[0])} a ${formatLocalDate(days.at(-1))})` : "";
+  return {
+    dayCount: coverage.day_count,
+    runs: (coverage.runs ?? []).map(formatRunInitialization).join(", ") || "nenhuma",
+    days: `${coverage.day_count}, ${coverage.full_day_count ?? 0} completos${period}`,
+    hoursPerStep: coverage.hours_per_step ?? [],
   };
 }
 
@@ -699,15 +712,20 @@ class MeteoMapManager {
     this.updateDomainIndicator();
   }
 
-  annualMeansCoverageOf(domain = this.state.domain) {
-    return this.annualMeans?.coverage?.[domain] ?? null;
+  renderAnnualMeansCoverage() {
+    if (!this.annualMeans) return;
+    const coverageKey = `${this.dataVersion}:${this.state.domain}`;
+    if (this._annualMeansCoverageKey !== coverageKey) {
+      this._annualMeansCoverageKey = coverageKey;
+      this.fillAnnualMeansCoverage();
+    }
+    if (this.ui.annualMeansHours) this.ui.annualMeansHours.textContent = this.annualMeansHoursText();
   }
 
-  renderAnnualMeansCoverage() {
-    if (!this.usesHourOfDayAxis() || !this.annualMeans) return;
-    const panel = this.annualMeansCoveragePanel();
+  fillAnnualMeansCoverage() {
+    const panel = this.ui.annualMeansCoverage ?? this.createAnnualMeansCoveragePanel();
     const { year, complete, daysInYear, source } = this.annualMeans;
-    const coverage = this.annualMeansCoverageOf();
+    const coverage = this.annualMeans.coverage[this.state.domain];
 
     panel.querySelector(".annual-means-coverage-title").textContent = `Cobertura das médias de ${year}`;
     const badge = panel.querySelector(".annual-means-coverage-badge");
@@ -727,49 +745,40 @@ class MeteoMapManager {
       const warning = document.createElement("p");
       warning.className = "annual-means-coverage-warning";
       warning.textContent = coverage
-        ? `Ano incompleto: as médias de ${year} cobrem ${coverage.day_count} de ${daysInYear} dias e não representam o ano inteiro.`
+        ? `Ano incompleto: as médias de ${year} cobrem ${coverage.dayCount} de ${daysInYear} dias e não representam o ano inteiro.`
         : `Ano incompleto: as médias de ${year} não representam o ano inteiro.`;
       rows.push(warning);
     }
     line("Fonte", source);
     line("Domínio", `${this.getDomainLabel()} (${this.state.domain})`);
+    this.ui.annualMeansHours = null;
     if (coverage) {
-      line("Rodadas incluídas", (coverage.runs ?? []).map(formatRunInitialization).join(", ") || "nenhuma");
-      const days = coverage.days ?? [];
-      const period = days.length ? ` (${formatLocalDate(days[0])} a ${formatLocalDate(days.at(-1))})` : "";
-      line("Dias com dados", `${coverage.day_count}, ${coverage.full_day_count ?? 0} completos${period}`);
-      const stepHours = this.annualMeansHoursAt(this.state.index);
-      line("Horas nesta média", stepHours === null ? "sem informação" : String(stepHours));
+      line("Rodadas incluídas", coverage.runs);
+      line("Dias com dados", coverage.days);
+      this.ui.annualMeansHours = document.createElement("span");
+      line("Horas nesta média", this.ui.annualMeansHours);
     } else {
       line("Cobertura", "o manifesto não descreve este domínio");
     }
     panel.querySelector(".annual-means-coverage-body").replaceChildren(...rows);
   }
 
-  annualMeansCoveragePanel() {
-    const existing = document.getElementById("annualMeansCoverage");
-    if (existing) return existing;
-    const panel = document.createElement("details");
-    panel.id = "annualMeansCoverage";
-    panel.className = "annual-means-coverage";
-    panel.open = !window.matchMedia?.("(width < 992px)").matches;
-    const summary = document.createElement("summary");
-    const title = document.createElement("span");
-    title.className = "annual-means-coverage-title";
-    const badge = document.createElement("span");
-    badge.className = "annual-means-coverage-badge";
-    summary.append(title, " ", badge);
-    const body = document.createElement("div");
-    body.className = "annual-means-coverage-body";
-    body.setAttribute("aria-live", "polite");
-    panel.append(summary, body);
-    document.getElementById("main").appendChild(panel);
+  createAnnualMeansCoveragePanel() {
+    document
+      .getElementById("main")
+      .insertAdjacentHTML(
+        "beforeend",
+        '<details id="annualMeansCoverage" class="annual-means-coverage"><summary><span class="annual-means-coverage-title"></span> <span class="annual-means-coverage-badge"></span></summary><div class="annual-means-coverage-body" aria-live="polite"></div></details>'
+      );
+    const panel = document.getElementById("annualMeansCoverage");
+    panel.open = getComputedStyle(panel).position !== "static";
+    this.ui.annualMeansCoverage = panel;
     return panel;
   }
 
-  annualMeansHoursAt(index, domain = this.state.domain) {
-    const hours = this.annualMeansCoverageOf(domain)?.hours_per_step?.[index];
-    return Number.isInteger(hours) ? hours : null;
+  annualMeansHoursText() {
+    const hours = this.annualMeans?.coverage[this.state.domain]?.hoursPerStep[this.state.index];
+    return Number.isInteger(hours) ? String(hours) : "sem informação";
   }
 
   annualMeansStepLabel(index) {
@@ -3217,10 +3226,9 @@ class MeteoMapManager {
   }
 
   _annualMeansHoursItemHtml() {
-    const hours = this.annualMeansHoursAt(this.state.index);
     return `<div class="info-item">
                     <span class="info-label">Horas na média</span>
-                    <span class="info-value">${hours === null ? "sem informação" : hours}</span>
+                    <span class="info-value">${this.annualMeansHoursText()}</span>
                 </div>`;
   }
 
