@@ -623,10 +623,7 @@ class MeteoMapManager {
         ? stepSeconds.seconds
         : null;
 
-    const visibleTypes = this.getVisibleVariableTypes();
-    this.configureVariableSelect(visibleTypes);
-    if (this.ui.variableCardsGrid) this.renderVariableGuideCards(visibleTypes);
-    this.updateIsobarToggleVisibility();
+    this.refreshVariableControls();
 
     // start_local is the local datetime of FILE INDEX 0, so it always pairs with
     // initialIndex 0 — never index_min, which a skip-first run pushes above 0.
@@ -677,11 +674,16 @@ class MeteoMapManager {
     }
 
     this.configureAnnualMeansDomains();
+    this.refreshVariableControls();
+    this.ui.heightSelector?.classList.toggle("active", this.state.type === "eolico");
+    this.updateDateTime();
+  }
+
+  refreshVariableControls() {
     const visibleTypes = this.getVisibleVariableTypes();
     this.configureVariableSelect(visibleTypes);
     if (this.ui.variableCardsGrid) this.renderVariableGuideCards(visibleTypes);
-    this.ui.heightSelector?.classList.toggle("active", this.state.type === "eolico");
-    this.updateDateTime();
+    this.updateIsobarToggleVisibility();
   }
 
   configureAnnualMeansDomains() {
