@@ -69,7 +69,13 @@ const ANNUAL_MEANS_TEMPLATE_FIELDS = {
   geojson: ["year", "domain"],
 };
 const TEMPLATE_FIELD_PATTERN = /\{(\w+)\}/g;
-const ANNUAL_MEANS_DEFAULT_STEP_DIGITS = 3;
+const DATA_FILE_STEP_DIGITS = 3;
+const FORECAST_DATA_PATHS = Object.freeze({
+  values: `${DATA_SITE_CONFIG.valuesBase}/{domain}_{variable}_{step}.json`,
+  grid: `${DATA_SITE_CONFIG.gridsBase}/{domain}.grid.json`,
+  geojson: `${DATA_SITE_CONFIG.gridsBase}/{domain}.geojson`,
+  stepDigits: DATA_FILE_STEP_DIGITS,
+});
 const ANNUAL_MEANS_YEAR_PATTERN = /^\d{4}$/;
 const ANNUAL_MEANS_GRID_FIT_PADDING_PX = 20;
 const STEP_SECONDS_FORMAT = "step-seconds-v1";
@@ -120,6 +126,12 @@ function wallClockHoursMinutes(date) {
   return `${twoDigits(date.getUTCHours())}:${twoDigits(date.getUTCMinutes())}`;
 }
 
+function expandTemplate(template, fields) {
+  return template.replace(TEMPLATE_FIELD_PATTERN, (token, name) =>
+    Object.hasOwn(fields, name) ? String(fields[name]) : token
+  );
+}
+
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim() !== "";
 }
@@ -152,7 +164,7 @@ function annualMeansFromManifest(manifest) {
     year,
     labels,
     templates,
-    stepDigits: Number.isInteger(templates.step_digits) ? templates.step_digits : ANNUAL_MEANS_DEFAULT_STEP_DIGITS,
+    stepDigits: Number.isInteger(templates.step_digits) ? templates.step_digits : DATA_FILE_STEP_DIGITS,
     domains: entry.domains,
     variables: entry.variables,
     domainLabels: entry.domain_labels ?? {},
@@ -160,6 +172,16 @@ function annualMeansFromManifest(manifest) {
     complete: entry.complete === true,
     daysInYear: entry.days_in_year,
     coverage: entry.coverage ?? {},
+  };
+}
+
+function annualMeansDataPaths({ templates, year, stepDigits }) {
+  const inYear = (template) => `${DATA_SITE_CONFIG.valuesBase}/${expandTemplate(template, { year })}`;
+  return {
+    values: inYear(templates.values),
+    grid: inYear(templates.grid),
+    geojson: inYear(templates.geojson),
+    stepDigits,
   };
 }
 
@@ -385,6 +407,7 @@ class MeteoMapManager {
     this.mapContext = this.resolveMapContext();
     this.contextConfig = VARIABLE_CONTEXTS[this.mapContext] || VARIABLE_CONTEXTS.forecast;
     this.annualMeans = null;
+    this.dataPaths = this.usesHourOfDayAxis() ? null : FORECAST_DATA_PATHS;
     // Pipeline run version from the manifest, appended as ?v= to every data URL so
     // the fixed-name files can be cached long-term.
     this.dataVersion = null;
@@ -519,33 +542,21 @@ class MeteoMapManager {
     return this.dataVersion ? `${path}?v=${encodeURIComponent(this.dataVersion)}` : path;
   }
 
+  hasDataSource() {
+    return this.dataPaths !== null;
+  }
+
   valuesJsonPath(domain, variableId, index) {
-    if (this.usesHourOfDayAxis()) {
-      const step = String(index).padStart(this.annualMeans.stepDigits, "0");
-      return this.annualMeansPath("values", { domain, variable: variableId, step });
-    }
-    return `${DATA_SITE_CONFIG.valuesBase}/${domain}_${variableId}_${String(index).padStart(3, "0")}.json`;
+    const { values, stepDigits } = this.dataPaths;
+    return expandTemplate(values, { domain, variable: variableId, step: String(index).padStart(stepDigits, "0") });
   }
 
   gridJsonPath(domain) {
-    if (this.usesHourOfDayAxis()) return this.annualMeansPath("grid", { domain });
-    return `${DATA_SITE_CONFIG.gridsBase}/${domain}.grid.json`;
+    return expandTemplate(this.dataPaths.grid, { domain });
   }
 
   gridGeoJsonPath(domain) {
-    if (this.usesHourOfDayAxis()) return this.annualMeansPath("geojson", { domain });
-    return `${DATA_SITE_CONFIG.gridsBase}/${domain}.geojson`;
-  }
-
-  annualMeansPath(templateKey, fields) {
-    const manifestPath = DATA_SITE_CONFIG.manifestPath;
-    const manifestDirectory = manifestPath.slice(0, manifestPath.lastIndexOf("/") + 1);
-    const values = { ...fields, year: this.annualMeans.year };
-    const relative = this.annualMeans.templates[templateKey].replace(
-      TEMPLATE_FIELD_PATTERN,
-      (token, name) => values[name]
-    );
-    return `${manifestDirectory}${relative}`;
+    return expandTemplate(this.dataPaths.geojson, { domain });
   }
 
   /**
@@ -642,9 +653,11 @@ class MeteoMapManager {
     } catch (error) {
       console.error(`Manifesto das médias anuais inválido: ${error.message}`);
       this.annualMeans = null;
+      this.dataPaths = null;
       return;
     }
     const annualMeans = this.annualMeans;
+    this.dataPaths = annualMeansDataPaths(annualMeans);
     const indexMax = annualMeans.labels.length - 1;
     this.dataVersion = manifest.version;
     this._framedDomain = null;
@@ -2233,7 +2246,7 @@ class MeteoMapManager {
   }
 
   applyMapChanges() {
-    if (this.usesHourOfDayAxis() && !this.annualMeans) return Promise.resolve(null);
+    if (!this.hasDataSource()) return Promise.resolve(null);
     if (!this.isIndexAvailable(this.state.index)) {
       this._clearCurrentData();
       this._removeSelectedMarker();
@@ -2588,6 +2601,7 @@ class MeteoMapManager {
   }
 
   loadGridLayer(domain) {
+    if (!this.hasDataSource()) return Promise.resolve(null);
     const cacheKey = domain;
 
     if (this.gridLayers[cacheKey]) {
