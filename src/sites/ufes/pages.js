@@ -43,7 +43,6 @@ module.exports = [
     },
   }),
   page("climatology", {
-    source: templateSource("pages/climatologia.html"),
     vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
     scripts: ["assets/js/chart-page.js", "assets/js/climatologia.js"],
     seo: {
