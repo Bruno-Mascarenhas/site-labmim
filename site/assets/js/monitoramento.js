@@ -6,7 +6,7 @@
  * Contracts:
  *
  * - Nothing is computed here. Aggregation, quality control and window trimming
- *   arrive ready from the Python exporter (`labmim-monitoring`).
+ *   arrive ready from the Python exporter (`mm-monitoring`).
  * - Each layer publishes its time axis as `start` + `step_minutes` + `count`, values
  *   in a parallel array, `null` for intervals without observation.
  * - The `start` stamps are STATION LOCAL TIME, with no timezone: they go in through
@@ -22,7 +22,7 @@
 
 (function () {
   // Validated over ALL pairs against the card surface, raw measured as drawn (alpha 0.85).
-  // Hue is the identity and matches the `labmim-site-graphs` PNGs; LIGHTNESS is what moved.
+  // Hue is the identity and matches the `mm-site-graphs` PNGs; LIGHTNESS is what moved.
   // The four marks used to sit in one lightness band, so hue carried the whole encoding:
   // in dark theme shortwave and longwave were isoluminant (1.00:1) and longwave against raw
   // fell to dE 5.9 under deuteranopia. Every pair now clears dE 8 and dL 0.06 in both themes.

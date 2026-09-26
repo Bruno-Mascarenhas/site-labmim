@@ -5,7 +5,7 @@ module.exports = {
   attribution: "LEAL-UFES",
   // One CLI generates the data for both publications; no "leal-wrf-geojson"
   // exists, so this is not derived from the dataset id.
-  generator: "labmim-wrf-geojson",
+  generator: "mm-wrf-geojson",
   // No `model` block: the WRF namelist comes from DEFAULT_MODEL (renderer), and
   // this simulation diverges from it in no field.
 

@@ -98,7 +98,7 @@ Os campos do WebGIS (`site/JSON/`, `site/GeoJSON/`) são produzidos pelo pipelin
 O site **degrada graciosamente** quando eles faltam: sem manifest usa o intervalo declarado pelo dataset, sem `grid.json` cai no `.geojson`, sem os artefatos consolidados volta à varredura hora-a-hora. Por isso o site novo funciona sobre dados antigos, e essa é a ordem segura numa mudança de formato: publicar o site primeiro e só então atualizar o pipeline — o inverso não é garantido (ver [Deploy em produção](Architecture.md#deploy-em-produção)).
 
 - [Contratos de dados](Architecture.md#contratos-de-dados) — cada arquivo que o site consome, formato a formato.
-- [Produtor dos dados](Architecture.md#produtor-dos-dados) — a CLI `labmim-wrf-geojson` que os gera, com fuso, paralelismo e entry points.
+- [Produtor dos dados](Architecture.md#produtor-dos-dados) — a CLI `mm-wrf-geojson` que os gera, com fuso, paralelismo e entry points.
 - [O que não se edita à mão](CONTRIBUTING.md#o-que-não-se-edita-à-mão) — a fronteira entre o que é fonte e o que é entregue.
 
 ## Onde está o resto

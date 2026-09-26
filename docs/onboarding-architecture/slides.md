@@ -1483,21 +1483,21 @@ Uma mudança de formato exige PRs coordenados. O consumidor compatível deve che
 
 **Publicação no site**
 
-`labmim-wrf-geojson` · `labmim-monitoring` · `labmim-climatology` · `labmim-sky` · `labmim-site-graphs`
+`mm-wrf-geojson` · `mm-monitoring` · `mm-climatology` · `mm-sky` · `mm-site-graphs`
 
 **Base operacional**
 
-`labmim-wrf-series` · `labmim-archive` · `labmim-sensor-process`
+`mm-wrf-series` · `mm-archive` · `mm-sensor-process`
 
 **Figuras e análise**
 
-`labmim-wrf-figures` · `labmim-station-graphs` · `labmim-metrics` · `labmim-comparison`
+`mm-wrf-figures` · `mm-station-graphs` · `mm-metrics` · `mm-comparison`
 
 </div>
 
 <div class="text-sm mt-3 opacity-70">
 
-`labmim-wrf-geojson` alimenta o WebGIS; as outras rotas do site possuem produtores próprios.
+`mm-wrf-geojson` alimenta o WebGIS; as outras rotas do site possuem produtores próprios.
 
 </div>
 </div>
@@ -1580,7 +1580,7 @@ O pacote Python não é uma pasta única de scripts. `common/` mantém os contra
 a física e os writers do modelo; `sensors/` transforma o acervo observado; `stats/` produz análises; `cli/`
 expõe cada fluxo operacional sem duplicar a implementação.
 
-A série operacional é o elo entre WRF e os produtos de estação: `labmim-wrf-series` acrescenta a primeira
+A série operacional é o elo entre WRF e os produtos de estação: `mm-wrf-series` acrescenta a primeira
 janela horária de cada rodada ao arquivo histórico; monitoramento, climatologia e PNGs podem então exibir a
 camada modelada ao lado da observação.
 
@@ -1677,7 +1677,7 @@ DEFAULT_VARS = [
 ```
 
 ```bash
-$ labmim-wrf-geojson -v UST \
+$ mm-wrf-geojson -v UST \
     -o site/JSON -g site/GeoJSON -D 1,4
 # -> D01_UST_007.json, D01_UST.series.bin
 ```
@@ -1868,9 +1868,9 @@ npm run lint:all
 ### Comandos  -  pipeline de dados
 
 ```bash
-labmim-wrf-geojson -v <var> \
+mm-wrf-geojson -v <var> \
   -o site/JSON -g site/GeoJSON -D 1,4
-labmim-monitoring -i <archive> -o site/Monitoramento \
+mm-monitoring -i <archive> -o site/Monitoramento \
   -w data/series_operacional.dat
 ```
 

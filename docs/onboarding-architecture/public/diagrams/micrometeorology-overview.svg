@@ -134,7 +134,7 @@
   <text class="bs" x="340" y="650">Cada CLI é registrada em <tspan class="monos" fill="#1a4b8c">pyproject.toml</tspan> como um comando <tspan class="monos" fill="#1a4b8c">labmim-*</tspan>.</text>
   <text class="bs" x="340" y="672">Orquestram as camadas acima: resolvem arquivos, montam</text>
   <text class="bs" x="340" y="690">work-units, rodam em paralelo e escrevem a saída.</text>
-  <text class="star" x="340" y="720">★ Para os mapas: <tspan class="monos">export_wrf_geojson.py</tspan> → <tspan class="monos">labmim-wrf-geojson</tspan></text>
+  <text class="star" x="340" y="720">★ Para os mapas: <tspan class="monos">export_wrf_geojson.py</tspan> → <tspan class="monos">mm-wrf-geojson</tspan></text>
   <text class="bs" x="340" y="740" fill="#7a7a8c">É a CLI que você habilita ao adicionar uma variável nova.</text>
 
   <!-- =================== CLIs (roxo) =================== -->
@@ -143,25 +143,25 @@
   <rect class="purpBox" x="946" y="132" width="342" height="298" rx="12"/>
   <text class="h hPurp" x="1117" y="158" text-anchor="middle">Dados para o WebGIS</text>
   <rect class="innerP" x="962" y="170" width="310" height="70" rx="8"/>
-  <text class="monos" x="974" y="191" fill="#543a86">labmim-wrf-geojson</text>
+  <text class="monos" x="974" y="191" fill="#543a86">mm-wrf-geojson</text>
   <text class="bs" x="974" y="210">grades, valores/passo, series.bin,</text>
   <text class="bs" x="974" y="228">summary, manifest v2</text>
   <text class="h hPurp" x="1117" y="270" text-anchor="middle">Figuras</text>
   <rect class="innerP" x="962" y="282" width="310" height="58" rx="8"/>
-  <text class="monos" x="974" y="303" fill="#543a86">labmim-site-graphs</text>
+  <text class="monos" x="974" y="303" fill="#543a86">mm-site-graphs</text>
   <text class="bs" x="974" y="322">9 PNGs de nome fixo (cards do monitoring)</text>
   <rect class="innerP" x="962" y="348" width="310" height="30" rx="8"/>
-  <text class="monos" x="974" y="368" fill="#543a86">labmim-wrf-figures · labmim-station-graphs</text>
+  <text class="monos" x="974" y="368" fill="#543a86">mm-wrf-figures · mm-station-graphs</text>
   <text class="bs" x="962" y="400">mapas renderizados, animações e gráficos</text>
   <text class="bs" x="962" y="418">científicos da estação</text>
 
   <rect class="purpBox" x="946" y="446" width="342" height="200" rx="12"/>
   <text class="h hPurp" x="1117" y="472" text-anchor="middle">Sensores e análise</text>
   <rect class="innerP" x="962" y="484" width="310" height="48" rx="8"/>
-  <text class="monos" x="974" y="505" fill="#543a86">labmim-sensor-process</text>
+  <text class="monos" x="974" y="505" fill="#543a86">mm-sensor-process</text>
   <text class="bs" x="974" y="523">ingestão + calibração do datalogger</text>
   <rect class="innerP" x="962" y="540" width="310" height="48" rx="8"/>
-  <text class="monos" x="974" y="561" fill="#543a86">labmim-metrics · labmim-comparison</text>
+  <text class="monos" x="974" y="561" fill="#543a86">mm-metrics · mm-comparison</text>
   <text class="bs" x="974" y="579">estatística e comparação WRF × observado</text>
   <text class="bs" x="962" y="612">Alimentam relatórios e a validação científica,</text>
   <text class="bs" x="962" y="630">não o WebGIS diretamente.</text>

@@ -66,7 +66,7 @@ const RUN_NOTE_SLOTS = Object.freeze({
   epsSkyClearCells: "RUN_NOTE_EPS_SKY_CLEAR_CELLS",
 });
 
-const DEFAULT_DATA_PIPELINE = "labmim-wrf-geojson";
+const DEFAULT_DATA_PIPELINE = "mm-wrf-geojson";
 
 const CHART_JS_SCRIPT = "assets/vendor/chartjs/chart.min.js?v=3.9.1";
 
