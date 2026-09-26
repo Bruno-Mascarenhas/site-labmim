@@ -4,7 +4,7 @@ module.exports = {
   id: "labmim-wrf",
   attribution: "LabMiM-UFBA",
   // Name of the Python CLI, not derived from the dataset id.
-  generator: "labmim-wrf-geojson",
+  generator: "mm-wrf-geojson",
   model: {
     verticalLevels:
       "30 níveis em coordenada híbrida sigma-pressão, com topo em 50 hPa; metade deles no primeiro quilômetro acima do solo, para resolver a camada limite planetária (CLP).",
@@ -39,11 +39,11 @@ module.exports = {
     manifest: "JSON/manifest.json",
     values: "JSON",
     grids: "GeoJSON",
-    // Rolling 7-day window rewritten hourly by `labmim-monitoring`, over the
+    // Rolling 7-day window rewritten hourly by `mm-monitoring`, over the
     // laboratory's non-public sensor archive: it reaches the site through the
     // deploy and stays out of git.
     monitoring: "Monitoramento",
-    // Observed distributions from `labmim-climatology`; same archive, same
+    // Observed distributions from `mm-climatology`; same archive, same
     // deploy-only route.
     climatology: "Climatologia",
     // All-sky camera frame, the network's prediction for it with its
