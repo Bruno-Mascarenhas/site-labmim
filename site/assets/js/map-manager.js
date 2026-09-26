@@ -443,6 +443,7 @@ class MeteoMapManager {
       indexMin: 1,
       indexMax: null,
       availability: null,
+      availabilityComplete: false,
       domainAvailability: null,
       features: null,
       startLocal: null,
@@ -677,6 +678,7 @@ class MeteoMapManager {
     this.timeline.indexMin = 0;
     this.timeline.indexMax = indexMax;
     this.timeline.availability = Object.fromEntries(annualMeans.variables.map((id) => [id, [[0, indexMax]]]));
+    this.timeline.availabilityComplete = true;
     this.state.maxLayer = indexMax;
     this.state.index = Math.min(Math.max(this.state.index, 0), indexMax);
     if (this.ui.slider) {
@@ -846,9 +848,10 @@ class MeteoMapManager {
   }
 
   availabilityRanges(variableId, domain = this.state.domain) {
-    if (this.usesHourOfDayAxis()) return this.timeline.availability?.[variableId] ?? [];
     const domainRanges = this.timeline.domainAvailability?.[domain]?.[variableId];
-    return Array.isArray(domainRanges) ? domainRanges : this.timeline.availability?.[variableId];
+    if (Array.isArray(domainRanges)) return domainRanges;
+    const ranges = this.timeline.availability?.[variableId];
+    return ranges === undefined && this.timeline.availabilityComplete ? [] : ranges;
   }
 
   hasPublishedSteps(type = this.state.type, domain = this.state.domain) {
