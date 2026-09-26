@@ -619,7 +619,7 @@ não gera `.series.bin` ou `.summary.json`.
   `site/assets/js/monitoramento.js` e dados `labmim-monitoring-v1` em `dataset.paths.monitoring`;
 - nove gráficos com três camadas: amostras brutas de 5 minutos, média horária e WRF quando disponível;
 - variante estática em `src/template/pages/monitoring.html`, nove PNGs fixos declarados em
-  `dataset.observations.charts`, cards/modais Bootstrap e produção por `labmim-site-graphs`;
+  `dataset.observations.charts`, cards/modais Bootstrap e produção por `mm-site-graphs`;
 - o validator distingue as variantes pela fonte resolvida e exige o contrato de dados correspondente.
 
 ### Climatologia
@@ -851,18 +851,18 @@ Camadas:
 
 CLIs `labmim-*` confirmadas em `pyproject.toml` (12):
 
-- publicação direta no site: `labmim-wrf-geojson`, `labmim-monitoring`, `labmim-climatology`,
-  `labmim-sky`, `labmim-site-graphs`;
-- base operacional: `labmim-wrf-series`, `labmim-archive`, `labmim-sensor-process`;
-- figuras e análise: `labmim-wrf-figures`, `labmim-station-graphs`, `labmim-metrics`,
-  `labmim-comparison`.
+- publicação direta no site: `mm-wrf-geojson`, `mm-monitoring`, `mm-climatology`,
+  `mm-sky`, `mm-site-graphs`;
+- base operacional: `mm-wrf-series`, `mm-archive`, `mm-sensor-process`;
+- figuras e análise: `mm-wrf-figures`, `mm-station-graphs`, `mm-metrics`,
+  `mm-comparison`.
 
 Mudanças recentes confirmadas:
 
-- `labmim-wrf-series` mantém um registro por estação, `{nome}_series_operacional.dat` (padrão
+- `mm-wrf-series` mantém um registro por estação, `{nome}_series_operacional.dat` (padrão
   `labmim_series_operacional.dat`), anexando a janela horária de cada rodada e preservando o header
   do próprio arquivo como schema; o `series_operacional.dat` sem prefixo é o registro v1, convertido
-  uma vez por `labmim-wrf-series migrate`;
+  uma vez por `mm-wrf-series migrate`;
 - `labmim-monitoring-v1` publica bruto de 5 minutos, média horária e WRF na mesma janela;
 - `labmim-kt-cumulative-v1` complementa `labmim-ktkd-v1`, `labmim-allsky-frame-v2`, `labmim-allsky-timeline-v1` e `labmim-allsky-model-v1` na página de céu;
 - o WebGIS possui 21 campos de base no consumidor (18 de previsão e 3 de energia) e overlays independentes;

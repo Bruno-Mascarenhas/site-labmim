@@ -812,7 +812,7 @@ def artifacts_page(c: Canvas) -> None:
         PAGE_W - 2 * MARGIN,
         92,
         "CLIs do produtor relacionadas ao site",
-        "<font name='GuideMono'>labmim-wrf-geojson</font> publica o WebGIS; <font name='GuideMono'>labmim-monitoring</font>, <font name='GuideMono'>labmim-climatology</font>, <font name='GuideMono'>labmim-sky</font> e <font name='GuideMono'>labmim-site-graphs</font> publicam produtos de estacao; <font name='GuideMono'>labmim-wrf-series</font> mantem a serie operacional usada como camada WRF.",
+        "<font name='GuideMono'>mm-wrf-geojson</font> publica o WebGIS; <font name='GuideMono'>mm-monitoring</font>, <font name='GuideMono'>mm-climatology</font>, <font name='GuideMono'>mm-sky</font> e <font name='GuideMono'>mm-site-graphs</font> publicam produtos de estacao; <font name='GuideMono'>mm-wrf-series</font> mantem a serie operacional usada como camada WRF.",
         accent=TEAL,
         fill=PALE_GREEN,
     )

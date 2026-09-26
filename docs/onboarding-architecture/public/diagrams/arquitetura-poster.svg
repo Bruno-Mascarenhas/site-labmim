@@ -93,11 +93,11 @@
   <rect class="greenBox" x="330" y="398" width="248" height="232" rx="12"/>
   <text class="h hGreen" x="454" y="426" text-anchor="middle">CLIs do pipeline</text>
   <rect class="innerG" x="346" y="440" width="216" height="76" rx="8"/>
-  <text class="mono" x="358" y="462" fill="#206040">labmim-wrf-geojson</text>
+  <text class="mono" x="358" y="462" fill="#206040">mm-wrf-geojson</text>
   <text class="bs" x="358" y="482">grades, valores por passo,</text>
   <text class="bs" x="358" y="500">manifest, series.bin, summary</text>
   <rect class="innerG" x="346" y="526" width="216" height="86" rx="8"/>
-  <text class="mono" x="358" y="548" fill="#206040">labmim-site-graphs</text>
+  <text class="mono" x="358" y="548" fill="#206040">mm-site-graphs</text>
   <text class="bs" x="358" y="568">9 PNGs de nome fixo</text>
   <text class="mono" x="358" y="589" fill="#206040">GRAPH_SPECS</text>
   <text class="bs" x="358" y="607">ordenado como os cards da página</text>
@@ -167,7 +167,7 @@
   <text class="h hOrange" x="1439" y="422" text-anchor="middle">Monitoramento Ambiental</text>
   <text class="mono" x="1248" y="446" fill="#b5541a">monitoring.html</text>
   <text class="b" x="1248" y="466">9 PNGs em cards + modal Bootstrap</text>
-  <text class="bs" x="1248" y="486" fill="#206040">◀ imagens vindas de labmim-site-graphs</text>
+  <text class="bs" x="1248" y="486" fill="#206040">◀ imagens vindas de mm-site-graphs</text>
   <text class="warn" x="1248" y="504">nenhum JavaScript de gráfico nesta página</text>
 
   <rect class="orangeBox" x="1230" y="528" width="418" height="102" rx="12"/>

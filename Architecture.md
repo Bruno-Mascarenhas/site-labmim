@@ -6,7 +6,7 @@ Este documento descreve o frontend estático compartilhado hoje por LabMiM/UFBA 
 
 O projeto gera uma publicação por vez em `site/`, composta por HTML, CSS modular e JavaScript sem framework frontend. `build.js` descobre `src/sites/<id>/site.js`, valida o contrato completo, expande o template compartilhado, aplica conteúdo e tema próprios, gera SEO/404/robots/sitemap e carimba hashes de conteúdo nos assets. O deploy recebe arquivos estáticos puros; Node participa apenas do build local/CI.
 
-Não há backend de aplicação neste repositório. Os dados são gerados pelo pipeline do repositório irmão [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) (CLI `labmim-wrf-geojson`) e publicados de forma desacoplada do site; por isso todo contrato de dados tem fallback no cliente.
+Não há backend de aplicação neste repositório. Os dados são gerados pelo pipeline do repositório irmão [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) (CLI `mm-wrf-geojson`) e publicados de forma desacoplada do site; por isso todo contrato de dados tem fallback no cliente.
 
 ## Modelo Modular
 
@@ -362,10 +362,10 @@ Salvo indicação em contrário, os arquivos abaixo são gerados pelo pipeline [
 
 ### Produtor Dos Dados
 
-A CLI é `labmim-wrf-geojson` (entry point `micrometeorology.cli.export_wrf_geojson`; a escrita dos artefatos fica em `wrf/jobs.py` e `wrf/geojson.py`) e a entrada são as saídas `wrfout_d0X_*` do WRF. Invocação típica:
+A CLI é `mm-wrf-geojson` (entry point `micrometeorology.cli.export_wrf_geojson`; a escrita dos artefatos fica em `wrf/jobs.py` e `wrf/geojson.py`) e a entrada são as saídas `wrfout_d0X_*` do WRF. Invocação típica:
 
 ```bash
-labmim-wrf-geojson --wrf-dir <dir com wrfout> --date YYYYMMDD -D 1,2,3,4 \
+mm-wrf-geojson --wrf-dir <dir com wrfout> --date YYYYMMDD -D 1,2,3,4 \
   -o site/JSON -g site/GeoJSON --workers 14
 ```
 

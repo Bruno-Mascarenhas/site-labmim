@@ -145,7 +145,7 @@
   <rect class="greenBox" x="34" y="626" width="360" height="150" rx="12"/>
   <text class="h hGreen" x="54" y="654">2 · Rodar o export</text>
   <rect class="code" x="50" y="666" width="328" height="40" rx="7"/>
-  <text class="monos" x="62" y="691"><tspan class="kg">$</tspan> labmim-wrf-geojson -v &lt;nome&gt; \</text>
+  <text class="monos" x="62" y="691"><tspan class="kg">$</tspan> mm-wrf-geojson -v &lt;nome&gt; \</text>
   <text class="monos" x="62" y="722" fill="#4a5164">    -o site/JSON -g site/GeoJSON -D 1,4</text>
   <text class="bs" x="54" y="748">Pool de processos: um worker abre o NetCDF, deriva a</text>
   <text class="bs" x="54" y="765">variável, calcula a escala e grava todos os passos.</text>

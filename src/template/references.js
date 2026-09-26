@@ -3,7 +3,7 @@
 /**
  * Site bibliography: the model, its schemes and the constants. Pages cite by
  * `[[key]]` marker, and the climatology page appends at runtime the
- * bibliography shipped in the `labmim-climatology` manifest.
+ * bibliography shipped in the `mm-climatology` manifest.
  *
  * LINK POLICY: a `doi.org` address only when the identifier has been checked;
  * otherwise a Crossref search by title. A DOI recalled from memory can lead to

@@ -3,7 +3,7 @@
  * `data-climatology-base` attribute.
  *
  * Nothing is computed here. Bins, fit, theoretical curve and goodness-of-fit arrive ready from the Python exporter
- * (`labmim-climatology`), curve already rescaled by one minus the atom mass; a second numerical path in JavaScript
+ * (`mm-climatology`), curve already rescaled by one minus the atom mass; a second numerical path in JavaScript
  * would be free to diverge from the parameters printed beside it.
  *
  * Nothing is publication-specific: every label comes from the JSON. The directory holds operational data, so in a
