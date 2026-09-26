@@ -77,7 +77,7 @@ const FORECAST_DATA_PATHS = Object.freeze({
   stepDigits: DATA_FILE_STEP_DIGITS,
 });
 const ANNUAL_MEANS_YEAR_PATTERN = /^\d{4}$/;
-const ANNUAL_MEANS_GRID_FIT_PADDING_PX = 20;
+const MAP_FIT_PADDING_PX = [20, 20];
 const STEP_SECONDS_FORMAT = "step-seconds-v1";
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const RADIANS_PER_DEGREE = Math.PI / 180;
@@ -1339,7 +1339,7 @@ class MeteoMapManager {
       fitBounds.every((corner) => Array.isArray(corner) && corner.length === 2)
     ) {
       this.map.fitBounds(fitBounds, {
-        padding: [20, 20],
+        padding: MAP_FIT_PADDING_PX,
         maxZoom: MAP_SITE_CONFIG.fitMaxZoom || DEFAULT_MAP_ZOOM,
       });
     } else {
@@ -2399,7 +2399,7 @@ class MeteoMapManager {
     if (this.hasFeature("domainFlyTo") || this._framedDomain === domain) return;
     this._framedDomain = domain;
     this.map.fitBounds(gridLayer.getBounds(), {
-      padding: [ANNUAL_MEANS_GRID_FIT_PADDING_PX, ANNUAL_MEANS_GRID_FIT_PADDING_PX],
+      padding: MAP_FIT_PADDING_PX,
       animate: !prefersReducedMotion(),
     });
   }
