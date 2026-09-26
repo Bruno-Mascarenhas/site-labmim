@@ -668,13 +668,8 @@ class MeteoMapManager {
     this.timeline.indexMin = 0;
     this.timeline.indexMax = indexMax;
     this.timeline.availability = Object.fromEntries(annualMeans.variables.map((id) => [id, [[0, indexMax]]]));
-    this.timeline.domainAvailability = null;
-    this.timeline.features = null;
-    this.timeline.radiationInstant = null;
-    this.timeline.stepSeconds = null;
     this.state.maxLayer = indexMax;
     this.state.index = Math.min(Math.max(this.state.index, 0), indexMax);
-    this.dataService.ensureCacheLimit(Math.ceil(annualMeans.labels.length * CACHE_ENTRIES_PER_TIMELINE_STEP));
     if (this.ui.slider) {
       this.ui.slider.min = "0";
       this.ui.slider.max = String(indexMax);
@@ -685,21 +680,19 @@ class MeteoMapManager {
     const visibleTypes = this.getVisibleVariableTypes();
     this.configureVariableSelect(visibleTypes);
     if (this.ui.variableCardsGrid) this.renderVariableGuideCards(visibleTypes);
-    this.updateIsobarToggleVisibility();
-    this.updateWindLayerToggleVisibility();
     this.ui.heightSelector?.classList.toggle("active", this.state.type === "eolico");
     this.updateDateTime();
   }
 
   configureAnnualMeansDomains() {
     const published = this.annualMeans.domains;
-    (this.ui.domainButtons || []).forEach((button) => {
-      const domain = button.dataset.domain;
-      button.hidden = !published.includes(domain);
+    const buttons = this.ui.domainButtons;
+    buttons.forEach((button) => {
+      button.hidden = !published.includes(button.dataset.domain);
     });
     if (!published.includes(this.state.domain)) {
-      const firstPublished = this.ui.domainButtons?.find((button) => !button.hidden)?.dataset.domain;
-      if (firstPublished) this.state.domain = firstPublished;
+      const firstPublished = buttons.find((button) => published.includes(button.dataset.domain));
+      if (firstPublished) this.state.domain = firstPublished.dataset.domain;
     }
     this.updateDomainIndicator();
   }
