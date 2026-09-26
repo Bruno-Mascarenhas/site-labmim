@@ -1,13 +1,248 @@
-  <div class="modern-section" id="mediasAnuais">
-    <div class="modern-header mb-4">
-      <h2><i class="fas fa-layer-group me-2"></i>Médias Anuais</h2>
-      <p>Médias anuais das saídas do modelo WRF nos domínios da simulação</p>
-    </div>
+        <div class="doc-tab-content active" role="tabpanel" id="docPanel-overview" aria-labelledby="docTab-overview" tabindex="0" data-tab="overview">
+          <h3>Médias Anuais do WRF — {{WEBGIS_BRAND}}</h3>
+          <div class="doc-warning">
+            <strong><i class="fas fa-exclamation-triangle doc-warning-icon"></i>ATENÇÃO:</strong><br />
+            Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
+            associados. Não há nenhum compromisso quanto à confiabilidade das médias, isentando os pesquisadores
+            participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados pela
+            utilização indevida e não autorizada por parte de terceiros.
+          </div>
+          <p>
+            Este mapa interativo mostra <strong>médias das saídas do modelo WRF</strong> ao longo de um ano, hora a hora.
+            Cada passo do controle de tempo é uma média, não um instante:
+          </p>
+          <ul class="doc-list">
+            <li>
+              <strong>00h a 23h:</strong> média da hora local indicada sobre todos os dias do ano que têm dados. O
+              passo 14h, por exemplo, é a média de todas as saídas das 14h locais.
+            </li>
+            <li><strong>Todas as horas:</strong> média de todas as horas com dados, sem separar a hora do dia.</li>
+          </ul>
+          <p>
+            O painel <strong>Cobertura das médias</strong> diz de onde vêm os dados publicados: a fonte e a região das
+            rodadas, as rodadas incluídas, quantos dias entram na média e quantas horas compõem o passo exibido.
+            Enquanto o ano não está completo, o painel mostra o aviso <strong>ano incompleto</strong>: a média
+            representa só os dias cobertos, e não o ano inteiro.
+          </p>
+          <h4>Interface Principal</h4>
+          <ul class="doc-list">
+            <li><strong>Mapa Principal:</strong> Exibe a grade do modelo com a média codificada por cores</li>
+            <li><strong>Barra de Cores:</strong> Mostra a escala de valores da variável selecionada (esquerda)</li>
+            <li><strong>Domínios:</strong> Alternam entre as grades publicadas no manifesto das médias</li>
+            <li><strong>Controles Inferiores:</strong> Hora do dia, variável e altura do vento</li>
+            <li><strong>Painel de Detalhes:</strong> Valor da média na célula clicada (lado direito)</li>
+          </ul>
+        </div>
 
-    <div class="clima-empty">
-      <p>
-        Esta página está em preparação. Ela vai mostrar, num mapa interativo como o das previsões, as médias anuais
-        das variáveis do WRF em cada domínio. Os dados ainda não são publicados.
-      </p>
-    </div>
-  </div>
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-features" aria-labelledby="docTab-features" tabindex="0" data-tab="features">
+          <h3>Funcionalidades Principais</h3>
+
+          <h4>⏱️ Hora do Dia</h4>
+          <p>
+            O slider percorre as 24 horas locais do dia e termina em <strong>Todas as horas</strong>. A página abre na
+            média de todas as horas. Horas em {{TIMEZONE_LABEL}}.
+          </p>
+          <ul class="doc-list">
+            <li><strong>Play/Pause:</strong> Percorre o ciclo diário médio, de 00h até Todas as horas</li>
+          </ul>
+
+          <h4>🔍 Navegação do Mapa</h4>
+          <ul class="doc-list">
+            <li><strong>Zoom:</strong> Role do mouse ou use os botões + e - no mapa</li>
+            <li><strong>Deslocamento:</strong> Arraste o mapa com o mouse</li>
+            <li>
+              <strong>Domínios:</strong> Os botões levam os rótulos publicados no manifesto das médias, e o mapa se
+              enquadra na grade de cada domínio
+            </li>
+          </ul>
+
+          <h4>🌬️ Altura do Vento</h4>
+          <ul class="doc-list">
+            <li>
+              <strong>Seletor de Altura:</strong> Com o potencial eólico selecionado, escolha a média da velocidade do
+              vento a 50 m, 100 m ou 150 m.
+            </li>
+          </ul>
+
+          <h4>🏷️ Clique nas Células</h4>
+          <ul class="doc-list">
+            <li>Clique em qualquer célula do mapa para ver a média daquele ponto</li>
+            <li>O painel lateral mostra a localização, o valor, a hora do passo e quantas horas entram na média</li>
+            <li>
+              As estimativas derivadas das páginas de previsão (sensação térmica, rajada, produção de energia) não
+              aparecem aqui: aplicadas a uma média, elas não descrevem nenhum instante real
+            </li>
+          </ul>
+        </div>
+
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-variables" aria-labelledby="docTab-variables" tabindex="0" data-tab="variables">
+          <h3>Variáveis das Médias</h3>
+          <p class="doc-muted-copy">
+            Entram nas médias só as grandezas cuja média no tempo tem significado físico direto. Razões, como o índice
+            de claridade, e acumulados, como a precipitação, ficam de fora.
+          </p>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>🌡️ Temperatura 2m (TEMP)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: °C</span>
+                <span class="doc-var-badge">JSON id: TEMP</span>
+                <span class="doc-var-badge">Fonte WRF: T2</span>
+              </div>
+              <p>Média da temperatura do ar a 2 metros na hora local do passo.</p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💧 Umidade Relativa 2m (RH2)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: %</span>
+                <span class="doc-var-badge">JSON id: RH2</span>
+                <span class="doc-var-badge">Fonte: Q2 + T2 + PSFC</span>
+              </div>
+              <p>
+                Média da umidade relativa de cada saída. Não é a umidade relativa calculada com a temperatura e a
+                umidade específica médias, que daria outro número.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💧 Umidade Específica 2m (VAPOR)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: g/kg</span>
+                <span class="doc-var-badge">JSON id: VAPOR</span>
+                <span class="doc-var-badge">Fonte WRF: Q2</span>
+              </div>
+              <p>Média do vapor d'água a 2 metros.</p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>📉 Pressão à Superfície (PRES)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: hPa</span>
+                <span class="doc-var-badge">JSON id: PRES</span>
+                <span class="doc-var-badge">Fonte WRF: PSFC</span>
+              </div>
+              <p>
+                Média da pressão à superfície, sem redução ao nível do mar. O campo acompanha o relevo: as serras
+                aparecem com pressão mais baixa que o litoral.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>🌬️ Vento 10m (WIND)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: m/s</span>
+                <span class="doc-var-badge">JSON id: WIND</span>
+                <span class="doc-var-badge">Fonte WRF: U10 + V10</span>
+              </div>
+              <p>
+                Média da velocidade do vento a 10 metros. É a média do módulo de cada saída, e não o módulo do vento
+                médio: ventos de direções opostas não se anulam. Por isso a página não desenha vetores de vento.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>☀️ Radiação Global (SWDOWN)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: W/m²</span>
+                <span class="doc-var-badge">JSON id: SWDOWN</span>
+                <span class="doc-var-badge">Fonte WRF: SWDOWN</span>
+              </div>
+              <p>
+                Média do fluxo de onda curta incidente na superfície. As horas da noite entram com o valor físico zero,
+                então o passo <strong>Todas as horas</strong> é a irradiância média das 24 horas do dia, e não a média só
+                das horas de sol.
+              </p>
+              <p>
+                O <code>SWDOWN</code> é um fluxo instantâneo: cada hora do dia é a média dos fluxos daquele horário, e
+                não a média da energia recebida ao longo da hora.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💨 Potencial Eólico (POT_EOLICO_50M / 100M / 150M)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: m/s</span>
+                <span class="doc-var-badge">JSON id: POT_EOLICO_50M / POT_EOLICO_100M / POT_EOLICO_150M</span>
+              </div>
+              <p>
+                Média da velocidade do vento interpolada para 50, 100 e 150 m de altura, com a mesma interpolação
+                vertical das páginas de previsão. A potência de uma turbina depende do cubo da velocidade, então ela
+                não pode ser calculada a partir desta média.
+              </p>
+            </div>
+          </details>
+        </div>
+
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-wrf" aria-labelledby="docTab-wrf" tabindex="0" data-tab="wrf">
+          <h3>Origem dos Dados — Médias do WRF</h3>
+
+          <div class="doc-var-card">
+            <h4>Como as médias são calculadas</h4>
+            <ul class="doc-list">
+              <li>
+                <strong>Rodadas:</strong> cada rodada contribui com as suas primeiras 24 horas, de modo que
+                rodadas diárias consecutivas cobrem cada hora do ano uma vez só. As rodadas incluídas aparecem no painel
+                de cobertura.
+              </li>
+              <li>
+                <strong>Hora local:</strong> cada saída entra na hora local em que é válida, na mesma convenção de
+                horário das páginas de previsão.
+              </li>
+              <li>
+                <strong>Média por célula:</strong> soma dos valores dividida pelo número de horas com dado naquela
+                célula. Uma célula sem nenhuma hora fica sem cor.
+              </li>
+              <li>
+                <strong>Escala de cores:</strong> a mesma nos 25 passos de uma variável, para que as horas do dia
+                possam ser comparadas.
+              </li>
+              <li>
+                <strong>Ano completo:</strong> quando todas as horas de todos os dias do ano entraram na média. Até lá,
+                o painel mostra o aviso de ano incompleto.
+              </li>
+            </ul>
+
+            <h4>Grade e domínios</h4>
+            <p>
+              Cada ano publica a própria grade, a mesma em que as médias foram acumuladas. A região coberta é a das
+              rodadas que entraram na média, informada pela fonte no painel de cobertura, e pode ser diferente da
+              região das previsões publicadas neste site.
+            </p>
+
+            <h4>Pipeline de Dados</h4>
+            <p>
+              Os arquivos são gerados pelo pipeline Python do micrometeorology (<code>mm-wrf-means</code>), a partir
+              das mesmas saídas NetCDF que alimentam as previsões. O manifesto <code>manifest.json</code> descreve os
+              anos, os domínios, as variáveis e a cobertura de cada domínio.
+            </p>
+          </div>
+
+          <div class="doc-var-card">
+            <h4>Limitações e Considerações</h4>
+            <ul class="doc-list">
+              <li>
+                Um ano incompleto não é uma climatologia: com poucas semanas de dados, a média reflete o tempo daquelas
+                semanas e a estação do ano em que caíram.
+              </li>
+              <li>
+                A média herda os vieses do modelo. Um viés sistemático de temperatura, vento ou radiação não se cancela
+                na média; só a variação de um dia para outro diminui.
+              </li>
+              <li>A média usa só as primeiras 24 horas de cada rodada; os horizontes mais longos não entram.</li>
+            </ul>
+          </div>
+        </div>
