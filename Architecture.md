@@ -39,6 +39,8 @@ O diretório `src/sites/` é o registro. A descoberta ordena os diretórios que 
 
 A rota `monitoring.html` tem duas fontes possíveis, escolhidas por `source:` na declaração da página: a variante viva (`src/template/pages/monitoring-live.html` + `assets/js/monitoramento.js`), para publicações que declaram `dataset.paths.monitoring`, e a variante estática (`src/template/pages/monitoring.html`), que desenha os PNGs de `dataset.observations` e é a fonte padrão do tipo `monitoring` em `page-types.js`. Hoje nenhuma publicação usa a estática: o LabMiM e o LEAL sobrescrevem o `source:` pela variante viva, cada um com o `paths.monitoring` do próprio dataset. Os PNGs em `assets/graphs/` trazem a marca d'água do LabMiM e não servem ao LEAL. O catálogo de gráficos que preencheria `dataset.observations.charts` existe em `src/datasets/labmim-station-charts.js`, mas nenhum dataset o importa. O mesmo vale para `climatologia.html`, que só faz sentido com `dataset.paths.climatology` declarado. `ceu.html` tem fonte única e a mesma dependência: declará-la sem `dataset.paths.sky` falha o build (o diretório ainda ausente na árvore é só um aviso, o normal em CI), e hoje só o LabMiM a oferece, porque a câmera all-sky é dele.
 
+`medias_anuais.html` (tipo `annual-means`) é um terceiro WebGIS, publicado hoje só pelo LEAL e fora do sitemap. Ele mostra a média de cada hora local do dia sobre um ano de rodadas do WRF e lê um diretório próprio, `dataset.paths.annualMeans`, com manifesto e grades próprios; declarar a página sem esse caminho falha o build. O contrato está em [Médias Anuais](#médias-anuais).
+
 Todas são declaradas no array de `src/sites/<id>/pages.js` e geradas por `build.js`. A fonte de `404.html` fica em `src/template/static/404.html` e mantém caminhos absolutos `/assets/...` para resolver em qualquer profundidade.
 
 Todas as páginas usam **Bootstrap 5.3.8 vendorizado localmente**; as páginas geradas carregam o **CSS purgado** (`bootstrap.purged.min.css`, ~29 KB). Não há Bootstrap 4 nem jQuery no projeto. Leaflet e Chart.js também são carregados localmente (ver [Dependências Externas](#dependências-externas)).
@@ -130,7 +132,8 @@ site/                                 # saída compatível; uma publicação por
 ├── JSON/                           # valores, séries, resumos, manifest (git-ignored)
 ├── Climatologia/                   # distribuições observadas da estação (git-ignored)
 ├── Monitoramento/                  # janela móvel de 7 dias da estação (git-ignored)
-└── Ceu/                            # câmera all-sky, frame/timeline/model.json e imagens (git-ignored)
+├── Ceu/                            # câmera all-sky, frame/timeline/model.json e imagens (git-ignored)
+└── MediasAnuais/                   # médias por hora local do WRF, manifest e grades próprios (git-ignored)
 
 dist/<id>/                           # bundles de frontend gerados em lote
 └── ...                              # não inclui os diretórios de dados de dataset.paths
@@ -301,7 +304,7 @@ O primeiro carregamento espera a corrida do manifest e então `applyManifest` �
 
 ### Estado Principal
 
-`MeteoMapManager` lê `data-map-context` no `<body>` para separar os contextos `forecast` e `energy`. `mapas_interativos.html` inicia apenas com variáveis meteorológicas/radiativas; `potenciais_energeticos.html` apenas com produtos energéticos. O `<select id="variableSelect">` é montado em runtime por `configureVariableSelect()` (o HTML traz só um placeholder desabilitado).
+`MeteoMapManager` lê `data-map-context` no `<body>` para separar os contextos `forecast`, `energy` e `annual-means`. `mapas_interativos.html` inicia apenas com variáveis meteorológicas/radiativas; `potenciais_energeticos.html` apenas com produtos energéticos; `medias_anuais.html` com as médias por hora local. O contexto `annual-means` declara `timeAxis: "hour-of-day"` em `VARIABLE_CONTEXTS`, e `usesHourOfDayAxis()` troca o comportamento de data pelo de hora do dia: o passo é uma média e não um instante (ver [Médias Anuais](#médias-anuais)). O `<select id="variableSelect">` é montado em runtime por `configureVariableSelect()` (o HTML traz só um placeholder desabilitado).
 
 `MeteoMapManager` mantém estado em `this.state`:
 
@@ -438,6 +441,30 @@ JSON/manifest.json
 ```
 
 Ver [Manifest De Dados](#manifest-de-dados-e-ciclo-de-vida-da-rodada). Exemplo real: `{"version": "20260719T013159Z", "generated_utc": "...", "domains": ["D01".."D04"], "files": 4844, "format": "labmim-data-manifest-v2", "timezone": "America/Bahia", "index_min": 0, "index_max": 75, "start_local": "02/05/2026 21:00:00", "availability": {"SWDOWN": [[9,21],[33,45],[57,69]]}, "features": {...}}`. Sempre buscado com `cache: "no-cache"` e nunca versionado com `?v=` (ele **é** a fonte da versão).
+
+### Médias Anuais
+
+```text
+MediasAnuais/manifest.json
+MediasAnuais/{ano}/{D}_{VAR}_{NNN}.json
+MediasAnuais/{ano}/GeoJSON/{D}.grid.json   (+ {D}.geojson)
+```
+
+Produzidos pelo `mm-wrf-means` do micrometeorology. O renderer dá à página do contexto `annual-means` um `site-config` próprio: `manifestPath` é `<paths.annualMeans>/manifest.json`, o slider vai de 0 a 24 e começa em 24, e os botões de domínio saem com o ID técnico, nunca com os labels do dataset, porque as médias podem vir de rodadas de outra região. Os demais arquivos são resolvidos pelo manifesto (formato `wrf-means-v1`, validado por `annualMeansFromManifest()` em `map-manager.js`; um manifesto inválido cai no aviso de dados não publicados e registra o motivo no console):
+
+| Campo                           | Uso                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `version`                       | Versão → `?v=` de todas as URLs de dados, como na previsão                                                               |
+| `steps.labels`                  | Um rótulo por passo (`"00h"` … `"23h"`, `"Todas as horas"`); o tamanho precisa ser `steps.count`                         |
+| `templates.values/grid/geojson` | Caminhos relativos ao diretório do manifesto, com `{year}`, `{domain}`, `{variable}` e `{step}` (este com `step_digits`) |
+| `years.<ano>`                   | O site mostra o ano mais recente                                                                                         |
+| `years.<ano>.source`            | Texto obrigatório com a origem e a região das rodadas, exibido no painel de cobertura                                    |
+| `years.<ano>.domain_labels`     | Rótulos dos botões de domínio; ausente, o botão mostra o ID                                                              |
+| `years.<ano>.domains/variables` | Domínios exibidos (os outros botões somem) e variáveis publicadas nos 25 passos                                          |
+| `years.<ano>.complete`          | `false` → aviso "ano incompleto" no painel de cobertura                                                                  |
+| `years.<ano>.coverage.<D>`      | `runs`, `days`, `day_count`, `full_day_count` e `hours_per_step` (25 contagens) do domínio exibido                       |
+
+Os passos 0 a 23 são a média de cada hora local do dia e o 24 é a média de todas as horas. O arquivo de valores tem o formato de `JSON/`, sem `date_time`: nenhum rótulo vira data. No contexto, o painel da célula mostra a hora e as horas da média, sem o `specificInfo` (sensação térmica, rajada ou produção de energia calculadas sobre uma média não descrevem nenhum instante), o modal de séries e a prévia do domínio não abrem, os vetores de vento e o recorte por estado somem, não há autoplay e o mapa se enquadra na grade de cada domínio no primeiro desenho.
 
 ### Condição Do Céu
 

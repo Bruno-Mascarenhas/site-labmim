@@ -145,6 +145,9 @@ module.exports = {
     // Também é dado operacional, fora do git e entregue no deploy. Oferecer a
     // página exige declarar este caminho; o caminho sem a página não é recusado.
     sky: "Ceu",
+    // Opcional: as médias por hora local do WRF, com manifesto e grades
+    // próprios. Oferecer a página de médias anuais exige declarar este caminho.
+    annualMeans: "MediasAnuais",
   },
   timeline: {
     defaultMaxLayer: 72,
@@ -172,7 +175,7 @@ module.exports = {
 
 `defaultDomain` deve existir em `domains`. Os IDs são parte dos nomes dos arquivos operacionais e não devem ser usados apenas como labels de interface.
 
-Um `paths` que aponte para um diretório de dados novo precisa ganhar a própria regra no `.gitignore`. As regras de hoje nomeiam um a um os cinco diretórios existentes (`JSON`, `GeoJSON`, `Climatologia`, `Monitoramento` e `Ceu`) e ignoram cada um por diretório, `site/<dir>/*` com a exceção `!site/<dir>/.keep`, porque além de JSON chegam ali `.series.bin`, imagens do céu e os temporários `.{nome}.tmp-{pid}` do pipeline. Por isso um diretório novo **não** é ignorado por herança — e dado operacional do laboratório nunca entra no git. As mecânicas estão em [Organização De Pastas](../../Architecture.md#organização-de-pastas).
+Um `paths` que aponte para um diretório de dados novo precisa ganhar a própria regra no `.gitignore`. As regras de hoje nomeiam um a um os seis diretórios existentes (`JSON`, `GeoJSON`, `Climatologia`, `Monitoramento`, `Ceu` e `MediasAnuais`) e ignoram cada um por diretório, `site/<dir>/*` com a exceção `!site/<dir>/.keep`, porque além de JSON chegam ali `.series.bin`, imagens do céu e os temporários `.{nome}.tmp-{pid}` do pipeline. Por isso um diretório novo **não** é ignorado por herança — e dado operacional do laboratório nunca entra no git. As mecânicas estão em [Organização De Pastas](../../Architecture.md#organização-de-pastas).
 
 Campos opcionais do dataset: `generator` (nome da CLI que produz os dados), `model` (o namelist WRF descrito na documentação do WebGIS) e `observations`, que alimenta a página de monitoramento:
 
@@ -184,11 +187,11 @@ observations: {
 
 `runNotes`, também opcional, guarda o texto que só vale para a rodada publicada pelo dataset: data da rodada, números medidos, comparação com a estação. Cada chave preenche um slot `{{RUN_NOTE_*}}` dos templates compartilhados, registrado em `RUN_NOTE_SLOTS` (`scripts/site-builder/renderer.js`). O valor é HTML inserido sem escape. Um dataset que não declara a chave publica o slot vazio, então o texto em volta do slot precisa continuar correto sem a nota. O `build:check` recusa a nota que não aparece em nenhuma página da própria publicação e a que aparece na publicação de outro dataset: texto pinado a uma rodada não entra direto em `src/template/`.
 
-A rota `monitoring` tem duas implementações e o build cobra a fonte de dados de cada uma. A estática (`pages/monitoring.html`, a fonte padrão de `page("monitoring")`) desenha os PNGs de `observations`, abre cada um num modal do Bootstrap e é **recusada** sem `observations.charts` e sem o `bootstrap.bundle.min.js` em `vendorScripts`. A interativa (`source: templateSource("pages/monitoring-live.html")`, que é a de ufba) lê `paths.monitoring` e é recusada sem esse caminho. Ou declare a fonte que a variante escolhida exige, ou não ofereça a página. Do mesmo modo, a página `climatology` exige `paths.climatology`: o build recusa a página sem o caminho, porque ela sozinha só produziria um 404 no console. O caminho sem a página é aceito. Os PNGs são reescritos no lugar pela estação de cada laboratório e ficam fora dos bundles: associe-os no deploy, como os diretórios de `dataset.paths`.
+A rota `monitoring` tem duas implementações e o build cobra a fonte de dados de cada uma. A estática (`pages/monitoring.html`, a fonte padrão de `page("monitoring")`) desenha os PNGs de `observations`, abre cada um num modal do Bootstrap e é **recusada** sem `observations.charts` e sem o `bootstrap.bundle.min.js` em `vendorScripts`. A interativa (`source: templateSource("pages/monitoring-live.html")`, que é a de ufba) lê `paths.monitoring` e é recusada sem esse caminho. Ou declare a fonte que a variante escolhida exige, ou não ofereça a página. Do mesmo modo, a página `climatology` exige `paths.climatology`: o build recusa a página sem o caminho, porque ela sozinha só produziria um 404 no console. O caminho sem a página é aceito. O mesmo vale para `annual-means` e `paths.annualMeans`. Os PNGs são reescritos no lugar pela estação de cada laboratório e ficam fora dos bundles: associe-os no deploy, como os diretórios de `dataset.paths`.
 
 ### 4. Páginas
 
-O catálogo em `src/template/page-types.js` contém os tipos `home`, `monitoring`, `sky`, `team`, `climatology`, `forecast`, `energy` e `annual-means`. O `annual-means` (`medias_anuais.html`) ainda é só o esboço institucional da futura página WebGIS de médias anuais do WRF, e a UFES o publica com `indexable: false`. `page()` preenche arquivo, layout e fonte comum quando disponíveis. `home` e `team` exigem conteúdo próprio da publicação.
+O catálogo em `src/template/page-types.js` contém os tipos `home`, `monitoring`, `sky`, `team`, `climatology`, `forecast`, `energy` e `annual-means`. O `annual-means` (`medias_anuais.html`) é o WebGIS das médias anuais do WRF por hora local, com contexto de mapa próprio e dados em `paths.annualMeans`; a UFES o publica com `indexable: false` enquanto ele roda sobre dados de teste. `page()` preenche arquivo, layout e fonte comum quando disponíveis. `home` e `team` exigem conteúdo próprio da publicação.
 
 ```js
 "use strict";
