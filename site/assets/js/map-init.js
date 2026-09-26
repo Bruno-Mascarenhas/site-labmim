@@ -79,10 +79,6 @@ document.addEventListener("DOMContentLoaded", () => {
         app.startInitialPlayback();
         return;
       }
-      if (app.usesHourOfDayAxis() && !app.annualMeans) {
-        app.showNoPublishedDataNotice();
-        return;
-      }
 
       // The grid breaks the tie between "nothing is published" and "this frame is
       // missing": it depends on neither variable nor step. If it loads, only that
