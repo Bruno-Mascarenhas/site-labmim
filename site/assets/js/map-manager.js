@@ -140,7 +140,6 @@ function annualMeansFromManifest(manifest) {
   if (manifest?.format !== ANNUAL_MEANS_MANIFEST_FORMAT) {
     throw new Error(`formato ${JSON.stringify(manifest?.format)} em vez de ${ANNUAL_MEANS_MANIFEST_FORMAT}`);
   }
-  if (!isNonEmptyString(manifest.version)) throw new Error("manifesto sem version");
   const labels = manifest.steps?.labels;
   if (!Array.isArray(labels) || labels.length !== manifest.steps.count || !labels.every(isNonEmptyString)) {
     throw new Error("steps.labels não tem steps.count rótulos");
@@ -2900,7 +2899,7 @@ class MeteoMapManager {
   updateUIFromMetadata(metadata, loadedIndex = this.state.index) {
     const config = this.getVariableConfig();
 
-    if (!this.usesHourOfDayAxis() && !this.state.initialDateTime && metadata?.date_time) {
+    if (!this.state.initialDateTime && metadata?.date_time) {
       this.state.initialDateTime = this.parseDateTime(metadata.date_time);
       // Anchor to the index whose metadata we loaded, not what the slider reads now.
       this.state.initialIndex = loadedIndex;
