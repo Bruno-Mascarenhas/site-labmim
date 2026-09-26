@@ -6,7 +6,6 @@ const { createAssetPipeline, writePublicationTheme } = require("./assets");
 const { I_TAG, hasFontAwesomeClass } = require("./fontawesome-glyphs");
 const { publicationOperationalPaths } = require("./operational-paths");
 const { SITE_REFERENCES } = require("../../src/template/references");
-const { mapContextOf } = require("../../src/template/page-types");
 
 const read = (filePath) => fs.readFileSync(filePath, "utf8");
 const replaceAll = (text, token, value) => text.split(token).join(value);
@@ -34,7 +33,7 @@ const LITERAL_BRACES = Object.freeze({ "{{LITERAL_OPEN}}": "{{", "{{LITERAL_CLOS
 
 const DEFAULT_FAVICON_EMOJI = "🌦️";
 
-const ANNUAL_MEANS_MAP_CONTEXT = "annual-means";
+const ANNUAL_MEANS_PAGE_ID = "annual-means";
 const ANNUAL_MEANS_MANIFEST_FILE = "manifest.json";
 const ANNUAL_MEANS_ALL_HOURS_STEP = 24;
 
@@ -261,10 +260,9 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
   }
 
   function annualMeansRuntimeConfig() {
-    const config = runtimeConfig();
     const directory = dataset.paths.annualMeans;
     return {
-      ...config,
+      ...siteRuntimeConfig,
       data: {
         manifestPath: `${directory}/${ANNUAL_MEANS_MANIFEST_FILE}`,
         valuesBase: directory,
@@ -276,7 +274,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
         },
       },
       map: {
-        ...config.map,
+        ...siteRuntimeConfig.map,
         domains: Object.fromEntries(
           domains.map((domain) => [domain.id, { label: domain.id, center: domain.center, zoom: domain.zoom }])
         ),
@@ -284,14 +282,20 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     };
   }
 
-  function mapContextTokens(page) {
-    if (mapContextOf(page.bodyAttrs ?? "") !== ANNUAL_MEANS_MAP_CONTEXT) return {};
+  function mapTokens(config) {
     return {
-      SITE_CONFIG: escapeAttribute(JSON.stringify(annualMeansRuntimeConfig())),
+      SITE_CONFIG: escapeAttribute(JSON.stringify(config)),
+      TIMELINE_MAX: String(config.data.timeline.defaultMaxLayer),
+      TIMELINE_INITIAL_INDEX: String(config.data.timeline.initialIndex),
+    };
+  }
+
+  function pageTokens(page) {
+    if (page.id !== ANNUAL_MEANS_PAGE_ID) return {};
+    return {
+      ...mapTokens(annualMeansRuntimeConfig()),
       DOMAIN_BUTTONS: domainButtons((domain) => domain.id),
       DEFAULT_DOMAIN_LABEL: escapeAttribute(dataset.defaultDomain),
-      TIMELINE_MAX: String(ANNUAL_MEANS_ALL_HOURS_STEP),
-      TIMELINE_INITIAL_INDEX: String(ANNUAL_MEANS_ALL_HOURS_STEP),
     };
   }
 
@@ -322,10 +326,11 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
       .join("\n");
   }
 
+  const siteRuntimeConfig = runtimeConfig();
   const siteTokens = {
     PUBLICATION_ID: escapeAttribute(publication.id),
     TERRITORY_ID: escapeAttribute(territory.id),
-    SITE_CONFIG: escapeAttribute(JSON.stringify(runtimeConfig())),
+    ...mapTokens(siteRuntimeConfig),
     BRAND_NAME: escapeAttribute(brand.name),
     BRAND_FULL_NAME: escapeAttribute(brand.fullName),
     BRAND_NAV_PICTURE: brandPicture(brand.logos.nav, { loading: "eager" }),
@@ -348,8 +353,6 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     DOMAIN_LABELS: escapeAttribute(naturalList(domains.map((domain) => domain.label))),
     CUMULUS_COVERAGE: escapeAttribute(cumulusCoverage()),
     DOMAIN_DOCUMENTATION: domainDocumentation(),
-    TIMELINE_MAX: String(dataset.timeline.defaultMaxLayer),
-    TIMELINE_INITIAL_INDEX: String(dataset.timeline.initialIndex),
     TIMELINE_STEP_COUNT: String(dataset.timeline.defaultMaxLayer),
     FORECAST_HORIZON_HOURS: String(forecastHorizonHours).replace(".", ","),
     TIMELINE_OUTPUT_FREQUENCY: timelineFrequency,
@@ -376,9 +379,9 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     ...Object.fromEntries(Object.entries(RUN_NOTE_SLOTS).map(([key, token]) => [token, dataset.runNotes?.[key] ?? ""])),
   };
 
-  function applySiteTokens(html) {
+  function applySiteTokens(html, overrides = {}) {
     let output = html;
-    for (const [name, value] of Object.entries(siteTokens)) {
+    for (const [name, value] of Object.entries({ ...siteTokens, ...overrides })) {
       output = replaceAll(output, `{{${name}}}`, value);
     }
     return output;
@@ -560,10 +563,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     html = applyPageScripts(page, html);
     html = replaceAll(html, "{{content}}", pageContent(page));
     html = replaceAll(html, "{{h1}}", escapeAttribute(page.seo.h1));
-    for (const [name, value] of Object.entries(mapContextTokens(page))) {
-      html = replaceAll(html, `{{${name}}}`, value);
-    }
-    html = applySiteTokens(html);
+    html = applySiteTokens(html, pageTokens(page));
     assertResolved(page.file, html);
     html = resolveLiteralBraces(html);
     html = hideDecorativeIcons(html);
