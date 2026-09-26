@@ -19,6 +19,7 @@ module.exports = {
     grids: "GeoJSON",
     monitoring: "Monitoramento",
     climatology: "Climatologia",
+    annualMeans: "MediasAnuais",
   },
   timeline: {
     defaultMaxLayer: 72,

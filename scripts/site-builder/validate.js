@@ -679,6 +679,19 @@ function validateSkyHasData(errors, publication) {
   }
 }
 
+function validateAnnualMeansHasData(errors, publication) {
+  if (!Array.isArray(publication.pages)) return;
+  const hasAnnualMeans = publication.pages.some(
+    (page) => page && (page.id === "annual-means" || page.file === "medias_anuais.html")
+  );
+  if (!hasAnnualMeans) return;
+  if (!isNonEmptyString(publication.dataset?.paths?.annualMeans)) {
+    errors.push(
+      "dataset.paths.annualMeans: the annual-means page requires a data directory; declare it or drop the page"
+    );
+  }
+}
+
 function validateClosedStringRecord(errors, record, field, keys) {
   if (record === undefined || record === null) return;
   if (!addRequiredObject(errors, record, field)) return;
@@ -758,8 +771,14 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
       });
     }
 
+    if (dataset.paths.annualMeans !== undefined && dataset.paths.annualMeans !== null) {
+      validateDatasetPath(errors, warnings, siteDirectory, dataset.paths.annualMeans, "dataset.paths.annualMeans", {
+        directory: true,
+      });
+    }
+
     const seen = new Map();
-    for (const key of ["manifest", "values", "grids", "graphs", "climatology", "monitoring", "sky"]) {
+    for (const key of ["manifest", "values", "grids", "graphs", "climatology", "monitoring", "sky", "annualMeans"]) {
       const value = dataset.paths[key];
       if (!isNonEmptyString(value)) continue;
       const normalized = path.posix.normalize(value);
@@ -1249,6 +1268,7 @@ function validatePublication({ root, templateRoot, siteDir, publication } = {}) 
   validateMonitoringHasData(errors, publication, templateDirectory, publicationDirectory);
   validateClimatologyHasData(errors, publication);
   validateSkyHasData(errors, publication);
+  validateAnnualMeansHasData(errors, publication);
   const pageOutputs = validatePages(errors, publication.pages, templateDirectory, publicationDirectory, siteDirectory);
   validateRedirects(errors, publication.redirects, pageOutputs);
 
