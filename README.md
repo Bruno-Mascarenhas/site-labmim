@@ -100,6 +100,7 @@ O site **degrada graciosamente** quando eles faltam: sem manifest usa o interval
 - [Contratos de dados](Architecture.md#contratos-de-dados) — cada arquivo que o site consome, formato a formato.
 - [Produtor dos dados](Architecture.md#produtor-dos-dados) — a CLI `mm-wrf-geojson` que os gera, com fuso, paralelismo e entry points.
 - [O que não se edita à mão](CONTRIBUTING.md#o-que-não-se-edita-à-mão) — a fronteira entre o que é fonte e o que é entregue.
+- [Operação](scripts/operacao/README.md) — as rotinas que mantêm esses dados frescos no servidor da LabMiM: cópia do datalogger, monitoramento a cada hora, céu a cada 5 min e o serviço da câmera.
 
 ## Onde está o resto
 
