@@ -114,6 +114,9 @@ completo é montado ao lado e entra em `data/` por `mv` atômico.
 ## Logs e imagens
 
 Cada rotina escreve em `LOG_DIR/AAAAMMDD-site-<rotina>.log` e apaga os seus logs com
-mais de `LOG_DIAS` dias. As imagens da câmera **não** são apagadas por idade
-(`processa_site_ceu.sh` roda sem `--prune-frames-days`): ficam para montar datasets,
-a ~0,6–1,3 GB/dia. O próprio watch descarta as capturas repetidas do mesmo horário.
+mais de `LOG_DIAS` dias. As imagens da câmera **não** são apagadas por idade: ficam em
+`ALLSKY_WATCH_DIR` para montar datasets, a ~0,6–1,3 GB/dia. Para isso o
+`processa_site_ceu.sh` passa `--prune-frames-days 36500` (100 anos): sem a flag, o
+`allsky publish-site` apaga a cada execução as imagens com mais de 14 dias, e a opção
+não aceita 0 para desligar a limpeza. O próprio watch descarta as capturas repetidas do
+mesmo horário.

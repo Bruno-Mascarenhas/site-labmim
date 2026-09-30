@@ -6,8 +6,10 @@
 #      com a difusa medida pela estação ao lado da prevista.
 # O Kt × Kd da mesma página (mm-sky) é do registro inteiro e sai uma vez por dia,
 # junto da climatologia (ver README.md).
-# Sem --prune-frames-days: as imagens da câmera ficam guardadas (~0,6–1,3 GB/dia).
-# O watch já descarta sozinho as capturas repetidas do mesmo horário.
+# --prune-frames-days 36500 (100 anos): o publish-site apaga por padrão as imagens
+# da câmera com mais de 14 dias e não aceita 0 para desligar a limpeza; aqui elas
+# ficam guardadas para montar datasets (~0,6–1,3 GB/dia). O watch já descarta
+# sozinho as capturas repetidas do mesmo horário.
 # Cron: */5 * * * *. Log por dia em LOG_DIR/AAAAMMDD-site-ceu.log.
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
@@ -28,6 +30,7 @@ allsky publish-site \
   --watch-dir "$ALLSKY_WATCH_DIR" \
   --out "$SITE_DIR/Ceu" \
   --days 3 \
+  --prune-frames-days 36500 \
   --sensor-csv "$tmp/estacao.csv" --sensor-csv-scale raw \
   --trust-checkpoint
 rc=$?
