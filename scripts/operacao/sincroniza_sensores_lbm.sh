@@ -1,14 +1,9 @@
 #!/bin/bash
 # Traz as tabelas que o datalogger está gravando (TABELA_LENTA, TABELA_RAIN) do
 # PC da estação, um Windows com OpenSSH Server, para MICRO_DIR/data, via SFTP
-# com chave. Chamado pelas outras rotinas antes de gerar os dados do site; a
-# saída vai para quem chamou.
-#
-# As tabelas só crescem, então cada execução baixa apenas o que o logger
-# acrescentou desde a última (reget do sftp). Para confirmar que o arquivo remoto
-# ainda é a continuação da cópia local, os últimos SOBREPOSICAO bytes locais são
-# baixados de novo e comparados; se não baterem (o logger trocou de arquivo ou de
-# programa), o arquivo é baixado inteiro.
+# com chave, baixando só o que o logger acrescentou (ver "Como a cópia da estação
+# funciona" no README.md). Chamado pelas rotinas do site antes de gerar os dados;
+# a saída vai para quem chamou.
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 
@@ -38,15 +33,15 @@ sftp_lote() {
   return 1
 }
 
-# 1) Parte da cópia local sem os últimos SOBREPOSICAO bytes e continua dali.
-#    Sem cópia local, o reget baixa o arquivo inteiro.
+# 1) Cada tabela com cópia local recomeça num arquivo esparso do tamanho dela
+#    menos SOBREPOSICAO bytes (nada é copiado) e o reget continua dali. Sem cópia
+#    local, o reget baixa o arquivo inteiro.
+declare -A antes inicio
 for f in "${ARQUIVOS[@]}"; do
-  if [ -f "$DESTINO/$f" ]; then
-    cp "$DESTINO/$f" "$TMP/$f"
-    tamanho=$(stat -c%s "$TMP/$f")
-    k=$(( tamanho < SOBREPOSICAO ? tamanho : SOBREPOSICAO ))
-    tail -c "$k" "$TMP/$f" > "$TMP/$f.sobreposicao"
-    truncate -s $(( tamanho - k )) "$TMP/$f"
+  antes[$f]=$(stat -c%s "$DESTINO/$f" 2>/dev/null) || antes[$f]=0
+  if [ "${antes[$f]}" -gt 0 ]; then
+    inicio[$f]=$(( ${antes[$f]} > SOBREPOSICAO ? ${antes[$f]} - SOBREPOSICAO : 0 ))
+    truncate -s "${inicio[$f]}" "$TMP/$f"
   fi
   # O '-' deixa o lote seguir se o reget falhar (remoto menor que o local):
   # a comparação abaixo manda esse arquivo para o download completo.
@@ -55,25 +50,18 @@ done > "$TMP/lote.sftp"
 
 sftp_lote "$TMP/lote.sftp" || exit 1
 
-# 2) Os bytes baixados de novo têm que ser os mesmos que já tínhamos. Comparados
-#    com cmp -i, sem pipe: tail|head sob pipefail morre de SIGPIPE quando o
-#    trecho passa do buffer do pipe e acusaria divergência que não existe.
-completos=()
+# 2) Os bytes baixados de novo têm que ser os mesmos da cópia local, que não muda
+#    enquanto a trava está pega. Se não forem, a tabela é baixada inteira.
 for f in "${ARQUIVOS[@]}"; do
-  [ -f "$TMP/$f.sobreposicao" ] || continue
-  k=$(stat -c%s "$TMP/$f.sobreposicao")
-  inicio=$(( $(stat -c%s "$DESTINO/$f") - k ))
-  if ! cmp -s -i "$inicio:0" -n "$k" "$TMP/$f" "$TMP/$f.sobreposicao"; then
-    log "$f: o arquivo remoto nao continua a copia local, baixando inteiro"
-    completos+=("$f")
-  fi
+  [ -n "${inicio[$f]-}" ] || continue
+  cmp -s -i "${inicio[$f]}" -n $(( ${antes[$f]} - ${inicio[$f]} )) "$DESTINO/$f" "$TMP/$f" && continue
+  log "$f: o arquivo remoto nao continua a copia local, baixando inteiro"
+  unset "inicio[$f]"
+  echo "get \"$ESTACAO_ORIGEM/$f\" \"$TMP/$f\"" >> "$TMP/completos.sftp"
 done
 
-if [ ${#completos[@]} -gt 0 ]; then
-  for f in "${completos[@]}"; do
-    echo "get \"$ESTACAO_ORIGEM/$f\" \"$TMP/$f\""
-  done > "$TMP/lote.sftp"
-  sftp_lote "$TMP/lote.sftp" || exit 1
+if [ -s "$TMP/completos.sftp" ]; then
+  sftp_lote "$TMP/completos.sftp" || exit 1
 fi
 
 # 3) Confere e publica.
@@ -81,23 +69,29 @@ status=0
 for f in "${ARQUIVOS[@]}"; do
   novo=$TMP/$f
   atual=$DESTINO/$f
-  antes=$( [ -f "$atual" ] && stat -c%s "$atual" || echo 0 )
 
   # O LoggerNet pode estar gravando durante a cópia: descarta a última linha
   # se ela veio sem o fim de linha. A próxima execução traz o registro inteiro.
   [ -n "$(tail -c1 "$novo")" ] && truncate -s "-$(tail -n1 "$novo" | wc -c)" "$novo"
+  depois=$(stat -c%s "$novo")
 
   # A tabela só cresce. Se veio menor, o logger trocou de programa ou de
   # arquivo: não sobrescreve a cópia local, alguém precisa olhar.
-  if [ "$(stat -c%s "$novo")" -lt "$antes" ]; then
-    log "ERRO: $f veio menor ($(stat -c%s "$novo") < $antes bytes); mantida a copia local"
+  if [ "$depois" -lt "${antes[$f]}" ]; then
+    log "ERRO: $f veio menor ($depois < ${antes[$f]} bytes); mantida a copia local"
     status=1
     continue
   fi
 
-  chmod 664 "$novo"
-  mv -f "$novo" "$atual"
-  log "$f ok, +$(( $(stat -c%s "$atual") - antes )) bytes (total $(stat -c%s "$atual")), ultimo registro $(tail -n1 "$atual" | cut -d, -f1)"
+  # Sem registro novo, a cópia incremental não publica nada e data/ fica como
+  # está. Com registro novo, o buraco do arquivo esparso vem da cópia local.
+  if [ -z "${inicio[$f]-}" ] || [ "$depois" -gt "${antes[$f]}" ]; then
+    [ -n "${inicio[$f]-}" ] \
+      && dd if="$atual" of="$novo" bs=1M count="${inicio[$f]}" iflag=count_bytes conv=notrunc status=none
+    chmod 664 "$novo"
+    mv -f "$novo" "$atual"
+  fi
+  log "$f ok, +$(( depois - ${antes[$f]} )) bytes (total $depois), ultimo registro $(tail -n1 "$atual" | cut -d, -f1)"
 done
 
 exit $status

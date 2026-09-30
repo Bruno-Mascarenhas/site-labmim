@@ -102,7 +102,8 @@ de emendar, os últimos 8 KB da cópia local são baixados de novo e comparados;
 batem, o logger trocou de arquivo e a tabela é baixada inteira. Uma tabela remota
 menor que a local nunca sobrescreve a local: o erro fica no log. A última linha sem
 fim de linha (o LoggerNet gravando durante a cópia) é descartada e vem inteira na
-próxima vez. O arquivo novo entra em `data/` por `mv` atômico.
+próxima vez. Sem registro novo, `data/` não é tocado; com registro novo, o arquivo
+completo é montado ao lado e entra em `data/` por `mv` atômico.
 
 ## Logs e imagens
 
