@@ -7,17 +7,9 @@
 # Cron: 5 * * * *. Log por dia em LOG_DIR/AAAAMMDD-site-monitoramento.log.
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
-abre_log_e_trava site-monitoramento
+inicia_rotina site-monitoramento
 
-janela=$MICRO_DIR/output/janela
-
-log "===== inicio"
-
-"$DIR_OPERACAO/sincroniza_sensores_lbm.sh" \
-  || log "AVISO: sincronizacao falhou; seguindo com o que ja esta em data/"
-
-cd "$MICRO_DIR" || exit 1
-
+janela=output/janela
 # -d continua apontando para data/: os fatores do anel de sombreamento vêm de lá.
 mm-archive --source "data/$TABELA_LENTA" --source "data/$TABELA_RAIN" -d data -o "$janela" \
   || falha "mm-archive da janela falhou; Monitoramento nao atualizado"

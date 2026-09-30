@@ -11,16 +11,9 @@
 # Cron: */5 * * * *. Log por dia em LOG_DIR/AAAAMMDD-site-ceu.log.
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
-abre_log_e_trava site-ceu
+inicia_rotina site-ceu
 
 export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 ALLSKY_DINOV3_REPO ALLSKY_DINOV3_WEIGHTS
-
-log "===== inicio"
-
-"$DIR_OPERACAO/sincroniza_sensores_lbm.sh" \
-  || log "AVISO: sincronizacao falhou; seguindo com o que ja esta em data/"
-
-cd "$MICRO_DIR" || exit 1
 
 # A tabela do logger vira a exportação da estação: sem as linhas de metadados do
 # TOA5 (1ª, 3ª e 4ª) e só com os últimos 7 dias (2016 registros de 5 min), que
