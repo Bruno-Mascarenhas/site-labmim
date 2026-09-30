@@ -603,7 +603,7 @@ Nota: `.series.bin` fica deliberadamente **fora** das listas de compressão: o `
 
 ## Deploy Em Produção
 
-O deploy é manual e desacoplado: código e dados sobem separadamente. O que se publica é a saída de `npm run build -- --site=<id>` em `site/` ou o bundle correspondente em `dist/<id>/`. Regras aprendidas em produção:
+O deploy é desacoplado: código e dados sobem separadamente. O que se publica é a saída de `npm run build -- --site=<id>` em `site/` ou o bundle correspondente em `dist/<id>/`. No servidor da LabMiM/UFBA o upload é feito por `scripts/operacao/publica_site_ftp.sh`, que segue as regras abaixo: o site inteiro uma vez por dia e os dados do Monitoramento e do Céu logo depois de gerados (ver [Operação](scripts/operacao/README.md#publicação-por-ftp)). Regras aprendidas em produção:
 
 - **Publique o site completo junto do `.htaccess`.** Nunca suba o `.htaccess` sozinho sobre uma versão antiga do site: a CSP `script-src 'self'` quebra qualquer página que ainda carregue CDN ou script inline.
 - **Ordem do upload FTP: `assets/` primeiro, `*.html` por último.** É o HTML que traz os `?v=` novos, e o hash de conteúdo está só na query string, não no nome do arquivo. Se uma página nova chegar antes do seu JS ou CSS, o visitante pede `map-manager.js?v=<novo>`, recebe os bytes antigos, e o navegador pode reutilizá-los sob a URL nova por até 24 h (1 ano, num vendor com token manual). Nesta ordem, a janela do upload só expõe HTML antigo com asset novo, e isso se desfaz na primeira navegação depois que o HTML sobe, porque o HTML é `no-cache` e a URL do asset muda com ele.

@@ -4,6 +4,7 @@
 #   2. publica os documentos da página (allsky publish-site) a partir do que o
 #      allsky-watch (allsky-watch.service) vem pontuando nas imagens da câmera,
 #      com a difusa medida pela estação ao lado da prevista.
+#   3. envia SITE_DIR/Ceu ao site por FTP (publica_site_ftp.sh dados Ceu).
 # O Kt × Kd da mesma página (mm-sky) é do registro inteiro e sai uma vez por dia,
 # junto da climatologia (ver README.md).
 # --prune-frames-days 36500 (100 anos): o publish-site apaga por padrão as imagens
@@ -34,6 +35,14 @@ allsky publish-site \
   --sensor-csv "$tmp/estacao.csv" --sensor-csv-scale raw \
   --trust-checkpoint
 rc=$?
+
+# 0 e 2 gravaram os documentos: envia ao site. Inerte enquanto SITE_FTP_PUBLICAR não
+# for S. Uma falha do FTP fica registrada, mas não muda o código da geração; o
+# detalhe vai no log do FTP.
+if [ $rc -eq 0 ] || [ $rc -eq 2 ]; then
+  "$DIR_OPERACAO/publica_site_ftp.sh" dados Ceu \
+    || log "AVISO: publicacao FTP falhou (codigo $?); ver $LOG_DIR/$(date +%Y%m%d)-site-ftp.log"
+fi
 
 # 2 = documentos gravados, mas o watch parece parado (sol acima do piso e nenhuma
 # imagem nova): a página já mostra o aviso; aqui só fica registrado.
