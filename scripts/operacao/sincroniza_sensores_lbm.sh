@@ -11,8 +11,11 @@ DESTINO=$MICRO_DIR/data
 ARQUIVOS=("$TABELA_LENTA" "$TABELA_RAIN")
 SOBREPOSICAO=8192   # ~30 registros com carimbo de hora: um arquivo trocado não coincide nisso
 
+# As duas rotinas do site sincronizam às HH:05. Quem chega depois espera a outra
+# terminar e traz só o que faltar: sair logo faria quem chamou seguir com data/
+# atrasado.
 exec 8> "$DESTINO/.sincroniza.lock"
-flock -n 8 || { log "outra sincronizacao em andamento, saindo"; exit 0; }
+flock -w 60 8 || falha "outra sincronizacao nao terminou em 60 s"
 
 # Temporário dentro do destino para o mv final ser atômico (mesmo filesystem):
 # quem lê data/ nunca vê um arquivo pela metade.
