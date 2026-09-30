@@ -28,7 +28,7 @@ cd "$MICRO_DIR" || exit 1
 # sozinho sentinelas, sensibilidade e anel de sombreamento.
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-{ sed -n 2p "data/$TABELA_LENTA"; tail -n 2016 "data/$TABELA_LENTA"; } > "$tmp/estacao.csv"
+{ sed -n '2{p;q}' "data/$TABELA_LENTA"; tail -n 2016 "data/$TABELA_LENTA"; } > "$tmp/estacao.csv"
 
 allsky publish-site \
   --serving "$ALLSKY_SERVING" \
