@@ -11,13 +11,13 @@ só falta publicar `site/` por FTP, na ordem de
 
 ## Quem gera o quê
 
-| Cadência                  | Rotina                                               | Escreve em `site/`                                               |
-| ------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------- |
-| 1×/dia, após a rodada WRF | cadeia do WRF: `mm-wrf-geojson`, `mm-wrf-series`     | `JSON/`, `GeoJSON/` (e a série operacional, fora de `site/`)     |
-| 1×/dia, após a série      | [acervo, climatologia e Kt × Kd](#rotina-diária)     | `Climatologia/`, `Ceu/ktkd*.json`, `Ceu/kt_cumulative.json`      |
-| de hora em hora           | `processa_site_monitoramento.sh`                     | `Monitoramento/monitoring.json`                                  |
-| a cada 5 min              | `processa_site_ceu.sh`                               | `Ceu/frame.json`, `Ceu/timeline.json`, `Ceu/model.json`, imagens |
-| contínuo                  | `allsky-watch.service` (`allsky-watch.sh`)           | nada: imagens da câmera e previsões em `ALLSKY_WATCH_DIR`        |
+| Cadência                  | Rotina                                           | Escreve em `site/`                                               |
+| ------------------------- | ------------------------------------------------ | ---------------------------------------------------------------- |
+| 1×/dia, após a rodada WRF | cadeia do WRF: `mm-wrf-geojson`, `mm-wrf-series` | `JSON/`, `GeoJSON/` (e a série operacional, fora de `site/`)     |
+| 1×/dia, após a série      | [acervo, climatologia e Kt × Kd](#rotina-diária) | `Climatologia/`, `Ceu/ktkd*.json`, `Ceu/kt_cumulative.json`      |
+| de hora em hora           | `processa_site_monitoramento.sh`                 | `Monitoramento/monitoring.json`                                  |
+| a cada 5 min              | `processa_site_ceu.sh`                           | `Ceu/frame.json`, `Ceu/timeline.json`, `Ceu/model.json`, imagens |
+| contínuo                  | `allsky-watch.service` (`allsky-watch.sh`)       | nada: imagens da câmera e previsões em `ALLSKY_WATCH_DIR`        |
 
 As duas rotinas do cron começam por `sincroniza_sensores_lbm.sh`, que traz do PC da
 estação o que o datalogger acrescentou às tabelas. Início e Equipe são estáticas.
