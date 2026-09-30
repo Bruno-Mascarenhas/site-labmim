@@ -85,7 +85,7 @@ for f in "${ARQUIVOS[@]}"; do
 
   # O LoggerNet pode estar gravando durante a cópia: descarta a última linha
   # se ela veio sem o fim de linha. A próxima execução traz o registro inteiro.
-  [ -n "$(tail -c1 "$novo")" ] && sed -i '$d' "$novo"
+  [ -n "$(tail -c1 "$novo")" ] && truncate -s "-$(tail -n1 "$novo" | wc -c)" "$novo"
 
   # A tabela só cresce. Se veio menor, o logger trocou de programa ou de
   # arquivo: não sobrescreve a cópia local, alguém precisa olhar.
