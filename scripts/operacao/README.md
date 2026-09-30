@@ -44,7 +44,10 @@ do Windows), então reprovaria todo dia. A verificação continua impressa e em
 1. **micrometeorology**: checkout, ambiente e `make install-dev` (o torch CUDA só
    onde a GPU o roda; CPU no resto). Em `data/` ficam as tabelas históricas em
    `data/dados-labmim/`, as vivas na raiz e `teorica_2016-2030.csv`, sem o qual a
-   difusa não é corrigida e o `mm-archive` para. Para o Céu, os checkpoints do pin
+   difusa não é corrigida e o `mm-archive` para. Rode
+   `python scripts/converter_teorica.py --data data` uma vez, e de novo sempre que
+   o CSV for trocado: sem o parquet que ele gera, cada rotina relê os ~200 MB do
+   CSV. Para o Céu, os checkpoints do pin
    `configs/allsky/serving/ceu.yaml` (com o SHA-256 dele), os relatórios de avaliação
    que o pin cita e o DINOv3 (fonte clonada e pesos).
 2. **Configuração**: `cp operacao.env.example operacao.env` e ajuste. O `operacao.env`
@@ -93,6 +96,9 @@ do Windows), então reprovaria todo dia. A verificação continua impressa e em
    5 * * * *   /caminho/para/site-labmim/scripts/operacao/processa_site_monitoramento.sh
    */5 * * * * /caminho/para/site-labmim/scripts/operacao/processa_site_ceu.sh
    ```
+
+   O `processa_site_ceu.sh` faz o papel do `allsky-publish.timer` do
+   micrometeorology: não habilite os dois, que escreveriam no mesmo `Ceu/`.
 
 ## Como a cópia da estação funciona
 
