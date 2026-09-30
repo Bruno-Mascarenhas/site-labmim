@@ -13,6 +13,8 @@ fi
 SITE_DIR=${SITE_DIR:-$(cd "$DIR_OPERACAO/../.." && pwd)/site}
 LOG_DIAS=${LOG_DIAS:-30}
 export PATH="$MICRO_BIN:$PATH"
+# O allsky (watch e publish-site) acha o DINOv3 por estas.
+export ALLSKY_DINOV3_REPO ALLSKY_DINOV3_WEIGHTS
 
 log() { echo "$(date '+%F %T') $*"; }
 falha() { log "ERRO: $*"; exit 1; }

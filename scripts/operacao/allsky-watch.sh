@@ -5,7 +5,7 @@
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 
-export OMP_NUM_THREADS=6 MKL_NUM_THREADS=6 ALLSKY_DINOV3_REPO ALLSKY_DINOV3_WEIGHTS
+export OMP_NUM_THREADS=6 MKL_NUM_THREADS=6
 
 # Os caminhos do pin (checkpoints e relatórios) são relativos ao checkout.
 cd "$MICRO_DIR" || exit 1

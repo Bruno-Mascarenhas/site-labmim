@@ -13,7 +13,7 @@ set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 inicia_rotina site-ceu
 
-export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 ALLSKY_DINOV3_REPO ALLSKY_DINOV3_WEIGHTS
+export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4
 
 # A tabela do logger vira a exportação da estação: sem as linhas de metadados do
 # TOA5 (1ª, 3ª e 4ª) e só com os últimos 7 dias (2016 registros de 5 min), que
