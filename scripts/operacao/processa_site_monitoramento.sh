@@ -11,23 +11,18 @@ abre_log_e_trava site-monitoramento
 
 janela=$MICRO_DIR/output/janela
 
-echo "$(agora) ===== inicio"
+log "===== inicio"
 
 "$DIR_OPERACAO/sincroniza_sensores_lbm.sh" \
-  || echo "$(agora) AVISO: sincronizacao falhou; seguindo com o que ja esta em data/"
+  || log "AVISO: sincronizacao falhou; seguindo com o que ja esta em data/"
 
 cd "$MICRO_DIR" || exit 1
 
 # -d continua apontando para data/: os fatores do anel de sombreamento vêm de lá.
-if ! mm-archive --source "data/$TABELA_LENTA" --source "data/$TABELA_RAIN" \
-     -d data -o "$janela"; then
-  echo "$(agora) ERRO: mm-archive da janela falhou; Monitoramento nao atualizado"
-  exit 1
-fi
+mm-archive --source "data/$TABELA_LENTA" --source "data/$TABELA_RAIN" -d data -o "$janela" \
+  || falha "mm-archive da janela falhou; Monitoramento nao atualizado"
 
-if ! mm-monitoring -i "$janela" -w "$SERIE_WRF" -o "$SITE_DIR/Monitoramento"; then
-  echo "$(agora) ERRO: mm-monitoring falhou"
-  exit 1
-fi
+mm-monitoring -i "$janela" -w "$SERIE_WRF" -o "$SITE_DIR/Monitoramento" \
+  || falha "mm-monitoring falhou"
 
-echo "$(agora) ===== fim"
+log "===== fim"

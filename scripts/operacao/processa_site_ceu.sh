@@ -15,10 +15,10 @@ abre_log_e_trava site-ceu
 
 export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 ALLSKY_DINOV3_REPO ALLSKY_DINOV3_WEIGHTS
 
-echo "$(agora) ===== inicio"
+log "===== inicio"
 
 "$DIR_OPERACAO/sincroniza_sensores_lbm.sh" \
-  || echo "$(agora) AVISO: sincronizacao falhou; seguindo com o que ja esta em data/"
+  || log "AVISO: sincronizacao falhou; seguindo com o que ja esta em data/"
 
 cd "$MICRO_DIR" || exit 1
 
@@ -42,8 +42,8 @@ rc=$?
 # 2 = documentos gravados, mas o watch parece parado (sol acima do piso e nenhuma
 # imagem nova): a página já mostra o aviso; aqui só fica registrado.
 case $rc in
-  0) echo "$(agora) ===== fim" ;;
-  2) echo "$(agora) AVISO: publicado, mas o allsky-watch parece parado (systemctl --user status allsky-watch)" ;;
-  *) echo "$(agora) ERRO: publish-site terminou com codigo $rc" ;;
+  0) log "===== fim" ;;
+  2) log "AVISO: publicado, mas o allsky-watch parece parado (systemctl --user status allsky-watch)" ;;
+  *) log "ERRO: publish-site terminou com codigo $rc" ;;
 esac
 exit $rc

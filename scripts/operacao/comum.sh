@@ -14,7 +14,8 @@ SITE_DIR=${SITE_DIR:-$(cd "$DIR_OPERACAO/../.." && pwd)/site}
 LOG_DIAS=${LOG_DIAS:-30}
 export PATH="$MICRO_BIN:$PATH"
 
-agora() { date '+%F %T'; }
+log() { echo "$(date '+%F %T') $*"; }
+falha() { log "ERRO: $*"; exit 1; }
 
 # Manda a saída para o log do dia, apaga os logs antigos desta rotina e pega a
 # trava; se a execução anterior ainda roda, sai sem erro. $1 é o nome da rotina.
@@ -22,5 +23,5 @@ abre_log_e_trava() {
   exec >> "$LOG_DIR/$(date +%Y%m%d)-$1.log" 2>&1
   find "$LOG_DIR" -maxdepth 1 -name "*-$1.log" -mtime +"$LOG_DIAS" -delete
   exec 9> "$LOG_DIR/.$1.lock"
-  flock -n 9 || { echo "$(agora) execucao anterior ainda rodando, saindo"; exit 0; }
+  flock -n 9 || { log "execucao anterior ainda rodando, saindo"; exit 0; }
 }

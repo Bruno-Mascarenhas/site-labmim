@@ -17,7 +17,7 @@ ARQUIVOS=("$TABELA_LENTA" "$TABELA_RAIN")
 SOBREPOSICAO=8192   # ~30 registros com carimbo de hora: um arquivo trocado não coincide nisso
 
 exec 8> "$DESTINO/.sincroniza.lock"
-flock -n 8 || { echo "$(agora) outra sincronizacao em andamento, saindo"; exit 0; }
+flock -n 8 || { log "outra sincronizacao em andamento, saindo"; exit 0; }
 
 # Temporário dentro do destino para o mv final ser atômico (mesmo filesystem):
 # quem lê data/ nunca vê um arquivo pela metade.
@@ -26,10 +26,7 @@ trap 'rm -rf "$TMP"' EXIT
 
 ip=$(getent hosts "$ESTACAO_HOST" | awk '{print $1; exit}')
 [ -z "$ip" ] && ip=$(nmblookup "$ESTACAO_NETBIOS" 2>/dev/null | awk '/<00>/ {print $1; exit}')
-if [ -z "$ip" ]; then
-  echo "$(agora) ERRO: $ESTACAO_HOST / $ESTACAO_NETBIOS nao encontrado na rede (PC desligado?)"
-  exit 1
-fi
+[ -n "$ip" ] || falha "$ESTACAO_HOST / $ESTACAO_NETBIOS nao encontrado na rede (PC desligado?)"
 
 # O known_hosts guarda a chave do PC pelo nome (HostKeyAlias), não pelo IP que muda.
 sftp_lote() {
@@ -37,7 +34,7 @@ sftp_lote() {
     -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
     -o HostKeyAlias="$ESTACAO_NETBIOS" -o CheckHostIP=no \
     "$ESTACAO_USUARIO@$ip" > /dev/null 2> "$TMP/erro" && return 0
-  echo "$(agora) ERRO no sftp: $(tr '\n' ' ' < "$TMP/erro")"
+  log "ERRO no sftp: $(tr '\n' ' ' < "$TMP/erro")"
   return 1
 }
 
@@ -67,7 +64,7 @@ for f in "${ARQUIVOS[@]}"; do
   k=$(stat -c%s "$TMP/$f.sobreposicao")
   inicio=$(( $(stat -c%s "$DESTINO/$f") - k ))
   if ! cmp -s -i "$inicio:0" -n "$k" "$TMP/$f" "$TMP/$f.sobreposicao"; then
-    echo "$(agora) $f: o arquivo remoto nao continua a copia local, baixando inteiro"
+    log "$f: o arquivo remoto nao continua a copia local, baixando inteiro"
     completos+=("$f")
   fi
 done
@@ -93,14 +90,14 @@ for f in "${ARQUIVOS[@]}"; do
   # A tabela só cresce. Se veio menor, o logger trocou de programa ou de
   # arquivo: não sobrescreve a cópia local, alguém precisa olhar.
   if [ "$(stat -c%s "$novo")" -lt "$antes" ]; then
-    echo "$(agora) ERRO: $f veio menor ($(stat -c%s "$novo") < $antes bytes); mantida a copia local"
+    log "ERRO: $f veio menor ($(stat -c%s "$novo") < $antes bytes); mantida a copia local"
     status=1
     continue
   fi
 
   chmod 664 "$novo"
   mv -f "$novo" "$atual"
-  echo "$(agora) $f ok, +$(( $(stat -c%s "$atual") - antes )) bytes (total $(stat -c%s "$atual")), ultimo registro $(tail -n1 "$atual" | cut -d, -f1)"
+  log "$f ok, +$(( $(stat -c%s "$atual") - antes )) bytes (total $(stat -c%s "$atual")), ultimo registro $(tail -n1 "$atual" | cut -d, -f1)"
 done
 
 exit $status
