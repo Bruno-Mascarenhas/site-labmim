@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="pt-BR" data-publication="ufes" data-territory="es">
+  <head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="LEAL — Médias Anuais: médias por hora local das saídas do modelo WRF ao longo do ano, com a cobertura e a origem das rodadas declaradas no mapa." />
+<title>LEAL — Médias Anuais · UFES</title>
+
+    <meta name="robots" content="noindex, follow" />
+
+    <link rel="canonical" href="https://www.lealufes.org/medias_anuais.html" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LEAL" />
+    <meta property="og:title" content="LEAL — Médias Anuais · UFES" />
+    <meta property="og:description" content="LEAL — Médias Anuais: médias por hora local das saídas do modelo WRF ao longo do ano, com a cobertura e a origem das rodadas declaradas no mapa." />
+    <meta property="og:url" content="https://www.lealufes.org/medias_anuais.html" />
+    <meta property="og:image" content="https://www.lealufes.org/assets/img/logo_leal.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LEAL — Médias Anuais · UFES" />
+    <meta name="twitter:description" content="LEAL — Médias Anuais: médias por hora local das saídas do modelo WRF ao longo do ano, com a cobertura e a origem das rodadas declaradas no mapa." />
+    <meta name="twitter:image" content="https://www.lealufes.org/assets/img/logo_leal.png" />
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌦️</text></svg>" />
+
+<!-- PURGED build, ~27KB instead of 232KB. The full bootstrap.min.css stays next
+     to it, and `npm run lint:purge` reports when a new class needs a
+     regeneration (scripts/purgecss.config.cjs). -->
+<link rel="stylesheet" href="assets/vendor/bootstrap/bootstrap.purged.min.css?v=9d6bce91" />
+
+<!-- The preload breaks the HTML -> CSS -> font chain: the font is
+     font-display:block, so solid icons stay invisible until it loads.
+     crossorigin is mandatory on a font preload, even same-origin, or it
+     downloads twice. -->
+<link
+  rel="preload"
+  href="assets/vendor/fontawesome/webfonts/fa-solid-900.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
+<link rel="stylesheet" href="assets/vendor/fontawesome/css/fa.subset.min.css?v=dd152823" />
+<link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4" />
+
+<link rel="stylesheet" href="assets/css/base.css?v=bfb24568" />
+<link rel="stylesheet" href="assets/css/site-theme.css?v=3840b38c" />
+<link rel="stylesheet" href="assets/css/layout.css?v=172e813e" />
+<link rel="stylesheet" href="assets/css/components.css?v=c8c52745" />
+<link rel="stylesheet" href="assets/css/maps.css?v=75fb9a44" />
+<link rel="stylesheet" href="assets/css/generated/ufes/medias-anuais.css?v=317fbf4d" />
+<link rel="stylesheet" href="assets/css/theme.css?v=01c9e4c7" />
+
+<script src="assets/js/theme-boot.js?v=fef91866"></script>
+<script src="assets/js/theme-toggle.js?v=b82be33e" defer></script>
+<script src="assets/js/ui-shell.js?v=fa862f16" defer></script>
+
+
+    <!-- JSON in a meta tag keeps the CSP free of executable inline script. Both
+         metas live in this layout rather than the head partial because their
+         only consumer is map-manager.js; institutional pages skip the bytes. -->
+    <meta name="site-config" content="{&quot;publicationId&quot;:&quot;ufes&quot;,&quot;brandName&quot;:&quot;LEAL&quot;,&quot;territory&quot;:{&quot;id&quot;:&quot;es&quot;,&quot;code&quot;:&quot;ES&quot;,&quot;name&quot;:&quot;Espírito Santo&quot;},&quot;data&quot;:{&quot;manifestPath&quot;:&quot;MediasAnuais/manifest.json&quot;,&quot;valuesBase&quot;:&quot;MediasAnuais&quot;,&quot;gridsBase&quot;:&quot;MediasAnuais&quot;,&quot;timeline&quot;:{&quot;defaultMaxLayer&quot;:24,&quot;initialIndex&quot;:24,&quot;stepHours&quot;:1,&quot;utcOffsetHours&quot;:-3}},&quot;map&quot;:{&quot;initialCenter&quot;:[-19.6,-40.2],&quot;initialZoom&quot;:6,&quot;fitBounds&quot;:[[-21.3017,-41.8798],[-17.892,-39.666]],&quot;fitMaxZoom&quot;:7,&quot;stateCode&quot;:&quot;ES&quot;,&quot;stateName&quot;:&quot;Espírito Santo&quot;,&quot;boundaryAsset&quot;:&quot;assets/data/br_es.json&quot;,&quot;attribution&quot;:&quot;LEAL-UFES&quot;,&quot;defaultDomain&quot;:&quot;D01&quot;,&quot;domains&quot;:{&quot;D01&quot;:{&quot;label&quot;:&quot;S/SE/NE&quot;,&quot;center&quot;:[-20.3,-40.3],&quot;zoom&quot;:5.5},&quot;D02&quot;:{&quot;label&quot;:&quot;Sudeste&quot;,&quot;center&quot;:[-20.3,-40.3],&quot;zoom&quot;:7},&quot;D03&quot;:{&quot;label&quot;:&quot;ES&quot;,&quot;center&quot;:[-20.3,-40.3],&quot;zoom&quot;:9},&quot;D04&quot;:{&quot;label&quot;:&quot;Grande Vitória&quot;,&quot;center&quot;:[-20.3,-40.3],&quot;zoom&quot;:12}}},&quot;vendor&quot;:{&quot;chartJs&quot;:&quot;assets/vendor/chartjs/chart.min.js?v=3.9.1&quot;}}" />
+
+    <!-- Worker content hashes stamped by build.js; map-manager.js builds the
+         worker URLs from here, so editing a worker invalidates the cache. -->
+    <meta name="labmim-asset-hashes" content="color-calc.worker.js:fbb1cd0f;json-parser.worker.js:9dd062f2" />
+
+    <!-- Leaflet's CSS arrives through the pageVendorStyles slot, ahead of ours. -->
+    <script src="assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
+
+    <!-- Tiles are requested about a second into the navigation, so the warm
+         connection is always used; dns-prefetch is the older-browser fallback. -->
+    <link rel="preconnect" href="https://tile.openstreetmap.org" />
+    <link rel="dns-prefetch" href="https://tile.openstreetmap.org" />
+  </head>
+
+  <body data-map-context="annual-means">
+    <a class="skip-link" href="#main">Pular para o conteúdo</a>
+    <header class="maps-header">
+<nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
+  <a class="navbar-brand ms-4" href="index.html">
+    <img loading="eager" src="assets/img/logo_leal.png" alt="LEAL Logo" width="176" height="80" class="brand-logo site-brand-logo" />
+  </a>
+  <button
+    class="navbar-toggler"
+    type="button"
+    data-navbar-toggle
+    aria-controls="navbarSupportedContent"
+    aria-expanded="false"
+    aria-label="Alternar navegação"
+  >
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mx-auto">
+                  <li class="nav-item me-2"><a class="btn btn-outline-lab" href="mapas_interativos.html" id="nav-mapas">Previsões</a></li>
+            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="potenciais_energeticos.html" id="nav-potenciais">Potenciais Energéticos</a></li>
+            <li class="nav-item me-2"><a class="btn btn-outline-lab active" href="medias_anuais.html" id="nav-medias-anuais" aria-current="page">Médias Anuais</a></li>
+            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a></li>
+            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="climatologia.html" id="nav-climatologia">Climatologia</a></li>
+            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="team.html" id="nav-team">Equipe</a></li>
+    </ul>
+
+    <button
+      type="button"
+      class="btn btn-outline-light me-3"
+      title="Tema escuro"
+      data-theme-toggle
+      aria-label="Tema escuro"
+      aria-pressed="false"
+    >
+      <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
+    </button>
+    <a href="https://ct.ufes.br" target="_blank" rel="noopener" class="site-affiliation me-3 site-affiliation-text"><span>Centro Tecnológico</span><small>UFES</small></a>
+  </div>
+</nav>
+
+    </header>
+
+<main class="container-main" id="main">
+  <h1 class="visually-hidden">Médias Anuais</h1>
+
+  <div id="map">
+    <!-- Decorative overlay: a mute canvas only clutters the a11y tree. -->
+    <canvas id="windVectorCanvas" aria-hidden="true"></canvas>
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo-header">
+      <a href="index.html" title="Voltar ao início">
+        <img loading="lazy" src="assets/img/logo_leal.png" alt="LEAL Logo" width="505" height="230" class="brand-logo site-brand-logo" />
+      </a>
+    </div>
+    <div class="sidebar-header">
+      <!-- h2, not h3: first heading after the h1, so h3 would skip a level. -->
+      <h2 id="sidebarTitle">Detalhes da Célula</h2>
+      <button type="button" class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Fechar painel de detalhes">
+        <i class="fas fa-times" aria-hidden="true"></i>
+      </button>
+    </div>
+    <section class="sidebar-content" id="sidebarContent" tabindex="0" aria-labelledby="sidebarTitle" aria-live="polite"></section>
+  </div>
+
+  <div class="colorbar-container">
+    <div class="colorbar-content">
+      <div class="colorbar-gradient" id="colorbarGradient"></div>
+      <div class="colorbar-labels" id="colorbarLabels"></div>
+    </div>
+    <div class="colorbar-unit" id="colorbarUnit">W/m²</div>
+    <p class="colorbar-isobar-note" id="isobarInterval"></p>
+  </div>
+
+  <div class="domain-indicators-container">
+    <span class="domain-label">Domínios:</span>
+    <div class="domain-buttons-group">
+      <button type="button" class="domain-btn active" aria-pressed="true" data-domain="D01" data-zoom="5.5">D01</button>
+<button type="button" class="domain-btn" aria-pressed="false" data-domain="D02" data-zoom="7">D02</button>
+<button type="button" class="domain-btn" aria-pressed="false" data-domain="D03" data-zoom="9">D03</button>
+<button type="button" class="domain-btn" aria-pressed="false" data-domain="D04" data-zoom="12">D04</button>
+    </div>
+  </div>
+
+  <div class="controls-container">
+    <div class="slider-wrapper">
+      <label for="layerSlider">Hora:</label>
+      <input
+        type="range"
+        id="layerSlider"
+        aria-describedby="layerSliderTimezoneNote"
+        min="1"
+        max="24"
+        step="1"
+        value="24"
+      />
+      <div class="slider-time-container">
+        <span class="slider-time" id="layerLabel">Carregando...</span>
+        <i
+          class="fas fa-question-circle slider-helper-icon"
+          aria-hidden="true"
+          title="Horários convertidos das saídas WRF para Horário local (UTC−03)."
+        ></i>
+        <span class="visually-hidden" id="layerSliderTimezoneNote">Horários convertidos das saídas WRF para Horário local (UTC−03).</span>
+      </div>
+    </div>
+
+    <div class="buttons-group">
+      <button type="button" class="control-btn" id="playPauseBtn" title="Reproduzir/Pausar"><i class="fas fa-play" aria-hidden="true"></i> Play</button>
+      <button type="button" class="control-btn" id="clipStateBtn" title="Clipar/Recortar Estado" style="display: none">
+        <i class="fas fa-map" aria-hidden="true"></i> Clip
+      </button>
+    </div>
+
+    <div class="variable-selector-wrapper">
+      <label for="variableSelect">Variável:</label>
+      <select id="variableSelect" class="variable-select">
+        <!-- Filled at runtime by map-manager (configureVariableSelect). -->
+        <option disabled selected>Carregando…</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="segmented-selector" id="heightSelector" role="group" aria-label="Altura (m)">
+    <span class="segmented-selector-title">Altura (m):</span>
+    <div class="segmented-button-group">
+      <button type="button" class="segmented-btn height-btn active" aria-pressed="true" data-height="50">50</button>
+      <button type="button" class="segmented-btn height-btn" aria-pressed="false" data-height="100">100</button>
+      <button type="button" class="segmented-btn height-btn" aria-pressed="false" data-height="150">150</button>
+    </div>
+  </div>
+
+  <!-- Filled by map-manager (configureAccumulationSelector); hidden entirely for
+       variables that declare no accumulation window. -->
+  <div class="segmented-selector" id="accumSelector" role="group" aria-label="Janela de acumulado">
+    <span class="segmented-selector-title" id="accumSelectorTitle">Acumulado:</span>
+    <div class="segmented-button-group" id="accumButtonGroup"></div>
+  </div>
+
+  <div class="wind-layer-toggle" id="windLayerToggle">
+    <label title="Vetores de Vento">
+      <input type="checkbox" id="windLayerCheckbox" class="visually-hidden" />
+      <i class="fas fa-arrows-alt" aria-hidden="true"></i>
+      <span class="wind-toggle-text">Vetores de Vento</span>
+    </label>
+  </div>
+
+  <div class="wind-layer-toggle isobar-layer-toggle" id="isobarLayerToggle">
+    <label title="Isóbaras ao nível do mar">
+      <input type="checkbox" id="isobarLayerCheckbox" class="visually-hidden" />
+      <i class="fas fa-water" aria-hidden="true"></i>
+      <span class="wind-toggle-text">Isóbaras ao nível do mar</span>
+    </label>
+  </div>
+
+  <div class="documentation-btn-container">
+    <button type="button" class="documentation-btn" id="docBtn" title="Abrir Documentação">
+      <i class="fas fa-question-circle" aria-hidden="true"></i>
+      <span class="documentation-btn-label">Documentação</span>
+    </button>
+  </div>
+
+  <section class="variable-overview-panel is-collapsed" id="variableOverviewPanel" aria-label="Resumo das variáveis">
+    <div class="variable-overview-header">
+      <div>
+        <span class="variable-overview-kicker">Médias Anuais</span>
+        <h2>Sobre as variáveis</h2>
+      </div>
+      <button type="button" class="variable-overview-toggle" id="variableOverviewToggle" title="Ver detalhes">
+        <i class="fas fa-chevron-down" aria-hidden="true"></i>
+        <span>Ver detalhes</span>
+      </button>
+    </div>
+    <div class="variable-overview-body">
+      <div class="variable-card-grid" id="variableCardsGrid"></div>
+      <div class="variable-preview-card">
+        <div class="variable-preview-header">
+          <div>
+            <span class="variable-preview-label" id="variablePreviewLabel">Resumo visual</span>
+            <h3 id="variablePreviewTitle">Selecione uma variável</h3>
+          </div>
+          <span class="variable-preview-domain" id="variablePreviewDomain">S/SE/NE</span>
+        </div>
+        <div class="variable-preview-stats" id="variablePreviewStats"></div>
+        <div class="variable-preview-chart">
+          <canvas id="variablePreviewCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div
+    class="documentation-modal"
+    id="documentationModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="documentationModalTitle"
+  >
+    <div class="documentation-content">
+      <div class="documentation-header">
+        <h2 id="documentationModalTitle">Documentação - Médias Anuais</h2>
+        <button type="button" class="documentation-close" id="docCloseBtn" aria-label="Fechar documentação">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <div class="documentation-tabs" role="tablist" aria-label="Seções da documentação">
+        <button type="button" class="doc-tab active" role="tab" id="docTab-overview" aria-selected="true" tabindex="0" aria-controls="docPanel-overview" data-tab="overview"><i class="fas fa-map" aria-hidden="true"></i> Visão Geral</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-features" aria-selected="false" tabindex="-1" aria-controls="docPanel-features" data-tab="features"><i class="fas fa-cogs" aria-hidden="true"></i> Funcionalidades</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-variables" aria-selected="false" tabindex="-1" aria-controls="docPanel-variables" data-tab="variables"><i class="fas fa-chart-bar" aria-hidden="true"></i> Variáveis</button>
+        <button type="button" class="doc-tab" role="tab" id="docTab-wrf" aria-selected="false" tabindex="-1" aria-controls="docPanel-wrf" data-tab="wrf"><i class="fas fa-database" aria-hidden="true"></i> Dados WRF</button>
+      </div>
+
+      <div class="documentation-body">
+                <div class="doc-tab-content active" role="tabpanel" id="docPanel-overview" aria-labelledby="docTab-overview" tabindex="0" data-tab="overview">
+          <h3>Médias Anuais do WRF — LEAL / UFES</h3>
+          <div class="doc-warning">
+            <strong><i class="fas fa-exclamation-triangle doc-warning-icon" aria-hidden="true"></i>ATENÇÃO:</strong><br />
+            Os produtos aqui divulgados são resultados das pesquisas científicas desenvolvidas pelos laboratórios
+            associados. Não há nenhum compromisso quanto à confiabilidade das médias, isentando os pesquisadores
+            participantes e suas respectivas instituições, de qualquer responsabilidade por danos causados pela
+            utilização indevida e não autorizada por parte de terceiros.
+          </div>
+          <p>
+            Este mapa interativo mostra <strong>médias das saídas do modelo WRF</strong> ao longo de um ano, hora a hora.
+            Cada passo do controle de tempo é uma média, não um instante:
+          </p>
+          <ul class="doc-list">
+            <li>
+              <strong>00h a 23h:</strong> média da hora local indicada sobre todos os dias do ano que têm dados. O
+              passo 14h, por exemplo, é a média de todas as saídas das 14h locais.
+            </li>
+            <li><strong>Todas as horas:</strong> média de todas as horas com dados, sem separar a hora do dia.</li>
+          </ul>
+          <p>
+            O painel <strong>Cobertura das médias</strong> diz de onde vêm os dados publicados: a fonte e a região das
+            rodadas, as rodadas incluídas, quantos dias entram na média e quantas horas compõem o passo exibido.
+            Enquanto o ano não está completo, o painel mostra o aviso <strong>ano incompleto</strong>: a média
+            representa só os dias cobertos, e não o ano inteiro.
+          </p>
+          <h4>Interface Principal</h4>
+          <ul class="doc-list">
+            <li><strong>Mapa Principal:</strong> Exibe a grade do modelo com a média codificada por cores</li>
+            <li><strong>Barra de Cores:</strong> Mostra a escala de valores da variável selecionada (esquerda)</li>
+            <li><strong>Domínios:</strong> Alternam entre as grades publicadas no manifesto das médias</li>
+            <li><strong>Controles Inferiores:</strong> Hora do dia, variável e altura do vento</li>
+            <li><strong>Painel de Detalhes:</strong> Valor da média na célula clicada (lado direito)</li>
+          </ul>
+        </div>
+
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-features" aria-labelledby="docTab-features" tabindex="0" data-tab="features">
+          <h3>Funcionalidades Principais</h3>
+
+          <h4>⏱️ Hora do Dia</h4>
+          <p>
+            O slider percorre as 24 horas locais do dia e termina em <strong>Todas as horas</strong>. A página abre na
+            média de todas as horas. Horas em Horário local (UTC−03).
+          </p>
+          <ul class="doc-list">
+            <li><strong>Play/Pause:</strong> Percorre o ciclo diário médio, de 00h até Todas as horas</li>
+          </ul>
+
+          <h4>🔍 Navegação do Mapa</h4>
+          <ul class="doc-list">
+            <li><strong>Zoom:</strong> Role do mouse ou use os botões + e - no mapa</li>
+            <li><strong>Deslocamento:</strong> Arraste o mapa com o mouse</li>
+            <li>
+              <strong>Domínios:</strong> Os botões levam os rótulos publicados no manifesto das médias, e o mapa se
+              enquadra na grade de cada domínio
+            </li>
+          </ul>
+
+          <h4>🌬️ Altura do Vento</h4>
+          <ul class="doc-list">
+            <li>
+              <strong>Seletor de Altura:</strong> Com o potencial eólico selecionado, escolha a média da velocidade do
+              vento a 50 m, 100 m ou 150 m.
+            </li>
+          </ul>
+
+          <h4>🏷️ Clique nas Células</h4>
+          <ul class="doc-list">
+            <li>Clique em qualquer célula do mapa para ver a média daquele ponto</li>
+            <li>O painel lateral mostra a localização, o valor, a hora do passo e quantas horas entram na média</li>
+            <li>
+              As estimativas derivadas das páginas de previsão (sensação térmica, rajada, produção de energia) não
+              aparecem aqui: aplicadas a uma média, elas não descrevem nenhum instante real
+            </li>
+          </ul>
+        </div>
+
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-variables" aria-labelledby="docTab-variables" tabindex="0" data-tab="variables">
+          <h3>Variáveis das Médias</h3>
+          <p class="doc-muted-copy">
+            Entram nas médias só as grandezas cuja média no tempo tem significado físico direto. Razões, como o índice
+            de claridade, e acumulados, como a precipitação, ficam de fora.
+          </p>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>🌡️ Temperatura 2m (TEMP)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: °C</span>
+                <span class="doc-var-badge">JSON id: TEMP</span>
+                <span class="doc-var-badge">Fonte WRF: T2</span>
+              </div>
+              <p>Média da temperatura do ar a 2 metros na hora local do passo.</p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💧 Umidade Relativa 2m (RH2)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: %</span>
+                <span class="doc-var-badge">JSON id: RH2</span>
+                <span class="doc-var-badge">Fonte: Q2 + T2 + PSFC</span>
+              </div>
+              <p>
+                Média da umidade relativa de cada saída. Não é a umidade relativa calculada com a temperatura e a
+                umidade específica médias, que daria outro número.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💧 Umidade Específica 2m (VAPOR)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: g/kg</span>
+                <span class="doc-var-badge">JSON id: VAPOR</span>
+                <span class="doc-var-badge">Fonte WRF: Q2</span>
+              </div>
+              <p>Média do vapor d'água a 2 metros.</p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>📉 Pressão à Superfície (PRES)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: hPa</span>
+                <span class="doc-var-badge">JSON id: PRES</span>
+                <span class="doc-var-badge">Fonte WRF: PSFC</span>
+              </div>
+              <p>
+                Média da pressão à superfície, sem redução ao nível do mar. O campo acompanha o relevo: as serras
+                aparecem com pressão mais baixa que o litoral.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>🌬️ Vento 10m (WIND)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: m/s</span>
+                <span class="doc-var-badge">JSON id: WIND</span>
+                <span class="doc-var-badge">Fonte WRF: U10 + V10</span>
+              </div>
+              <p>
+                Média da velocidade do vento a 10 metros. É a média do módulo de cada saída, e não o módulo do vento
+                médio: ventos de direções opostas não se anulam. Por isso a página não desenha vetores de vento.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>☀️ Radiação Global (SWDOWN)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: W/m²</span>
+                <span class="doc-var-badge">JSON id: SWDOWN</span>
+                <span class="doc-var-badge">Fonte WRF: SWDOWN</span>
+              </div>
+              <p>
+                Média do fluxo de onda curta incidente na superfície. As horas da noite entram com o valor físico zero,
+                então o passo <strong>Todas as horas</strong> é a irradiância média das 24 horas do dia, e não a média só
+                das horas de sol.
+              </p>
+              <p>
+                O <code>SWDOWN</code> é um fluxo instantâneo: cada hora do dia é a média dos fluxos daquele horário, e
+                não a média da energia recebida ao longo da hora.
+              </p>
+            </div>
+          </details>
+
+          <details class="doc-var-card doc-var-details">
+            <summary><h4>💨 Potencial Eólico (POT_EOLICO_50M / 100M / 150M)</h4></summary>
+            <div class="doc-var-detail-body">
+              <div class="doc-var-meta">
+                <span class="doc-var-badge">Unidade: m/s</span>
+                <span class="doc-var-badge">JSON id: POT_EOLICO_50M / POT_EOLICO_100M / POT_EOLICO_150M</span>
+              </div>
+              <p>
+                Média da velocidade do vento interpolada para 50, 100 e 150 m de altura, com a mesma interpolação
+                vertical das páginas de previsão. A potência de uma turbina depende do cubo da velocidade, então ela
+                não pode ser calculada a partir desta média.
+              </p>
+            </div>
+          </details>
+        </div>
+
+        <div class="doc-tab-content" role="tabpanel" id="docPanel-wrf" aria-labelledby="docTab-wrf" tabindex="0" data-tab="wrf">
+          <h3>Origem dos Dados — Médias do WRF</h3>
+
+          <div class="doc-var-card">
+            <h4>Como as médias são calculadas</h4>
+            <ul class="doc-list">
+              <li>
+                <strong>Rodadas:</strong> cada rodada contribui com as suas primeiras 24 horas, de modo que
+                rodadas diárias consecutivas cobrem cada hora do ano uma vez só. As rodadas incluídas aparecem no painel
+                de cobertura.
+              </li>
+              <li>
+                <strong>Hora local:</strong> cada saída entra na hora local em que é válida, na mesma convenção de
+                horário das páginas de previsão.
+              </li>
+              <li>
+                <strong>Média por célula:</strong> soma dos valores dividida pelo número de horas com dado naquela
+                célula. Uma célula sem nenhuma hora fica sem cor.
+              </li>
+              <li>
+                <strong>Escala de cores:</strong> a mesma nos 25 passos de uma variável, para que as horas do dia
+                possam ser comparadas.
+              </li>
+              <li>
+                <strong>Ano completo:</strong> quando todas as horas de todos os dias do ano entraram na média. Até lá,
+                o painel mostra o aviso de ano incompleto.
+              </li>
+            </ul>
+
+            <h4>Grade e domínios</h4>
+            <p>
+              Cada ano publica a própria grade, a mesma em que as médias foram acumuladas. A região coberta é a das
+              rodadas que entraram na média, informada pela fonte no painel de cobertura, e pode ser diferente da
+              região das previsões publicadas neste site.
+            </p>
+
+            <h4>Pipeline de Dados</h4>
+            <p>
+              Os arquivos são gerados pelo pipeline Python do micrometeorology (<code>mm-wrf-means</code>), a partir
+              das mesmas saídas NetCDF que alimentam as previsões. O manifesto <code>manifest.json</code> descreve os
+              anos, os domínios, as variáveis e a cobertura de cada domínio.
+            </p>
+          </div>
+
+          <div class="doc-var-card">
+            <h4>Limitações e Considerações</h4>
+            <ul class="doc-list">
+              <li>
+                Um ano incompleto não é uma climatologia: com poucas semanas de dados, a média reflete o tempo daquelas
+                semanas e a estação do ano em que caíram.
+              </li>
+              <li>
+                A média herda os vieses do modelo. Um viés sistemático de temperatura, vento ou radiação não se cancela
+                na média; só a variação de um dia para outro diminui.
+              </li>
+              <li>A média usa só as primeiras 24 horas de cada rodada; os horizontes mais longos não entram.</li>
+            </ul>
+          </div>
+        </div>
+</div>
+</div>
+</div>
+</div>
+<!-- sem fechar dessa forma o append fica dentro do conteúdo documental -->
+
+
+<div class="controls-container custom-controls">
+  <!-- Seu novo HTML de controles aqui -->
+ <div class="variable-selector-wrapper">
+      <label for="variableSelect">Variável:</label>
+      <select id="variableSelect" class="variable-select">
+        <!-- Filled at runtime by map-manager (configureVariableSelect). -->
+        <option disabled selected>Carregando…</option>
+      </select>
+    </div>
+    <div class="variable-selector-wrapper">
+      <label for="secondaryVariableSelect">Ano:</label>
+      <select id="secondaryVariableSelect" class="variable-select">
+        <!-- Filled at runtime by map-manager (configureVariableSelect). -->
+        <option disabled selected>Carregando…</option>
+      </select>
+    </div>
+</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div
+  class="chart-modal-overlay"
+  id="timeSeriesModal"
+  style="display: none"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="timeSeriesModalTitle"
+>
+  <div class="chart-modal-content">
+    <div class="chart-modal-header">
+      <h2 id="timeSeriesModalTitle">Série Temporal</h2>
+      <div class="chart-modal-actions">
+        <button type="button"
+          class="chart-export-btn btn btn-sm btn-outline-lab"
+          id="timeSeriesExportBtn"
+          title="Exportar CSV"
+        >
+          <i class="fas fa-download" aria-hidden="true"></i> CSV
+        </button>
+        <button type="button" class="chart-modal-close" id="timeSeriesCloseBtn" title="Fechar" aria-label="Fechar série temporal">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+    <div class="chart-modal-body">
+      <div id="timeSeriesLoadingOverlay" class="chart-loading-overlay" style="display: none">
+        <div class="spinner-border text-primary chart-loading-spinner" role="status">
+          <span class="visually-hidden">Carregando...</span>
+        </div>
+        <div class="chart-loading-message">Carregando dados...</div>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="chartCanvasValue"></canvas>
+      </div>
+      <div id="chartContainerEnergy" class="chart-container chart-container-secondary">
+        <canvas id="chartCanvasEnergy"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Inlined by the build from src/template/references.js. It goes out as JSON
+ rather than JavaScript so the CSP needs no exception. -->
+<script type="application/json" id="siteReferences">{"wrf":{"short":"Skamarock et al., 2019","citation":"Skamarock, W. C. et al. (2019). A Description of the Advanced Research WRF Model Version 4. NCAR Technical Note NCAR/TN-556+STR. Documentação oficial do modelo usado nestas previsões.","url":"https://doi.org/10.5065/1dfh-6p97"},"gfs":{"short":"GFS/NCEP","citation":"Global Forecast System (GFS), National Centers for Environmental Prediction, NOAA. Modelo global que fornece as condições iniciais e de contorno destas simulações.","url":"https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast"},"rrtmg":{"short":"Iacono et al., 2008","citation":"Iacono, M. J., Delamere, J. S., Mlawer, E. J., Shephard, M. W., Clough, S. A. & Collins, W. D. (2008). Radiative forcing by long-lived greenhouse gases: calculations with the AER radiative transfer models. Journal of Geophysical Research 113, D13103. O esquema RRTMG.","url":"https://search.crossref.org/search/works?q=Radiative%20forcing%20by%20long-lived%20greenhouse%20gases%20AER%20radiative%20transfer%20models&from_ui=yes"},"rrtm":{"short":"Mlawer et al., 1997","citation":"Mlawer, E. J., Taubman, S. J., Brown, P. D., Iacono, M. J. & Clough, S. A. (1997). Radiative transfer for inhomogeneous atmospheres: RRTM, a validated correlated-k model for the longwave. Journal of Geophysical Research 102(D14), 16663-16682. O esquema RRTM de onda longa.","url":"https://doi.org/10.1029/97JD00237"},"wsm3":{"short":"Hong, Dudhia e Chen, 2004","citation":"Hong, S.-Y., Dudhia, J. & Chen, S.-H. (2004). A revised approach to ice microphysical processes for the bulk parameterization of clouds and precipitation. Monthly Weather Review 132(1), 103-120. O esquema WSM3.","url":"https://doi.org/10.1175/1520-0493(2004)132%3C0103:ARATIM%3E2.0.CO;2"},"noah":{"short":"Chen e Dudhia, 2001","citation":"Chen, F. & Dudhia, J. (2001). Coupling an advanced land surface-hydrology model with the Penn State-NCAR MM5 modeling system. Part I: model implementation and sensitivity. Monthly Weather Review 129(4), 569-585. O modelo de superfície Noah.","url":"https://doi.org/10.1175/1520-0493(2001)129%3C0569:CAALSH%3E2.0.CO;2"},"bmj":{"short":"Janjic, 1994","citation":"Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), 927-945. O esquema Betts-Miller-Janjić de cumulus.","url":"https://doi.org/10.1175/1520-0493(1994)122%3C0927:TSMECM%3E2.0.CO;2"},"thompson":{"short":"Thompson et al., 2008","citation":"Thompson, G., Field, P. R., Rasmussen, R. M. & Hall, W. D. (2008). Explicit forecasts of winter precipitation using an improved bulk microphysics scheme. Part II: implementation of a new snow parameterization. Monthly Weather Review 136(12), 5095-5115.","url":"https://search.crossref.org/search/works?q=Explicit%20forecasts%20of%20winter%20precipitation%20improved%20bulk%20microphysics%20scheme%20Part%20II&from_ui=yes"},"wsm6":{"short":"Hong e Lim, 2006","citation":"Hong, S.-Y. & Lim, J.-O. J. (2006). The WRF single-moment 6-class microphysics scheme (WSM6). Journal of the Korean Meteorological Society 42(2), 129-151.","url":"https://www.semanticscholar.org/paper/f6014c7853ea15270114b4f1bfec2e64559e63dd"},"ysu":{"short":"Hong, Noh e Dudhia, 2006","citation":"Hong, S.-Y., Noh, Y. & Dudhia, J. (2006). A new vertical diffusion package with an explicit treatment of entrainment processes. Monthly Weather Review 134(9), 2318-2341. O esquema YSU.","url":"https://search.crossref.org/search/works?q=A%20new%20vertical%20diffusion%20package%20with%20an%20explicit%20treatment%20of%20entrainment%20processes&from_ui=yes"},"myj":{"short":"Janjic, 1994","citation":"Janjic, Z. I. (1994). The step-mountain eta coordinate model: further developments of the convection, viscous sublayer, and turbulence closure schemes. Monthly Weather Review 122(5), 927-945. O esquema MYJ de camada limite.","url":"https://search.crossref.org/search/works?q=step-mountain%20eta%20coordinate%20model%20further%20developments%20convection%20viscous%20sublayer&from_ui=yes"},"noahmp":{"short":"Niu et al., 2011","citation":"Niu, G.-Y. et al. (2011). The community Noah land surface model with multiparameterization options (Noah-MP): 1. Model description and evaluation with local-scale measurements. Journal of Geophysical Research 116, D12109.","url":"https://doi.org/10.1029/2010JD015139"},"kainfritsch":{"short":"Kain, 2004","citation":"Kain, J. S. (2004). The Kain-Fritsch convective parameterization: an update. Journal of Applied Meteorology 43(1), 170-181.","url":"https://search.crossref.org/search/works?q=The%20Kain-Fritsch%20convective%20parameterization%20an%20update&from_ui=yes"},"escobedo":{"short":"Escobedo et al., 2009","citation":"Escobedo, J. F., Gomes, E. N., Oliveira, A. P. & Soares, J. (2009). Modeling hourly and daily fractions of UV, PAR and NIR to global solar radiation under various sky conditions at Botucatu, Brazil. Applied Energy 86(3), 299-309. Define as quatro condições de céu por faixas do índice de claridade.","url":"https://doi.org/10.1016/j.apenergy.2008.04.013"},"teramoto":{"short":"Teramoto e Escobedo, 2012","citation":"Teramoto, E. T. & Escobedo, J. F. (2012). Análise da frequência anual das condições de céu em Botucatu, São Paulo. Revista Brasileira de Engenharia Agrícola e Ambiental 16(9), 985-992. Fonte da nomenclatura em português das quatro condições de céu.","url":"https://doi.org/10.1590/S1415-43662012000900009"},"marquesfilho":{"short":"Marques Filho et al., 2016","citation":"Marques Filho, E. P., Oliveira, A. P., Vita, W. A., Mesquita, F. L. L., Codato, G., Escobedo, J. F., Cassol, M. & França, J. R. A. (2016). Global, diffuse and direct solar radiation at the surface in the city of Rio de Janeiro: observational characterization and empirical modeling. Renewable Energy 91, 64-74. A sigmoide ajustada a médias horárias no Rio de Janeiro, função apenas do índice de claridade.","url":"https://doi.org/10.1016/j.renene.2016.01.040"},"lemos":{"short":"Lemos et al., 2017","citation":"Lemos, L. F. L., Starke, A. R., Boland, J., Cardemil, J. M., Machado, R. D. & Colle, S. (2017). Assessment of solar radiation components in Brazil using the BRL model. Renewable Energy 108, 569-580. O reajuste brasileiro do modelo BRL sobre nove estações do SONDA/INPE; a página usa os coeficientes horários da Tabela 4.","url":"https://doi.org/10.1016/j.renene.2017.02.077"},"ridley":{"short":"Ridley, Boland e Lauret, 2010","citation":"Ridley, B., Boland, J. & Lauret, P. (2010). Modelling of diffuse solar fraction with multiple predictors. Renewable Energy 35(2), 478-483. O modelo BRL original: logística no índice de claridade horário, hora solar aparente, elevação solar, índice de claridade diário e persistência.","url":"https://doi.org/10.1016/j.renene.2009.07.018"},"prata1996":{"short":"Prata, 1996","citation":"Prata, A. J. (1996). A new long-wave formula for estimating downward clear-sky radiation at the surface. Quarterly Journal of the Royal Meteorological Society 122(533), 1127-1151. A emissividade de céu limpo em função da temperatura e do vapor d'água junto à superfície.","url":"https://doi.org/10.1002/qj.49712253306"},"herrero2012":{"short":"Herrero e Polo, 2012","citation":"Herrero, J. & Polo, M. J. (2012). Parameterization of atmospheric longwave emissivity in a mountainous site for all sky conditions. Hydrology and Earth System Sciences 16(9), 3139-3147. Medidas de uma estação a 2.500 m de altitude na Sierra Nevada, Espanha.","url":"https://doi.org/10.5194/hess-16-3139-2012"},"codata2018":{"short":"CODATA 2018","citation":"CODATA Internationally Recommended Values of the Fundamental Physical Constants (ajuste de 2018), NIST. Fonte da constante de Stefan-Boltzmann usada nas derivações desta página.","url":"https://physics.nist.gov/cuu/Constants/"}}</script>
+<!-- Replaces the [[key]] markers with links. Must come before each page's own
+ scripts: the climatology page uses window.labmimReferences. -->
+<script defer src="assets/js/references.js?v=23573fee"></script>
+
+
+    <script src="assets/js/variables-config.js?v=d30a1676" defer></script>
+    <script src="assets/js/data-service.js?v=79d3e602" defer></script>
+    <script src="assets/js/charts-manager.js?v=c02b6564" defer></script>
+    <script src="assets/js/map-manager.js?v=e1dcecc0" defer></script>
+    <script src="assets/js/map-init.js?v=8a0acd6d" defer></script>
+  </body>
+</html>

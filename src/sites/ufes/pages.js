@@ -41,6 +41,9 @@ module.exports = [
       description:
         "LEAL — Médias Anuais: médias por hora local das saídas do modelo WRF ao longo do ano, com a cobertura e a origem das rodadas declaradas no mapa.",
     },
+   append: [siteSource("fragments/controls.html")],
+    styles: [siteSource("styles/medias-anuais.css")],
+    
   }),
   page("climatology", {
     vendorScripts: ["assets/vendor/chartjs/chart.min.js?v=3.9.1"],
