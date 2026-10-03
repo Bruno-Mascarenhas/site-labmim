@@ -636,7 +636,7 @@ Ferramentas de desenvolvimento (em `package.json`, ver também `.nvmrc` = Node 2
 - Prettier 3.9 (também roda dentro de `npm run build`; os templates HTML em `src/` ficam fora por conterem tokens `{{...}}`).
 - html-validate 11 (`lint:html`, config em `.htmlvalidate.json`) e linkinator (`lint:links`, só links internos).
 - Guards de arquitetura/assets: `scripts/check-site-themes.mjs` (`lint:themes`), `scripts/check-fa-subset.mjs` (`lint:icons`) e `scripts/check-bootstrap-purge.mjs` (`lint:purge`); PurgeCSS (devDependency) regenera o CSS purgado com `scripts/purgecss.config.cjs`.
-- CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:themes`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm audit --audit-level=high`. Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, mensal, PRs agrupados num único grupo multi-ecossistema).
+- CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:themes`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm run check:audit` (`npm audit` que reprova em high ou critical, salvo advisory sem correção registrado com motivo e data de revisão em `scripts/audit-allowlist.json`). Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, mensal, PRs agrupados num único grupo multi-ecossistema).
 
 `make ci` roda os mesmos checks do CI do GitHub (`make lint` inclui `lint:themes`, `lint:icons` e `lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`.
 
@@ -744,7 +744,7 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 
 Use antes de merge/publicação:
 
-- `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm audit`.
+- `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm run check:audit`.
 - Servir `site/` por HTTP local (`make serve`).
 - Abrir páginas institucionais em desktop e mobile; alternar dark mode em cada página.
 - Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade do mapa de sensibilidade, cartão da previsão, linha do tempo, cartão do modelo, alternância das quatro condições, curva de referência, ampliação e CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.

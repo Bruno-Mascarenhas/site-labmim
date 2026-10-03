@@ -16,7 +16,7 @@ help:
 	@echo "  make format        - Formata o código fonte usando o Prettier (altera os arquivos)"
 	@echo "  make format-check  - Verifica a formatação do código fonte (usado no CI)"
 	@echo "  make fix           - Aplica automaticamente as correções do Prettier e dos linters"
-	@echo "  make audit         - Verifica vulnerabilidades nas dependências (npm audit)"
+	@echo "  make audit         - Verifica vulnerabilidades nas dependências (npm audit com allowlist)"
 	@echo "  make serve         - Serve o site localmente em http://localhost:8000"
 	@echo "  make lint-html     - Valida o HTML gerado (html-validate)"
 	@echo "  make lint-links    - Verifica links/assets internos (linkinator)"
@@ -69,7 +69,7 @@ fix:
 	npm run lint:css -- --fix
 
 audit:
-	npm audit --audit-level=high
+	npm run check:audit
 
 serve:
 	python3 -m http.server 8000 --directory site
