@@ -2165,6 +2165,59 @@ header.maps-header {
   color: var(--text-primary);
 }
 
+.annual-means-coverage {
+  position: absolute;
+  right: var(--map-overview-inset);
+  bottom: calc(var(--map-bar-height) + 28px);
+  z-index: var(--z-controls);
+  width: min(360px, calc(100% - var(--map-left-stack-clear) - 2 * var(--map-overview-inset)));
+  max-height: calc(100% - var(--map-overview-top) - var(--map-overview-header-height) - var(--map-bar-height) - 40px);
+  overflow-y: auto;
+  padding: 10px 14px;
+  border: 1px solid rgba(var(--hairline-rgb, 13, 43, 77), 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  color: #333;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.annual-means-coverage summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.annual-means-coverage-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #d1e7dd;
+  color: #0f5132;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.annual-means-coverage-badge.is-incomplete {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.annual-means-coverage-body {
+  margin-top: 8px;
+}
+
+.annual-means-coverage-body p {
+  margin: 0 0 4px;
+}
+
+.annual-means-coverage-warning {
+  padding: 6px 8px;
+  font-size: inherit;
+  line-height: inherit;
+}
+
 .doc-var-details {
   padding: 0;
 }
@@ -2273,6 +2326,14 @@ header.maps-header {
 
   .variable-overview-panel.is-collapsed {
     width: auto;
+  }
+
+  .annual-means-coverage {
+    position: static;
+    order: 5;
+    width: auto;
+    max-height: none;
+    margin: 10px 10px 8px;
   }
 
   .variable-overview-body {

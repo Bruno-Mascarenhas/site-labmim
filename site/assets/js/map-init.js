@@ -46,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (getComputedStyle(app.ui.sidebar).position === "static") {
         app.ui.sidebar.querySelector(".sidebar-header").scrollIntoView({ block: "nearest", behavior: "instant" });
       }
+      if (!app.hasFeature("seriesModal")) return;
       chartsManager.openModal();
     } else if (!chartsManager.isModalOpen()) {
       return;

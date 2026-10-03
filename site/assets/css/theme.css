@@ -184,6 +184,7 @@ input:focus-visible {
 .dark-theme .segmented-selector,
 .dark-theme .colorbar-container,
 .dark-theme .domain-indicators-container,
+.dark-theme .annual-means-coverage,
 .dark-theme .parameters-editor {
   background: var(--bg-secondary) !important;
   border-color: var(--border-color) !important;

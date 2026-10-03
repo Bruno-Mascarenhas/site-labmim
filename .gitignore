@@ -51,6 +51,8 @@ site/Monitoramento/*
 # além de JSON. O .keep segue rastreado para o diretório existir sem os dados.
 site/Ceu/*
 !site/Ceu/.keep
+site/MediasAnuais/*
+!site/MediasAnuais/.keep
 # Configuração das rotinas de operação: nomeia a máquina e o usuário da estação,
 # que não vão para um repositório público. O exemplo versionado mostra os campos.
 scripts/operacao/operacao.env

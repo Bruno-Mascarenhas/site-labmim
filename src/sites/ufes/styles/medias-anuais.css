@@ -1,0 +1,14 @@
+/* Oculta a barra padrão do layout base */
+body.custom-controls-mode main > .controls-container:not(.custom-controls) {
+  display: none !important;
+}
+
+/* Novo container de controles */
+body.custom-controls-mode .controls-container.custom-controls {
+  display: flex !important;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
