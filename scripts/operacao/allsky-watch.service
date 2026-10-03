@@ -1,0 +1,17 @@
+# Unidade systemd --user do allsky-watch. @DIR_OPERACAO@ é trocado pelo caminho
+# absoluto de scripts/operacao na instalação (ver README.md); a configuração vem
+# do operacao.env, pelo allsky-watch.sh.
+# Sem linger (`loginctl enable-linger <usuario>`) o serviço para no logout.
+[Unit]
+Description=all-sky live frame scoring (allsky watch)
+
+[Service]
+Type=simple
+ExecStart=@DIR_OPERACAO@/allsky-watch.sh
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+MemoryMax=6G
+
+[Install]
+WantedBy=default.target

@@ -603,7 +603,7 @@ Nota: `.series.bin` fica deliberadamente **fora** das listas de compressão: o `
 
 ## Deploy Em Produção
 
-O deploy é manual e desacoplado: código e dados sobem separadamente. O que se publica é a saída de `npm run build -- --site=<id>` em `site/` ou o bundle correspondente em `dist/<id>/`. Regras aprendidas em produção:
+O deploy é desacoplado: código e dados sobem separadamente. O que se publica é a saída de `npm run build -- --site=<id>` em `site/` ou o bundle correspondente em `dist/<id>/`. No servidor da LabMiM/UFBA o upload é feito por `scripts/operacao/publica_site_ftp.sh`, que segue as regras abaixo: o site inteiro uma vez por dia e os dados do Monitoramento e do Céu logo depois de gerados (ver [Operação](scripts/operacao/README.md#publicação-por-ftp)). Regras aprendidas em produção:
 
 - **Publique o site completo junto do `.htaccess`.** Nunca suba o `.htaccess` sozinho sobre uma versão antiga do site: a CSP `script-src 'self'` quebra qualquer página que ainda carregue CDN ou script inline.
 - **Ordem do upload FTP: `assets/` primeiro, `*.html` por último.** É o HTML que traz os `?v=` novos, e o hash de conteúdo está só na query string, não no nome do arquivo. Se uma página nova chegar antes do seu JS ou CSS, o visitante pede `map-manager.js?v=<novo>`, recebe os bytes antigos, e o navegador pode reutilizá-los sob a URL nova por até 24 h (1 ano, num vendor com token manual). Nesta ordem, a janela do upload só expõe HTML antigo com asset novo, e isso se desfaz na primeira navegação depois que o HTML sobe, porque o HTML é `no-cache` e a URL do asset muda com ele.
@@ -636,7 +636,7 @@ Ferramentas de desenvolvimento (em `package.json`, ver também `.nvmrc` = Node 2
 - Prettier 3.9 (também roda dentro de `npm run build`; os templates HTML em `src/` ficam fora por conterem tokens `{{...}}`).
 - html-validate 11 (`lint:html`, config em `.htmlvalidate.json`) e linkinator (`lint:links`, só links internos).
 - Guards de arquitetura/assets: `scripts/check-site-themes.mjs` (`lint:themes`), `scripts/check-fa-subset.mjs` (`lint:icons`) e `scripts/check-bootstrap-purge.mjs` (`lint:purge`); PurgeCSS (devDependency) regenera o CSS purgado com `scripts/purgecss.config.cjs`.
-- CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:themes`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm audit --audit-level=high`. Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, mensal, PRs agrupados num único grupo multi-ecossistema).
+- CI em `.github/workflows/ci.yml`: `build:check`, `lint:js`, `lint:css`, `lint:themes`, `lint:icons`, `lint:purge`, `format:check`, `lint:html`, `lint:links`, `npm run check:audit` (`npm audit` que reprova em high ou critical, salvo advisory sem correção registrado com motivo e data de revisão em `scripts/audit-allowlist.json`). Dependabot em `.github/dependabot.yml` (npm + GitHub Actions, mensal, PRs agrupados num único grupo multi-ecossistema).
 
 `make ci` roda os mesmos checks do CI do GitHub (`make lint` inclui `lint:themes`, `lint:icons` e `lint:purge`); o CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`.
 
@@ -744,7 +744,7 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 
 Use antes de merge/publicação:
 
-- `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm audit`.
+- `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm run check:audit`.
 - Servir `site/` por HTTP local (`make serve`).
 - Abrir páginas institucionais em desktop e mobile; alternar dark mode em cada página.
 - Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade do mapa de sensibilidade, cartão da previsão, linha do tempo, cartão do modelo, alternância das quatro condições, curva de referência, ampliação e CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
