@@ -82,4 +82,4 @@ jobs:
         run: npm run lint:links
 
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        run: npm run check:audit

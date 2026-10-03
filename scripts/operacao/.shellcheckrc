@@ -1,0 +1,2 @@
+# As rotinas carregam comum.sh (e ele o operacao.env) pelo caminho do próprio script.
+source-path=SCRIPTDIR

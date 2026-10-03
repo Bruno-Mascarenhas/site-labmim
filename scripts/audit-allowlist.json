@@ -1,0 +1,8 @@
+[
+  {
+    "advisory": "GHSA-vfj7-8cjw-p6xm",
+    "package": "braces",
+    "reason": "Nenhuma versão publicada do braces está fora do advisory (todas são <= 3.0.3; a correção está em micromatch/braces#72, sem release). Chega só como dependência de desenvolvimento, via micromatch, do stylelint e do purgecss, e os padrões de glob que recebe vêm da configuração versionada deste repositório, nunca de entrada externa.",
+    "reviewBy": "2026-11-03"
+  }
+]
