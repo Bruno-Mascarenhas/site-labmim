@@ -1,35 +1,35 @@
 <!doctype html>
-<html lang="pt-BR" data-publication="ufba" data-territory="ba">
+<html lang="pt-BR" data-publication="ufes" data-territory="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LEAL — Mapas Interativos WRF: visualização interativa de previsões meteorológicas do modelo WRF para o Espírito Santo."
     />
-    <title>LabMiM — Mapas Interativos WRF · UFBA</title>
+    <title>LEAL — Mapas Interativos WRF · UFES</title>
 
-    <link rel="canonical" href="https://labmim.if.ufba.br/mapas_interativos.html" />
+    <link rel="canonical" href="https://www.lealufes.org/mapas_interativos.html" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="LabMiM" />
-    <meta property="og:title" content="LabMiM — Mapas Interativos WRF · UFBA" />
+    <meta property="og:site_name" content="LEAL" />
+    <meta property="og:title" content="LEAL — Mapas Interativos WRF · UFES" />
     <meta
       property="og:description"
-      content="LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LEAL — Mapas Interativos WRF: visualização interativa de previsões meteorológicas do modelo WRF para o Espírito Santo."
     />
-    <meta property="og:url" content="https://labmim.if.ufba.br/mapas_interativos.html" />
-    <meta property="og:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+    <meta property="og:url" content="https://www.lealufes.org/mapas_interativos.html" />
+    <meta property="og:image" content="https://www.lealufes.org/assets/img/logo_leal.png" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LabMiM — Mapas Interativos WRF · UFBA" />
+    <meta name="twitter:title" content="LEAL — Mapas Interativos WRF · UFES" />
     <meta
       name="twitter:description"
-      content="LabMiM — Mapas Interativos WRF: visualização interativa de dados de previsão numérica do modelo WRF para Bahia. Laboratório de Micrometeorologia e Modelagem, UFBA."
+      content="LEAL — Mapas Interativos WRF: visualização interativa de previsões meteorológicas do modelo WRF para o Espírito Santo."
     />
-    <meta name="twitter:image" content="https://labmim.if.ufba.br/assets/img/logonova1.png" />
+    <meta name="twitter:image" content="https://www.lealufes.org/assets/img/logo_leal.png" />
 
     <link
       rel="icon"
@@ -56,11 +56,11 @@
     <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css?v=1.9.4" />
 
     <link rel="stylesheet" href="assets/css/base.css?v=bfb24568" />
-    <link rel="stylesheet" href="assets/css/site-theme.css?v=51e1d16d" />
+    <link rel="stylesheet" href="assets/css/site-theme.css?v=3840b38c" />
     <link rel="stylesheet" href="assets/css/layout.css?v=172e813e" />
     <link rel="stylesheet" href="assets/css/components.css?v=c8c52745" />
-    <link rel="stylesheet" href="assets/css/maps.css?v=50664a15" />
-    <link rel="stylesheet" href="assets/css/theme.css?v=f9e449d6" />
+    <link rel="stylesheet" href="assets/css/maps.css?v=75fb9a44" />
+    <link rel="stylesheet" href="assets/css/theme.css?v=01c9e4c7" />
 
     <script src="assets/js/theme-boot.js?v=fef91866"></script>
     <script src="assets/js/theme-toggle.js?v=b82be33e" defer></script>
@@ -71,7 +71,7 @@
          only consumer is map-manager.js; institutional pages skip the bytes. -->
     <meta
       name="site-config"
-      content='{"publicationId":"ufba","brandName":"LabMiM","territory":{"id":"ba","code":"BA","name":"Bahia"},"data":{"manifestPath":"JSON/manifest.json","valuesBase":"JSON","gridsBase":"GeoJSON","timeline":{"defaultMaxLayer":75,"initialIndex":7,"stepHours":1,"utcOffsetHours":-3}},"map":{"initialCenter":[-12.97,-38.5],"initialZoom":6,"fitBounds":null,"fitMaxZoom":7,"stateCode":"BA","stateName":"Bahia","boundaryAsset":"assets/data/br_ba.json","attribution":"LabMiM-UFBA","defaultDomain":"D01","domains":{"D01":{"label":"BA/NE","center":[-12.97,-38.5],"zoom":5.5},"D02":{"label":"BA","center":[-12.97,-38.5],"zoom":7},"D03":{"label":"RMS","center":[-12.97,-38.5],"zoom":9},"D04":{"label":"SSA","center":[-12.97,-38.5],"zoom":12}}},"vendor":{"chartJs":"assets/vendor/chartjs/chart.min.js?v=3.9.1"}}'
+      content='{"publicationId":"ufes","brandName":"LEAL","territory":{"id":"es","code":"ES","name":"Espírito Santo"},"data":{"manifestPath":"JSON/manifest.json","valuesBase":"JSON","gridsBase":"GeoJSON","timeline":{"defaultMaxLayer":72,"initialIndex":7,"stepHours":1,"utcOffsetHours":-3}},"map":{"initialCenter":[-19.6,-40.2],"initialZoom":6,"fitBounds":[[-21.3017,-41.8798],[-17.892,-39.666]],"fitMaxZoom":7,"stateCode":"ES","stateName":"Espírito Santo","boundaryAsset":"assets/data/br_es.json","attribution":"LEAL-UFES","defaultDomain":"D01","domains":{"D01":{"label":"S/SE/NE","center":[-20.3,-40.3],"zoom":5.5},"D02":{"label":"Sudeste","center":[-20.3,-40.3],"zoom":7},"D03":{"label":"ES","center":[-20.3,-40.3],"zoom":9},"D04":{"label":"Grande Vitória","center":[-20.3,-40.3],"zoom":12}}},"vendor":{"chartJs":"assets/vendor/chartjs/chart.min.js?v=3.9.1"}}'
     />
 
     <!-- Worker content hashes stamped by build.js; map-manager.js builds the
@@ -92,16 +92,14 @@
     <header class="maps-header">
       <nav class="navbar navbar-expand-lg navbar-dark bg-lab static-top" aria-label="Navegação principal">
         <a class="navbar-brand ms-4" href="index.html">
-          <picture
-            ><source srcset="assets/img/logonova1-nav.webp" type="image/webp" />
-            <img
-              loading="eager"
-              src="assets/img/logonova1-nav.png"
-              alt="LabMiM Logo"
-              width="250"
-              height="80"
-              class="brand-logo site-brand-logo"
-          /></picture>
+          <img
+            loading="eager"
+            src="assets/img/logo_leal.png"
+            alt="LEAL Logo"
+            width="176"
+            height="80"
+            class="brand-logo site-brand-logo"
+          />
         </a>
         <button
           class="navbar-toggler"
@@ -126,9 +124,11 @@
               >
             </li>
             <li class="nav-item me-2">
+              <a class="btn btn-outline-lab" href="medias_anuais.html" id="nav-medias-anuais">Médias Anuais</a>
+            </li>
+            <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="monitoring.html" id="nav-monitoring">Monitoramento</a>
             </li>
-            <li class="nav-item me-2"><a class="btn btn-outline-lab" href="ceu.html" id="nav-ceu">Céu</a></li>
             <li class="nav-item me-2">
               <a class="btn btn-outline-lab" href="climatologia.html" id="nav-climatologia">Climatologia</a>
             </li>
@@ -145,17 +145,13 @@
           >
             <i class="fas fa-moon" data-theme-icon aria-hidden="true"></i>
           </button>
-          <a href="https://cienam.ufba.br" target="_blank" rel="noopener" class="site-affiliation me-3"
-            ><picture
-              ><source srcset="assets/img/logo_cienam-nav.webp" type="image/webp" />
-              <img
-                loading="lazy"
-                src="assets/img/logo_cienam-nav.png"
-                alt="CIEnAm"
-                width="230"
-                height="80"
-                class="brand-logo-sm" /></picture
-          ></a>
+          <a
+            href="https://ct.ufes.br"
+            target="_blank"
+            rel="noopener"
+            class="site-affiliation me-3 site-affiliation-text"
+            ><span>Centro Tecnológico</span><small>UFES</small></a
+          >
         </div>
       </nav>
     </header>
@@ -171,16 +167,14 @@
       <div class="sidebar" id="sidebar">
         <div class="sidebar-logo-header">
           <a href="index.html" title="Voltar ao início">
-            <picture
-              ><source srcset="assets/img/logonova1-sidebar.webp" type="image/webp" />
-              <img
-                loading="lazy"
-                src="assets/img/logonova1-sidebar.png"
-                alt="LabMiM Logo"
-                width="720"
-                height="230"
-                class="brand-logo site-brand-logo"
-            /></picture>
+            <img
+              loading="lazy"
+              src="assets/img/logo_leal.png"
+              alt="LEAL Logo"
+              width="505"
+              height="230"
+              class="brand-logo site-brand-logo"
+            />
           </a>
         </div>
         <div class="sidebar-header">
@@ -212,11 +206,13 @@
         <span class="domain-label">Domínios:</span>
         <div class="domain-buttons-group">
           <button type="button" class="domain-btn active" aria-pressed="true" data-domain="D01" data-zoom="5.5">
-            BA/NE
+            S/SE/NE
           </button>
-          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D02" data-zoom="7">BA</button>
-          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D03" data-zoom="9">RMS</button>
-          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D04" data-zoom="12">SSA</button>
+          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D02" data-zoom="7">Sudeste</button>
+          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D03" data-zoom="9">ES</button>
+          <button type="button" class="domain-btn" aria-pressed="false" data-domain="D04" data-zoom="12">
+            Grande Vitória
+          </button>
         </div>
       </div>
 
@@ -228,7 +224,7 @@
             id="layerSlider"
             aria-describedby="layerSliderTimezoneNote"
             min="1"
-            max="75"
+            max="72"
             step="1"
             value="7"
           />
@@ -331,7 +327,7 @@
                 <span class="variable-preview-label" id="variablePreviewLabel">Resumo visual</span>
                 <h3 id="variablePreviewTitle">Selecione uma variável</h3>
               </div>
-              <span class="variable-preview-domain" id="variablePreviewDomain">BA/NE</span>
+              <span class="variable-preview-domain" id="variablePreviewDomain">S/SE/NE</span>
             </div>
             <div class="variable-preview-stats" id="variablePreviewStats"></div>
             <div class="variable-preview-chart">
@@ -416,7 +412,7 @@
               tabindex="0"
               data-tab="overview"
             >
-              <h3>Plataforma WebGIS de Previsão Meteorológica — LabMiM / UFBA</h3>
+              <h3>Plataforma WebGIS de Previsão Meteorológica — LEAL / UFES</h3>
               <div class="doc-warning">
                 <strong><i class="fas fa-exclamation-triangle doc-warning-icon" aria-hidden="true"></i>ATENÇÃO:</strong
                 ><br />
@@ -428,16 +424,16 @@
               <p>
                 Este mapa interativo apresenta dados de <strong>previsão numérica do tempo</strong> gerados pelo modelo
                 <strong>WRF (Weather Research and Forecasting)</strong>, permitindo visualizar variáveis meteorológicas
-                e potenciais energéticos em alta resolução espacial e temporal para a região da Bahia e entorno. Os
-                dados cobrem um horizonte de previsão de <strong>75 horas</strong>, com saídas horárias.
+                e potenciais energéticos em alta resolução espacial e temporal para a região do Espírito Santo e
+                entorno. Os dados cobrem um horizonte de previsão de <strong>72 horas</strong>, com saídas horárias.
               </p>
               <h4>Interface Principal</h4>
               <ul class="doc-list">
                 <li><strong>Mapa Principal:</strong> Exibe a grade do modelo com dados codificados por cores</li>
                 <li><strong>Barra de Cores:</strong> Mostra a escala de valores da variável selecionada (esquerda)</li>
                 <li>
-                  <strong>Indicador de Domínio:</strong> Exibe qual domínio amigável (BA/NE, BA, RMS ou SSA) está sendo
-                  visualizado
+                  <strong>Indicador de Domínio:</strong> Exibe qual domínio amigável (S/SE/NE, Sudeste, ES ou Grande
+                  Vitória) está sendo visualizado
                 </li>
                 <li><strong>Controles Inferiores:</strong> Manipulação de tempo, variáveis e camadas</li>
                 <li><strong>Painel de Detalhes:</strong> Informações de células ao clicar (lado direito)</li>
@@ -467,7 +463,10 @@
               <ul class="doc-list">
                 <li><strong>Zoom:</strong> Role do mouse ou use os botões + e - no mapa</li>
                 <li><strong>Deslocamento:</strong> Arraste o mapa com o mouse</li>
-                <li><strong>Domínios:</strong> Use os botões BA/NE, BA, RMS ou SSA para alternar entre os domínios</li>
+                <li>
+                  <strong>Domínios:</strong> Use os botões S/SE/NE, Sudeste, ES ou Grande Vitória para alternar entre os
+                  domínios
+                </li>
               </ul>
 
               <h4>💨 Vetores de Vento</h4>
@@ -512,20 +511,10 @@
                 estima a pressão que cada coluna de ar teria se descesse até o nível do mar — é o que torna serra e
                 litoral comparáveis na mesma escala. Sem ela, o desenho seria praticamente um mapa do relevo.
               </p>
-              <p>
-                Essa estimativa é uma ficção abaixo do solo e, sobre terreno alto, deixa um resíduo com ciclo diário:
-                medida no domínio de 9 km, a diferença de pressão entre a serra e o litoral oscila cerca de
-                <strong>2,0 hPa</strong> entre a madrugada e a tarde. A diferença média diária entre serra e litoral,
-                essa é real.
-              </p>
+
               <p>
                 Como os níveis são pressões absolutas, eles herdam o campo de massa da rodada: um deslocamento uniforme
-                da pressão média entre passos aparece como uma varredura de todas as linhas pelo mapa. Na rodada de 3 de
-                maio de 2026, que é a publicada aqui, a pressão média do domínio muda cerca de
-                <strong>2,8 hPa por hora</strong>, contra 0,20 hPa/h de uma rodada de controle e 0,59 hPa/h do barômetro
-                da estação. O deslocamento é espacialmente uniforme, aparece nos quatro domínios com a mesma fase e já
-                está na massa de ar seca prognóstica do modelo: entra pelas condições de contorno, e não pela redução ao
-                nível do mar, que responde por no máximo 1,4% do salto horário.
+                da pressão média entre passos aparece como uma varredura de todas as linhas pelo mapa.
               </p>
               <p>
                 Nenhuma escolha de intervalo corrige um deslocamento desse tipo — o que se move é o campo. Espaçamento
@@ -652,12 +641,9 @@
                   </p>
                   <p>
                     A série de uma célula, aberta ao clicar no mapa, mostra como a pressão ao nível do terreno varia ao
-                    longo da previsão. Na rodada publicada aqui, de 3 de maio de 2026, essa série é dominada pelo
-                    deslocamento do campo de massa descrito na aba Funcionalidades, cerca de 2,8 hPa por hora na média
-                    do domínio contra 0,59 hPa/h do barômetro da estação, e não deve ser lida como tendência local. Para
-                    sistemas meteorológicos e gradientes horizontais de pressão, use a sobreposição
-                    <strong>Isóbaras ao nível do mar</strong>, descrita na aba Funcionalidades. Ela não aparece sobre
-                    este campo: ative-a com o vento, a temperatura ou a chuva no mapa.
+                    longo da previsão. Para sistemas meteorológicos e gradientes horizontais de pressão, use a
+                    sobreposição <strong>Isóbaras ao nível do mar</strong>, descrita na aba Funcionalidades. Ela não
+                    aparece sobre este campo: ative-a com o vento, a temperatura ou a chuva no mapa.
                   </p>
                 </div>
               </details>
@@ -842,28 +828,21 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                     Parcela da radiação solar incidente devolvida pela superfície. O <code>wrfout</code> traz os fluxos
                     incidentes diretamente, mas os ascendentes na superfície só quando o esquema de radiação da banda os
                     grava, como faz o RRTMG: o <code>SWUPB</code> na onda curta e o <code>LWUPB</code> na onda longa. O
-                    RRTM de onda longa não grava o <code>LWUPB</code>. Nas rodadas operacionais de agosto de 2026,
-                    posteriores à publicada aqui, com RRTMG na onda curta e RRTM na onda longa, o
-                    <code>SWUPB</code> existe nos quatro domínios e o <code>LWUPB</code> em nenhum. Por isso o backend
-                    reconstrói os dois a partir de campos que toda rodada carrega, e cada termo sai da mesma fórmula em
-                    qualquer rodada.
+                    RRTM de onda longa não grava o <code>LWUPB</code>. Por isso o backend reconstrói os dois a partir de
+                    campos que toda rodada carrega, e cada termo sai da mesma fórmula em qualquer rodada.
                   </p>
                   <pre class="doc-formula"><code>SWUP = ALBEDO * SWDOWN</code></pre>
                   <p>
                     O albedo depende do uso do solo: água e vegetação densa refletem pouco, solo exposto e áreas urbanas
                     refletem mais. A faixa que o <code>VEGPARM.TBL</code> do WRF permite vai de 0,08 para água a 0,38
-                    para solo exposto. Nesta rodada os valores implícitos ficam entre 0,08 e 0,28, dentro dessa faixa.
+                    para solo exposto.
                   </p>
                   <p>
                     Com <code>SWINT_OPT = 0</code>, o <code>SWDOWN</code> e o <code>SWUPB</code> vêm da mesma chamada de
                     radiação, e <code>ALBEDO · SWDOWN</code> reproduz o <code>SWUPB</code> nas células que o próprio
                     domínio calcula. Quando o retorno dos ninhos está ligado (<code>FEEDBACK = 1</code>), na área
                     coberta por um domínio mais fino o <code>SWUPB</code> do domínio externo passa a ser a média do
-                    domínio interno, e o <code>SWDOWN</code> e o <code>ALBEDO</code> continuam os dele. Na rodada
-                    operacional de 8 de agosto de 2026, posterior à publicada aqui, com <code>SWINT_OPT = 0</code>,
-                    <code>RADT</code> = 30 min e <code>FEEDBACK = 1</code> nos quatro domínios, a diferença entre
-                    <code>ALBEDO · SWDOWN</code> e <code>SWUPB</code> fica abaixo de 0,001 W/m² fora da área dos ninhos
-                    e chega, dentro dela, a 126 W/m² no D01, 176 W/m² no D02 e 222 W/m² no D03. Reconstruir como
+                    domínio interno, e o <code>SWDOWN</code> e o <code>ALBEDO</code> continuam os dele. Reconstruir como
                     <code>ALBEDO · SWDOWN</code> mantém <code>SWUP</code>, <code>SWNET</code> e
                     <code>RNET</code> coerentes com o <code>SWDOWN</code> publicado. É publicada apenas na janela
                     diurna.
@@ -936,7 +915,7 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                     <code>raduemit + (1 − semis) · radld</code> e o <code>rtrnmc</code> do RRTMG como
                     <code>rad0 + reflect · radld</code>, ambos com a emissão <code>ε·B(Ts)</code> e a refletância
                     <code>1 − ε</code>; o ramo urbano do Noah a escreve por extenso. Descartar o termo refletido abriria
-                    o fechamento do balanço de energia. Nesta rodada, a abertura seria de cerca de 22 W/m².
+                    o fechamento do balanço de energia.
                   </p>
                   <p>
                     Cresce com a quarta potência da temperatura da superfície, então acompanha de perto o aquecimento
@@ -960,10 +939,7 @@ RAIN_STEP = RAIN_TOTAL(t) - RAIN_TOTAL(t-1)</code></pre>
                     limpo o céu, mais negativo — é esse resfriamento radiativo que explica as noites frias em ar seco.
                     Céu encoberto aproxima o saldo de zero.
                   </p>
-                  <p>
-                    Oke (1987) dá a faixa de 75 a 125 W/m² para o valor típico da perda. Nesta rodada o saldo é negativo
-                    em 99,5% a 99,9% das células de terra, com magnitude mediana de 53 a 61 W/m², abaixo dessa faixa.
-                  </p>
+                  <p>Oke (1987) dá a faixa de 75 a 125 W/m² para o valor típico da perda.</p>
                 </div>
               </details>
 
@@ -998,9 +974,7 @@ RNET = H + LE + G</code></pre>
                   </p>
                   <p>
                     O fechamento do balanço é o que valida os termos reconstruídos nas grades que não trazem
-                    <code>LWUPB</code>. Nesta rodada o WRF grava o <code>GRDFLX</code> positivo para cima, então
-                    <code>G = −GRDFLX</code>. Mediado sobre três dias inteiros nas células de terra, o resíduo
-                    <code>RNET − H − LE − G</code> fica entre −0,6 e −1,4 W/m² nos quatro domínios.
+                    <code>LWUPB</code>.
                   </p>
                 </div>
               </details>
@@ -1075,9 +1049,8 @@ RNET = H + LE + G</code></pre>
                     Sobe com a umidade e com a nebulosidade. O painel classifica acima de 0,90 como encoberto ou ar
                     muito úmido e abaixo de 0,80 como céu seco. A faixa do meio não separa céu limpo de céu com nuvens:
                     pela fórmula de [[prata1996]], com a temperatura e a umidade típicas do litoral tropical, a
-                    emissividade de céu limpo fica entre cerca de 0,84 e 0,88, dentro da faixa do meio. Nesta rodada,
-                    conforme o domínio, 71% a 93% das células que o <code>kt</code> classifica como céu limpo ficam
-                    entre 0,80 e 0,90. Como é uma razão, não tem unidade.
+                    emissividade de céu limpo fica entre cerca de 0,84 e 0,88, dentro da faixa do meio. Como é uma
+                    razão, não tem unidade.
                   </p>
                   <p>
                     A média de 0,68 em céu limpo, medida por [[herrero2012]], vem de uma estação a 2.500 m de altitude
@@ -1123,8 +1096,7 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     de 20° de elevação, calculada para o centro da célula no instante mostrado em
                     <strong>Cálculo da radiação</strong> ou, quando a rodada não o informa, na hora do passo, o painel
                     mostra um aviso de sol baixo no lugar da classe. Acima de 0,80 há pouquíssimas observações na
-                    literatura (Duffie &amp; Beckman). A rodada confirma: apenas 0,19% a 3,4% das células passam desse
-                    valor.
+                    literatura (Duffie &amp; Beckman).
                   </p>
                   <p>
                     Com o sol muito baixo o denominador tende a zero e o índice fica instável, então só é publicado
@@ -1278,23 +1250,23 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     progressiva:
                     <ul>
                       <li>
-                        <strong>Bahia/Nordeste — 27 km:</strong> Escala sinótica/regional. Cobre o Sul-Nordeste do
-                        Brasil (~1860×1860 km). Captura frentes, ciclones e massas de ar.
+                        <strong>Sul–Sudeste–Nordeste — 27 km:</strong> Escala sinótica/regional. Cobre o Sudeste, Goiás,
+                        a maior parte do Sul e o Nordeste até Pernambuco (~2670×2670 km). Representa frentes, ciclones e
+                        massas de ar.
                       </li>
                       <li>
-                        <strong>Centro-leste da Bahia — 9 km:</strong> Escala intermediária. Cobre o centro-leste da
-                        Bahia e parte dos estados vizinhos (~890×890 km). Cerca de um quarto do estado fica de fora: o
-                        Oeste Baiano, a oeste de ~43,6°W, e o extremo sul, ao sul de ~16,7°S. Para o estado inteiro, use
-                        o domínio de 27 km (BA/NE). Resolve convecção organizada e brisas de escala meso-α.
+                        <strong>Sudeste — 9 km:</strong> Escala intermediária. Cobre o Espírito Santo, o Rio de Janeiro,
+                        o leste de Minas Gerais e o extremo sul da Bahia (~890×890 km). Resolve sistemas de mesoescala,
+                        convecção organizada e circulações costeiras.
                       </li>
                       <li>
-                        <strong>Região Metropolitana de Salvador — 3 km:</strong> Escala local. Cobre a Região
-                        Metropolitana de Salvador e o Recôncavo (~300×300 km). A grade já resolve parte da convecção
-                        profunda, e a parametrização de cumulus continua ativa.
+                        <strong>Espírito Santo — 3 km:</strong> Escala estadual de alta resolução. Cobre a maior parte
+                        do Espírito Santo, sem o norte do estado a partir de São Mateus e Nova Venécia (~300×300 km), e
+                        permite resolver convecção profunda explicitamente (sem parametrização de cumulus).
                       </li>
                       <li>
-                        <strong>Salvador — 1 km:</strong> Alta resolução. Cobre Salvador e Região Metropolitana (~85×85
-                        km). Captura efeitos topográficos, brisa marítima e ilha de calor urbana.
+                        <strong>Região Metropolitana da Grande Vitória — 1 km:</strong> Maior detalhe espacial sobre a
+                        Grande Vitória. Captura efeitos costeiros, topográficos, brisa marítima e influências urbanas.
                       </li>
                     </ul>
                   </li>
@@ -1302,36 +1274,35 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     <strong>Dados de Entrada (Condições Iniciais e de Contorno):</strong> GFS (Global Forecast System)
                     da NOAA [[gfs]], resolução 0.25°, atualizações a cada 6h.
                   </li>
-                  <li><strong>Resolução Temporal:</strong> Saídas horárias (75 passos, até +75 h de previsão).</li>
+                  <li><strong>Resolução Temporal:</strong> Saídas horárias (72 passos, até +72 h de previsão).</li>
                   <li>
-                    <strong>Coordenadas Verticais:</strong> 30 níveis em coordenada híbrida sigma-pressão, com topo em
-                    50 hPa; metade deles no primeiro quilômetro acima do solo, para resolver a camada limite planetária
-                    (CLP).
+                    <strong>Coordenadas Verticais:</strong> ~40 níveis sigma, com maior concentração na camada limite
+                    planetária (CLP).
                   </li>
                 </ul>
 
                 <h4>Parametrizações Físicas</h4>
                 <ul class="doc-list">
                   <li>
-                    <strong>Radiação (RRTM [[rrtm]] na onda longa e RRTMG [[rrtmg]] na onda curta):</strong> Calcula os
-                    fluxos de radiação de onda curta e longa considerando a interação com nuvens e gases atmosféricos.
+                    <strong>Radiação (RRTMG [[rrtmg]]):</strong> Calcula os fluxos de radiação de onda curta e longa
+                    considerando a interação com nuvens e gases atmosféricos.
                   </li>
                   <li>
-                    <strong>Microfísica (WSM3 [[wsm3]]):</strong> Simula a formação e a evolução de nuvens e
-                    precipitação a partir do vapor d'água.
+                    <strong>Microfísica (Thompson [[thompson]] / WSM6 [[wsm6]]):</strong> Simula a formação e a evolução
+                    de nuvens e precipitação a partir do vapor d'água.
                   </li>
                   <li>
-                    <strong>Camada Limite Planetária (YSU [[ysu]]):</strong> Parametriza o transporte turbulento de
-                    calor, umidade e momento na CLP.
+                    <strong>Camada Limite Planetária (YSU [[ysu]] / MYJ [[myj]]):</strong> Parametriza o transporte
+                    turbulento de calor, umidade e momento na CLP.
                   </li>
                   <li>
-                    <strong>Superfície Terrestre (Noah [[noah]]):</strong> Modelo acoplado de solo e vegetação que
+                    <strong>Superfície Terrestre (Noah-MP [[noahmp]]):</strong> Modelo acoplado de solo e vegetação que
                     calcula fluxos de calor sensível e latente na interface superfície-atmosfera.
                   </li>
                   <li>
-                    <strong>Cumulus (Betts-Miller-Janjić [[bmj]]):</strong> Parametriza a convecção sub-grade em todos
-                    os domínios (BA/NE, BA, RMS e SSA). A chuva publicada soma a parcela do esquema de cumulus e a da
-                    microfísica, em escala de grade.
+                    <strong>Cumulus (Kain-Fritsch [[kainfritsch]]):</strong> Parametriza a convecção sub-grade nos
+                    domínios S/SE/NE e Sudeste. Desativada em ES e Grande Vitória (Δx &lt; 4 km), onde a convecção é
+                    resolvida explicitamente.
                   </li>
                 </ul>
 
@@ -1371,7 +1342,7 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                     48h).
                   </li>
                   <li>
-                    A topografia complexa (como o Recôncavo Baiano) pode introduzir viés local, especialmente em
+                    A topografia complexa (como o relevo serrano capixaba) pode introduzir viés local, especialmente em
                     variáveis de superfície.
                   </li>
                   <li>
@@ -1385,7 +1356,7 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
                   </li>
                   <li>
                     Variáveis de fluxo de superfície (HFX, LH) são especialmente sensíveis à representação do uso do
-                    solo no modelo Noah [[noah]].
+                    solo no modelo Noah-MP [[noahmp]].
                   </li>
                 </ul>
 
@@ -1570,10 +1541,10 @@ S0 = 1361 W/m²  (Kopp &amp; Lean, 2011)</code></pre>
  scripts: the climatology page uses window.labmimReferences. -->
     <script defer src="assets/js/references.js?v=23573fee"></script>
 
-    <script src="assets/js/variables-config.js?v=e670254f" defer></script>
+    <script src="assets/js/variables-config.js?v=0e89b6be" defer></script>
     <script src="assets/js/data-service.js?v=79d3e602" defer></script>
-    <script src="assets/js/charts-manager.js?v=4c12b8bb" defer></script>
-    <script src="assets/js/map-manager.js?v=0c6358ee" defer></script>
-    <script src="assets/js/map-init.js?v=f75225db" defer></script>
+    <script src="assets/js/charts-manager.js?v=c02b6564" defer></script>
+    <script src="assets/js/map-manager.js?v=e1dcecc0" defer></script>
+    <script src="assets/js/map-init.js?v=8a0acd6d" defer></script>
   </body>
 </html>
