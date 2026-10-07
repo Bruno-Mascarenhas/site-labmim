@@ -1,14 +1,22 @@
-/* Oculta a barra padrão do layout base */
-body.custom-controls-mode main > .controls-container:not(.custom-controls) {
-  display: none !important;
-}
-
-/* Novo container de controles */
-body.custom-controls-mode .controls-container.custom-controls {
+body[data-map-context="annual-means"] .controls-container:not(.custom-controls) {
   display: flex !important;
   position: absolute;
   bottom: 0;
   left: 0;
+  right: 50%;
+  z-index: 1000;
+}
+
+body[data-map-context="annual-means"] .controls-container:not(.custom-controls) .slider-wrapper,
+body[data-map-context="annual-means"] .controls-container:not(.custom-controls) .buttons-group {
+  display: none !important;
+}
+
+body[data-map-context="annual-means"] .controls-container.custom-controls {
+  display: flex !important;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
   right: 0;
   z-index: 1000;
 }

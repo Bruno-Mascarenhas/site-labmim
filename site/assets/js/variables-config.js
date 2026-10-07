@@ -369,7 +369,7 @@ const VARIABLE_CONTEXTS = {
   "annual-means": {
     optionGroupLabel: "Médias por hora local",
     defaultVariable: "temperature",
-    timeAxis: "hour-of-day",
+   // timeAxis: "hour-of-day",
     variables: ["temperature", "relativeHumidity", "humidity", "pressure", "wind", "globalRadiation", "eolico"],
     features: {
       specificInfo: false,
