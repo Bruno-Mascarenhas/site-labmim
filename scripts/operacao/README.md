@@ -25,10 +25,11 @@ diretório (`publica_site_ftp.sh dados Monitoramento` ou `dados Ceu`; o Céu pub
 também quando o `publish-site` sai com 2). Uma falha do FTP vira `AVISO` no log da
 rotina, sem mudar o código dela, e o que não subiu vai na execução seguinte (salvo um
 envio que caiu no meio, ver [Cuidados conhecidos](#cuidados-conhecidos)). O código do site
-(`assets/`, `.htaccess`, HTML) só sobe no `completo`, que envia o que estiver em
+(`assets/` e HTML) só sobe no `completo`, que envia o que estiver em
 `site/`: um `npm run build -- --site=ufba` neste checkout entra em produção na rodada
 seguinte, ou antes, com `./publica_site_ftp.sh completo` à mão. Início e Equipe são
-estáticas.
+estáticas. O `.htaccess` sobe antes dos outros arquivos tanto no `completo` quanto
+nas atualizações de dados.
 
 ### Rotina diária
 
@@ -176,6 +177,56 @@ temporários `.<nome>.tmp-<pid>` que o pipeline grava antes do `os.replace`. Al�
 O log é `LOG_DIR/AAAAMMDD-site-ftp.log`, um só para as três origens: cada linha diz de
 qual publicação é (`[completo]`, `[dados Ceu]`...). Código de saída: 0 = ok (inclusive
 guarda desligada e `dados` sem vez), 1 = falha, 2 = uso incorreto.
+
+### Aplicar o hotfix de acesso aos dados
+
+O merge não publica o site. Há dois ambientes envolvidos: a máquina de operação,
+que gera `site/` e executa o FTP, e a hospedagem que serve esses arquivos por HTTP.
+
+1. **Antes da publicação, confirme a hospedagem.** O site precisa ser servido na
+   raiz do domínio por HTTPS, em Apache 2.4 com `mod_rewrite` e `mod_headers`
+   habilitados. No bloco `<Directory>` da raiz pública, permita as diretivas do
+   arquivo com `AllowOverride FileInfo Options=Indexes,MultiViews`, ou uma
+   configuração equivalente que já autorize essas diretivas. Preserve as demais
+   configurações do host.
+   Se você só tem acesso FTP, essa confirmação é responsabilidade da hospedagem.
+   `AllowOverride` pertence à configuração do Apache, não ao `.htaccess`.
+2. **Atualize a máquina que publica.** Na raiz do checkout usado pelas rotinas,
+   com o Node da `.nvmrc`, execute após o merge:
+
+   ```bash
+   git switch main
+   git pull --ff-only
+   npm ci
+   npm run build -- --site=ufba
+   ./scripts/operacao/publica_site_ftp.sh completo
+   ```
+
+   Use uma janela sem publicação concorrente durante a atualização e o build.
+   Preserve `operacao.env`, os dados e a aquisição. A configuração existente deve
+   apontar `SITE_DIR` para esse build e manter `SITE_FTP_PUBLICAR=S`; com a guarda
+   desligada, o script registra a desativação e sai sem publicar. Se outro checkout
+   ou uma cópia dos scripts atende ao cron, atualize-o também. As cadências do cron
+   e os pipelines científicos não precisam mudar.
+3. **Publique o site completo uma vez.** O comando acima envia o `.htaccess` antes
+   dos assets, dados e HTML. Executar apenas o modo `dados` não atualiza os botões
+   nem o JavaScript. A saída publicada é `site/`, nunca a raiz do repositório.
+4. **Confira o resultado em HTTPS.** Monitoramento, Céu e Climatologia devem abrir
+   com dados, hover e ampliação; os CSVs de observações devem ficar desabilitados,
+   e os downloads WRF devem continuar funcionando. Confirme respostas
+   `Cache-Control: no-store` nos recursos de pesquisa e a ausência de listagem de
+   diretórios. Se houver proxy ou CDN, invalide as cópias antigas desses recursos
+   e preserve os cabeçalhos de navegação e a política `no-store`.
+
+Trocar apenas o `.htaccess` não exige reiniciar o Apache: ele é lido nas requisições.
+Se o administrador alterar módulos ou a configuração principal, precisa validá-la
+e recarregar o serviço. A versão nova deve funcionar com as regras ativas; não
+remova as restrições para contornar erro de configuração. Verifique o log do
+Apache e o log `AAAAMMDD-site-ftp.log` se aparecer erro.
+
+Referências: [AllowOverride](https://httpd.apache.org/docs/2.4/mod/core.html#allowoverride),
+[arquivos .htaccess](https://httpd.apache.org/docs/2.4/howto/htaccess.html) e
+[mod_headers](https://httpd.apache.org/docs/2.4/mod/mod_headers.html).
 
 ### Cuidados conhecidos
 

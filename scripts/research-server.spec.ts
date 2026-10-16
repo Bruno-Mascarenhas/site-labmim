@@ -57,7 +57,7 @@ const test = base.extend<object, { readonly serverOrigin: string }>({
         );
         const config = docker(["run", "--rm", "httpd:2.4", "cat", "/usr/local/apache2/conf/httpd.conf"])
           .replace("#LoadModule rewrite_module", "LoadModule rewrite_module")
-          .replaceAll("AllowOverride None", "AllowOverride All");
+          .replaceAll("AllowOverride None", "AllowOverride FileInfo Options=Indexes,MultiViews");
         writeFileSync(path.join(directory, "httpd.conf"), `${config}\nServerName localhost\n`);
         docker([
           "run",
