@@ -154,21 +154,8 @@
     cumulativeChart: null,
   };
 
-  const {
-    el,
-    isDark,
-    node,
-    statTile,
-    pad,
-    decimal,
-    integer,
-    countNoun,
-    percent,
-    fade,
-    parseStationTime,
-    showEmpty,
-    downloadCsv,
-  } = window.labmimChartPage;
+  const { el, isDark, node, statTile, pad, decimal, integer, countNoun, percent, fade, parseStationTime, showEmpty } =
+    window.labmimChartPage;
   const formatDay = window.labmimChartPage.formatDayYear;
   const formatStamp = window.labmimChartPage.formatStampYear;
   const formatShortDay = window.labmimChartPage.formatDay;
@@ -328,7 +315,7 @@
   function focusedPointsControl() {
     const focused = document.activeElement;
     if (!focused) return null;
-    return focused === el("ceuExport") || el("ceuCamadas").contains(focused) ? focused : null;
+    return el("ceuCamadas").contains(focused) ? focused : null;
   }
 
   function refocusLayerToggles(control) {
@@ -1846,10 +1833,9 @@
     el("ceuCanvas").setAttribute(
       "aria-label",
       state.density
-        ? `Densidade horária no plano do índice de claridade contra a fração difusa, com os limites das quatro condições de céu. Use o botão CSV para a versão textual.`
+        ? `Densidade horária no plano do índice de claridade contra a fração difusa, com os limites das quatro condições de céu.`
         : `Dispersão de ${decimal(shown, 0)} horas no plano do índice de claridade contra a fração difusa.`
     );
-    el("ceuExport").disabled = !pointsUsable();
     el("ceuAmpliar").disabled = !hasDrawing() || (state.layers.has("points") && state.pointsStatus === "loading");
     el("ceuGuia").disabled = state.chartStatus === "loading";
   }
@@ -2031,33 +2017,6 @@
     } else {
       wrap.appendChild(node("p", "monitor-pending", nothingToDrawMessage()));
     }
-  }
-
-  async function exportCsv() {
-    const request = ensurePoints();
-    if (state.pointsStatus === "loading") drawChart();
-    await request;
-    if (!state.points.length) return;
-    const rows = ["instante;kt;kd;condicao"];
-    for (const point of state.points) {
-      const stamp = parseStationTime(point.t || "");
-      const date = Number.isFinite(stamp) ? new Date(stamp) : null;
-      const iso = date
-        ? `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`
-        : "";
-      const entry = pointClass(point);
-      // Decimal comma with `;` as separator: what Excel in pt-BR opens without
-      // going through the import wizard.
-      rows.push(
-        [
-          iso,
-          String(point.x).replace(".", ","),
-          String(point.y).replace(".", ","),
-          entry ? `${entry.roman} - ${entry.label}` : "",
-        ].join(";")
-      );
-    }
-    downloadCsv("condicao-ceu-kt-kd.csv", rows);
   }
 
   function renderHeader() {
@@ -4031,7 +3990,6 @@
     el("ceuOpacidade").addEventListener("input", applyOverlayOpacity);
     el("ceuGuia").addEventListener("click", openGuide);
     el("ceuAmpliar").addEventListener("click", openZoom);
-    el("ceuExport").addEventListener("click", exportCsv);
 
     new MutationObserver(syncTrainingCurve).observe(el("ceuModeloDetalhes"), {
       attributes: true,

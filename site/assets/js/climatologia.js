@@ -766,7 +766,7 @@
   function exportCsv() {
     const subset = currentSubset();
     // Required here too, not only in the button state: a disabled button is a UI layer, the listener stays reachable.
-    if (!subset || !subset.n) return;
+    if (!isModelSubset(state.subsetId) || !subset || !subset.n) return;
     const { header, rows } = tableRows(subset);
     const lines = [header.join(";"), ...rows.map((row) => row.join(";"))];
     downloadCsv(`climatologia_${state.variableId}_${state.subsetId}.csv`, lines);
@@ -887,7 +887,7 @@
       return;
     }
 
-    el("climaExport").disabled = false;
+    el("climaExport").disabled = !isModelSubset(state.subsetId);
     if (isRose) {
       // Destroy the previous histogram so it does not stay registered on the hidden canvas — with its listeners,
       // its ResizeObserver and that variable's data — until the reader returns to a histogram variable.

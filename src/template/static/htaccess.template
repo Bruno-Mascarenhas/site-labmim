@@ -1,11 +1,23 @@
-# Apache configuration shared by every WebGIS publication: only the legacy
-# redirects vary per publication (they come from the manifest). Every directive
-# is guarded by <IfModule> so the site never answers 500 where a module is
-# missing — which also means this whole layer disappears silently on a host
-# without AllowOverride. Confirm the host before relying on the CSP or the
-# redirects here.
-
 AddDefaultCharset UTF-8
+
+Options -Indexes -MultiViews
+RewriteEngine On
+RewriteCond %{REQUEST_URI} ^/(Monitoramento|Climatologia|Ceu)(/|$) [NC]
+RewriteCond %{HTTP:Sec-Fetch-Site} !^same-origin$ [OR]
+RewriteCond %{HTTP:Sec-Fetch-Mode} !^(cors|same-origin|no-cors)$ [OR]
+RewriteCond %{HTTP:Sec-Fetch-Dest} !^(empty|image)$ [OR]
+RewriteCond %{REQUEST_METHOD} !^(GET|HEAD)$ [OR]
+RewriteCond %{HTTP:Range} !^$
+RewriteRule ^ - [F,END]
+
+RewriteCond %{REQUEST_URI} ^/(Monitoramento|Climatologia|Ceu)(/|$) [NC]
+RewriteCond %{HTTP_HOST}@@%{HTTP_REFERER} !^([^@]+)@@https?://\1/(monitoring|climatologia|ceu)\.html(\?.*)?$ [NC]
+RewriteRule ^ - [F,END]
+
+RewriteCond %{REQUEST_URI} !^/Monitoramento/monitoring\.json$
+RewriteCond %{REQUEST_URI} !^/Climatologia/(manifest|air_temperature|clearness_index|longwave_down|longwave_up|net_radiation_day|net_radiation_night|par_early|par_late|precipitation|pressure|relative_humidity|relative_humidity_wxt|shortwave_down|shortwave_up|wind_direction|wind_speed)\.json$
+RewriteCond %{REQUEST_URI} !^/Ceu/((ktkd|ktkd_points|kt_cumulative|frame|timeline|model)\.json|allsky\.jpg|input\.jpg|attribution\.png)$
+RewriteRule ^(?:Monitoramento|Climatologia|Ceu)(?:/|$) - [F,END,NC]
 
 ErrorDocument 404 /404.html
 
@@ -125,5 +137,10 @@ ErrorDocument 404 /404.html
   # no manifest while the data is swapped under the same names). Runs are daily.
   <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(json|geojson|bin)$#">
     Header set Cache-Control "public, max-age=86400"
+  </If>
+
+  <If "%{REQUEST_URI} =~ m#^/(Monitoramento|Climatologia|Ceu)(/|$)#">
+    Header unset Cache-Control
+    Header always set Cache-Control "no-store"
   </If>
 </IfModule>

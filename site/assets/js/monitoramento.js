@@ -76,7 +76,6 @@
     canvases: new Map(),
     layerLabels: new Map(),
     notices: new Map(),
-    downloads: new Map(),
     zooms: new Map(),
     plots: new Map(),
     empties: new Map(),
@@ -95,7 +94,6 @@
     el,
     isDark,
     node,
-    pad,
     decimal,
     fade,
     parseStationTime,
@@ -107,7 +105,6 @@
     formatStampYear,
     countNoun,
     showEmpty,
-    downloadCsv,
   } = window.labmimChartPage;
 
   // Rain needs THREE decimals: the tipping bucket counts in steps of 0.254 mm, and
@@ -377,9 +374,6 @@
     });
   }
 
-  // In a multi-series chart the raw layer is the FIRST term's only — five clouds of
-  // ~2000 points smear into a blot — though the CSV still exports the raw data of every
-  // term.
   function buildDatasets(chart, theme) {
     const from = windowStart();
     const datasets = [];
@@ -658,67 +652,6 @@
     }
   }
 
-  function stampOffsetText(minutes) {
-    if (minutes === 0) return "t";
-    return `t${minutes > 0 ? "+" : "−"}${String(Math.abs(minutes)).replace(".", ",")} min`;
-  }
-
-  function coversText([fromMinutes, toMinutes]) {
-    if (fromMinutes === toMinutes) return `no instante ${stampOffsetText(fromMinutes)}`;
-    return `de ${stampOffsetText(fromMinutes)} a ${stampOffsetText(toMinutes)}`;
-  }
-
-  function csvStampHeader(chart, layers) {
-    const parts = layers.map(
-      (layer) => `${layerLabel(chart, layer)}: ${coversText(state.placements.get(chart.layers[layer.id]).covers)}`
-    );
-    return `instante t (${parts.join(", ")})`;
-  }
-
-  // The chart's text alternative, and the only route to the raw layers the drawing
-  // leaves out: one row per instant, one column per series/layer.
-  function exportCsv(chart) {
-    const from = windowStart();
-    const columns = [];
-    for (const series of chart.series) {
-      for (const layer of LAYERS) {
-        const points = layerPoints(chart.layers[layer.id], series.id, from);
-        if (points) columns.push({ header: `${series.label} (${layerLabel(chart, layer)})`, points, layer });
-      }
-    }
-    if (!columns.length) return;
-    const exportedLayers = LAYERS.filter((layer) => columns.some((column) => column.layer === layer));
-
-    const stamps = new Set();
-    for (const column of columns) for (const point of column.points) stamps.add(point.x);
-    const ordered = [...stamps].sort((left, right) => left - right);
-    const lookup = columns.map((column) => new Map(column.points.map((point) => [point.x, point.y])));
-
-    const header = [
-      csvStampHeader(chart, exportedLayers),
-      ...columns.map((column) => `${column.header} [${chart.unit}]`),
-    ];
-    const rows = [header.join(";")];
-    for (const stamp of ordered) {
-      const date = new Date(stamp);
-      const iso =
-        `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ` +
-        `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
-      const cells = lookup.map((values) => {
-        const value = values.get(stamp);
-        // Decimal comma with `;` as separator: what Excel in pt-BR opens without
-        // going through the import wizard.
-        return value === undefined || value === null ? "" : String(value).replace(".", ",");
-      });
-      // An instant where NO column has a reading is not a row. The exporter keeps the
-      // published grid full even with the sensor down, so an outage would otherwise
-      // fill the sheet with `stamp;;` lines and bury the rows that carry numbers.
-      if (cells.some((cell) => cell !== "")) rows.push([iso, ...cells].join(";"));
-    }
-
-    downloadCsv(`monitoramento-${chart.id}.csv`, rows);
-  }
-
   function layersWithData(chart) {
     const from = windowStart();
     return LAYERS.filter((layer) => {
@@ -726,13 +659,6 @@
       if (!data) return false;
       return layerSeriesIds(chart, layer.id).some((seriesId) => layerHasData(data, seriesId, from));
     });
-  }
-
-  // Deliberately wider than `layersWithData`: the CSV exports every series of every
-  // layer, including the raw data of the terms the drawing omits.
-  function hasExportableData(chart) {
-    const from = windowStart();
-    return chart.series.some((series) => LAYERS.some((layer) => layerHasData(chart.layers[layer.id], series.id, from)));
   }
 
   function drawnLayers(chart) {
@@ -748,25 +674,7 @@
     const canvas = state.canvases.get(chart.id);
     if (canvas) {
       const description = labels.length ? `camadas ${labels.join(", ")}` : "sem camadas para desenhar";
-      canvas.setAttribute(
-        "aria-label",
-        `${chart.title} — ${description}. Use o botão CSV para a versão textual dos dados.`
-      );
-    }
-
-    // With no reading in the window `exportCsv` returns without a file and without a
-    // message, so a click would be indistinguishable from a blocked download.
-    // Disabled, the card says so beforehand — window-dependent, hence the re-check.
-    const download = state.downloads.get(chart.id);
-    if (download) {
-      const exportable = hasExportableData(chart);
-      download.disabled = !exportable;
-      download.setAttribute(
-        "aria-label",
-        exportable
-          ? `Baixar os dados de ${chart.title} em CSV`
-          : `Sem dados de ${chart.title} nesta janela para baixar em CSV`
-      );
+      canvas.setAttribute("aria-label", `${chart.title} — ${description}.`);
     }
 
     const barren = !layersWithData(chart).length;
@@ -831,7 +739,7 @@
         drawnLayers(chart)
           .map((layer) => drawnLayerLabel(chart, layer))
           .join(", ") || "nenhuma"
-      }. Use o botão CSV do cartão para a versão textual.`
+      }.`
     );
     wrap.appendChild(canvas);
     dialog.appendChild(wrap);
@@ -889,9 +797,9 @@
 
     const download = node("button", "btn btn-sm btn-outline-lab", "CSV");
     download.type = "button";
-    download.setAttribute("aria-label", `Baixar os dados de ${chart.title} em CSV`);
-    download.addEventListener("click", () => exportCsv(chart));
-    state.downloads.set(chart.id, download);
+    download.disabled = true;
+    download.title = "Exportação indisponível para dados de pesquisa";
+    download.setAttribute("aria-label", `CSV indisponível para ${chart.title}: dados de pesquisa`);
     actions.appendChild(download);
     head.appendChild(actions);
     card.appendChild(head);

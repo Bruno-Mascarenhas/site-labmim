@@ -28,7 +28,7 @@ _WebGIS de potenciais energéticos: potencial fotovoltaico em W/m², sobre a mes
 
 ![Gráficos de monitoramento da estação com as séries de temperatura do ar e de umidade relativa ao longo de sete dias](docs/imagens/monitoramento-estacao.webp)
 
-_Monitoramento da estação: temperatura do ar e umidade relativa em três camadas — amostras brutas de 5 min, média horária e WRF —, com ampliação e exportação em CSV._
+_Monitoramento da estação: temperatura do ar e umidade relativa em três camadas — amostras brutas de 5 min, média horária e WRF —, com ampliação e leitura de valores ao passar o cursor; a exportação CSV de observações fica desabilitada._
 
 **Condição do céu.** O quadro vivo da câmera all-sky com o mapa de sensibilidade à oclusão da rede sobreposto, a previsão de difusa e de condição do céu com os contrafactuais sem imagem, a linha do tempo dos últimos dias, o cartão do modelo servido (métricas de teste contra controles e referências) e o plano do índice de claridade Kt contra a fração difusa Kd.
 
@@ -85,7 +85,9 @@ Sem `make`, o equivalente cru é `cd site && python3 -m http.server 8000`. Se a 
 
 A publicação seleciona o **frontend**; ela não converte dados operacionais — cada deploy precisa receber, nos caminhos do seu dataset, a rodada WRF e o acervo daquela instituição (ver [De onde vêm os dados](#de-onde-vêm-os-dados)).
 
-Antes de abrir um pull request, `make ci` roda a mesma bateria do CI: build de todas as publicações, verificação de formatação, linters e auditoria de dependências.
+Antes de abrir um pull request, `make ci` roda os checks de publicação: build de todas as publicações, verificação de formatação, linters e auditoria de dependências.
+
+Os testes de interface são exclusivamente locais: `npm test` usa o Chromium do Playwright. O CI não instala nem abre navegador. `npm run test:server` verifica as regras de acesso em um Apache temporário via Docker, com dados artificiais e porta restrita a localhost; esse check também roda no CI. Não há type check configurado no projeto.
 
 A lista completa dos scripts npm e dos atalhos do `Makefile` está em [CONTRIBUTING.md](CONTRIBUTING.md#comandos).
 

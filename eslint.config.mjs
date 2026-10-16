@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
+import { stripTypeScriptTypes } from "node:module";
 
 export default defineConfig([
   globalIgnores([
@@ -13,6 +14,29 @@ export default defineConfig([
     "**/*.json",
     "**/*.geojson",
   ]),
+  {
+    files: ["scripts/**/*.ts"],
+    plugins: {
+      typescript: {
+        processors: {
+          strip: {
+            preprocess: (source) => [stripTypeScriptTypes(source)],
+            postprocess: (messages) => messages[0],
+          },
+        },
+      },
+    },
+    processor: "typescript/strip",
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: { ...globals.node, ...globals.browser },
+    },
+    rules: {
+      "no-empty-pattern": ["error", { allowObjectPatternsAsParameters: true }],
+    },
+  },
   {
     files: ["site/assets/js/**/*.js"],
     extends: [js.configs.recommended],

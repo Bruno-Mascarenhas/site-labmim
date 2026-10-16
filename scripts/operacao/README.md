@@ -139,8 +139,10 @@ apagar nada lá (sem `--delete`).
 ./publica_site_ftp.sh [--dry-run] dados DIR...   # só esses diretórios de dados (rotinas do cron)
 ```
 
-O `completo` sobe em quatro fases, cada uma só depois de a anterior terminar bem, para
-nunca haver HTML novo sem os seus assets:
+Antes de qualquer envio, inclusive no modo `dados`, o publicador verifica e envia o
+`.htaccess` com as regras de acesso. Esse envio usa `--ignore-time`, sem `--only-newer`,
+para não manter uma configuração antiga por diferença de relógio. Se falhar, o envio para.
+Depois disso, o `completo` sobe em quatro fases, cada uma só depois de a anterior terminar bem:
 
 1. `assets/`, menos `assets/graphs/`: ali o PC da estação publica, de hora em hora, os
    gráficos que as páginas antigas usam, e as cópias do repositório são velhas.
@@ -148,10 +150,10 @@ nunca haver HTML novo sem os seus assets:
    versiona as grades) e, em cada um, o `manifest.json` por último: ele é a fonte do
    `?v=` das URLs e, se chegasse antes, o visitante guardaria os bytes antigos sob o
    `?v=` novo por até 24 h.
-3. O resto da raiz que não é HTML: `.htaccess`, `robots.txt`, `sitemap.xml`.
+3. Apenas `robots.txt` e `sitemap.xml` na raiz; o `.htaccess` já foi enviado na primeira etapa.
 4. Os `*.html`, inclusive o `404.html`, por último: é o HTML que traz os `?v=` novos.
 
-O `dados` faz só a fase 2, com os diretórios pedidos. Nenhuma fase envia `.keep` nem os
+O `dados` envia as regras de acesso e faz a fase 2, com os diretórios pedidos. Nenhuma fase envia `.keep` nem os
 temporários `.<nome>.tmp-<pid>` que o pipeline grava antes do `os.replace`. Além disso:
 
 - **Guarda**: só publica com `SITE_FTP_PUBLICAR=S` no `operacao.env` (o ambiente não a
@@ -214,3 +216,9 @@ Cada rotina escreve em `LOG_DIR/AAAAMMDD-site-<rotina>.log` (a publicação, em
 `allsky publish-site` apaga a cada execução as imagens com mais de 14 dias, e a opção
 não aceita 0 para desligar a limpeza. O próprio watch descarta as capturas repetidas do
 mesmo horário.
+
+### Arquivos de pesquisa permitidos
+
+Em `Monitoramento`, `Climatologia` e `Ceu`, o publicador prepara uma cópia temporária apenas dos JSONs e imagens que as páginas utilizam. Backups, temporários, subdiretórios e outros formatos não são enviados. A aquisição local não é alterada. A mesma lista é aplicada no Apache, inclusive para arquivos antigos que já estejam no servidor.
+
+Ao adicionar um arquivo necessário a uma figura, atualize a lista no publicador e em `src/template/static/htaccess.template`, gere o site e rode `npm run test:server`. As simulações em `JSON` e `GeoJSON` conservam seu fluxo e as leituras parciais de `.series.bin`.
