@@ -163,7 +163,7 @@ fase() {
 }
 
 mirrors_dados=()
-declare -A origens_dados
+mirrors_manifest=()
 for d in "${lista[@]}"; do
   arquivos=()
   case "$d" in
@@ -175,23 +175,20 @@ for d in "${lista[@]}"; do
         wind_direction.json wind_speed.json) ;;
     Ceu) arquivos=(ktkd.json ktkd_sample.json kt_cumulative.json frame.json timeline.json model.json allsky.jpg input.jpg attribution.png) ;;
   esac
-  origem="$SITE_DIR/$d"
+  filtros="-X '.*' -X manifest.json"
+  manifest="-I manifest.json"
   if [ ${#arquivos[@]} -gt 0 ]; then
-    origem="$tmp/$d"
-    mkdir -p "$origem" || falha "nao foi possivel preparar $d"
+    filtros="-r"
+    manifest=
     for arquivo in "${arquivos[@]}"; do
-      if [ -f "$SITE_DIR/$d/$arquivo" ]; then
-        cp -- "$SITE_DIR/$d/$arquivo" "$origem/$arquivo" || falha "nao foi possivel preparar $d/$arquivo"
-      fi
+      if [ "$arquivo" = manifest.json ]; then manifest="-r -I manifest.json"; else filtros+=" -I $arquivo"; fi
     done
   fi
-  origens_dados[$d]=$origem
-  mirrors_dados+=("-X '.*' -X manifest.json $(q "$origem") $(q "$d")")
+  mirrors_dados+=("$filtros $(q "$SITE_DIR/$d") $(q "$d")")
+  [ -n "$manifest" ] && [ -f "$SITE_DIR/$d/manifest.json" ] \
+    && mirrors_manifest+=("$manifest $(q "$SITE_DIR/$d") $(q "$d")")
 done
-for d in "${lista[@]}"; do
-  origem=${origens_dados[$d]}
-  [ -f "$origem/manifest.json" ] && mirrors_dados+=("-I manifest.json $(q "$origem") $(q "$d")")
-done
+mirrors_dados+=("${mirrors_manifest[@]}")
 
 interrompido="interrompido: as fases seguintes nao foram enviadas"
 OPCOES="--overwrite --no-perms --ignore-time --parallel=$PARALELO" \
