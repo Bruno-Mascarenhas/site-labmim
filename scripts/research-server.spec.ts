@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, test as base } from "playwright/test";
 
-const files = [
+const publicFiles = [
   "Monitoramento/monitoring.json",
   "Climatologia/manifest.json",
   "Climatologia/air_temperature.json",
@@ -17,6 +17,9 @@ const files = [
   "Ceu/allsky.jpg",
   "Ceu/input.jpg",
   "Ceu/attribution.png",
+] as const;
+
+const blockedFiles = [
   "Ceu/backup.csv",
   "Ceu/ktkd_points.json",
   "Ceu/research/ktkd_points.json",
@@ -28,10 +31,9 @@ const files = [
   "Ceu/ktkd.json.bak",
   "Ceu/.ktkd.json.tmp-1",
   "Monitoramento/archive.parquet",
-  "JSON/manifest.json",
-  "JSON/D01_TEMP.series.bin",
-  "GeoJSON/D01.grid.json",
 ] as const;
+
+const wrfFiles = ["JSON/manifest.json", "JSON/D01_TEMP.series.bin", "GeoJSON/D01.grid.json"] as const;
 
 function chartHeaders(origin: string): Record<string, string> {
   return {
@@ -51,7 +53,7 @@ const test = base.extend<object, { readonly serverOrigin: string }>({
         execFileSync("docker", [...args], { encoding: "utf8" }).trim();
       try {
         const root = path.join(directory, "htdocs");
-        for (const file of files) {
+        for (const file of [...publicFiles, ...blockedFiles, ...wrfFiles]) {
           const target = path.join(root, file);
           mkdirSync(path.dirname(target), { recursive: true });
           writeFileSync(target, "synthetic fixture");
@@ -91,7 +93,7 @@ const test = base.extend<object, { readonly serverOrigin: string }>({
   ],
 });
 
-for (const file of files.filter((file) => /backup|research\/|ktkd_points|\.bak|\.tmp-|parquet/.test(file))) {
+for (const file of blockedFiles) {
   test(`servidor bloqueia arquivo fora da lista pública: ${file}`, async ({ request, serverOrigin }) => {
     const response = await request.get(`${serverOrigin}/${file}?research=1`, { headers: chartHeaders(serverOrigin) });
     expect(response.status()).toBe(403);
@@ -126,7 +128,7 @@ for (const headers of [
 }
 
 test("requisições dos gráficos continuam funcionando sem cache público", async ({ request, serverOrigin }) => {
-  for (const file of files.slice(0, 12)) {
+  for (const file of publicFiles) {
     const response = await request.get(`${serverOrigin}/${file}?v=fixture`, {
       headers: chartHeaders(serverOrigin),
     });

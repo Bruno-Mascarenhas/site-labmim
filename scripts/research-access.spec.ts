@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expect, test, type Page } from "playwright/test";
+import { expect, test, type Locator, type Page } from "playwright/test";
 
 const siteRoot = path.resolve(process.env.SITE_TEST_ROOT ?? "site");
 const origin = "http://research.test";
@@ -115,12 +115,14 @@ async function openPage(
   name: string,
   overrides: Readonly<Record<string, unknown>> = {},
   pageOrigin: string = origin
-): Promise<void> {
-  const pageFixtures = { ...fixtures, ...overrides };
+): Promise<readonly string[]> {
+  const pageFixtures: Readonly<Record<string, unknown>> = { ...fixtures, ...overrides };
+  const requested: string[] = [];
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
+    requested.push(url.pathname);
     if (url.origin !== pageOrigin) return route.abort();
-    const fixture = (pageFixtures as Readonly<Record<string, unknown>>)[url.pathname];
+    const fixture = pageFixtures[url.pathname];
     if (fixture) return route.fulfill({ json: fixture });
     if (/^\/(Monitoramento|Climatologia|Ceu)\//.test(url.pathname)) return route.fulfill({ status: 404 });
     const file = path.resolve(siteRoot, `.${url.pathname}`);
@@ -131,6 +133,11 @@ async function openPage(
     throw error;
   });
   await page.goto(`${pageOrigin}/${name}`);
+  return requested;
+}
+
+function samplePoints(page: Page): Locator {
+  return page.getByRole("button", { name: "Pontos (amostra)", exact: true });
 }
 
 test("monitoramento mantém ampliação e desabilita CSV mesmo após trocar o período", async ({ page }) => {
@@ -148,9 +155,8 @@ test("Kt × Kd mantém a amostra interativa sem habilitar CSV", async ({ page })
   await openPage(page, "ceu.html");
   await expect(page.locator("#ceuAmpliar")).toBeEnabled();
   await expect(page.locator("#ceuExport")).toBeDisabled();
-  const points = page.locator("#ceuCamadas").getByRole("button", { name: "Pontos (amostra)", exact: true });
-  await points.click();
-  await points.click();
+  await samplePoints(page).click();
+  await samplePoints(page).click();
   await expect(page.locator("#ceuExport")).toBeDisabled();
   await page.locator("#ceuAmpliar").click();
   await expect(page.locator("dialog canvas")).toBeVisible();
@@ -176,30 +182,37 @@ test("Kt × Kd aceita cinco mil pontos quando representam um quarto do registro"
     },
   });
 
-  await page.getByRole("button", { name: "Pontos (amostra)", exact: true }).click();
+  await samplePoints(page).click();
 
   await expect(page.locator("#ceuStatus")).toContainText("A linha horizontal marca Kd = 0,5");
   await expect(page.locator("#ceuPontosNota")).toContainText("amostra de 5.000 das 20.000 horas");
 });
 
-for (const { n, population, limit } of [
-  { n: 5001, population: 24000, limit: "cinco mil pontos" },
-  { n: 11, population: 40, limit: "um quarto do registro" },
+for (const { title, population, pointsFile } of [
+  {
+    title: "recusa amostras acima de cinco mil pontos",
+    population: 24000,
+    pointsFile: { name: "ktkd_sample.json", n: 5001, population_n: 24000, sampling: "stable-hash-v1" },
+  },
+  {
+    title: "recusa amostras acima de um quarto do registro",
+    population: 40,
+    pointsFile: { name: "ktkd_sample.json", n: 11, population_n: 40, sampling: "stable-hash-v1" },
+  },
+  {
+    title: "mantém a densidade sem buscar o antigo arquivo completo",
+    population: 40,
+    pointsFile: { name: "ktkd_points.json", n: 40 },
+  },
 ]) {
-  test(`Kt × Kd recusa amostras acima de ${limit}`, async ({ page }) => {
-    const requested: string[] = [];
-    page.on("request", (request) => requested.push(new URL(request.url()).pathname));
-    await openPage(page, "ceu.html", {
-      "/Ceu/ktkd.json": {
-        ...fixtures["/Ceu/ktkd.json"],
-        period: { n: population },
-        points_file: { name: "ktkd_sample.json", n, population_n: population, sampling: "stable-hash-v1" },
-      },
+  test(`Kt × Kd ${title}`, async ({ page }) => {
+    const requested = await openPage(page, "ceu.html", {
+      "/Ceu/ktkd.json": { ...fixtures["/Ceu/ktkd.json"], period: { n: population }, points_file: pointsFile },
     });
 
     await expect(page.locator("#ceuAmpliar")).toBeEnabled();
-    await expect(page.getByRole("button", { name: "Pontos (amostra)", exact: true })).toHaveCount(0);
-    expect(requested).not.toContain("/Ceu/ktkd_sample.json");
+    await expect(samplePoints(page)).toHaveCount(0);
+    expect(requested).not.toContain(`/Ceu/${pointsFile.name}`);
   });
 }
 
@@ -207,24 +220,9 @@ test("Kt × Kd carrega somente a amostra ao ativar os pontos", async ({ page }) 
   await openPage(page, "ceu.html");
   const response = page.waitForResponse(`${origin}/Ceu/ktkd_sample.json`);
 
-  await page.getByRole("button", { name: "Pontos (amostra)", exact: true }).click();
+  await samplePoints(page).click();
 
   expect((await response).ok()).toBe(true);
-});
-
-test("Kt × Kd mantém a densidade sem buscar o antigo arquivo completo", async ({ page }) => {
-  const requested: string[] = [];
-  page.on("request", (request) => requested.push(new URL(request.url()).pathname));
-  await openPage(page, "ceu.html", {
-    "/Ceu/ktkd.json": {
-      ...fixtures["/Ceu/ktkd.json"],
-      points_file: { name: "ktkd_points.json", n: 40 },
-    },
-  });
-
-  await expect(page.locator("#ceuAmpliar")).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Pontos (amostra)", exact: true })).toHaveCount(0);
-  expect(requested).not.toContain("/Ceu/ktkd_points.json");
 });
 
 test("Kt × Kd rejeita uma amostra de outra versão preservando a densidade", async ({ page }) => {
@@ -232,7 +230,7 @@ test("Kt × Kd rejeita uma amostra de outra versão preservando a densidade", as
     "/Ceu/ktkd_sample.json": { ...fixtures["/Ceu/ktkd_sample.json"], version: "previous" },
   });
 
-  await page.getByRole("button", { name: "Pontos (amostra)", exact: true }).click();
+  await samplePoints(page).click();
 
   await expect(page.locator("#ceuStatus")).toContainText("outra versão");
   await expect(page.locator("#ceuAmpliar")).toBeEnabled();
@@ -250,16 +248,13 @@ test("Kt × Kd rejeita observações com datas dentro da amostra pública", asyn
     },
   });
 
-  await page.getByRole("button", { name: "Pontos (amostra)", exact: true }).click();
+  await samplePoints(page).click();
 
   await expect(page.locator("#ceuStatus")).toContainText("não contém pontos compatíveis");
 });
 
 test("pesquisa local desenha todos os pontos sem acionar a amostra pública", async ({ page }) => {
-  const requested: string[] = [];
-  page.on("request", (request) => requested.push(new URL(request.url()).pathname));
-
-  await openPage(page, "ceu.html?research=1", researchFixtures, "http://127.0.0.1");
+  const requested = await openPage(page, "ceu.html?research=1", researchFixtures, "http://127.0.0.1");
 
   await expect(page.locator("#ceuCanvas")).toBeVisible();
   await expect(page.locator("#ceuPontosNota")).toContainText("todas as 40 horas");
@@ -281,14 +276,11 @@ test("pesquisa local não substitui dados completos ausentes pela amostra", asyn
   );
 
   await expect(page.locator("#ceuStatus")).toContainText("não pôde ser baixado");
-  await expect(page.getByRole("button", { name: "Pontos (amostra)", exact: true })).toHaveCount(0);
+  await expect(samplePoints(page)).toHaveCount(0);
 });
 
 test("parâmetro de pesquisa no site remoto mantém a visualização pública", async ({ page }) => {
-  const requested: string[] = [];
-  page.on("request", (request) => requested.push(new URL(request.url()).pathname));
-
-  await openPage(page, "ceu.html?research=1", researchFixtures);
+  const requested = await openPage(page, "ceu.html?research=1", researchFixtures);
 
   await expect(page.locator("#ceuPontosNota")).toContainText("amostra de 2 das 40 horas");
   expect(requested.some((pathname) => pathname.includes("/research/"))).toBe(false);
