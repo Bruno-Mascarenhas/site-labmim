@@ -150,7 +150,7 @@ test("requisições dos gráficos continuam funcionando sem cache público", asy
       headers: chartHeaders(serverOrigin),
     });
     expect(response.status(), file).toBe(200);
-    expect(response.headers()["cache-control"], file).toBe("no-store");
+    expect(response.headers()["cache-control"], file).toBe("private, no-cache");
   }
 });
 
