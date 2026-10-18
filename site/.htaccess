@@ -11,9 +11,33 @@ RewriteCond %{HTTP:Range} !^$ [OR]
 RewriteCond %{HTTP_HOST}@@%{HTTP_REFERER} !^([^@]+)@@https?://\1/(monitoring|climatologia|ceu)\.html(\?.*)?$ [NC]
 RewriteRule ^ - [F,END]
 
-RewriteCond %{REQUEST_URI} !^/Monitoramento/monitoring\.json$
-RewriteCond %{REQUEST_URI} !^/Climatologia/(manifest|air_temperature|clearness_index|longwave_down|longwave_up|net_radiation_day|net_radiation_night|par_early|par_late|precipitation|pressure|relative_humidity|relative_humidity_wxt|shortwave_down|shortwave_up|wind_direction|wind_speed)\.json$
-RewriteCond %{REQUEST_URI} !^/Ceu/((ktkd|ktkd_sample|kt_cumulative|frame|timeline|model)\.json|allsky\.jpg|input\.jpg|attribution\.png)$
+RewriteCond %{REQUEST_URI} !=/Monitoramento/monitoring.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/manifest.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/air_temperature.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/clearness_index.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/longwave_down.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/longwave_up.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/net_radiation_day.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/net_radiation_night.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/par_early.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/par_late.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/precipitation.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/pressure.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/relative_humidity.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/relative_humidity_wxt.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/shortwave_down.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/shortwave_up.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/wind_direction.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/wind_speed.json
+RewriteCond %{REQUEST_URI} !=/Ceu/ktkd.json
+RewriteCond %{REQUEST_URI} !=/Ceu/ktkd_sample.json
+RewriteCond %{REQUEST_URI} !=/Ceu/kt_cumulative.json
+RewriteCond %{REQUEST_URI} !=/Ceu/frame.json
+RewriteCond %{REQUEST_URI} !=/Ceu/timeline.json
+RewriteCond %{REQUEST_URI} !=/Ceu/model.json
+RewriteCond %{REQUEST_URI} !=/Ceu/allsky.jpg
+RewriteCond %{REQUEST_URI} !=/Ceu/input.jpg
+RewriteCond %{REQUEST_URI} !=/Ceu/attribution.png
 RewriteRule ^(?:Monitoramento|Climatologia|Ceu)(?:/|$) - [F,END,NC]
 
 ErrorDocument 404 /404.html

@@ -20,6 +20,7 @@ SITE_FTP_PUBLICAR=   # só o operacao.env liga a publicação, nunca o ambiente
 # Diretórios de dados, na ordem do envio: GeoJSON antes do JSON/manifest.json, que
 # também versiona as grades.
 DADOS=(GeoJSON JSON Climatologia Monitoramento Ceu)
+RESTRITOS=(Monitoramento Climatologia Ceu)
 PARALELO=4            # conexões simultâneas do mirror
 ESPERA_COMPLETO=1800  # s esperando a trava no modo completo (depois disso, falha)
 ESPERA_DADOS=240      # s no modo dados (menos que os 5 min do Céu; depois disso, desiste)
@@ -87,7 +88,7 @@ for d in "${lista[@]}"; do
 done
 for regra in 'Options -Indexes -MultiViews' \
   'RewriteCond %{HTTP:Sec-Fetch-Site} !^same-origin$ [OR]' \
-  'RewriteRule ^(?:Monitoramento|Climatologia|Ceu)(?:/|$) - [F,END,NC]'; do
+  "RewriteRule ^(?:$(IFS='|'; echo "${RESTRITOS[*]}"))(?:/|\$) - [F,END,NC]"; do
   grep -qF -- "$regra" "$SITE_DIR/.htaccess" 2>/dev/null \
     || falha "regra de acesso ausente em $SITE_DIR/.htaccess: $regra"
 done
@@ -164,16 +165,10 @@ fase() {
 mirrors_dados=()
 mirrors_manifest=()
 for d in "${lista[@]}"; do
-  arquivos=()
-  case "$d" in
-    Monitoramento) arquivos=(monitoring.json) ;;
-    Climatologia)
-      arquivos=(manifest.json air_temperature.json clearness_index.json longwave_down.json longwave_up.json
-        net_radiation_day.json net_radiation_night.json par_early.json par_late.json precipitation.json
-        pressure.json relative_humidity.json relative_humidity_wxt.json shortwave_down.json shortwave_up.json
-        wind_direction.json wind_speed.json) ;;
-    Ceu) arquivos=(ktkd.json ktkd_sample.json kt_cumulative.json frame.json timeline.json model.json allsky.jpg input.jpg attribution.png) ;;
-  esac
+  mapfile -t arquivos < <(sed -n "s#^RewriteCond %{REQUEST_URI} !=/$d/##p" "$SITE_DIR/.htaccess")
+  if [[ " ${RESTRITOS[*]} " == *" $d "* ]] && [ ${#arquivos[@]} -eq 0 ]; then
+    falha "$SITE_DIR/.htaccess nao lista os arquivos publicos de $d"
+  fi
   filtros="-X '.*' -X manifest.json"
   manifest="-I manifest.json"
   if [ ${#arquivos[@]} -gt 0 ]; then
