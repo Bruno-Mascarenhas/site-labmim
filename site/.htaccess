@@ -7,10 +7,7 @@ RewriteCond %{HTTP:Sec-Fetch-Site} !^same-origin$ [OR]
 RewriteCond %{HTTP:Sec-Fetch-Mode} !^(cors|same-origin|no-cors)$ [OR]
 RewriteCond %{HTTP:Sec-Fetch-Dest} !^(empty|image)$ [OR]
 RewriteCond %{REQUEST_METHOD} !^(GET|HEAD)$ [OR]
-RewriteCond %{HTTP:Range} !^$
-RewriteRule ^ - [F,END]
-
-RewriteCond %{REQUEST_URI} ^/(Monitoramento|Climatologia|Ceu)(/|$) [NC]
+RewriteCond %{HTTP:Range} !^$ [OR]
 RewriteCond %{HTTP_HOST}@@%{HTTP_REFERER} !^([^@]+)@@https?://\1/(monitoring|climatologia|ceu)\.html(\?.*)?$ [NC]
 RewriteRule ^ - [F,END]
 
@@ -108,18 +105,6 @@ ErrorDocument 404 /404.html
 
   # Monitoring charts: regenerated under the SAME file name by the station.
   <If "%{REQUEST_URI} =~ m#^/assets/graphs/#">
-    Header set Cache-Control "no-cache"
-  </If>
-
-  # All-sky frames, same situation: the camera and the publisher rewrite the
-  # frame, the network input and the occlusion-sensitivity map in place. The
-  # page's ?v= tracks the content hash frame.json names for each image, but not
-  # the window in which the deploy has published the new frame.json but not yet
-  # the new image — and under the 7-day image rule a client that caches those
-  # bytes is stuck with them. Literal like the rule above, so it tracks
-  # `dataset.paths.sky`: a publication naming that directory differently must
-  # add its own line.
-  <If "%{REQUEST_URI} =~ m#^/Ceu/#">
     Header set Cache-Control "no-cache"
   </If>
 
