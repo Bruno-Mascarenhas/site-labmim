@@ -1197,7 +1197,7 @@ captura mostra o potencial fotovoltaico no snapshot WRF local.
 - janela móvel de **7 dias**, com recortes de 3 dias e 24 horas
 - camadas de amostras brutas, agregação horária e WRF
 - nove gráficos de meteorologia e balanço de radiação
-- ampliar, exportar CSV e ler notas interpretativas
+- ampliar e ler notas interpretativas; CSV de observações desabilitado
 - o payload informa cobertura, publicação e lacunas por variável
 
 <div class="border-l-4 border-emerald-600 pl-3 py-2 mt-4">
@@ -1213,7 +1213,7 @@ A variante viva de monitoramento lê `labmim-monitoring-v1`. O usuário combina 
 soma horária e a camada WRF, além de escolher o período. As notas abaixo de alguns gráficos registram
 diferenças sistemáticas relevantes para interpretação, sem esconder a origem de cada série.
 
-A página possui nove canvases e mantém ações de ampliação e CSV por variável. Quando uma série não cobre a
+A página possui nove canvases, mantém a ampliação e desabilita CSV de observações. Quando uma série não cobre a
 janela, o card explica se faltam estação e modelo em vez de desenhar uma linha enganosa. A UFBA usa esta
 variante; a fonte estática de nove PNGs continua disponível para publicações com gráficos próprios.
 
@@ -1238,7 +1238,7 @@ variante; a fonte estática de nove PNGs continua disponível para publicações
 - recortes anual, verão, inverno e WRF anual quando disponível
 - frequência medida e densidade teórica adequada à variável
 - amostra, média, dispersão, percentis e cobertura
-- bibliografia e CSV via o próprio contrato de dados
+- bibliografia e CSV apenas para os recortes WRF
 
 <div class="border-l-4 border-violet-600 pl-3 py-2 mt-4">
 
@@ -1278,7 +1278,7 @@ o produtor publicou a distribuição correspondente.
 - densidade de `Kt` x `Kd` e quatro condições de céu
 - modelos Marques Filho, Lemos e Ridley com métricas
 - acumulada de `Kt` por registro, verão e inverno
-- ampliação, CSV, notas e referências científicas
+- ampliação, amostra limitada, notas e referências científicas; CSV desabilitado
 
 <div class="border-l-4 border-teal-600 pl-3 py-2 mt-4">
 

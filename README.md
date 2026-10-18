@@ -6,7 +6,7 @@
 
 Gerador de sites estáticos para publicações meteorológicas de laboratórios universitários — hoje **LabMiM/UFBA**, no ar em <https://labmim.if.ufba.br/>, e **LEAL/UFES** —, preparado para incorporar outros estados e instituições sem duplicar a aplicação. Cada publicação reúne páginas institucionais e os WebGIS de previsões meteorológicas e potenciais energéticos derivados do modelo WRF; monitoramento ambiental, condição do céu e climatologia entram onde o laboratório tem estação e câmera próprias. A saída é HTML, CSS e JavaScript puros, sem backend, sem Node no servidor e sem CDN no caminho crítico; a arquitetura completa está em [Architecture.md](Architecture.md).
 
-Os dados dos mapas (`site/JSON/` e `site/GeoJSON/`) **não são gerados aqui**: eles vêm do pipeline WRF do repositório irmão [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) — ver [De onde vêm os dados](#de-onde-vêm-os-dados).
+Os dados científicos são produzidos fora deste build. Este repositório contém o frontend e usa apenas fixtures artificiais nos testes automatizados — ver [De onde vêm os dados](#de-onde-vêm-os-dados).
 
 ![WebGIS de previsões do LabMiM com o campo de temperatura do WRF sobre a Bahia](docs/imagens/webgis-previsoes.webp)
 
@@ -14,7 +14,7 @@ _WebGIS de previsões: campo de temperatura do WRF sobre a Bahia e o Nordeste, c
 
 ## O que o site publica
 
-Tudo abaixo é arquivo estático: não há backend consultando nada em runtime, só JSON e imagens que o deploy deposita nos caminhos do dataset.
+As páginas são estáticas e recebem produtos científicos preparados pelo laboratório; o build não inclui o acervo de observações.
 
 **Previsões meteorológicas.** A imagem acima: as variáveis da rodada do WRF — temperatura, vento, radiação, precipitação, pressão e umidade —, em quatro domínios aninhados de 27 km a 1 km, com série temporal ao clicar em qualquer célula.
 
@@ -76,14 +76,14 @@ Edite sempre `src/`: as páginas de `site/` e todo o `dist/` são saída gerada,
 make serve                     # serve site/ em http://localhost:8000
 ```
 
-Sem `make`, o equivalente cru é `cd site && python3 -m http.server 8000`. Se a porta 8000 estiver ocupada, use outra (ex.: `python3 -m http.server 8100`). Confira:
+Sem `make`, use `python3 -m http.server 8000 --bind 127.0.0.1 --directory site`. Se a porta estiver ocupada, escolha outra e mantenha o bind em loopback. Confira:
 
 - <http://localhost:8000/>
 - <http://localhost:8000/mapas_interativos.html>
 - <http://localhost:8000/potenciais_energeticos.html>
 - <http://localhost:8000/ceu.html>
 
-A publicação seleciona o **frontend**; ela não converte dados operacionais — cada deploy precisa receber, nos caminhos do seu dataset, a rodada WRF e o acervo daquela instituição (ver [De onde vêm os dados](#de-onde-vêm-os-dados)).
+A publicação seleciona o **frontend**; o build não converte nem fornece observações. Para desenvolver, use dados artificiais ou dados próprios com autorização.
 
 Antes de abrir um pull request, `make ci` roda os checks de publicação: build de todas as publicações, verificação de formatação, linters e auditoria de dependências.
 
@@ -93,33 +93,41 @@ A lista completa dos scripts npm e dos atalhos do `Makefile` está em [CONTRIBUT
 
 ## De onde vêm os dados
 
-Os campos do WebGIS (`site/JSON/`, `site/GeoJSON/`) são produzidos pelo pipeline WRF do repositório irmão [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), **nunca por este build**. O acervo do laboratório (`site/Ceu/`, `site/Climatologia/`, `site/Monitoramento/`) vem da câmera all-sky e dos sensores da estação.
+As previsões vêm do modelo WRF; as observações, dos instrumentos do laboratório.
+O processamento científico pertence ao projeto `micrometeorology` e não faz parte
+do gerador estático. O acervo, as credenciais e a configuração da infraestrutura
+não são distribuídos com este repositório nem cobertos pela licença do código.
 
-**Nenhum desses dados é versionado**: o git rastreia apenas o `.keep` que mantém cada diretório, e quem entrega o conteúdo é o deploy. Não abra, varra, formate nem reprocesse esses caminhos em manutenção comum — são arquivos grandes, gerados fora daqui, e mexer neles não conserta nada do lado do site.
+### Visualização e dados de pesquisa
 
-O site **degrada graciosamente** quando eles faltam: sem manifest usa o intervalo declarado pelo dataset, sem `grid.json` cai no `.geojson`, sem os artefatos consolidados volta à varredura hora-a-hora. Por isso o site novo funciona sobre dados antigos, e essa é a ordem segura numa mudança de formato: publicar o site primeiro e só então atualizar o pipeline — o inverso não é garantido (ver [Deploy em produção](Architecture.md#deploy-em-produção)).
+Kt × Kd apresenta uma amostra estável de até **5.000 pontos**, limitada a **25%**
+das horas selecionadas, sem datas individuais. Densidade, curvas e métricas
+continuam baseadas no registro completo. A climatologia pública apresenta os
+recortes oferecidos pelo seletor; os CSVs de observações permanecem desabilitados.
+O Monitoramento mantém as séries de 5 minutos, o hover e a ampliação necessários
+ao diagnóstico dos sensores. Os WebGIS WRF conservam suas exportações.
 
-- [Contratos de dados](Architecture.md#contratos-de-dados) — cada arquivo que o site consome, formato a formato.
-- [Produtor dos dados](Architecture.md#produtor-dos-dados) — a CLI `mm-wrf-geojson` que os gera, com fuso, paralelismo e entry points.
-- [O que não se edita à mão](CONTRIBUTING.md#o-que-não-se-edita-à-mão) — a fronteira entre o que é fonte e o que é entregue.
-- [Operação](scripts/operacao/README.md) — as rotinas que mantêm esses dados frescos no servidor da LabMiM: cópia do datalogger, monitoramento a cada hora, céu a cada 5 min, o serviço da câmera e a publicação por FTP.
+As figuras completas para artigos são geradas localmente pelos pesquisadores a
+partir de seu acervo autorizado. Procedimentos de aquisição, acesso à
+infraestrutura, publicação e recuperação permanecem em documentação interna,
+fora dos repositórios. Não use dados de produção como fixtures de contribuição.
 
 ## Onde está o resto
 
 Este README é o ponto de partida; o detalhe vive nos documentos abaixo.
 
-| Documento                                                        | O que responde                                                                                                                                  |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`Architecture.md`](Architecture.md)                             | A arquitetura completa: organização de pastas, contratos de dados, runtime do WebGIS, `.htaccess`, deploy em produção e checklist de validação. |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md)                             | O fluxo de issue, branch e pull request, os comandos npm e do `Makefile`, e o que não se edita à mão.                                           |
-| [`src/sites/README.md`](src/sites/README.md)                     | Como criar uma publicação, uma página, um território ou um dataset — e as fronteiras entre esses módulos.                                       |
-| [`docs/onboarding-architecture/`](docs/onboarding-architecture/) | Os dois PDFs de onboarding — a plataforma e o guia de contribuição —, sua fonte e como regenerá-los.                                            |
-| [`scripts/subset-fontawesome.md`](scripts/subset-fontawesome.md) | Como regenerar o subset da fonte do Font Awesome quando entra um ícone novo.                                                                    |
+| Documento                                                        | O que responde                                                                                            |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [`Architecture.md`](Architecture.md)                             | Organização de pastas, composição das publicações, runtime do WebGIS e checklist de validação.            |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)                             | O fluxo de issue, branch e pull request, os comandos npm e do `Makefile`, e o que não se edita à mão.     |
+| [`src/sites/README.md`](src/sites/README.md)                     | Como criar uma publicação, uma página, um território ou um dataset — e as fronteiras entre esses módulos. |
+| [`docs/onboarding-architecture/`](docs/onboarding-architecture/) | Os dois PDFs de onboarding — a plataforma e o guia de contribuição —, sua fonte e como regenerá-los.      |
+| [`scripts/subset-fontawesome.md`](scripts/subset-fontawesome.md) | Como regenerar o subset da fonte do Font Awesome quando entra um ícone novo.                              |
 
-O deploy é manual: publica-se o site completo junto do `.htaccess`, nunca o `.htaccess` sozinho sobre uma versão antiga. As regras aprendidas em produção — ordem segura para mudança de formato, rollback do pipeline e o `mod_pagespeed` do host — estão em [Deploy em produção](Architecture.md#deploy-em-produção).
+A publicação é responsabilidade dos mantenedores. Requisitos e procedimentos específicos da infraestrutura ficam na documentação interna.
 
 ## Licença
 
 O código deste repositório está sob a [Licença MIT](LICENSE): qualquer pessoa pode usar, copiar, modificar e redistribuir — inclusive em fork ou em uso comercial — sem pagar nada, desde que **mantenha o aviso de copyright e a licença** e cite este repositório como origem.
 
-A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados operacionais publicados em produção (`site/JSON/`, `site/GeoJSON/`, `site/Climatologia/`, `site/Monitoramento/`, `site/Ceu/`, `site/assets/graphs/`), que pertencem às instituições correspondentes — os do WebGIS vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), os demais do acervo de sensores e da câmera all-sky do laboratório. Um fork deve substituir ambos pela própria identidade e pelos próprios dados. As bibliotecas vendorizadas em `site/assets/vendor/` mantêm suas licenças originais (Bootstrap, Leaflet, Chart.js e Font Awesome).
+A permissão cobre o gerador estático e o template. Ela **não** transfere direitos sobre marcas e identidade institucional (logos e nomes de LabMiM/UFBA, LEAL/UFES e parceiros, em `src/sites/<id>/assets/`) nem sobre os dados científicos das instituições, que pertencem às instituições correspondentes — os do WebGIS vêm do pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology), os demais do acervo de sensores e da câmera all-sky do laboratório. Um fork deve substituir ambos pela própria identidade e pelos próprios dados. As bibliotecas vendorizadas em `site/assets/vendor/` mantêm suas licenças originais (Bootstrap, Leaflet, Chart.js e Font Awesome).

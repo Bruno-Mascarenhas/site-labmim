@@ -617,7 +617,7 @@ não gera `.series.bin` ou `.summary.json`.
 - duas fontes para a mesma rota, escolhidas em `pages.js`;
 - variante interativa em `src/template/pages/monitoring-live.html`, runtime em
   `site/assets/js/monitoramento.js` e dados `labmim-monitoring-v1` em `dataset.paths.monitoring`;
-- nove gráficos com três camadas: amostras brutas de 5 minutos, média horária e WRF quando disponível;
+- nove gráficos com CSV de observações desabilitado e três camadas: amostras brutas de 5 minutos, média horária e WRF quando disponível;
 - variante estática em `src/template/pages/monitoring.html`, nove PNGs fixos declarados em
   `dataset.observations.charts`, cards/modais Bootstrap e produção por `mm-site-graphs`;
 - o validator distingue as variantes pela fonte resolvida e exige o contrato de dados correspondente.
@@ -626,7 +626,7 @@ não gera `.series.bin` ou `.summary.json`.
 
 - fonte HTML comum em `src/template/pages/climatologia.html`, runtime em `site/assets/js/climatologia.js`;
 - consome `labmim-climatology-v1` em `dataset.paths.climatology`;
-- histogramas e densidades teóricas, rosa dos ventos, recortes, cobertura do registro, bibliografia e CSV;
+- histogramas e densidades teóricas, rosa dos ventos, recortes, cobertura do registro, bibliografia e CSV apenas para recortes WRF;
 - Chart.js 3.9.1 é declarado por página; a rosa dos ventos é SVG autoral no runtime.
 
 ### WebGIS
@@ -645,7 +645,7 @@ não gera `.series.bin` ou `.summary.json`.
 - a camada padrão é a **densidade**: histograma 2D de `labmim-ktkd-v1`, desenhado por plugin próprio
   (`labmimSkyDensity`) porque o Chart.js 3.9.1 não traz controlador de matriz; escala logarítmica por
   indicação do próprio payload em `density.color_scale_hint`;
-- os pontos horários são sobreposição opcional, coloridos pelas quatro classes de Escobedo, Gomes,
+- a amostra de até 5.000 pontos e no máximo 25% do conjunto é uma sobreposição opcional, coloridos pelas quatro classes de Escobedo, Gomes,
   Oliveira e Soares (2009), Applied Energy 86(3), 299-309, na nomenclatura em português de Teramoto e
   Escobedo (2012), RBEAA 16(9), 985-992, cujos limites o payload carrega em `sky_conditions`;
 - modelos: `kind: "curve"` vira linha (Marques Filho et al., 2016, Renewable Energy 91, 64-74, função só

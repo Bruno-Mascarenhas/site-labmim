@@ -10,7 +10,7 @@ O resultado continua sendo um site estático. Node valida e monta os arquivos an
 > (issue → branch → alteração → testes → pull request → revisão → merge na `main`). O modelo mental da
 > arquitetura está em
 > [Onboarding da plataforma estática multi-publicação](../../docs/onboarding-architecture/assets/onboarding-plataforma-estatica-labmim-leal.pdf),
-> a documentação vigente do projeto.
+> uma referência visual; consulte os documentos Markdown para as regras atuais.
 
 ## Fronteiras
 
@@ -116,7 +116,7 @@ O contorno deve ser um `FeatureCollection` com `Polygon` ou `MultiPolygon` váli
 
 ### 3. Dataset
 
-Crie ou reutilize `src/datasets/<produto>.js`. Esse módulo não descreve a instituição: ele descreve o contrato dos dados consumidos.
+Crie ou reutilize `src/datasets/<produto>.js`. Esse módulo descreve o contrato dos dados consumidos. Os caminhos abaixo são fictícios e servem somente para dados próprios ou fixtures artificiais; não são instruções de coleta em produção.
 
 ```js
 "use strict";
@@ -125,26 +125,26 @@ module.exports = {
   id: "exemplo-wrf",
   attribution: "LAB-UE",
   paths: {
-    manifest: "JSON/manifest.json",
-    values: "JSON",
-    grids: "GeoJSON",
+    manifest: "dados-exemplo/manifest.json",
+    values: "dados-exemplo/valores",
+    grids: "dados-exemplo/grades",
     // Opcional: a janela móvel de 7 dias reescrita a cada hora pelo deploy.
     // Exigida pela variante interativa da página de monitoramento
     // (`templateSource("pages/monitoring-live.html")`).
-    monitoring: "Monitoramento",
+    monitoring: "dados-exemplo/monitoramento",
     // Opcional: os PNGs da estação. Default `assets/graphs` — o único caminho
     // de dataset que legitimamente vive sob o `assets/` do build.
-    graphs: "assets/graphs",
+    graphs: "assets/graficos-exemplo",
     // Opcional: distribuições observadas pré-calculadas da página de
     // climatologia. Como as saídas do WRF, é dado operacional — fica fora do
     // git e chega pelo deploy. Oferecer a página exige declarar este caminho; o
     // caminho sem a página não é recusado.
-    climatology: "Climatologia",
+    climatology: "dados-exemplo/climatologia",
     // Opcional: a imagem da câmera all-sky, o mapa de sensibilidade da rede
     // sobre ela e o payload do gráfico Kt × Kd da página de condição do céu.
     // Também é dado operacional, fora do git e entregue no deploy. Oferecer a
     // página exige declarar este caminho; o caminho sem a página não é recusado.
-    sky: "Ceu",
+    sky: "dados-exemplo/ceu",
   },
   timeline: {
     defaultMaxLayer: 72,
@@ -323,3 +323,12 @@ page("climatology", {
 - `dist/<id>/`: bundles criados por `npm run build:all`. Contêm o frontend estático de cada publicação, mas omitem o manifest e os diretórios operacionais configurados em `dataset.paths` para não duplicar rodadas WRF grandes.
 
 Antes do deploy, associe ao bundle os dados e gráficos operacionais produzidos para a publicação. O build escolhe o frontend; ele não transforma nem transfere dados meteorológicos.
+
+## Limites de publicação científica
+
+A amostra pública de Kt × Kd tem até 5.000 pontos e no máximo 25% do conjunto.
+As estatísticas agregadas continuam completas. O Monitoramento preserva a resolução
+de 5 minutos e a interação dos gráficos; os CSVs de observações permanecem
+desabilitados. A geração completa para artigos usa o acervo local autorizado do
+pesquisador. Procedimentos internos de aquisição e acesso não são documentados
+neste repositório.
