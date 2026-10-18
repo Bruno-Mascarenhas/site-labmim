@@ -3,6 +3,10 @@
 (function () {
   const EXCEL_UTF8_BOM = "\ufeff";
 
+  const RESEARCH_MODE =
+    ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname) &&
+    new URLSearchParams(window.location.search).get("research") === "1";
+
   const STAMP = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
   const COMPACT_STAMP = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/;
 
@@ -153,5 +157,6 @@
     formatStampYear,
     showEmpty,
     downloadCsv,
+    researchMode: RESEARCH_MODE,
   };
 })();

@@ -14,9 +14,7 @@
 "use strict";
 
 (function () {
-  const RESEARCH_MODE =
-    ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname) &&
-    new URLSearchParams(window.location.search).get("research") === "1";
+  const RESEARCH_MODE = window.labmimChartPage.researchMode;
   const KTKD_PAYLOAD = "ktkd.json";
   const FRAME_PAYLOAD = "frame.json";
   const TIMELINE_PAYLOAD = "timeline.json";

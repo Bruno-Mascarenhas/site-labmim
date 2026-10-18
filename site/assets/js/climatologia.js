@@ -13,9 +13,7 @@
 "use strict";
 
 (function () {
-  const RESEARCH_MODE =
-    ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname) &&
-    new URLSearchParams(window.location.search).get("research") === "1";
+  const RESEARCH_MODE = window.labmimChartPage.researchMode;
   // Same values as the monitoring page, re-stepped in lightness so the pair separates without hue.
   const PALETTE = {
     light: { empirical: "#406bbf", model: "#c26300" },
