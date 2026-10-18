@@ -344,7 +344,6 @@
 
   function focusedPointsControl() {
     const focused = document.activeElement;
-    if (!focused) return null;
     return el("ceuCamadas").contains(focused) ? focused : null;
   }
 
@@ -1834,7 +1833,6 @@
     }
 
     const coverage = hoursOutsideDensityGrid();
-    el("ceuAmostra").textContent = "das horas selecionadas";
     el("ceuForaDaGrade").textContent = coverage ? densityCoverageSentence(coverage) : "";
     el("ceuHorasCelulaCheia").textContent = densestCellHours();
 

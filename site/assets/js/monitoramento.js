@@ -162,7 +162,7 @@
   // The payload's `null`s are kept as null-valued points rather than dropped: with
   // `spanGaps` off, that is what makes an outage show as a hole instead of a straight
   // segment bridging hours of silence.
-  function layerPoints(layer, seriesId, from, shiftMs = 0) {
+  function layerPoints(layer, seriesId, from, shiftMs) {
     const values = layer && layer.series ? layer.series[seriesId] : null;
     if (!values) return null;
     const start = parseStationTime(layer.axis.start);
@@ -199,7 +199,6 @@
   function layerPlacement(covers) {
     const [fromMs, toMs] = covers.map((minutes) => minutes * MINUTE_MS);
     return {
-      covers,
       shiftMs: (fromMs + toMs) / 2,
       intervalMs: covers[0] === covers[1] ? null : [fromMs, toMs],
     };
