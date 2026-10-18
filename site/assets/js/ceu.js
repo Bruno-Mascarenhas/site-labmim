@@ -196,6 +196,9 @@
         guide: `Uma marca por hora da amostra, colorida pela condição de céu daquele Kt. A seleção é fixa para o mesmo registro, limitada a ${integer(PUBLIC_POINTS_LIMIT)} pontos e a ${percent(1 / PUBLIC_POINTS_ONE_IN, 0)} das horas, sem datas individuais. A densidade e as métricas dos modelos usam todas as horas selecionadas.`,
       };
 
+  const POINT_CONDITION_INDEX = POINTS.format.indexOf("condition");
+  const POINT_TIME_INDEX = POINTS.format.indexOf("t");
+
   function classPalette() {
     return isDark() ? CLASS_PALETTE.dark : CLASS_PALETTE.light;
   }
@@ -273,39 +276,8 @@
       .map((model) => ({ ...model, short: modelDisplayName(model) }));
   }
 
-  function pointsFieldIndex(payload) {
-    const declared = payload && payload.points_format;
-    const order = Array.isArray(declared) ? declared : [];
-    return {
-      kt: order.indexOf("kt"),
-      kd: order.indexOf("kd"),
-      condition: order.indexOf("condition"),
-    };
-  }
-
-  function pointCondition(value) {
-    return Number.isInteger(value) && value > 0 ? value : null;
-  }
-
-  function readPoints(payload) {
-    const raw = payload && Array.isArray(payload.points) ? payload.points : [];
-    const at = pointsFieldIndex(payload);
-    // A declaration without both coordinates names no scatter at all; falling back to positions it did not
-    // declare would be guessing, and guessing here is what mirrors the figure.
-    if (at.kt < 0 || at.kd < 0) return [];
-    const points = [];
-    for (const entry of raw) {
-      const positional = Array.isArray(entry);
-      const kt = positional ? entry[at.kt] : entry && entry.kt;
-      const kd = positional ? entry[at.kd] : entry && entry.kd;
-      if (!Number.isFinite(kt) || !Number.isFinite(kd)) continue;
-      const point = { x: kt, y: kd, observed: true };
-      if (positional ? at.condition >= 0 : entry.condition !== undefined) {
-        point.condition = pointCondition(positional ? entry[at.condition] : entry.condition);
-      }
-      points.push(point);
-    }
-    return points;
+  function readPoints(rows) {
+    return rows.map((row) => ({ x: row[0], y: row[1], condition: row[POINT_CONDITION_INDEX], observed: true }));
   }
 
   function pointsFileDeclared() {
@@ -344,10 +316,7 @@
     const version = state.chartPayload.version;
     if (typeof version !== "string" || !version || payload.version !== version) return "stale";
     const declared = state.chartPayload.points_file;
-    const conditionIndex = POINTS.format.indexOf("condition");
-    const timeIndex = POINTS.format.indexOf("t");
     if (
-      !pointsFileDeclared() ||
       payload.sampling !== declared.sampling ||
       payload.population_n !== declared.population_n ||
       !Array.isArray(payload.points) ||
@@ -360,11 +329,12 @@
           point.length === POINTS.format.length &&
           Number.isFinite(point[0]) &&
           Number.isFinite(point[1]) &&
-          (timeIndex < 0 ||
-            (typeof point[timeIndex] === "string" && Number.isFinite(parseStationTime(point[timeIndex])))) &&
-          Number.isInteger(point[conditionIndex]) &&
-          point[conditionIndex] >= 1 &&
-          point[conditionIndex] <= 4
+          (POINT_TIME_INDEX < 0 ||
+            (typeof point[POINT_TIME_INDEX] === "string" &&
+              Number.isFinite(parseStationTime(point[POINT_TIME_INDEX])))) &&
+          Number.isInteger(point[POINT_CONDITION_INDEX]) &&
+          point[POINT_CONDITION_INDEX] >= 1 &&
+          point[POINT_CONDITION_INDEX] <= 4
       )
     ) {
       return "foreign";
@@ -392,10 +362,8 @@
 
   function acceptPointsFile(result) {
     const focusedControl = focusedPointsControl();
-    const status = pointsFileStatus(result);
-    const points = status === "ok" ? readPoints(result.payload) : [];
-    state.pointsStatus = status === "ok" && !points.length ? "unreadable" : status;
-    state.points = points;
+    state.pointsStatus = pointsFileStatus(result);
+    state.points = state.pointsStatus === "ok" ? readPoints(result.payload.points) : [];
     invalidateVisiblePoints();
     if (pointsFailed()) {
       state.layers.delete("points");
@@ -456,12 +424,7 @@
     return `A densidade conta ${inside}; ${rest} fora da grade ${coverage.span}.`;
   }
 
-  function classOf(kt) {
-    return state.classes.find((entry) => kt <= entry.max) || state.classes[state.classes.length - 1] || null;
-  }
-
   function pointClass(point) {
-    if (point.condition === undefined) return classOf(point.x);
     return state.classes.find((entry) => entry.condition === point.condition) || null;
   }
 
@@ -1906,8 +1869,8 @@
       return "O documento de Kt × Kd ainda não foi publicado — os quadros acima continuam válidos.";
     }
     if (!state.density && !pointsOffered()) return "O documento publicado não traz nem densidade nem pontos.";
-    if (state.pointsStatus === "loading") return POINTS_LOADING_MESSAGE;
-    if (pointsFailed()) return pointsStatusMessage();
+    const pointsMessage = pointsStatusMessage();
+    if (pointsMessage) return pointsMessage;
     if (showingPoints() && !visiblePoints().length) {
       return "Nenhuma condição de céu selecionada — ative pelo menos uma acima.";
     }
@@ -3889,7 +3852,6 @@
     state.chartStatus = chart.status;
     state.classes = resolveClasses(state.chartPayload);
     state.models = resolveModels(state.chartPayload);
-    state.points = [];
     state.density = readDensity(state.chartPayload);
     invalidateVisiblePoints();
     if (!state.density) state.layers.delete("density");
