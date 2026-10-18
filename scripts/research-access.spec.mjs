@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expect, test, type Locator, type Page } from "playwright/test";
+import { expect, test } from "playwright/test";
 
 const siteRoot = path.resolve(process.env.SITE_TEST_ROOT ?? "site");
 const origin = "http://research.test";
@@ -76,7 +76,7 @@ const fixtures = {
       [0.6, 0.4, 3],
     ],
   },
-} satisfies Record<string, unknown>;
+};
 
 const researchFixtures = {
   "/Ceu/research/ktkd.json": {
@@ -108,16 +108,11 @@ const researchFixtures = {
     ...fixtures["/Climatologia/air_temperature.json"],
     subsets: { observed_all: observed, wrf_all: model, wrf_djf: model },
   },
-} satisfies Record<string, unknown>;
+};
 
-async function openPage(
-  page: Page,
-  name: string,
-  overrides: Readonly<Record<string, unknown>> = {},
-  pageOrigin: string = origin
-): Promise<readonly string[]> {
-  const pageFixtures: Readonly<Record<string, unknown>> = { ...fixtures, ...overrides };
-  const requested: string[] = [];
+async function openPage(page, name, overrides = {}, pageOrigin = origin) {
+  const pageFixtures = { ...fixtures, ...overrides };
+  const requested = [];
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     requested.push(url.pathname);
@@ -136,7 +131,7 @@ async function openPage(
   return requested;
 }
 
-function samplePoints(page: Page): Locator {
+function samplePoints(page) {
   return page.getByRole("button", { name: "Pontos (amostra)", exact: true });
 }
 
@@ -323,10 +318,10 @@ test("reativar o botão na página não exporta observações da climatologia", 
   await openPage(page, "climatologia.html");
   await expect(page.locator("#climaTitulo")).toContainText("Observações");
   await page.evaluate(() => {
-    URL.createObjectURL = (): string => {
+    URL.createObjectURL = () => {
       throw new Error("Exportação de observações foi acionada");
     };
-    const button = document.querySelector<HTMLButtonElement>("#climaExport");
+    const button = document.querySelector("#climaExport");
     if (!button) throw new Error("Botão CSV ausente");
     button.disabled = false;
     button.click();

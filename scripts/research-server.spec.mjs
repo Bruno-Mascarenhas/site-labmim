@@ -17,7 +17,7 @@ const publicFiles = [
   "Ceu/allsky.jpg",
   "Ceu/input.jpg",
   "Ceu/attribution.png",
-] as const;
+];
 
 const blockedFiles = [
   "Ceu/backup.csv",
@@ -31,11 +31,11 @@ const blockedFiles = [
   "Ceu/ktkd.json.bak",
   "Ceu/.ktkd.json.tmp-1",
   "Monitoramento/archive.parquet",
-] as const;
+];
 
-const wrfFiles = ["JSON/manifest.json", "JSON/D01_TEMP.series.bin", "GeoJSON/D01.grid.json"] as const;
+const wrfFiles = ["JSON/manifest.json", "JSON/D01_TEMP.series.bin", "GeoJSON/D01.grid.json"];
 
-function chartHeaders(origin: string): Record<string, string> {
+function chartHeaders(origin) {
   return {
     "Sec-Fetch-Site": "same-origin",
     "Sec-Fetch-Mode": "cors",
@@ -44,13 +44,12 @@ function chartHeaders(origin: string): Record<string, string> {
   };
 }
 
-const test = base.extend<object, { readonly serverOrigin: string }>({
+const test = base.extend({
   serverOrigin: [
-    async ({}, use): Promise<void> => {
+    async ({}, use) => {
       const directory = mkdtempSync(path.join(tmpdir(), "labmim-apache-test-"));
       const container = path.basename(directory).toLowerCase();
-      const docker = (args: readonly string[]): string =>
-        execFileSync("docker", [...args], { encoding: "utf8" }).trim();
+      const docker = (args) => execFileSync("docker", [...args], { encoding: "utf8" }).trim();
       try {
         const root = path.join(directory, "htdocs");
         for (const file of [...publicFiles, ...blockedFiles, ...wrfFiles]) {
