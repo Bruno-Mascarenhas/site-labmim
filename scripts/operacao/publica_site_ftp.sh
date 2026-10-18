@@ -190,7 +190,7 @@ done
 mirrors_dados+=("${mirrors_manifest[@]}")
 
 interrompido="interrompido: as fases seguintes nao foram enviadas"
-OPCOES="--overwrite --no-perms --ignore-time --parallel=$PARALELO" \
+OPCOES="--overwrite --no-perms --transfer-all --parallel=$PARALELO" \
   fase "protecao de acesso (.htaccess)" "-r -I .htaccess $(q "$SITE_DIR") ." || falha "$interrompido"
 if [ "$modo" = completo ]; then
   fase "1/4 assets/" "-X '.*' -x '^graphs/' $(q "$SITE_DIR/assets") assets" || falha "$interrompido"
