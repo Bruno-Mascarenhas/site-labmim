@@ -490,7 +490,7 @@ mantenedores; os testes usam Apache local e fixtures artificiais.
 ## Exportação e acesso aos dados
 
 Hover, seletores e ampliação permanecem disponíveis nos gráficos de pesquisa.
-Os CSVs de observações ficam desabilitados; na climatologia a exportação é
+Céu e Monitoramento não oferecem CSV; na climatologia a exportação é
 permitida apenas para recortes WRF. Os WebGIS mantêm suas exportações.
 
 O produtor limita as observações disponibilizadas para a visualização pública.
@@ -645,7 +645,7 @@ Use antes de merge/publicação:
 - `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm run check:audit`.
 - Servir `site/` por HTTP local (`make serve`).
 - Abrir páginas institucionais em desktop e mobile; alternar dark mode em cada página.
-- Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade do mapa de sensibilidade, cartão da previsão, linha do tempo, cartão do modelo, alternância das quatro condições, curva de referência, ampliação e CSV desabilitado; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
+- Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade do mapa de sensibilidade, cartão da previsão, linha do tempo, cartão do modelo, alternância das quatro condições, curva de referência, ampliação e ausência do botão CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
 - Abrir `mapas_interativos.html` e confirmar que Potencial Fotovoltaico não aparece como previsão; `SWDOWN` deve aparecer como Radiação Global.
 - Abrir `potenciais_energeticos.html` e confirmar que só aparecem Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Verificar se Leaflet renderiza (bundle local) e se não há erros no console.

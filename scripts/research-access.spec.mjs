@@ -135,24 +135,24 @@ function samplePoints(page) {
   return page.getByRole("button", { name: "Pontos (amostra)", exact: true });
 }
 
-test("monitoramento mantém ampliação e desabilita CSV mesmo após trocar o período", async ({ page }) => {
+test("monitoramento mantém ampliação sem oferecer CSV mesmo após trocar o período", async ({ page }) => {
   await openPage(page, "monitoring.html");
   const card = page.locator("#monitor-card-temperatura");
   await expect(card.locator("canvas")).toBeVisible();
-  await expect(card.getByRole("button", { name: /CSV/ })).toBeDisabled();
+  await expect(card.getByRole("button", { name: /CSV/ })).toHaveCount(0);
   await page.getByRole("button", { name: "24 horas", exact: true }).click();
-  await expect(card.getByRole("button", { name: /CSV/ })).toBeDisabled();
+  await expect(card.getByRole("button", { name: /CSV/ })).toHaveCount(0);
   await card.getByRole("button", { name: /Ampliar/ }).click();
   await expect(page.locator("dialog canvas")).toBeVisible();
 });
 
-test("Kt × Kd mantém a amostra interativa sem habilitar CSV", async ({ page }) => {
+test("Kt × Kd mantém a amostra interativa sem oferecer CSV", async ({ page }) => {
   await openPage(page, "ceu.html");
   await expect(page.locator("#ceuAmpliar")).toBeEnabled();
-  await expect(page.locator("#ceuExport")).toBeDisabled();
+  await expect(page.getByRole("button", { name: /CSV/ })).toHaveCount(0);
   await samplePoints(page).click();
   await samplePoints(page).click();
-  await expect(page.locator("#ceuExport")).toBeDisabled();
+  await expect(page.getByRole("button", { name: /CSV/ })).toHaveCount(0);
   await page.locator("#ceuAmpliar").click();
   await expect(page.locator("dialog canvas")).toBeVisible();
 });

@@ -328,7 +328,7 @@ Antes do deploy, associe ao bundle os dados e gráficos operacionais produzidos 
 
 A amostra pública de Kt × Kd tem até 5.000 pontos e no máximo 25% do conjunto.
 As estatísticas agregadas continuam completas. O Monitoramento preserva a resolução
-de 5 minutos e a interação dos gráficos; os CSVs de observações permanecem
-desabilitados. A geração completa para artigos usa o acervo local autorizado do
+de 5 minutos e a interação dos gráficos; Céu e Monitoramento não oferecem CSV
+de observações. A geração completa para artigos usa o acervo local autorizado do
 pesquisador. Procedimentos internos de aquisição e acesso não são documentados
 neste repositório.

@@ -20,8 +20,8 @@ Configurações locais e dados operacionais nunca entram em commits ou bundles.
 Kt × Kd usa uma amostra de até 5.000 pontos e no máximo 25% do conjunto. Densidade,
 curvas e métricas conservam o registro completo. A climatologia publica os
 recortes oferecidos na interface. O Monitoramento mantém sua resolução de
-5 minutos e as ferramentas de diagnóstico; os CSVs de observações ficam
-desabilitados. As figuras completas para artigos permanecem disponíveis aos
+5 minutos e as ferramentas de diagnóstico; Céu e Monitoramento não oferecem
+CSV de observações. As figuras completas para artigos permanecem disponíveis aos
 pesquisadores a partir de seu acervo local autorizado.
 
 ## Verificação local

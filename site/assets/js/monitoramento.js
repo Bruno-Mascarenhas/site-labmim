@@ -793,13 +793,6 @@
     zoom.addEventListener("click", () => openZoom(chart));
     state.zooms.set(chart.id, zoom);
     actions.appendChild(zoom);
-
-    const download = node("button", "btn btn-sm btn-outline-lab", "CSV");
-    download.type = "button";
-    download.disabled = true;
-    download.title = "Exportação indisponível para dados de pesquisa";
-    download.setAttribute("aria-label", `CSV indisponível para ${chart.title}: dados de pesquisa`);
-    actions.appendChild(download);
     head.appendChild(actions);
     card.appendChild(head);
 

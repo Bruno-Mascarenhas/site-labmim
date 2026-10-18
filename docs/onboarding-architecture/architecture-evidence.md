@@ -617,7 +617,7 @@ não gera `.series.bin` ou `.summary.json`.
 - duas fontes para a mesma rota, escolhidas em `pages.js`;
 - variante interativa em `src/template/pages/monitoring-live.html`, runtime em
   `site/assets/js/monitoramento.js` e dados `labmim-monitoring-v1` em `dataset.paths.monitoring`;
-- nove gráficos com CSV de observações desabilitado e três camadas: amostras brutas de 5 minutos, média horária e WRF quando disponível;
+- nove gráficos sem CSV de observações e com três camadas: amostras brutas de 5 minutos, média horária e WRF quando disponível;
 - variante estática em `src/template/pages/monitoring.html`, nove PNGs fixos declarados em
   `dataset.observations.charts`, cards/modais Bootstrap e produção por `mm-site-graphs`;
 - o validator distingue as variantes pela fonte resolvida e exige o contrato de dados correspondente.

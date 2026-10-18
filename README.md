@@ -28,7 +28,7 @@ _WebGIS de potenciais energéticos: potencial fotovoltaico em W/m², sobre a mes
 
 ![Gráficos de monitoramento da estação com as séries de temperatura do ar e de umidade relativa ao longo de sete dias](docs/imagens/monitoramento-estacao.webp)
 
-_Monitoramento da estação: temperatura do ar e umidade relativa em três camadas — amostras brutas de 5 min, média horária e WRF —, com ampliação e leitura de valores ao passar o cursor; a exportação CSV de observações fica desabilitada._
+_Monitoramento da estação: temperatura do ar e umidade relativa em três camadas — amostras brutas de 5 min, média horária e WRF —, com ampliação e leitura de valores ao passar o cursor, sem exportação CSV de observações._
 
 **Condição do céu.** O quadro vivo da câmera all-sky com o mapa de sensibilidade à oclusão da rede sobreposto, a previsão de difusa e de condição do céu com os contrafactuais sem imagem, a linha do tempo dos últimos dias, o cartão do modelo servido (métricas de teste contra controles e referências) e o plano do índice de claridade Kt contra a fração difusa Kd.
 
@@ -103,7 +103,8 @@ não são distribuídos com este repositório nem cobertos pela licença do cód
 Kt × Kd apresenta uma amostra estável de até **5.000 pontos**, limitada a **25%**
 das horas selecionadas, sem datas individuais. Densidade, curvas e métricas
 continuam baseadas no registro completo. A climatologia pública apresenta os
-recortes oferecidos pelo seletor; os CSVs de observações permanecem desabilitados.
+recortes oferecidos pelo seletor, com CSV apenas dos recortes WRF; Céu e
+Monitoramento não oferecem CSV.
 O Monitoramento mantém as séries de 5 minutos, o hover e a ampliação necessários
 ao diagnóstico dos sensores. Os WebGIS WRF conservam suas exportações.
 

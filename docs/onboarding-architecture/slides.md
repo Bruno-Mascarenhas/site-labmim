@@ -1197,7 +1197,7 @@ captura mostra o potencial fotovoltaico no snapshot WRF local.
 - janela móvel de **7 dias**, com recortes de 3 dias e 24 horas
 - camadas de amostras brutas, agregação horária e WRF
 - nove gráficos de meteorologia e balanço de radiação
-- ampliar e ler notas interpretativas; CSV de observações desabilitado
+- ampliar e ler notas interpretativas; sem CSV de observações
 - o payload informa cobertura, publicação e lacunas por variável
 
 <div class="border-l-4 border-emerald-600 pl-3 py-2 mt-4">
@@ -1278,7 +1278,7 @@ o produtor publicou a distribuição correspondente.
 - densidade de `Kt` x `Kd` e quatro condições de céu
 - modelos Marques Filho, Lemos e Ridley com métricas
 - acumulada de `Kt` por registro, verão e inverno
-- ampliação, amostra limitada, notas e referências científicas; CSV desabilitado
+- ampliação, amostra limitada, notas e referências científicas; sem CSV
 
 <div class="border-l-4 border-teal-600 pl-3 py-2 mt-4">
 
