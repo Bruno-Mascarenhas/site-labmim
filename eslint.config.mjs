@@ -71,6 +71,7 @@ export default defineConfig([
     rules: {
       "no-unused-vars": "warn",
       "no-console": "off",
+      "no-empty-pattern": ["error", { allowObjectPatternsAsParameters: true }],
     },
   },
 ]);

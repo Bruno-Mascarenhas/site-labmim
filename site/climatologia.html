@@ -244,7 +244,15 @@
               <div class="clima-segmented" id="climaRecorte" role="group" aria-labelledby="climaRecorteLabel"></div>
             </div>
             <div class="clima-control clima-control-actions">
-              <button type="button" class="btn btn-sm btn-outline-lab" id="climaExport">Baixar CSV</button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-lab"
+                id="climaExport"
+                disabled
+                title="CSV disponível apenas para simulações WRF"
+              >
+                Baixar CSV
+              </button>
             </div>
             <p class="clima-model-note" id="climaRecorteNota" hidden>
               Recorte do WRF desativado: o modelo não publica esta variável.
@@ -551,7 +559,7 @@
     <script defer src="assets/js/references.js?v=23573fee"></script>
 
     <script defer src="assets/vendor/chartjs/chart.min.js?v=3.9.1"></script>
-    <script defer src="assets/js/chart-page.js?v=94585a14"></script>
-    <script defer src="assets/js/climatologia.js?v=6b022057"></script>
+    <script defer src="assets/js/chart-page.js?v=bb9efedd"></script>
+    <script defer src="assets/js/climatologia.js?v=ec594425"></script>
   </body>
 </html>

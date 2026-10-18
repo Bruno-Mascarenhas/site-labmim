@@ -358,130 +358,28 @@ O rótulo "Média diurna" da prévia (`_meanCoversDaylightOnly()`, em `charts-ma
 
 ## Contratos De Dados
 
-Salvo indicação em contrário, os arquivos abaixo são gerados pelo pipeline [micrometeorology](https://github.com/Bruno-Mascarenhas/micrometeorology) e publicados em `site/JSON/` e `site/GeoJSON/` (gitignored). Com manifest presente, toda URL recebe `?v=<versão da rodada>`.
-
 ### Produtor Dos Dados
 
-A CLI é `mm-wrf-geojson` (entry point `micrometeorology.cli.export_wrf_geojson`; a escrita dos artefatos fica em `wrf/jobs.py` e `wrf/geojson.py`) e a entrada são as saídas `wrfout_d0X_*` do WRF. Invocação típica:
+O frontend consome produtos preparados pelo `micrometeorology`; o build não
+executa o processamento científico. Versões de contrato, contagens e valores
+finitos são validados antes da renderização. Mudanças devem preservar a
+compatibilidade entre os dois projetos e ser verificadas com fixtures artificiais.
 
-```bash
-mm-wrf-geojson --wrf-dir <dir com wrfout> --date YYYYMMDD -D 1,2,3,4 \
-  -o site/JSON -g site/GeoJSON --workers 14
-```
+### Produtos apresentados
 
-O fuso do produto é fixado pela variável de ambiente `LABMIM_TIMEZONE` (default `America/Bahia`): dela saem o campo `timezone` do manifest, o `start_local` e os dígitos de `date_time` de cada arquivo de valores — o site exibe esses dígitos como recebidos, sem reconverter. `--no-site-artifacts` desliga a escrita dos artefatos consolidados (`series.bin`, `summary.json` e os campos de manifest que os anunciam), e o cliente volta à varredura hora-a-hora descrita adiante. O contrato de integração completo mora no repositório do pipeline, em `docs/micrometeorology.md`, seção "Front-end integration (site-labmim)".
+Os WebGIS combinam geometria, campos meteorológicos e séries temporais. Céu e
+Climatologia apresentam distribuições e métricas calculadas no produtor. O
+Monitoramento conserva a resolução necessária ao diagnóstico dos sensores.
 
-As subseções seguintes descrevem os formatos que essa invocação produz e que este repositório apenas consome.
+O frontend distingue a população científica da amostra visual de Kt × Kd, limitada
+a 5.000 pontos e 25% do conjunto. A ausência ou inconsistência da amostra não
+impede a apresentação dos agregados válidos. As exportações completas para
+artigos são uma atividade local dos pesquisadores com seu próprio acervo.
 
-### Grade Compacta (preferida)
-
-```text
-GeoJSON/{domain}.grid.json
-```
-
-Formato `grid-edges-v1`: `{format, metadata: {resolucao_m}, shape: [nRows, nCols], lon_edges (nCols+1), lat_edges (nRows+1)}` (~2 KB). Há também a variante `grid-bounds-v1` (`bounds` com `[left, bottom, right, top]` por célula, para grades curvilíneas). `_featureCollectionFromCompactGrid()` reconstrói no cliente uma FeatureCollection de polígonos retangulares com `properties.linear_index` (row-major, `k = i*nCols + j`). Payload malformado lança erro e cai no fallback abaixo.
-
-### Grade Legada (fallback)
-
-```text
-GeoJSON/{domain}.geojson
-```
-
-FeatureCollection completa (1,2–2,6 MB) com um Polygon por célula e `properties.linear_index`. Usada apenas quando `grid.json` não existe (pipeline antigo). `loadGridLayer()` monta em ambos os casos um mapa `linear_index → camada` (`_layersByLinearIndex`) usado por cores, clique e vetores de vento.
-
-### Valores Por Passo
-
-```text
-JSON/{domain}_{variableId}_{index:03d}.json
-```
-
-```json
-{
-  "metadata": {
-    "scale_values": [16.72, 19.45, 22.19, 24.93, 27.67, 30.4],
-    "date_time": "02/05/2026 21:00:00"
-  },
-  "values": [22.82, 22.86, null]
-}
-```
-
-`values[i]` é indexado por `linear_index`; `null` é legítimo (célula sem dado). Índices vão de `000` até `index_max` (a rodada atual exporta 000–075; `SWDOWN` só nos passos diurnos). `date_time` traz os **dígitos de horário local** (saídas WRF já convertidas para o fuso do produto); `parseDateTime()` armazena esses dígitos nos campos UTC de um `Date`, de modo que são exibidos sem deslocamento (por isso gráficos/CSV formatam com `timeZone: "UTC"`). Os arquivos de `eolico` (`POT_EOLICO_*M`) **embutem os vetores de vento** em `metadata.wind`.
-
-### Vetores De Vento
-
-```text
-JSON/{domain}_WIND_VECTORS_{index:03d}.json
-```
-
-Campos: `downsampled_angles`, `downsampled_magnitudes`, `downsampled_linear_indices` (amostragem com stride sobre a grade). Buscado apenas para a variável `wind` (10 m) — `eolico` usa os vetores embutidos nos próprios valores. As setas são posicionadas resolvendo cada `linear_index` via `_layersByLinearIndex` (não por posição no array). `WIND_VECTORS` e `ISOBARS` são as "variáveis" por passo sem `series.bin`/`summary.json`: nenhuma das duas é um campo escalar por célula que renda série ou resumo.
-
-### Série Binária Por Célula
-
-```text
-JSON/{domain}_{variableId}.series.bin
-```
-
-Formato `cell-series-int32-le-v1` (anunciado em `features.cell_series` do manifest): matriz **células × passos** de int32 little-endian, sem cabeçalho; `valor = raw * scale` (0.01), sentinela de ausência `missing` (INT32_MIN). O cliente decodifica como `raw / (1 / scale)`: `1 / 0.01` dá 100 exato, e a divisão devolve o mesmo número do JSON do passo, o que `raw * 0.01` não garante (o `raw` 35 vira 0,35000000000000003). `ChartsManager._loadCellSeriesFromBinary()` lê a série de UMA célula com `Range: bytes=celula*passos*4 ...` (~300 B): trata resposta `206` (validando o total do `Content-Range` contra `células × passos × 4` — rejeita artefato órfão de rodada anterior) e também `200` sem suporte a Range (é o caso do `python3 -m http.server` em dev; o Apache de produção responde 206). Qualquer problema retorna `null`. Há dois consumidores. O modal aceita o `200`, baixa o corpo inteiro e fatia localmente; com `null`, cai na varredura hora-a-hora legada (lotes de 12; resumo de domínio em lotes de 8). O painel lateral (`loadAllVariableValuesForCell()`, com `rangeReadOnly`) só aceita o `206` com o total do `Content-Range` presente e igual a `células × passos × 4`, o que exige o grid do domínio já carregado: cancela o corpo do `200` e, em qualquer outro caso, lê o valor no JSON do passo. A janela válida sem nenhum valor (célula sem dado na rodada inteira, como o KSTAR sobre a área do domínio interno em D01–D03) volta para o painel como série vazia, e não `null`: a variável fica sem valor sem baixar o JSON do passo. A série vazia fica no cache do `ChartsManager`, com a mesma chave que o modal usa, mas hoje nenhum modal a lê: o modal lê só a variável do mapa e as `chartCompanions`, o KSTAR não é companheira de nenhuma variável e o modal do próprio `clearSkyIndex` só abre numa célula com valor. As marcas valem por versão da rodada, domínio e variável. O tamanho errado marca o arquivo como inutilizável para os dois consumidores. O `200`, de qualquer um deles, e o `404` recebido pelo painel marcam o arquivo só para o painel, que não o pede mais; o modal continua a pedi-lo, e no `404` tenta de novo a cada clique. `clearCaches()` apaga as marcas quando a rodada muda. A requisição Range é um `fetch` cru (fora do `LabmimDataService`); o cache fica no nível do `ChartsManager`, com chave que embute a versão da rodada.
-
-### Resumo De Domínio
-
-```text
-JSON/{domain}_{variableId}.summary.json
-```
-
-Formato `domain-summary-v1` (anunciado em `features.domain_summary`): `{format, domain, variable, indices[], date_times[], mean[], min[], max[]}` (~3–4 KB). Alimenta a prévia do painel "Sobre as variáveis" (`_loadSummaryArtifactSeries`), substituindo a varredura de dezenas de arquivos completos; a varredura permanece como fallback.
-
-### Manifest
-
-```text
-JSON/manifest.json
-```
-
-Ver [Manifest De Dados](#manifest-de-dados-e-ciclo-de-vida-da-rodada). Exemplo real: `{"version": "20260719T013159Z", "generated_utc": "...", "domains": ["D01".."D04"], "files": 4844, "format": "labmim-data-manifest-v2", "timezone": "America/Bahia", "index_min": 0, "index_max": 75, "start_local": "02/05/2026 21:00:00", "availability": {"SWDOWN": [[9,21],[33,45],[57,69]]}, "features": {...}}`. Sempre buscado com `cache: "no-cache"` e nunca versionado com `?v=` (ele **é** a fonte da versão).
-
-### Condição Do Céu
-
-```text
-Ceu/allsky.jpg          quadro bruto da câmera, nome fixo
-Ceu/attribution.png     mapa de sensibilidade à oclusão, nome fixo (cache por hash em frame.json)
-Ceu/ktkd.json           labmim-ktkd-v1 — densidade, modelos, eixos e a contagem dos pontos horários
-Ceu/ktkd_points.json    labmim-ktkd-points-v1 — pontos horários, buscados só ao ligar Pontos ou baixar o CSV
-Ceu/kt_cumulative.json  labmim-kt-cumulative-v1 — acumulada de Kt e horas por condição
-Ceu/frame.json          labmim-allsky-frame-v2 — quadro pontuado atual, previsão, contrafactuais, sensibilidade
-Ceu/timeline.json       labmim-allsky-timeline-v1 — blocos de 5 min dos últimos dias contra o céu claro
-Ceu/model.json          labmim-allsky-model-v1 — cartão do modelo servido: teste contra controles e referências
-Ceu/allsky.jpg          quadro da câmera, nome fixo (cache por hash em frame.json)
-Ceu/input.jpg           exatamente a entrada da rede, nome fixo
-```
-
-Este é o contrato que **não** vem do pipeline WRF. São documentos separados porque as cadências são diferentes: `frame.json` é reescrito a cada captura, `ktkd.json` e `kt_cumulative.json` a cada reconstrução do acervo. A página busca os três em paralelo e qualquer um pode faltar sem derrubar os outros.
-
-`ktkd.json` traz, além de `station`, `period`, `timescale` e `sources`, os blocos abaixo. `timescale` e `period` montam a nota sob o título do gráfico: `"hourly"` vira "Médias horárias", seguem as datas de `period.start` e `period.end` e a contagem `period.n`, em horas. Um `timescale` que a página não conheça sai da nota, e a contagem passa a dizer registros.
-
-- `density` — o histograma bidimensional: `kt_edges` e `kd_edges` (arestas, `n+1` valores) e `counts`, **linhas = faixas de Kd, colunas = faixas de Kt**, de modo que `counts[i][j]` cobre `kd_edges[i]..kd_edges[i+1]` por `kt_edges[j]..kt_edges[j+1]`. `max_count` evita varrer a matriz para escalar a cor e é o número de horas que a explicação e a entrada Densidade do guia citam para a célula mais cheia; sem ele, as duas dizem "muitas horas". `color_scale_hint` (`"log"` ou `"linear"`) diz qual escala o exportador pretende — a página assume log na falta dele. O renderizador recusa uma matriz cuja altura não case com `kd_edges`: transposta, ela ainda desenharia, espelhando a figura na diagonal em silêncio. Recusa também uma matriz com contagem que não seja número finito, em vez de pintar a célula como vazia. `n_outside` (micrometeorology #47) conta as horas do portão que a grade não alcança, de modo que a soma de `counts` mais `n_outside` fecha com `period.n`. Com `n_outside` acima de zero, a página deixa de chamar densidade e pontos de "mesma amostra": a explicação e a entrada Pontos do guia dizem quantas horas a densidade conta e quantas ficam fora da grade, com a faixa lida das arestas, e a explicação só manda o leitor à camada Pontos enquanto ela está disponível. Sem o campo, ou com zero, o texto fica como está.
-- `models[]` — cada um com `id`, `kind`, `rmse`, `mbe`, `mae` e `n` medidos contra o Kd observado nesse mesmo período, mais `label` (nome curto, o que a página escreve no botão e ao lado das métricas) e `reference` (citação completa, para a bibliografia). O nome curto é **escolha do produtor**: sem `label` a página cai no `id` com underscores virando espaço, e nunca deriva nome da citação — cortar `reference` para achar um rótulo transformaria edição de bibliografia em gráfico relabelado, falha silenciosa e distante da causa. `kind: "curve"` traz `kt`/`kd` e vira linha; `kind: "band"` traz `kt`, `median`, `p10`, `p90`, `n_per_bin` e `min_samples_per_bin`, e vira envelope sombreado com a mediana por cima. **Nunca desenhe uma banda como linha única**: ela afirmaria um determinismo que o modelo não tem. `median`/`p10`/`p90` são `null` onde a faixa tem menos amostras que `min_samples_per_bin`; **decida por `median === null`, nunca por `n_per_bin === 0`**, porque `n_per_bin` conta as amostras da faixa tenha ela sido resumida ou não — uma faixa suprimida quase sempre tem contagem diferente de zero. Isso não é advertência abstrata: no registro publicado — 23.795 horas, `min_samples_per_bin = 30` — **7 das 9 faixas suprimidas têm `n_per_bin` diferente de zero**, nos dois modelos de banda. Quem decidisse pela contagem desenharia sete faixas que deveriam estar vazias. Faixas suprimidas não são interpoladas nem atribuídas à faixa cheia vizinha: o tooltip diz quantas horas havia ali e quantas o resumo exigia.
-- `sky_conditions` — `kt_upper_bounds`, a citação e as quatro classes com `condition` (1–4), `id` (`i`..`iv`), `name`, `name_pt` e `kt_range`. O Kt × Kd e a acumulada leem os limites de `conditions`, e a cópia embutida em `ceu.js` só vale quando a lista falta. Os extremos `null` de `kt_range` nas condições I e IV não pesam: o rótulo usa só a borda interna, e a última condição fica aberta acima. O nome longo que acompanha o chip vem da cópia embutida pelo `id`, com a grafia de Teramoto & Escobedo (2012); o `name_pt` do produtor só entra para um `id` que ela não conheça.
-- `axes` — `{"x": {"range": [0, 1.2]}, "y": {"range": [0, 1.2]}}`, o portão de Kt e Kd do produtor. Com o eixo declarado, o gráfico usa o limite como está; sem ele, cai em `[0, 1]` e soma 0,1 de folga ao topo de Kd.
-- `points_file` — `{"name": "ktkd_points.json", "n": <horas>}`. Declara que os pontos moram no arquivo irmão, fora do payload inicial: 98% do `ktkd.json` antigo eram pontos que a vista padrão (só densidade) não desenha. O chip Pontos, o botão CSV e a entrada do guia aparecem pela contagem declarada; o arquivo é buscado uma vez por visita, com `cache: "no-cache"`, quando o leitor liga Pontos ou pede o CSV, ou logo depois do `ktkd.json` quando não há densidade e o Pontos já nasce ligado. `ktkd_points.json` traz `schema` (`labmim-ktkd-points-v1`), `version`, `points_format` e `points`, com as mesmas linhas do `points[]` inline. A página recusa o arquivo se o `schema` for outro ou se a `version` diferir da do `ktkd.json` — sinal de `Ceu/` atualizado pela metade — e, nesse caso ou se o arquivo faltar, desliga e desabilita o chip, desabilita o CSV e diz o motivo sob o gráfico: nunca desenha pontos de uma versão sobre a densidade de outra.
-- `points[]` — forma antiga, opcional. Se vier junto com `points_file`, os pontos inline têm precedência e o arquivo irmão não é buscado nem conferido; o produtor nunca emite os dois. Uma entrada por hora. É a camada de sobreposição, desligada por padrão, e o que sustenta a coloração por condição de céu, o tooltip por observação e a exportação CSV. Sem ela a página desenha só a densidade e o tooltip passa a descrever a célula sob o cursor. Aceita `{t, kt, kd}` ou, preferido, **linha posicional** — sobre dezenas de milhares de horas as três chaves repetidas são a maior parte do arquivo, e o host serve JSON sem compressão (23.795 horas: 848 KB posicional contra ~2 MB com dicionários). A ordem da linha vem declarada em `points_format` (`["kt","kd","t","condition"]` no `ktkd_points.json` a partir do micrometeorology 800fd3e, `["kt","kd","t"]` antes) e é **lida de lá**, não presumida: `kt` e `kd` trocados espelhariam a figura na diagonal e ainda pareceriam uma dispersão plausível — o mesmo modo de falha que o teste de altura da densidade existe para pegar. Sem `points_format` vale a ordem histórica `[kt, kd, t]`; uma declaração que não nomeie as duas coordenadas faz a camada **não ser desenhada**, porque cair em posições não declaradas seria adivinhar. `condition` é a condição de céu (1–4) de `sky_conditions.conditions[].condition`, classificada pelo produtor a partir do Kt sem arredondar, e a cor, o tooltip e a coluna `condicao` do CSV a usam em vez de reclassificar o `kt` publicado: com três casas, uma hora até 0,0005 acima de um limite sai impressa no limite e cairia uma classe abaixo (0,3504 vira 0,35, que é condição I, e a hora é II). Com o campo, as linhas somam os `count` de `sky_conditions`. Sem o campo declarado, a página volta a classificar pelo `kt` publicado e aceita essa janela; com o campo declarado, um valor que não seja uma condição da lista deixa a hora sem classe — fora da dispersão e com `condicao` vazia no CSV —, nunca reclassificada pelo `kt`.
-- `filters[]` — os critérios de seleção e as convenções de cálculo das horas, em frases escritas pelo produtor. A página as imprime como vêm, separadas por ponto e vírgula, na nota da explicação do Kt × Kd, no lugar da prosa fixa do template, mas só quando o `ktkd.json` também declara `points_file`, que marca o formato do micrometeorology #47. O `ktkd.json` anterior traz as mesmas frases sem acento, com ponto decimal e sem dizer que as horas de chuva não são excluídas, e para ele a prosa diz o mesmo melhor. Dentro do #47, as frases só saem em português e com a chuva a partir do commit 26ec327: um `Ceu/` publicado de um commit anterior do PR imprimiria as frases antigas. A prosa também fica quando `filters` falta, não é lista ou não traz nenhuma frase: ela descreve os critérios do produtor de set/2026 e envelhece se ele mudar um portão. O texto não é corrigido nem traduzido aqui; acento e vírgula decimal são do produtor.
-- `caveats[]` — renderizados sob o gráfico como estão.
-
-`kt_cumulative.json` é a distribuição acumulada de Kt, e responde o que a dispersão não responde: não como Kd se comporta num dado Kt, mas **quanto do registro está em cada condição de céu**. Traz `edges` (as mesmas do histograma de Kt da climatologia) e `subsets`, um objeto cujas chaves são os recortes. Como aqui não há manifesto de onde tirar rótulo, **cada subset carrega o seu `label`**; a ordem de inserção é a ordem dos chips, o primeiro é o padrão, e com um recorte só o seletor não aparece. Cada subset traz `n`, `counts`, `cumulative`, `below`, `above` e `sky_conditions` — este último com `kt_upper_bounds`, a citação, e as quatro classes com `condition`, `id`, `name_pt`, `kt_range`, `count` e `fraction` **já calculada**: a página não deriva fração de uma F interpolada, que seria um segundo caminho numérico livre para discordar do exportador.
-
-`cumulative[i]` é F na aresta **superior** do bin `i` — cinquenta valores para cinquenta e uma arestas. É desenhada como **função escada** sobre eixo x linear, constante entre arestas, com âncora em `(edges[0], 0)`. Um eixo de centros de bin deslocaria a curva meio bin dos números a que ela se refere, e uma linha suavizada afirmaria valores intermediários que uma escada não tem. **A página não assume se `below`/`above` entram no denominador**: desenha o publicado, limita o eixo em 1 e nomeia as horas fora das bordas ao lado. Com o produtor atual elas entram, então F para pouco antes de 1 quando há massa fora — o que é informação, não defeito.
-
-Atenção a um `n` que não bate de propósito: a acumulada é gateada só no canal global, o `ktkd.json` exige também medida difusa. São populações diferentes com o mesmo nome de campo, e está nos `caveats` de cada um.
-
-`frame.json` traz `status`, `captured_at`, `image`/`input`/`attribution` (cada um com `sha256_12` para o `?v=`), `solar`, `prediction`, `counterfactuals` e `members`. Leia a condição por `prediction.sky.condition` (1–4) ou por `.id`, **nunca** por um inteiro solto: a classe interna do exportador é 0-based e a literatura numera de I a IV, então um índice cru atravessando essa fronteira é um erro de um a cada vez esperando para acontecer. O produtor e o contrato completo estão em `micrometeorology/docs/allsky-site.md`.
-
-`timeline.json` traz `label_scale` (`"raw"` ou `"corrected"`, micrometeorology #47), a escala de `series.dhi_w_m2`; `measured_dhi_w_m2` e `live` saem sempre corrigidos. Sem o campo, a página lê `model.json → dataset.label_scale`, e qualquer outro valor conta como ausente. Se os dois divergirem, vale o do `timeline.json`, que é o documento que carrega a série desenhada. Sem nenhum dos dois, a prevista é tratada como escala crua: diante da medida ou do bloco ao vivo, ela ganha a marca "(escala crua)" e as métricas ao vivo avisam que incluem a diferença de escala.
-
-Os dois quadros mantêm nomes **fixos** e são reescritos no lugar, como os PNGs de `assets/graphs/`. A página anexa `?t=` derivado de `frame.captured_at` (na falta dele, um balde de 5 min), que é o que vence a regra de cache aplicada a imagens no `.htaccess` — e `captured_at` é lido do carimbo que a câmera grava no quadro, não do `Last-Modified` do host, que é balanceado e já reportou hora local rotulada como GMT.
-
-Os três JSON são buscados direto com `cache: "no-cache"`, fora do `LabmimDataService` (que atende ao WebGIS). Sem `ktkd.json`, sem `frame.json` **e** com os dois quadros ausentes — o estado de um checkout de desenvolvimento e do CI — a página avisa que os dados chegam pelo deploy, em vez de exibir gráfico vazio; a acumulada pode faltar sozinha, e nesse caso só o painel dela some.
-
-Sobre o conteúdo: `kt` é o índice de claridade (global medida na horizontal sobre a irradiação no topo da atmosfera) e `kd` é a **fração difusa** `Hd/H` — difusa sobre global, não sobre a extraterrestre. As quatro condições de céu, por faixas de Kt [Escobedo et al., 2009; nomenclatura de Teramoto e Escobedo, 2012]: I nebuloso (Kt ≤ 0,35); II parcialmente nebuloso com dominância para o difuso (0,35 < Kt ≤ 0,55); III parcialmente nebuloso com dominância para o claro (0,55 < Kt ≤ 0,65); IV claro (Kt > 0,65). Os três modelos são ajustados a médias **horárias**, e só o de Marques Filho et al. (2016) é função de `Kt` sozinho; Lemos et al. (2017) e o BRL de Ridley, Boland e Lauret (2010) dependem também da hora solar aparente, da altitude solar, do Kt diário e da persistência, o que é exatamente a razão de chegarem resumidos em banda.
+A documentação pública não enumera rotas de observações nem procedimentos de
+extração. Detalhes operacionais, acesso a fontes e configuração da hospedagem
+ficam fora dos repositórios. Para desenvolvimento, use dados próprios autorizados
+ou as fixtures artificiais dos testes.
 
 ## Variáveis E Palhetas
 
@@ -584,33 +482,33 @@ Para `solar` e `eolico`, o modal também exibe uma série derivada de energia (c
 
 ## `.htaccess`
 
-`site/.htaccess` configura o Apache com diretivas protegidas por `<IfModule>` (o site nunca deve retornar 500 se um módulo faltar):
+As regras são geradas pelo build para cada publicação e fazem parte do bundle.
+Configuram redirecionamentos, tipos de conteúdo, cache e restrições de acesso.
+A configuração da hospedagem deve aplicar as regras e ser validada pelos
+mantenedores; os testes usam Apache local e fixtures artificiais.
 
-- **Charset/erros/redirects**: `AddDefaultCharset UTF-8`; `ErrorDocument 404 /404.html`; somente os redirects declarados em `src/sites/<id>/identity.js` para a publicação selecionada são emitidos.
-- **MIME**: `application/json` para `.json` e `application/geo+json` para `.geojson`.
-- **Compressão**: `mod_deflate` (dentro de `mod_filter`) para HTML, CSS, JS, JSON, GeoJSON e SVG, com bloco paralelo `mod_brotli` para clientes que suportam.
-- **Segurança**: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` (geolocation/camera/microphone desligados) e **CSP** com `script-src 'self'` (sem scripts inline; JSON-LD em `<script type="application/ld+json">` é permitido por não ser executável), `style-src 'self' 'unsafe-inline'` (atributos style do Leaflet), `img-src` liberando tiles OSM e `data:`, `frame-src https://www.google.com` (mapa da equipe) e `upgrade-insecure-requests`.
-- **Cache-Control** (cascata; blocos `<If>` aplicam por último e vencem os `FilesMatch`):
-  - `.json`/`.geojson`/`.bin` **sem** `?v=` → `no-cache` (nomes reutilizados a cada rodada; revalidação 304 barata).
-  - `.json`/`.geojson`/`.bin` **com** `?v=` → `public, max-age=86400` (24 h, não 1 ano: teto de estrago para um manifest órfão após rollback do pipeline).
-  - `.html` → `no-cache`.
-  - `.css`/`.js` sem `?v=` → cache curto com `stale-while-revalidate`.
-  - `.css`/`.js` sob `assets/` **com** `?v=` no formato do carimbo de `stampAssetVersions` (8 dígitos hex do MD5 do conteúdo, que só o build escreve: CSS/JS próprios, workers e os vendors de `HASHED_VENDOR_ASSETS`) → `public, max-age=86400`, sem `immutable`. O hash vive só na query string e o servidor entrega o que houver no caminho: se o HTML novo chegar antes do asset, o `?v=` novo passa a guardar os bytes antigos (ver a ordem do upload em [Deploy Em Produção](#deploy-em-produção)). O teto de 24 h limita esse estrago; tirar só o `immutable` não bastaria, porque quem prende os bytes no cache é o `max-age`. A regra casa pelo formato do carimbo, não por uma lista: um arquivo novo em `HASHED_VENDOR_ASSETS` (`scripts/site-builder/assets.js`) entra nela sem mexer no template. Um token manual de vendor com 8 caracteres hex (uma data como `?v=20260923`) cairia nela e perderia o `immutable`; mantenha os tokens com ponto, como os de hoje.
-  - `assets/vendor/**` → `immutable` de 1 ano — exceto `fontawesome/webfonts/` (o subset `fa-solid-900.woff2` regenera no mesmo nome e vai com `no-cache`; as outras fontes de lá, que nenhuma página carrega, ficam na regra de 7 dias) e os vendors de `HASHED_VENDOR_ASSETS`, carimbados por hash (regra de 24 h acima). As bibliotecas com token manual (`leaflet.js?v=1.9.4`) seguem imutáveis: só mudam numa troca de versão, que sobe na mesma ordem.
-  - imagens e fontes → 7 dias; `assets/graphs/` → `no-cache` (estação regenera nos mesmos nomes).
+## Exportação e acesso aos dados
 
-Nota: `.series.bin` fica deliberadamente **fora** das listas de compressão: o `mod_deflate` não comprime respostas 206, e comprimir o corpo inteiro anularia as leituras parciais (Range, ~300 B) que o site faz nesses arquivos. As leituras Range de produção dependem do suporte nativo do Apache (206).
+Hover, seletores e ampliação permanecem disponíveis nos gráficos de pesquisa.
+Céu e Monitoramento não oferecem CSV; na climatologia a exportação é
+permitida apenas para recortes WRF. Os WebGIS mantêm suas exportações.
+
+O produtor limita as observações disponibilizadas para a visualização pública.
+As figuras completas de pesquisa são geradas localmente a partir do acervo
+autorizado e não integram a publicação. O Monitoramento conserva as séries de
+5 minutos para diagnóstico dos sensores. A câmera conserva suas interações.
+
+A configuração pública e o publicador devem evoluir juntos. Os testes de
+servidor verificam as restrições; os testes de interface conferem os controles,
+a ausência de exportação de observações e a apresentação dos modos locais.
 
 ## Deploy Em Produção
 
-O deploy é desacoplado: código e dados sobem separadamente. O que se publica é a saída de `npm run build -- --site=<id>` em `site/` ou o bundle correspondente em `dist/<id>/`. No servidor da LabMiM/UFBA o upload é feito por `scripts/operacao/publica_site_ftp.sh`, que segue as regras abaixo: o site inteiro uma vez por dia e os dados do Monitoramento e do Céu logo depois de gerados (ver [Operação](scripts/operacao/README.md#publicação-por-ftp)). Regras aprendidas em produção:
-
-- **Publique o site completo junto do `.htaccess`.** Nunca suba o `.htaccess` sozinho sobre uma versão antiga do site: a CSP `script-src 'self'` quebra qualquer página que ainda carregue CDN ou script inline.
-- **Ordem do upload FTP: `assets/` primeiro, `*.html` por último.** É o HTML que traz os `?v=` novos, e o hash de conteúdo está só na query string, não no nome do arquivo. Se uma página nova chegar antes do seu JS ou CSS, o visitante pede `map-manager.js?v=<novo>`, recebe os bytes antigos, e o navegador pode reutilizá-los sob a URL nova por até 24 h (1 ano, num vendor com token manual). Nesta ordem, a janela do upload só expõe HTML antigo com asset novo, e isso se desfaz na primeira navegação depois que o HTML sobe, porque o HTML é `no-cache` e a URL do asset muda com ele.
-- **Ordem segura para mudança de formato de dados**: publicar o site novo, conferir em produção e só então atualizar o pipeline no servidor de operação e regenerar os dados. Site novo com dados velhos funciona, porque o cliente tem fallback para todos os contratos; o inverso não é garantido.
-- **Rollback do pipeline**: ao voltar para uma versão que não escreve `manifest.json`, delete o manifest órfão do servidor junto — ele congela o `?v=` enquanto os bytes mudam por baixo, e o teto de 24 h do `.htaccess` limita o estrago sem evitá-lo. Pelo mesmo motivo, `series.bin` e `summary.json` vão e voltam junto com o manifest que os anuncia.
-- **O host roda `mod_pagespeed` e reescreve o HTML servido.** Hoje (`Server: Apache/2.4.6 (CloudLinux)`, `X-Mod-Pagespeed: 1.13.35.2-0`) toda resposta HTML volta com dois `<script>` **inline** injetados pelo módulo — `window.mod_pagespeed_start` e o beacon com `data-pagespeed-no-defer` — que não existem em arquivo nenhum deste repositório. Como a CSP publicada é `script-src 'self'`, sem `'unsafe-inline'` e sem nonce, assim que o `.htaccess` entrar o navegador bloqueia os dois blocos e registra a violação em toda página. O estrago hoje é cosmético (é telemetria do módulo), mas os filtros do PageSpeed que embutem ou combinam JS transformariam os nossos próprios scripts em inline — e aí a página para de funcionar. Antes de confiar na CSP em produção, desligue a reescrita dentro de `<IfModule pagespeed_module>`, para não arriscar 500 num host sem o módulo (`src/template/static/htaccess.template` ainda não traz esse bloco), e confirme com `curl -ks https://labmim.if.ufba.br/ | grep -c mod_pagespeed_start` — o esperado é `0`.
-- **Confira se o `.htaccess` realmente entrou**: `curl -ksI https://labmim.if.ufba.br/ | grep -i content-security-policy`. O `-k` é necessário enquanto a cadeia TLS do host estiver quebrada — sem ele o `curl` sai com 60 e não imprime nada. Não use a compressão como sinal: o `mod_deflate` do host comprime por conta própria, então `Content-Encoding: gzip` aparece mesmo com o `.htaccess` ausente. A CSP, ao contrário, só existe se o arquivo estiver ativo.
+A publicação usa o bundle gerado para a instituição e é responsabilidade dos
+mantenedores. Mudanças de formato exigem coordenar frontend e produtor e validar
+a compatibilidade antes da atualização. Credenciais, rotinas de aquisição,
+particularidades da hospedagem e procedimentos de publicação ou recuperação
+pertencem à documentação interna, mantida fora dos repositórios.
 
 ## Dependências Externas
 
@@ -738,7 +636,7 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 - Ao mexer em `map-manager.js`, valide play/pause (incl. autoplay e pulos por disponibilidade), troca de domínio, troca de variável, troca de rodada (regenerar o manifest local), clique em célula e camada de vento.
 - Ao mexer em `charts-manager.js`, valide carregamento via `series.bin` E via fallback (sem manifest), cancelamento, troca de tema e exportação CSV.
 - As imagens de `Ceu/` (`allsky.jpg`, `input.jpg`, `attribution.png`) reusam os mesmos nomes a cada publicação: o `?v=` vem do `sha256_12` que `frame.json` publica para cada uma; não troque os nomes fixos por nomes versionados sem coordenar o pipeline.
-- Não documente dados ou endpoints que não existam no código. Se um novo pipeline mudar contratos de arquivo, atualize este documento junto.
+- Documente o comportamento e os limites públicos. Mantenha procedimentos de acesso, aquisição e recuperação fora dos repositórios.
 
 ## Checklist De Validação
 
@@ -747,7 +645,7 @@ Use antes de merge/publicação:
 - `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm run check:audit`.
 - Servir `site/` por HTTP local (`make serve`).
 - Abrir páginas institucionais em desktop e mobile; alternar dark mode em cada página.
-- Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade do mapa de sensibilidade, cartão da previsão, linha do tempo, cartão do modelo, alternância das quatro condições, curva de referência, ampliação e CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
+- Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade do mapa de sensibilidade, cartão da previsão, linha do tempo, cartão do modelo, alternância das quatro condições, curva de referência, ampliação e ausência do botão CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
 - Abrir `mapas_interativos.html` e confirmar que Potencial Fotovoltaico não aparece como previsão; `SWDOWN` deve aparecer como Radiação Global.
 - Abrir `potenciais_energeticos.html` e confirmar que só aparecem Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Verificar se Leaflet renderiza (bundle local) e se não há erros no console.

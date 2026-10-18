@@ -203,3 +203,16 @@ Esta pasta é isolada do site e possui `package.json` próprio. Ela não partici
 `docs/` é versionado: entram a fonte do deck, os diagramas e os PDFs distribuíveis. Ficam fora do commit
 os artefatos pesados ou regeneráveis — `node_modules/`, `assets/dist/`, `assets/theme-previews/` e os
 `.pptx` (ver `.gitignore`).
+
+## Regras atuais de dados e exportação
+
+Os PDFs e as capturas registram a interface da data em que foram gerados. As regras
+atuais estão no [README principal](../../README.md#visualização-e-dados-de-pesquisa):
+Kt × Kd usa até 5.000 pontos e no máximo 25% do conjunto; os agregados permanecem
+completos. Monitoramento e Kt × Kd não exportam CSV de observações; na climatologia
+a exportação fica restrita aos recortes WRF. O Monitoramento conserva a resolução
+de 5 minutos. Atualize as fontes antes de regenerar ou distribuir os PDFs.
+
+O material público de onboarding descreve o desenvolvimento do frontend e usa
+exemplos fictícios. Procedimentos de aquisição, acesso à infraestrutura e geração
+operacional pertencem à documentação interna fora dos repositórios.

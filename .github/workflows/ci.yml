@@ -78,6 +78,9 @@ jobs:
       - name: Validate generated HTML
         run: npm run lint:html
 
+      - name: Check research access rules in local Apache
+        run: npm run test:server
+
       - name: Check internal links and assets
         run: npm run lint:links
 

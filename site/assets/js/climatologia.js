@@ -13,6 +13,7 @@
 "use strict";
 
 (function () {
+  const RESEARCH_MODE = window.labmimChartPage.researchMode;
   // Same values as the monitoring page, re-stepped in lightness so the pair separates without hue.
   const PALETTE = {
     light: { empirical: "#406bbf", model: "#c26300" },
@@ -766,7 +767,7 @@
   function exportCsv() {
     const subset = currentSubset();
     // Required here too, not only in the button state: a disabled button is a UI layer, the listener stays reachable.
-    if (!subset || !subset.n) return;
+    if (!isModelSubset(state.subsetId) || !subset || !subset.n) return;
     const { header, rows } = tableRows(subset);
     const lines = [header.join(";"), ...rows.map((row) => row.join(";"))];
     downloadCsv(`climatologia_${state.variableId}_${state.subsetId}.csv`, lines);
@@ -887,7 +888,7 @@
       return;
     }
 
-    el("climaExport").disabled = false;
+    el("climaExport").disabled = !isModelSubset(state.subsetId);
     if (isRose) {
       // Destroy the previous histogram so it does not stay registered on the hidden canvas — with its listeners,
       // its ResizeObserver and that variable's data — until the reader returns to a histogram variable.
@@ -987,6 +988,7 @@
       showEmpty("clima", "Esta publicação ainda não declara um diretório de climatologia.");
       return;
     }
+    if (RESEARCH_MODE) state.base += "/research";
     if (typeof Chart === "undefined") {
       showEmpty("clima", "A biblioteca de gráficos não carregou.");
       return;
@@ -1021,6 +1023,9 @@
     if (period.start && period.end) {
       el("climaPeriodo").textContent =
         `Distribuições estatísticas do registro observado — ${period.start} a ${period.end}`;
+    }
+    if (RESEARCH_MODE) {
+      el("climaPeriodo").textContent = `Pesquisa local: todos os recortes. ${el("climaPeriodo").textContent}`;
     }
 
     el("climaEmpty").hidden = true;

@@ -16,6 +16,8 @@
     "sites:list": "node build.js --list-sites",
     "build:all": "node scripts/build-all.mjs",
     "build:check": "node scripts/check-publications.mjs",
+    "test": "playwright test scripts/research-access.spec.mjs --workers=1 --reporter=list --output=/tmp/labmim-browser-tests",
+    "test:server": "playwright test scripts/research-server.spec.mjs --workers=1 --reporter=list --output=/tmp/labmim-server-tests",
     "purge:bootstrap": "node scripts/purge-bootstrap.mjs",
     "subset:icons-css": "node scripts/subset-fontawesome-css.mjs",
     "lint": "npm run lint:js && npm run lint:css && npm run lint:themes && npm run lint:icons && npm run lint:purge",

@@ -1,11 +1,44 @@
-# Apache configuration shared by every WebGIS publication: only the legacy
-# redirects vary per publication (they come from the manifest). Every directive
-# is guarded by <IfModule> so the site never answers 500 where a module is
-# missing — which also means this whole layer disappears silently on a host
-# without AllowOverride. Confirm the host before relying on the CSP or the
-# redirects here.
-
 AddDefaultCharset UTF-8
+
+Options -Indexes -MultiViews
+RewriteEngine On
+RewriteCond %{REQUEST_URI} ^/(Monitoramento|Climatologia|Ceu)(/|$) [NC]
+RewriteCond %{HTTP:Sec-Fetch-Site} !^same-origin$ [OR]
+RewriteCond %{HTTP:Sec-Fetch-Mode} !^(cors|same-origin|no-cors)$ [OR]
+RewriteCond %{HTTP:Sec-Fetch-Dest} !^(empty|image)$ [OR]
+RewriteCond %{REQUEST_METHOD} !^(GET|HEAD)$ [OR]
+RewriteCond %{HTTP:Range} !^$ [OR]
+RewriteCond %{HTTP_HOST}@@%{HTTP_REFERER} !^([^@]+)@@https?://\1/(monitoring|climatologia|ceu)\.html(\?.*)?$ [NC]
+RewriteRule ^ - [F,END]
+
+RewriteCond %{REQUEST_URI} !=/Monitoramento/monitoring.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/manifest.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/air_temperature.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/clearness_index.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/longwave_down.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/longwave_up.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/net_radiation_day.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/net_radiation_night.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/par_early.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/par_late.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/precipitation.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/pressure.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/relative_humidity.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/relative_humidity_wxt.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/shortwave_down.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/shortwave_up.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/wind_direction.json
+RewriteCond %{REQUEST_URI} !=/Climatologia/wind_speed.json
+RewriteCond %{REQUEST_URI} !=/Ceu/ktkd.json
+RewriteCond %{REQUEST_URI} !=/Ceu/ktkd_sample.json
+RewriteCond %{REQUEST_URI} !=/Ceu/kt_cumulative.json
+RewriteCond %{REQUEST_URI} !=/Ceu/frame.json
+RewriteCond %{REQUEST_URI} !=/Ceu/timeline.json
+RewriteCond %{REQUEST_URI} !=/Ceu/model.json
+RewriteCond %{REQUEST_URI} !=/Ceu/allsky.jpg
+RewriteCond %{REQUEST_URI} !=/Ceu/input.jpg
+RewriteCond %{REQUEST_URI} !=/Ceu/attribution.png
+RewriteRule ^(?:Monitoramento|Climatologia|Ceu)(?:/|$) - [F,END,NC]
 
 ErrorDocument 404 /404.html
 
@@ -99,18 +132,6 @@ ErrorDocument 404 /404.html
     Header set Cache-Control "no-cache"
   </If>
 
-  # All-sky frames, same situation: the camera and the publisher rewrite the
-  # frame, the network input and the occlusion-sensitivity map in place. The
-  # page's ?v= tracks the content hash frame.json names for each image, but not
-  # the window in which the deploy has published the new frame.json but not yet
-  # the new image — and under the 7-day image rule a client that caches those
-  # bytes is stuck with them. Literal like the rule above, so it tracks
-  # `dataset.paths.sky`: a publication naming that directory differently must
-  # add its own line.
-  <If "%{REQUEST_URI} =~ m#^/Ceu/#">
-    Header set Cache-Control "no-cache"
-  </If>
-
   # On our own assets ?v= is a content hash stamped by build.js, so the URL
   # changes whenever the content does. <If> blocks apply last when the
   # configuration is merged, which is what lets this override the short CSS/JS
@@ -125,5 +146,10 @@ ErrorDocument 404 /404.html
   # no manifest while the data is swapped under the same names). Runs are daily.
   <If "%{QUERY_STRING} =~ /(^|&)v=/ && %{REQUEST_URI} =~ m#\.(json|geojson|bin)$#">
     Header set Cache-Control "public, max-age=86400"
+  </If>
+
+  <If "%{REQUEST_URI} =~ m#^/(Monitoramento|Climatologia|Ceu)(/|$)#">
+    Header unset Cache-Control
+    Header always set Cache-Control "private, no-cache"
   </If>
 </IfModule>

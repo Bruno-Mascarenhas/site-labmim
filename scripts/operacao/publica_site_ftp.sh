@@ -5,26 +5,6 @@
 # Uso: publica_site_ftp.sh [--dry-run] completo
 #      publica_site_ftp.sh [--dry-run] dados DIR...    (ex.: dados Monitoramento Ceu)
 #
-#   completo  o site inteiro, na ordem de "Deploy em produção" do Architecture.md:
-#               1. assets/ (menos assets/graphs/, ver README.md)
-#               2. diretórios de dados (GeoJSON, JSON, Climatologia, Monitoramento, Ceu)
-#               3. o resto da raiz que não é HTML (.htaccess, robots.txt, sitemap.xml)
-#               4. *.html por último (inclusive o 404.html): é o HTML que traz os ?v= novos
-#             Uma fase só começa se a anterior terminou bem: nada de HTML sem os assets.
-#             Chamado 1×/dia pela cadeia do WRF, depois de ela gerar os dados.
-#   dados     só os diretórios de dados pedidos. Chamado pelo processa_site_monitoramento.sh
-#             (de hora em hora) e pelo processa_site_ceu.sh (a cada 5 min).
-#
-# Em cada diretório de dados o manifest.json sobe por último: ele é a fonte do ?v=
-# das URLs e, se chegasse antes, o visitante guardaria os bytes antigos sob o ?v=
-# novo por até 24 h (regra do .htaccess).
-#
-# mirror -R --only-newer: só envia o que for mais novo que a cópia do servidor e NUNCA
-# apaga nada lá (sem --delete). --overwrite grava por cima (STOR), sem o DELE prévio
-# que o mirror faz por padrão: sem ele o index.html ou o manifest.json sumiriam por um
-# instante, e de vez se o envio falhasse. Não envia .keep nem os temporários
-# .<nome>.tmp-<pid> que o pipeline grava antes do os.replace.
-#
 # Guarda: só publica de verdade com SITE_FTP_PUBLICAR=S no operacao.env; sem ela
 # registra "publicacao desativada" e sai 0. O --dry-run funciona com a guarda desligada
 # (conecta e lista o servidor, não envia nada). A senha vai ao lftp pela variável
@@ -40,6 +20,7 @@ SITE_FTP_PUBLICAR=   # só o operacao.env liga a publicação, nunca o ambiente
 # Diretórios de dados, na ordem do envio: GeoJSON antes do JSON/manifest.json, que
 # também versiona as grades.
 DADOS=(GeoJSON JSON Climatologia Monitoramento Ceu)
+RESTRITOS=(Monitoramento Climatologia Ceu)
 PARALELO=4            # conexões simultâneas do mirror
 ESPERA_COMPLETO=1800  # s esperando a trava no modo completo (depois disso, falha)
 ESPERA_DADOS=240      # s no modo dados (menos que os 5 min do Céu; depois disso, desiste)
@@ -91,7 +72,6 @@ if [ "$modo" = completo ]; then
   url=${url%/}/
   grep -qF "<loc>$url" "$SITE_DIR/sitemap.xml" 2>/dev/null \
     || falha "$SITE_DIR nao e o build da publicacao de $url (sitemap.xml); rode npm run build -- --site=<id>"
-  # Nunca o HTML novo sem o .htaccess, nem o .htaccess sem os assets.
   for f in .htaccess index.html assets; do
     [ -e "$SITE_DIR/$f" ] || falha "$SITE_DIR/$f nao existe"
   done
@@ -105,6 +85,12 @@ else
 fi
 for d in "${lista[@]}"; do
   [ -d "$SITE_DIR/$d" ] || falha "$SITE_DIR/$d nao existe"
+done
+for regra in 'Options -Indexes -MultiViews' \
+  'RewriteCond %{HTTP:Sec-Fetch-Site} !^same-origin$ [OR]' \
+  "RewriteRule ^(?:$(IFS='|'; echo "${RESTRITOS[*]}"))(?:/|\$) - [F,END,NC]"; do
+  grep -qF -- "$regra" "$SITE_DIR/.htaccess" 2>/dev/null \
+    || falha "regra de acesso ausente em $SITE_DIR/.htaccess: $regra"
 done
 
 # A rotina horária (Monitoramento) e a de 5 min (Céu) coincidem no minuto 5, e o
@@ -177,19 +163,35 @@ fase() {
 }
 
 mirrors_dados=()
+mirrors_manifest=()
 for d in "${lista[@]}"; do
-  mirrors_dados+=("-X '.*' -X manifest.json $(q "$SITE_DIR/$d") $(q "$d")")
+  mapfile -t arquivos < <(sed -n "s#^RewriteCond %{REQUEST_URI} !=/$d/##p" "$SITE_DIR/.htaccess")
+  if [[ " ${RESTRITOS[*]} " == *" $d "* ]] && [ ${#arquivos[@]} -eq 0 ]; then
+    falha "$SITE_DIR/.htaccess nao lista os arquivos publicos de $d"
+  fi
+  filtros="-X '.*' -X manifest.json"
+  manifest="-I manifest.json"
+  if [ ${#arquivos[@]} -gt 0 ]; then
+    filtros="-r"
+    manifest=
+    for arquivo in "${arquivos[@]}"; do
+      if [ "$arquivo" = manifest.json ]; then manifest="-r -I manifest.json"; else filtros+=" -I $arquivo"; fi
+    done
+  fi
+  mirrors_dados+=("$filtros $(q "$SITE_DIR/$d") $(q "$d")")
+  [ -n "$manifest" ] && [ -f "$SITE_DIR/$d/manifest.json" ] \
+    && mirrors_manifest+=("$manifest $(q "$SITE_DIR/$d") $(q "$d")")
 done
-for d in "${lista[@]}"; do
-  [ -f "$SITE_DIR/$d/manifest.json" ] && mirrors_dados+=("-I manifest.json $(q "$SITE_DIR/$d") $(q "$d")")
-done
+mirrors_dados+=("${mirrors_manifest[@]}")
 
 interrompido="interrompido: as fases seguintes nao foram enviadas"
+OPCOES="--overwrite --no-perms --transfer-all --parallel=$PARALELO" \
+  fase "protecao de acesso (.htaccess)" "-r -I .htaccess $(q "$SITE_DIR") ." || falha "$interrompido"
 if [ "$modo" = completo ]; then
   fase "1/4 assets/" "-X '.*' -x '^graphs/' $(q "$SITE_DIR/assets") assets" || falha "$interrompido"
   fase "2/4 dados: ${lista[*]} (manifest.json por ultimo)" "${mirrors_dados[@]}" || falha "$interrompido"
-  fase "3/4 raiz sem HTML (.htaccess, robots.txt, sitemap.xml)" \
-    "-r -X '*.html' -X .keep -X '.*.tmp-*' $(q "$SITE_DIR") ." || falha "$interrompido"
+  fase "3/4 metadados da raiz (robots.txt, sitemap.xml)" \
+    "-r -I robots.txt -I sitemap.xml $(q "$SITE_DIR") ." || falha "$interrompido"
   fase "4/4 *.html" "-r -I '*.html' $(q "$SITE_DIR") ." || falha "$interrompido"
 else
   fase "dados: ${lista[*]} (manifest.json por ultimo)" "${mirrors_dados[@]}" || falha "$interrompido"
