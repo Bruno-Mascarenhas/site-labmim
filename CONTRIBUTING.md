@@ -70,11 +70,11 @@ Atalhos no `Makefile`:
 | `make format`       | formata o código fonte com o Prettier (altera os arquivos)                              |
 | `make format-check` | verifica a formatação sem alterar arquivos                                              |
 | `make fix`          | Prettier + `lint:js --fix` + `lint:css --fix`                                           |
-| `make audit`        | `npm audit --audit-level=high`                                                          |
+| `make audit`        | `npm run check:audit`                                                          |
 | `make serve`        | `python3 -m http.server 8000 --bind 127.0.0.1 --directory site`                         |
 | `make ci`           | `build-check`, `build-all`, `format-check`, `lint`, `lint-html`, `lint-links` e `audit` |
 
-`make ci` roda os mesmos checks do CI do GitHub — com `make lint` incluindo `lint:themes`, `lint:icons` e `lint:purge`. O CI valida, além disso, o lockfile e a versão do Node via `npm ci` + `.nvmrc`, e publica os bundles de `dist/` como artefato do build.
+`make ci` cobre os builds, linters e a auditoria — com `make lint` incluindo `lint:themes`, `lint:icons` e `lint:purge`. O CI executa também `npm run test:server`, valida o lockfile e a versão do Node via `npm ci` + `.nvmrc`, e publica os bundles de `dist/` como artefato do build.
 
 ESLint, Stylelint, Prettier, html-validate, linkinator, PurgeCSS e o Playwright que o `check:reach` usa para dirigir o Chromium são `devDependencies` em `package.json`. Não há nenhuma dependência de runtime instalada via npm: o servidor recebe somente os arquivos estáticos gerados. Mantenha essa fronteira: uma ferramenta de build não deve virar dependência do site em produção, que continua sendo estático.
 

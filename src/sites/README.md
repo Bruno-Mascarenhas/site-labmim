@@ -261,7 +261,7 @@ git add src/sites/exemplo site   # o build:check recusa saída gerada não versi
 make ci                          # o que o GitHub Actions roda
 ```
 
-`sites:list` confirma a descoberta. O build individual grava em `site/`; `build:check` percorre todas as publicações, valida o HTML e os dois subsets vendor de cada uma, e restaura a padrão em `site/` ao final. `make ci` é o conjunto completo — `build:check`, `build:all`, `format:check`, os cinco linters, `lint:html`, `lint:links` (este reconstrói e rastreia todas as publicações) e `npm audit`.
+`sites:list` confirma a descoberta. O build individual grava em `site/`; `build:check` percorre todas as publicações, valida o HTML e os dois subsets vendor de cada uma, e restaura a padrão em `site/` ao final. `make ci` é o conjunto completo — `build:check`, `build:all`, `format:check`, os cinco linters, `lint:html`, `lint:links` (este reconstrói e rastreia todas as publicações) e `npm run check:audit`. O CI executa também `npm run test:server`; `npm test` verifica as interações no navegador somente localmente.
 
 O `git add` não é detalhe: `build:check` recusa saída gerada não versionada e compara `site/` com um build limpo da publicação padrão. Commite `site/` junto com a publicação nova.
 
