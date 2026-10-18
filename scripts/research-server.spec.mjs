@@ -2,7 +2,11 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { expect, test as base } from "playwright/test";
+
+const SERVER_READY_TIMEOUT_MS = 15000;
+const SERVER_READY_POLL_MS = 100;
 
 const publicFiles = [
   "Monitoramento/monitoring.json",
@@ -34,6 +38,19 @@ const blockedFiles = [
 ];
 
 const wrfFiles = ["JSON/manifest.json", "JSON/D01_TEMP.series.bin", "GeoJSON/D01.grid.json"];
+
+async function waitUntilServing(origin) {
+  const deadline = Date.now() + SERVER_READY_TIMEOUT_MS;
+  for (;;) {
+    try {
+      await fetch(`${origin}/index.html`);
+      return;
+    } catch (error) {
+      if (Date.now() > deadline) throw new Error(`Apache não respondeu em ${origin}`, { cause: error });
+      await delay(SERVER_READY_POLL_MS);
+    }
+  }
+}
 
 function chartHeaders(origin) {
   return {
@@ -82,6 +99,7 @@ const test = base.extend({
         ]);
         const address = docker(["port", container, "80"]);
         if (!/^127\.0\.0\.1:\d+$/.test(address)) throw new Error("Apache precisa escutar somente em localhost");
+        await waitUntilServing(`http://${address}`);
         await use(`http://${address}`);
       } finally {
         execFileSync("docker", ["rm", "-f", container], { stdio: "ignore" });
