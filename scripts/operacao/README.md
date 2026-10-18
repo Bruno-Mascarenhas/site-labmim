@@ -15,6 +15,13 @@ acesso a instrumentos, sincronização, credenciais, topologia de rede, comandos
 publicação e recuperação ficam em documentação interna fora dos repositórios.
 Configurações locais e dados operacionais nunca entram em commits ou bundles.
 
+O publicador requer lftp 4.6.4 ou mais novo. De Monitoramento, Climatologia e
+Céu, ele envia somente os arquivos listados no `.htaccess` gerado pelo build;
+essa lista nasce em `src/template/static/htaccess.template`, uma linha
+`RewriteCond %{REQUEST_URI} !=/<diretório>/<arquivo>` por arquivo. Um arquivo
+novo nesses diretórios só é publicado e servido depois de entrar nessa lista e em
+`scripts/research-server.spec.mjs`, que a confere de forma independente.
+
 ## Estado da visualização
 
 Kt × Kd usa uma amostra de até 5.000 pontos e no máximo 25% do conjunto. Densidade,
