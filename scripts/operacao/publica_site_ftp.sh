@@ -85,13 +85,12 @@ fi
 for d in "${lista[@]}"; do
   [ -d "$SITE_DIR/$d" ] || falha "$SITE_DIR/$d nao existe"
 done
-[ -f "$SITE_DIR/.htaccess" ] || falha "gere o site com as regras de acesso antes de publicar"
-grep -qF 'Options -Indexes -MultiViews' "$SITE_DIR/.htaccess" \
-  || falha "regras de acesso ausentes no .htaccess"
-grep -qF 'RewriteCond %{HTTP:Sec-Fetch-Site} !^same-origin$ [OR]' "$SITE_DIR/.htaccess" \
-  || falha "restricao de origem ausente no .htaccess"
-grep -qF 'RewriteRule ^(?:Monitoramento|Climatologia|Ceu)(?:/|$) - [F,END,NC]' "$SITE_DIR/.htaccess" \
-  || falha "lista de arquivos publicos ausente no .htaccess"
+for regra in 'Options -Indexes -MultiViews' \
+  'RewriteCond %{HTTP:Sec-Fetch-Site} !^same-origin$ [OR]' \
+  'RewriteRule ^(?:Monitoramento|Climatologia|Ceu)(?:/|$) - [F,END,NC]'; do
+  grep -qF -- "$regra" "$SITE_DIR/.htaccess" 2>/dev/null \
+    || falha "regra de acesso ausente em $SITE_DIR/.htaccess: $regra"
+done
 
 # A rotina horária (Monitoramento) e a de 5 min (Céu) coincidem no minuto 5, e o
 # completo diário pode demorar: uma publicação por vez. O dry-run só lê o servidor.
