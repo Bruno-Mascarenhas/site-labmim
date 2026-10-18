@@ -13,6 +13,9 @@
 "use strict";
 
 (function () {
+  const RESEARCH_MODE =
+    ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname) &&
+    new URLSearchParams(window.location.search).get("research") === "1";
   // Same values as the monitoring page, re-stepped in lightness so the pair separates without hue.
   const PALETTE = {
     light: { empirical: "#406bbf", model: "#c26300" },
@@ -987,6 +990,7 @@
       showEmpty("clima", "Esta publicação ainda não declara um diretório de climatologia.");
       return;
     }
+    if (RESEARCH_MODE) state.base += "/research";
     if (typeof Chart === "undefined") {
       showEmpty("clima", "A biblioteca de gráficos não carregou.");
       return;
@@ -1021,6 +1025,9 @@
     if (period.start && period.end) {
       el("climaPeriodo").textContent =
         `Distribuições estatísticas do registro observado — ${period.start} a ${period.end}`;
+    }
+    if (RESEARCH_MODE) {
+      el("climaPeriodo").textContent = `Pesquisa local: todos os recortes. ${el("climaPeriodo").textContent}`;
     }
 
     el("climaEmpty").hidden = true;

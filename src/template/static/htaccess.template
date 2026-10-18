@@ -16,7 +16,7 @@ RewriteRule ^ - [F,END]
 
 RewriteCond %{REQUEST_URI} !^/Monitoramento/monitoring\.json$
 RewriteCond %{REQUEST_URI} !^/Climatologia/(manifest|air_temperature|clearness_index|longwave_down|longwave_up|net_radiation_day|net_radiation_night|par_early|par_late|precipitation|pressure|relative_humidity|relative_humidity_wxt|shortwave_down|shortwave_up|wind_direction|wind_speed)\.json$
-RewriteCond %{REQUEST_URI} !^/Ceu/((ktkd|ktkd_points|kt_cumulative|frame|timeline|model)\.json|allsky\.jpg|input\.jpg|attribution\.png)$
+RewriteCond %{REQUEST_URI} !^/Ceu/((ktkd|ktkd_sample|kt_cumulative|frame|timeline|model)\.json|allsky\.jpg|input\.jpg|attribution\.png)$
 RewriteRule ^(?:Monitoramento|Climatologia|Ceu)(?:/|$) - [F,END,NC]
 
 ErrorDocument 404 /404.html

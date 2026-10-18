@@ -14,19 +14,25 @@
 "use strict";
 
 (function () {
+  const RESEARCH_MODE =
+    ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname) &&
+    new URLSearchParams(window.location.search).get("research") === "1";
   const KTKD_PAYLOAD = "ktkd.json";
   const FRAME_PAYLOAD = "frame.json";
   const TIMELINE_PAYLOAD = "timeline.json";
   const MODEL_PAYLOAD = "model.json";
   const CUMULATIVE_PAYLOAD = "kt_cumulative.json";
-  const POINTS_FILE_SCHEMA = "labmim-ktkd-points-v1";
-  const POINTS_LOADING_MESSAGE = "Carregando os pontos horários…";
+  const POINTS_FILE_SCHEMA = RESEARCH_MODE ? "labmim-ktkd-research-v1" : "labmim-ktkd-sample-v1";
+  const PUBLIC_POINTS_LIMIT = 5000;
+  const PUBLIC_POINTS_ONE_IN = 4;
+  const POINTS_LABEL = RESEARCH_MODE ? "Pontos (completos)" : "Pontos (amostra)";
+  const POINTS_LOADING_MESSAGE = "Carregando os pontos…";
   const POINTS_FAILURE_MESSAGES = {
-    absent: "Os pontos horários não puderam ser baixados.",
-    unreadable: unreadableMessage("O arquivo dos pontos horários"),
-    foreign: "O arquivo dos pontos horários não está no formato que esta página lê.",
+    absent: "O arquivo de pontos não pôde ser baixado.",
+    unreadable: unreadableMessage("O arquivo de pontos"),
+    foreign: "O arquivo não contém pontos compatíveis com este modo de visualização.",
     stale:
-      "Os pontos horários publicados são de outra versão do documento de Kt × Kd, que está sendo atualizado. Recarregue a página em alguns minutos.",
+      "Os pontos são de outra versão do documento de Kt × Kd, que está sendo atualizado. Recarregue a página em alguns minutos.",
   };
   const UNDECLARED_KD_HEADROOM = 0.1;
   const DEFAULT_RAW_FRAME = "allsky.jpg";
@@ -143,7 +149,7 @@
     pointsStatus: "idle",
     density: null,
     hidden: new Set(),
-    layers: new Set(["density"]),
+    layers: new Set([RESEARCH_MODE ? "points" : "density"]),
     activeModels: new Set(),
     framesMissing: 0,
     payloadsCheckedAt: 0,
@@ -238,18 +244,12 @@
       .map((model) => ({ ...model, short: modelDisplayName(model) }));
   }
 
-  // Rows are positional to keep the file small on a host that serves JSON uncompressed.
-  // The order is therefore read from the payload, never assumed: kt and kd swapped would
-  // mirror the figure across the diagonal and still look like a plausible scatter.
-  const DEFAULT_POINTS_FORMAT = ["kt", "kd", "t"];
-
   function pointsFieldIndex(payload) {
     const declared = payload && payload.points_format;
-    const order = Array.isArray(declared) && declared.length ? declared : DEFAULT_POINTS_FORMAT;
+    const order = Array.isArray(declared) ? declared : [];
     return {
       kt: order.indexOf("kt"),
       kd: order.indexOf("kd"),
-      t: order.indexOf("t"),
       condition: order.indexOf("condition"),
     };
   }
@@ -269,9 +269,8 @@
       const positional = Array.isArray(entry);
       const kt = positional ? entry[at.kt] : entry && entry.kt;
       const kd = positional ? entry[at.kd] : entry && entry.kd;
-      const stamp = positional ? (at.t < 0 ? "" : entry[at.t]) : entry && entry.t;
       if (!Number.isFinite(kt) || !Number.isFinite(kd)) continue;
-      const point = { x: kt, y: kd, t: typeof stamp === "string" ? stamp : "", observed: true };
+      const point = { x: kt, y: kd, observed: true };
       if (positional ? at.condition >= 0 : entry.condition !== undefined) {
         point.condition = pointCondition(positional ? entry[at.condition] : entry.condition);
       }
@@ -282,12 +281,22 @@
 
   function pointsFileDeclared() {
     const declared = state.chartPayload && state.chartPayload.points_file;
-    if (!declared || typeof declared.name !== "string" || !declared.name) return false;
-    return Number.isInteger(declared.n) && declared.n > 0;
+    const name = RESEARCH_MODE ? "ktkd_points.json" : "ktkd_sample.json";
+    const sampling = RESEARCH_MODE ? "complete" : "stable-hash-v1";
+    if (!declared || declared.name !== name || declared.sampling !== sampling) return false;
+    return (
+      Number.isInteger(declared.population_n) &&
+      declared.population_n === state.chartPayload.period?.n &&
+      Number.isInteger(declared.n) &&
+      declared.n >= 0 &&
+      (RESEARCH_MODE
+        ? declared.n === declared.population_n
+        : declared.n <= Math.min(PUBLIC_POINTS_LIMIT, Math.floor(declared.population_n / PUBLIC_POINTS_ONE_IN)))
+    );
   }
 
   function pointsOffered() {
-    return state.points.length > 0 || pointsFileDeclared();
+    return pointsFileDeclared() && state.chartPayload.points_file.n > 0;
   }
 
   function pointsFailed() {
@@ -309,6 +318,31 @@
     if (!payload || payload.schema !== POINTS_FILE_SCHEMA) return "foreign";
     const version = state.chartPayload.version;
     if (typeof version !== "string" || !version || payload.version !== version) return "stale";
+    const declared = state.chartPayload.points_file;
+    const fields = RESEARCH_MODE ? "kt,kd,t,condition" : "kt,kd,condition";
+    const conditionIndex = RESEARCH_MODE ? 3 : 2;
+    if (
+      !pointsFileDeclared() ||
+      payload.sampling !== declared.sampling ||
+      payload.population_n !== declared.population_n ||
+      !Array.isArray(payload.points) ||
+      payload.points.length !== declared.n ||
+      !Array.isArray(payload.points_format) ||
+      payload.points_format.join(",") !== fields ||
+      !payload.points.every(
+        (point) =>
+          Array.isArray(point) &&
+          point.length === conditionIndex + 1 &&
+          Number.isFinite(point[0]) &&
+          Number.isFinite(point[1]) &&
+          (!RESEARCH_MODE || (typeof point[2] === "string" && Number.isFinite(parseStationTime(point[2])))) &&
+          Number.isInteger(point[conditionIndex]) &&
+          point[conditionIndex] >= 1 &&
+          point[conditionIndex] <= 4
+      )
+    ) {
+      return "foreign";
+    }
     return "ok";
   }
 
@@ -347,7 +381,7 @@
   }
 
   function ensurePoints() {
-    if (state.points.length || !pointsFileDeclared()) return Promise.resolve();
+    if (state.points.length || !pointsOffered()) return Promise.resolve();
     if (!state.pointsRequest) {
       state.pointsStatus = "loading";
       state.pointsRequest = loadJson(state.chartPayload.points_file.name).then(acceptPointsFile);
@@ -390,12 +424,10 @@
     return countNoun(count, "hora", "horas");
   }
 
-  function densityCoverageSentence(coverage, pointsLayerAvailable) {
+  function densityCoverageSentence(coverage) {
     const rest = coverage.outside === 1 ? "mais uma fica" : `outras ${integer(coverage.outside)} ficam`;
-    const appear = coverage.outside === 1 ? "aparece" : "aparecem";
     const inside = countNoun(coverage.inside, "hora", "horas");
-    const where = pointsLayerAvailable ? ` e só ${appear} na camada Pontos` : "";
-    return `A densidade conta ${inside}; ${rest} fora da grade ${coverage.span}${where}.`;
+    return `A densidade conta ${inside}; ${rest} fora da grade ${coverage.span}.`;
   }
 
   function classOf(kt) {
@@ -1157,7 +1189,7 @@
 
   const LAYERS = [
     { id: "density", label: "Densidade" },
-    { id: "points", label: "Pontos" },
+    { id: "points", label: POINTS_LABEL },
   ];
 
   function axisBounds() {
@@ -1645,7 +1677,9 @@
       (layer) =>
         layer.id === "density"
           ? "Contagem de horas por célula do plano Kt × Kd: quanto mais escura, mais horas caíram ali"
-          : "Uma marca por hora medida, colorida pela condição de céu"
+          : RESEARCH_MODE
+            ? "Todas as horas selecionadas, coloridas pela condição de céu"
+            : "Amostra fixa de horas medidas, colorida pela condição de céu; a densidade usa o registro completo"
     );
   }
 
@@ -1801,6 +1835,13 @@
     }
     if (Number.isFinite(period.n)) parts.push(`${integer(period.n)} ${timescale ? timescale.unit : "registros"}`);
     el("ceuGraficoNota").textContent = parts.join(" · ");
+    el("ceuPontosNota").textContent = pointsFileDeclared()
+      ? RESEARCH_MODE
+        ? `Pesquisa local: todas as ${integer(payload.points_file.n)} horas selecionadas, sem amostragem nem arredondamento dos pontos. Densidade, curvas e métricas usam o mesmo registro completo.`
+        : `Pontos: amostra de ${integer(payload.points_file.n)} das ${integer(payload.points_file.population_n)} horas, sem datas individuais. Densidade, curvas e métricas usam todo o registro selecionado.`
+      : RESEARCH_MODE
+        ? "Os pontos completos de pesquisa não estão disponíveis."
+        : "A amostra de pontos ainda não foi publicada. Densidade, curvas e métricas usam todo o registro selecionado.";
 
     const filtersWrittenForReaders = Boolean(payload.points_file) && Array.isArray(payload.filters);
     const filters = filtersWrittenForReaders
@@ -1812,8 +1853,8 @@
     }
 
     const coverage = hoursOutsideDensityGrid();
-    if (coverage) el("ceuAmostra").textContent = "das horas selecionadas";
-    el("ceuForaDaGrade").textContent = coverage ? densityCoverageSentence(coverage, pointsUsable()) : "";
+    el("ceuAmostra").textContent = "das horas selecionadas";
+    el("ceuForaDaGrade").textContent = coverage ? densityCoverageSentence(coverage) : "";
     el("ceuHorasCelulaCheia").textContent = densestCellHours();
 
     // Each model against the measured Kd over this exact period: the legend says
@@ -1832,9 +1873,9 @@
     const shown = showingPoints() ? visiblePoints().length : 0;
     el("ceuCanvas").setAttribute(
       "aria-label",
-      state.density
+      state.layers.has("density") && state.density
         ? `Densidade horária no plano do índice de claridade contra a fração difusa, com os limites das quatro condições de céu.`
-        : `Dispersão de ${decimal(shown, 0)} horas no plano do índice de claridade contra a fração difusa.`
+        : `${RESEARCH_MODE ? "Dispersão completa" : "Amostra"} de ${decimal(shown, 0)} horas no plano do índice de claridade contra a fração difusa.`
     );
     el("ceuAmpliar").disabled = !hasDrawing() || (state.layers.has("points") && state.pointsStatus === "loading");
     el("ceuGuia").disabled = state.chartStatus === "loading";
@@ -1848,7 +1889,7 @@
     }
     if (!state.density && !pointsOffered()) return "O documento publicado não traz nem densidade nem pontos.";
     if (state.pointsStatus === "loading") return POINTS_LOADING_MESSAGE;
-    if (pointsFailed() && !state.density) return pointsStatusMessage();
+    if (pointsFailed()) return pointsStatusMessage();
     if (showingPoints() && !visiblePoints().length) {
       return "Nenhuma condição de céu selecionada — ative pelo menos uma acima.";
     }
@@ -1922,15 +1963,12 @@
       );
     }
     if (pointsUsable()) {
-      const coverage = hoursOutsideDensityGrid();
       guideDefinition(
         list,
-        "Camada Pontos",
-        `Uma marca por hora medida, colorida pela condição de céu daquele Kt. ${
-          coverage
-            ? densityCoverageSentence(coverage, true)
-            : "É a mesma amostra da densidade, hora a hora em vez de contada."
-        }`
+        `Camada ${POINTS_LABEL}`,
+        RESEARCH_MODE
+          ? "Uma marca por hora do registro selecionado, colorida pela condição de céu daquele Kt. Todos os pontos são preservados com a precisão original, sob os mesmos filtros científicos da densidade e das métricas."
+          : "Uma marca por hora da amostra, colorida pela condição de céu daquele Kt. A seleção é fixa para o mesmo registro, limitada a 5.000 pontos e a 25% das horas, sem datas individuais. A densidade e as métricas dos modelos usam todas as horas selecionadas."
       );
     }
     guideDefinition(list, "Condições de céu", (detail) => {
@@ -1953,7 +1991,7 @@
         "Curva e banda",
         bands.length
           ? "Um modelo que depende só de Kt vira curva. Os que dependem também da hora solar, da elevação, do Kt diário e da persistência assumem uma faixa de valores num mesmo Kt: aparecem como banda, com a mediana dentro do envelope entre os percentis 10 e 90. Onde a faixa tem amostras de menos para resumir, a banda não é desenhada."
-          : "Um modelo que depende só de Kt é desenhado como curva sobre a amostra."
+          : "Um modelo que depende só de Kt é desenhado como curva sobre os pontos."
       );
       guideDefinition(
         list,
@@ -3779,10 +3817,14 @@
   }
 
   async function loadJson(name) {
+    const base =
+      RESEARCH_MODE && [KTKD_PAYLOAD, CUMULATIVE_PAYLOAD, "ktkd_points.json"].includes(name)
+        ? `${state.base}/research`
+        : state.base;
     let response;
     try {
       // Same name every run, so freshness is the request header's job.
-      response = await fetch(`${state.base}/${name}`, { cache: "no-cache" });
+      response = await fetch(`${base}/${name}`, { cache: "no-cache" });
       if (!response.ok) return { status: "absent", payload: null };
     } catch {
       return { status: "absent", payload: null };
@@ -3839,7 +3881,7 @@
     state.chartStatus = chart.status;
     state.classes = resolveClasses(state.chartPayload);
     state.models = resolveModels(state.chartPayload);
-    state.points = readPoints(state.chartPayload);
+    state.points = [];
     state.density = readDensity(state.chartPayload);
     invalidateVisiblePoints();
     if (!state.density) state.layers.delete("density");
@@ -3953,6 +3995,10 @@
     const root = document.querySelector("[data-sky-base]");
     if (!root) return;
     state.base = (root.dataset.skyBase || "").replace(/\/$/, "");
+    if (RESEARCH_MODE) {
+      el("ceuDispersaoResumo").textContent =
+        "Na camada Pontos (completos), todas as horas selecionadas aparecem coloridas pela condição de céu, com a precisão original. Este é o modo local de pesquisa.";
+    }
     if (!state.base) {
       showEmpty("ceu", "Esta publicação ainda não declara um diretório de condição do céu.");
       return;

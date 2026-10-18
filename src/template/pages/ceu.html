@@ -68,13 +68,15 @@
           </li>
         </ul>
         <p>
-          O gráfico tem duas leituras <span id="ceuAmostra">da mesma amostra</span>, e a que aparece por padrão é a
-          <strong>densidade</strong>: o plano é cortado numa grade e cada célula é pintada pelo
+          O gráfico tem duas leituras <span id="ceuAmostra">das horas selecionadas</span>. Na camada
+          <strong>densidade</strong>, o plano é cortado numa grade e cada célula é pintada pelo
           <strong>número de horas do acervo que caíram nela</strong> — quanto mais escura, mais horas. Não é
           uma nuvem de pontos desbotada; é uma contagem. A escala é logarítmica porque a célula mais cheia
           concentra <span id="ceuHorasCelulaCheia">muitas horas</span> enquanto as bordas têm uma ou duas, e
-          numa escala linear tudo fora do miolo viraria um tom só. Ligando a camada <strong>Pontos</strong>, cada
-          hora medida aparece individualmente, colorida pela condição de céu.
+          numa escala linear tudo fora do miolo viraria um tom só. <span id="ceuDispersaoResumo">Ligando a camada <strong>Pontos (amostra)</strong>,
+          uma amostra fixa de até 5.000 horas e no máximo 25% do registro aparece colorida pela condição de céu.
+          </span>
+          A densidade, as curvas e as métricas continuam calculadas com todas as horas selecionadas.
           <span id="ceuForaDaGrade"></span>
         </p>
         <p>
@@ -112,8 +114,8 @@
               K<sub>t</sub> e K<sub>d</sub> entre 0 e 1,2; horas de chuva não são excluídas.</span
             >
             Como a difusa não pode superar a
-            global, K<sub>d</sub> acima de 1 é erro de medida: essas horas aparecem na camada de pontos e entram
-            nas métricas dos modelos. A rede do quadro é o produto do modelo deste laboratório, e o
+            global, K<sub>d</sub> acima de 1 é erro de medida: essas horas continuam nas métricas dos modelos,
+            mesmo quando ficam fora da grade da densidade. A rede do quadro é o produto do modelo deste laboratório, e o
             cartão em O modelo diz como ela foi escolhida e onde erra. As informações são resultados de
             aquisições de pesquisa, sem garantia para utilização irrestrita.</small
           >
@@ -492,6 +494,7 @@
         </div>
       </div>
 
+      <p class="clima-panel-note" id="ceuPontosNota"></p>
       <div class="chart-container clima-chart sky-chart" id="ceuChartWrap">
         <canvas id="ceuCanvas" role="img" aria-label="Dispersão do índice de claridade contra a fração difusa"></canvas>
       </div>

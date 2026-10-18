@@ -9,7 +9,7 @@ const files = [
   "Climatologia/manifest.json",
   "Climatologia/air_temperature.json",
   "Ceu/ktkd.json",
-  "Ceu/ktkd_points.json",
+  "Ceu/ktkd_sample.json",
   "Ceu/kt_cumulative.json",
   "Ceu/timeline.json",
   "Ceu/frame.json",
@@ -18,6 +18,12 @@ const files = [
   "Ceu/input.jpg",
   "Ceu/attribution.png",
   "Ceu/backup.csv",
+  "Ceu/ktkd_points.json",
+  "Ceu/research/ktkd_points.json",
+  "Ceu/research/ktkd.json",
+  "Ceu/research/kt_cumulative.json",
+  "Climatologia/research/manifest.json",
+  "Climatologia/research/air_temperature.json",
   "Ceu/backup.json",
   "Ceu/ktkd.json.bak",
   "Ceu/.ktkd.json.tmp-1",
@@ -85,9 +91,9 @@ const test = base.extend<object, { readonly serverOrigin: string }>({
   ],
 });
 
-for (const file of files.filter((file) => /backup|\.bak|\.tmp-|parquet/.test(file))) {
+for (const file of files.filter((file) => /backup|research\/|ktkd_points|\.bak|\.tmp-|parquet/.test(file))) {
   test(`servidor bloqueia arquivo fora da lista pública: ${file}`, async ({ request, serverOrigin }) => {
-    const response = await request.get(`${serverOrigin}/${file}`, { headers: chartHeaders(serverOrigin) });
+    const response = await request.get(`${serverOrigin}/${file}?research=1`, { headers: chartHeaders(serverOrigin) });
     expect(response.status()).toBe(403);
   });
 }

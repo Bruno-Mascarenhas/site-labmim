@@ -50,21 +50,77 @@ const fixtures = {
   "/Ceu/ktkd.json": {
     schema: "labmim-ktkd-v1",
     version: "fixture",
-    points: [
-      [0.2, 0.8, "2026-01-01T12:00:00"],
-      [0.6, 0.4, "2026-01-01T13:00:00"],
-    ],
-    points_format: ["kt", "kd", "t"],
+    period: { n: 40 },
+    density: {
+      kt_edges: [0, 0.5, 1],
+      kd_edges: [0, 0.5, 1],
+      counts: [
+        [0, 20],
+        [20, 0],
+      ],
+      max_count: 20,
+      n_outside: 0,
+    },
+    points_file: { name: "ktkd_sample.json", n: 2, population_n: 40, sampling: "stable-hash-v1" },
     models: [],
     caveats: [],
   },
+  "/Ceu/ktkd_sample.json": {
+    schema: "labmim-ktkd-sample-v1",
+    version: "fixture",
+    population_n: 40,
+    sampling: "stable-hash-v1",
+    points_format: ["kt", "kd", "condition"],
+    points: [
+      [0.2, 0.8, 1],
+      [0.6, 0.4, 3],
+    ],
+  },
 } satisfies Record<string, unknown>;
 
-async function openPage(page: Page, name: string): Promise<void> {
+const researchFixtures = {
+  "/Ceu/research/ktkd.json": {
+    ...fixtures["/Ceu/ktkd.json"],
+    points_file: { name: "ktkd_points.json", n: 40, population_n: 40, sampling: "complete" },
+  },
+  "/Ceu/research/ktkd_points.json": {
+    schema: "labmim-ktkd-research-v1",
+    version: "fixture",
+    population_n: 40,
+    sampling: "complete",
+    points_format: ["kt", "kd", "t", "condition"],
+    points: Array.from({ length: 40 }, (_, index) => [
+      0.2 + index * 0.001,
+      0.8 - index * 0.001,
+      new Date(Date.UTC(2026, 0, 1, index)).toISOString().replace(".000Z", ""),
+      1,
+    ]),
+  },
+  "/Climatologia/research/manifest.json": {
+    ...fixtures["/Climatologia/manifest.json"],
+    selector: ["observed_all", "wrf_all", "wrf_djf"],
+    subsets: [
+      ...fixtures["/Climatologia/manifest.json"].subsets,
+      { id: "wrf_djf", source: "wrf", label: "WRF — verão" },
+    ],
+  },
+  "/Climatologia/research/air_temperature.json": {
+    ...fixtures["/Climatologia/air_temperature.json"],
+    subsets: { observed_all: observed, wrf_all: model, wrf_djf: model },
+  },
+} satisfies Record<string, unknown>;
+
+async function openPage(
+  page: Page,
+  name: string,
+  overrides: Readonly<Record<string, unknown>> = {},
+  pageOrigin: string = origin
+): Promise<void> {
+  const pageFixtures = { ...fixtures, ...overrides };
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    if (url.origin !== origin) return route.abort();
-    const fixture = (fixtures as Readonly<Record<string, unknown>>)[url.pathname];
+    if (url.origin !== pageOrigin) return route.abort();
+    const fixture = (pageFixtures as Readonly<Record<string, unknown>>)[url.pathname];
     if (fixture) return route.fulfill({ json: fixture });
     if (/^\/(Monitoramento|Climatologia|Ceu)\//.test(url.pathname)) return route.fulfill({ status: 404 });
     const file = path.resolve(siteRoot, `.${url.pathname}`);
@@ -74,7 +130,7 @@ async function openPage(page: Page, name: string): Promise<void> {
   page.on("pageerror", (error) => {
     throw error;
   });
-  await page.goto(`${origin}/${name}`);
+  await page.goto(`${pageOrigin}/${name}`);
 }
 
 test("monitoramento mantém ampliação e desabilita CSV mesmo após trocar o período", async ({ page }) => {
@@ -88,16 +144,170 @@ test("monitoramento mantém ampliação e desabilita CSV mesmo após trocar o pe
   await expect(page.locator("dialog canvas")).toBeVisible();
 });
 
-test("Kt × Kd mantém os pontos interativos sem habilitar CSV", async ({ page }) => {
+test("Kt × Kd mantém a amostra interativa sem habilitar CSV", async ({ page }) => {
   await openPage(page, "ceu.html");
   await expect(page.locator("#ceuAmpliar")).toBeEnabled();
   await expect(page.locator("#ceuExport")).toBeDisabled();
-  const points = page.locator("#ceuCamadas").getByRole("button", { name: "Pontos", exact: true });
+  const points = page.locator("#ceuCamadas").getByRole("button", { name: "Pontos (amostra)", exact: true });
   await points.click();
   await points.click();
   await expect(page.locator("#ceuExport")).toBeDisabled();
   await page.locator("#ceuAmpliar").click();
   await expect(page.locator("dialog canvas")).toBeVisible();
+});
+
+test("Kt × Kd distingue o tamanho da amostra do registro completo", async ({ page }) => {
+  await openPage(page, "ceu.html");
+
+  await expect(page.locator("#ceuPontosNota")).toContainText("amostra de 2 das 40 horas");
+});
+
+test("Kt × Kd aceita cinco mil pontos quando representam um quarto do registro", async ({ page }) => {
+  await openPage(page, "ceu.html", {
+    "/Ceu/ktkd.json": {
+      ...fixtures["/Ceu/ktkd.json"],
+      period: { n: 20000 },
+      points_file: { name: "ktkd_sample.json", n: 5000, population_n: 20000, sampling: "stable-hash-v1" },
+    },
+    "/Ceu/ktkd_sample.json": {
+      ...fixtures["/Ceu/ktkd_sample.json"],
+      population_n: 20000,
+      points: Array.from({ length: 5000 }, () => [0.2, 0.8, 1]),
+    },
+  });
+
+  await page.getByRole("button", { name: "Pontos (amostra)", exact: true }).click();
+
+  await expect(page.locator("#ceuStatus")).toContainText("A linha horizontal marca Kd = 0,5");
+  await expect(page.locator("#ceuPontosNota")).toContainText("amostra de 5.000 das 20.000 horas");
+});
+
+for (const { n, population, limit } of [
+  { n: 5001, population: 24000, limit: "cinco mil pontos" },
+  { n: 11, population: 40, limit: "um quarto do registro" },
+]) {
+  test(`Kt × Kd recusa amostras acima de ${limit}`, async ({ page }) => {
+    const requested: string[] = [];
+    page.on("request", (request) => requested.push(new URL(request.url()).pathname));
+    await openPage(page, "ceu.html", {
+      "/Ceu/ktkd.json": {
+        ...fixtures["/Ceu/ktkd.json"],
+        period: { n: population },
+        points_file: { name: "ktkd_sample.json", n, population_n: population, sampling: "stable-hash-v1" },
+      },
+    });
+
+    await expect(page.locator("#ceuAmpliar")).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Pontos (amostra)", exact: true })).toHaveCount(0);
+    expect(requested).not.toContain("/Ceu/ktkd_sample.json");
+  });
+}
+
+test("Kt × Kd carrega somente a amostra ao ativar os pontos", async ({ page }) => {
+  await openPage(page, "ceu.html");
+  const response = page.waitForResponse(`${origin}/Ceu/ktkd_sample.json`);
+
+  await page.getByRole("button", { name: "Pontos (amostra)", exact: true }).click();
+
+  expect((await response).ok()).toBe(true);
+});
+
+test("Kt × Kd mantém a densidade sem buscar o antigo arquivo completo", async ({ page }) => {
+  const requested: string[] = [];
+  page.on("request", (request) => requested.push(new URL(request.url()).pathname));
+  await openPage(page, "ceu.html", {
+    "/Ceu/ktkd.json": {
+      ...fixtures["/Ceu/ktkd.json"],
+      points_file: { name: "ktkd_points.json", n: 40 },
+    },
+  });
+
+  await expect(page.locator("#ceuAmpliar")).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Pontos (amostra)", exact: true })).toHaveCount(0);
+  expect(requested).not.toContain("/Ceu/ktkd_points.json");
+});
+
+test("Kt × Kd rejeita uma amostra de outra versão preservando a densidade", async ({ page }) => {
+  await openPage(page, "ceu.html", {
+    "/Ceu/ktkd_sample.json": { ...fixtures["/Ceu/ktkd_sample.json"], version: "previous" },
+  });
+
+  await page.getByRole("button", { name: "Pontos (amostra)", exact: true }).click();
+
+  await expect(page.locator("#ceuStatus")).toContainText("outra versão");
+  await expect(page.locator("#ceuAmpliar")).toBeEnabled();
+});
+
+test("Kt × Kd rejeita observações com datas dentro da amostra pública", async ({ page }) => {
+  await openPage(page, "ceu.html", {
+    "/Ceu/ktkd_sample.json": {
+      ...fixtures["/Ceu/ktkd_sample.json"],
+      points_format: ["kt", "kd", "t", "condition"],
+      points: [
+        [0.2, 0.8, "2026-01-01T12:00:00", 1],
+        [0.6, 0.4, "2026-01-01T13:00:00", 3],
+      ],
+    },
+  });
+
+  await page.getByRole("button", { name: "Pontos (amostra)", exact: true }).click();
+
+  await expect(page.locator("#ceuStatus")).toContainText("não contém pontos compatíveis");
+});
+
+test("pesquisa local desenha todos os pontos sem acionar a amostra pública", async ({ page }) => {
+  const requested: string[] = [];
+  page.on("request", (request) => requested.push(new URL(request.url()).pathname));
+
+  await openPage(page, "ceu.html?research=1", researchFixtures, "http://127.0.0.1");
+
+  await expect(page.locator("#ceuCanvas")).toBeVisible();
+  await expect(page.locator("#ceuPontosNota")).toContainText("todas as 40 horas");
+  await expect(page.getByRole("button", { name: "Pontos (completos)", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+  await expect(page.locator("#ceuAmpliar")).toBeEnabled();
+  expect(requested).toContain("/Ceu/research/ktkd_points.json");
+  expect(requested).not.toContain("/Ceu/ktkd_sample.json");
+});
+
+test("pesquisa local não substitui dados completos ausentes pela amostra", async ({ page }) => {
+  await openPage(
+    page,
+    "ceu.html?research=1",
+    { ...researchFixtures, "/Ceu/research/ktkd_points.json": null },
+    "http://127.0.0.1"
+  );
+
+  await expect(page.locator("#ceuStatus")).toContainText("não pôde ser baixado");
+  await expect(page.getByRole("button", { name: "Pontos (amostra)", exact: true })).toHaveCount(0);
+});
+
+test("parâmetro de pesquisa no site remoto mantém a visualização pública", async ({ page }) => {
+  const requested: string[] = [];
+  page.on("request", (request) => requested.push(new URL(request.url()).pathname));
+
+  await openPage(page, "ceu.html?research=1", researchFixtures);
+
+  await expect(page.locator("#ceuPontosNota")).toContainText("amostra de 2 das 40 horas");
+  expect(requested.some((pathname) => pathname.includes("/research/"))).toBe(false);
+});
+
+test("climatologia local oferece os recortes sazonais completos", async ({ page }) => {
+  await openPage(page, "climatologia.html?research=1", researchFixtures, "http://127.0.0.1");
+
+  await page.getByRole("button", { name: "WRF — verão", exact: true }).click();
+
+  await expect(page.locator("#climaTitulo")).toContainText("WRF — verão");
+  await expect(page.locator("#climaPeriodo")).toContainText("Pesquisa local: todos os recortes");
+});
+
+test("parâmetro de pesquisa não abre os recortes privados na climatologia remota", async ({ page }) => {
+  await openPage(page, "climatologia.html?research=1", researchFixtures);
+
+  await expect(page.locator("#climaTitulo")).toContainText("Observações");
+  await expect(page.getByRole("button", { name: "WRF — verão", exact: true })).toHaveCount(0);
 });
 
 test("climatologia permite CSV somente do recorte WRF", async ({ page }) => {

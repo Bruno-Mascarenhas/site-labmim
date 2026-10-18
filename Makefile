@@ -72,6 +72,6 @@ audit:
 	npm run check:audit
 
 serve:
-	python3 -m http.server 8000 --directory site
+	python3 -m http.server 8000 --bind 127.0.0.1 --directory site
 
 ci: build-check build-all format-check lint lint-html lint-links audit

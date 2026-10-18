@@ -173,7 +173,7 @@ for d in "${lista[@]}"; do
         net_radiation_day.json net_radiation_night.json par_early.json par_late.json precipitation.json
         pressure.json relative_humidity.json relative_humidity_wxt.json shortwave_down.json shortwave_up.json
         wind_direction.json wind_speed.json) ;;
-    Ceu) arquivos=(ktkd.json ktkd_points.json kt_cumulative.json frame.json timeline.json model.json allsky.jpg input.jpg attribution.png) ;;
+    Ceu) arquivos=(ktkd.json ktkd_sample.json kt_cumulative.json frame.json timeline.json model.json allsky.jpg input.jpg attribution.png) ;;
   esac
   origem="$SITE_DIR/$d"
   if [ ${#arquivos[@]} -gt 0 ]; then
