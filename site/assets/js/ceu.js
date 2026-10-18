@@ -20,10 +20,8 @@
   const TIMELINE_PAYLOAD = "timeline.json";
   const MODEL_PAYLOAD = "model.json";
   const CUMULATIVE_PAYLOAD = "kt_cumulative.json";
-  const POINTS_FILE_SCHEMA = RESEARCH_MODE ? "labmim-ktkd-research-v1" : "labmim-ktkd-sample-v1";
   const PUBLIC_POINTS_LIMIT = 5000;
   const PUBLIC_POINTS_ONE_IN = 4;
-  const POINTS_LABEL = RESEARCH_MODE ? "Pontos (completos)" : "Pontos (amostra)";
   const POINTS_LOADING_MESSAGE = "Carregando os pontos…";
   const POINTS_FAILURE_MESSAGES = {
     absent: "O arquivo de pontos não pôde ser baixado.",
@@ -125,6 +123,7 @@
 
   const state = {
     base: "",
+    chartBase: "",
     chart: null,
     chartPayload: null,
     chartStatus: "absent",
@@ -164,6 +163,38 @@
   const formatStamp = window.labmimChartPage.formatStampYear;
   const formatShortDay = window.labmimChartPage.formatDay;
   const formatHour = window.labmimChartPage.formatHour;
+
+  const POINTS = RESEARCH_MODE
+    ? {
+        file: "ktkd_points.json",
+        schema: "labmim-ktkd-research-v1",
+        sampling: "complete",
+        format: ["kt", "kd", "t", "condition"],
+        label: "Pontos (completos)",
+        fits: (n, population) => n === population,
+        hint: "Todas as horas selecionadas, coloridas pela condição de céu",
+        chartLabel: "Dispersão completa",
+        note: (declared) =>
+          `Pesquisa local: todas as ${integer(declared.n)} horas selecionadas, sem amostragem nem arredondamento dos pontos. Densidade, curvas e métricas usam o mesmo registro completo.`,
+        missing: "Os pontos completos de pesquisa não estão disponíveis.",
+        guide:
+          "Uma marca por hora do registro selecionado, colorida pela condição de céu daquele Kt. Todos os pontos são preservados com a precisão original, sob os mesmos filtros científicos da densidade e das métricas.",
+      }
+    : {
+        file: "ktkd_sample.json",
+        schema: "labmim-ktkd-sample-v1",
+        sampling: "stable-hash-v1",
+        format: ["kt", "kd", "condition"],
+        label: "Pontos (amostra)",
+        fits: (n, population) => n <= Math.min(PUBLIC_POINTS_LIMIT, Math.floor(population / PUBLIC_POINTS_ONE_IN)),
+        hint: "Amostra fixa de horas medidas, colorida pela condição de céu; a densidade usa o registro completo",
+        chartLabel: "Amostra",
+        note: (declared) =>
+          `Pontos: amostra de ${integer(declared.n)} das ${integer(declared.population_n)} horas, sem datas individuais. Densidade, curvas e métricas usam todo o registro selecionado.`,
+        missing:
+          "A amostra de pontos ainda não foi publicada. Densidade, curvas e métricas usam todo o registro selecionado.",
+        guide: `Uma marca por hora da amostra, colorida pela condição de céu daquele Kt. A seleção é fixa para o mesmo registro, limitada a ${integer(PUBLIC_POINTS_LIMIT)} pontos e a ${percent(1 / PUBLIC_POINTS_ONE_IN, 0)} das horas, sem datas individuais. A densidade e as métricas dos modelos usam todas as horas selecionadas.`,
+      };
 
   function classPalette() {
     return isDark() ? CLASS_PALETTE.dark : CLASS_PALETTE.light;
@@ -279,17 +310,13 @@
 
   function pointsFileDeclared() {
     const declared = state.chartPayload && state.chartPayload.points_file;
-    const name = RESEARCH_MODE ? "ktkd_points.json" : "ktkd_sample.json";
-    const sampling = RESEARCH_MODE ? "complete" : "stable-hash-v1";
-    if (!declared || declared.name !== name || declared.sampling !== sampling) return false;
+    if (!declared || declared.name !== POINTS.file || declared.sampling !== POINTS.sampling) return false;
     return (
       Number.isInteger(declared.population_n) &&
       declared.population_n === state.chartPayload.period?.n &&
       Number.isInteger(declared.n) &&
       declared.n >= 0 &&
-      (RESEARCH_MODE
-        ? declared.n === declared.population_n
-        : declared.n <= Math.min(PUBLIC_POINTS_LIMIT, Math.floor(declared.population_n / PUBLIC_POINTS_ONE_IN)))
+      POINTS.fits(declared.n, declared.population_n)
     );
   }
 
@@ -313,12 +340,12 @@
   function pointsFileStatus(result) {
     if (result.status !== "ok") return result.status;
     const payload = result.payload;
-    if (!payload || payload.schema !== POINTS_FILE_SCHEMA) return "foreign";
+    if (!payload || payload.schema !== POINTS.schema) return "foreign";
     const version = state.chartPayload.version;
     if (typeof version !== "string" || !version || payload.version !== version) return "stale";
     const declared = state.chartPayload.points_file;
-    const fields = RESEARCH_MODE ? "kt,kd,t,condition" : "kt,kd,condition";
-    const conditionIndex = RESEARCH_MODE ? 3 : 2;
+    const conditionIndex = POINTS.format.indexOf("condition");
+    const timeIndex = POINTS.format.indexOf("t");
     if (
       !pointsFileDeclared() ||
       payload.sampling !== declared.sampling ||
@@ -326,14 +353,15 @@
       !Array.isArray(payload.points) ||
       payload.points.length !== declared.n ||
       !Array.isArray(payload.points_format) ||
-      payload.points_format.join(",") !== fields ||
+      payload.points_format.join(",") !== POINTS.format.join(",") ||
       !payload.points.every(
         (point) =>
           Array.isArray(point) &&
-          point.length === conditionIndex + 1 &&
+          point.length === POINTS.format.length &&
           Number.isFinite(point[0]) &&
           Number.isFinite(point[1]) &&
-          (!RESEARCH_MODE || (typeof point[2] === "string" && Number.isFinite(parseStationTime(point[2])))) &&
+          (timeIndex < 0 ||
+            (typeof point[timeIndex] === "string" && Number.isFinite(parseStationTime(point[timeIndex])))) &&
           Number.isInteger(point[conditionIndex]) &&
           point[conditionIndex] >= 1 &&
           point[conditionIndex] <= 4
@@ -382,7 +410,7 @@
     if (state.points.length || !pointsOffered()) return Promise.resolve();
     if (!state.pointsRequest) {
       state.pointsStatus = "loading";
-      state.pointsRequest = loadJson(state.chartPayload.points_file.name).then(acceptPointsFile);
+      state.pointsRequest = loadJson(POINTS.file, state.chartBase).then(acceptPointsFile);
     }
     return state.pointsRequest;
   }
@@ -1187,7 +1215,7 @@
 
   const LAYERS = [
     { id: "density", label: "Densidade" },
-    { id: "points", label: POINTS_LABEL },
+    { id: "points", label: POINTS.label },
   ];
 
   function axisBounds() {
@@ -1675,9 +1703,7 @@
       (layer) =>
         layer.id === "density"
           ? "Contagem de horas por célula do plano Kt × Kd: quanto mais escura, mais horas caíram ali"
-          : RESEARCH_MODE
-            ? "Todas as horas selecionadas, coloridas pela condição de céu"
-            : "Amostra fixa de horas medidas, colorida pela condição de céu; a densidade usa o registro completo"
+          : POINTS.hint
     );
   }
 
@@ -1833,13 +1859,7 @@
     }
     if (Number.isFinite(period.n)) parts.push(`${integer(period.n)} ${timescale ? timescale.unit : "registros"}`);
     el("ceuGraficoNota").textContent = parts.join(" · ");
-    el("ceuPontosNota").textContent = pointsFileDeclared()
-      ? RESEARCH_MODE
-        ? `Pesquisa local: todas as ${integer(payload.points_file.n)} horas selecionadas, sem amostragem nem arredondamento dos pontos. Densidade, curvas e métricas usam o mesmo registro completo.`
-        : `Pontos: amostra de ${integer(payload.points_file.n)} das ${integer(payload.points_file.population_n)} horas, sem datas individuais. Densidade, curvas e métricas usam todo o registro selecionado.`
-      : RESEARCH_MODE
-        ? "Os pontos completos de pesquisa não estão disponíveis."
-        : "A amostra de pontos ainda não foi publicada. Densidade, curvas e métricas usam todo o registro selecionado.";
+    el("ceuPontosNota").textContent = pointsFileDeclared() ? POINTS.note(payload.points_file) : POINTS.missing;
 
     const filtersWrittenForReaders = Boolean(payload.points_file) && Array.isArray(payload.filters);
     const filters = filtersWrittenForReaders
@@ -1873,7 +1893,7 @@
       "aria-label",
       state.layers.has("density") && state.density
         ? `Densidade horária no plano do índice de claridade contra a fração difusa, com os limites das quatro condições de céu.`
-        : `${RESEARCH_MODE ? "Dispersão completa" : "Amostra"} de ${decimal(shown, 0)} horas no plano do índice de claridade contra a fração difusa.`
+        : `${POINTS.chartLabel} de ${decimal(shown, 0)} horas no plano do índice de claridade contra a fração difusa.`
     );
     el("ceuAmpliar").disabled = !hasDrawing() || (state.layers.has("points") && state.pointsStatus === "loading");
     el("ceuGuia").disabled = state.chartStatus === "loading";
@@ -1961,13 +1981,7 @@
       );
     }
     if (pointsUsable()) {
-      guideDefinition(
-        list,
-        `Camada ${POINTS_LABEL}`,
-        RESEARCH_MODE
-          ? "Uma marca por hora do registro selecionado, colorida pela condição de céu daquele Kt. Todos os pontos são preservados com a precisão original, sob os mesmos filtros científicos da densidade e das métricas."
-          : "Uma marca por hora da amostra, colorida pela condição de céu daquele Kt. A seleção é fixa para o mesmo registro, limitada a 5.000 pontos e a 25% das horas, sem datas individuais. A densidade e as métricas dos modelos usam todas as horas selecionadas."
-      );
+      guideDefinition(list, `Camada ${POINTS.label}`, POINTS.guide);
     }
     guideDefinition(list, "Condições de céu", (detail) => {
       detail.appendChild(
@@ -3814,11 +3828,7 @@
     renderProvenance();
   }
 
-  async function loadJson(name) {
-    const base =
-      RESEARCH_MODE && [KTKD_PAYLOAD, CUMULATIVE_PAYLOAD, "ktkd_points.json"].includes(name)
-        ? `${state.base}/research`
-        : state.base;
+  async function loadJson(name, base = state.base) {
     let response;
     try {
       // Same name every run, so freshness is the request header's job.
@@ -3993,9 +4003,10 @@
     const root = document.querySelector("[data-sky-base]");
     if (!root) return;
     state.base = (root.dataset.skyBase || "").replace(/\/$/, "");
+    state.chartBase = RESEARCH_MODE ? `${state.base}/research` : state.base;
     if (RESEARCH_MODE) {
       el("ceuDispersaoResumo").textContent =
-        "Na camada Pontos (completos), todas as horas selecionadas aparecem coloridas pela condição de céu, com a precisão original. Este é o modo local de pesquisa.";
+        `Na camada ${POINTS.label}, todas as horas selecionadas aparecem coloridas pela condição de céu, com a precisão original. Este é o modo local de pesquisa.`;
     }
     if (!state.base) {
       showEmpty("ceu", "Esta publicação ainda não declara um diretório de condição do céu.");
@@ -4006,12 +4017,12 @@
       return;
     }
 
-    const chartRequest = loadJson(KTKD_PAYLOAD);
+    const chartRequest = loadJson(KTKD_PAYLOAD, state.chartBase);
     const [frame, timeline, model, cumulative] = await Promise.all([
       loadJson(FRAME_PAYLOAD),
       loadJson(TIMELINE_PAYLOAD),
       loadJson(MODEL_PAYLOAD),
-      loadJson(CUMULATIVE_PAYLOAD),
+      loadJson(CUMULATIVE_PAYLOAD, state.chartBase),
     ]);
     state.chartStatus = "loading";
     state.framePayload = frame.payload;
