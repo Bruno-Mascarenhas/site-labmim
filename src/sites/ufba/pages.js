@@ -41,7 +41,7 @@ module.exports = [
     seo: {
       title: "LabMiM — Condição do Céu · UFBA",
       description:
-        "LabMiM — Condição do Céu: imagem da câmera all-sky em Salvador, a irradiância difusa e a condição de céu que a rede prevê a partir dela com o mapa de sensibilidade à oclusão, os últimos dias contra o piranômetro, o cartão do modelo e a dispersão do índice de claridade contra a fração difusa, nas quatro condições de céu de Escobedo et al. (2009).",
+        "Acompanhe as imagens da câmera all-sky fornecidas pelo Planetário da UFBA, com estimativas do modelo LabMiM, histórico de irradiância e condições do céu em Salvador.",
     },
   }),
   page("climatology", {

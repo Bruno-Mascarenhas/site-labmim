@@ -32,7 +32,7 @@ O diretório `src/sites/` é o registro. A descoberta ordena os diretórios que 
 | `site/monitoring.html`             | Monitoramento ambiental: gráficos interativos ou PNGs (ver abaixo)    |
 | `site/team.html`                   | Equipe, links e localização incorporada (iframe Google My Maps)       |
 | `site/climatologia.html`           | Distribuições observadas da estação, lidas de `Climatologia/`         |
-| `site/ceu.html`                    | Câmera all-sky, sensibilidade à oclusão, cartão do modelo e dispersão Kt × Kd, de `Ceu/` |
+| `site/ceu.html`                    | Histórico de condições do céu, dispersão Kt × Kd e imagens all-sky com análise, de `Ceu/` |
 | `site/mapas_interativos.html`      | WebGIS de previsões meteorológicas                                    |
 | `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
 | `site/404.html`                    | Página de erro standalone (caminhos absolutos, `ErrorDocument 404`)   |
@@ -130,7 +130,7 @@ site/                                 # saída compatível; uma publicação por
 ├── JSON/                           # valores, séries, resumos, manifest (git-ignored)
 ├── Climatologia/                   # distribuições observadas da estação (git-ignored)
 ├── Monitoramento/                  # janela móvel de 7 dias da estação (git-ignored)
-└── Ceu/                            # câmera all-sky, frame/timeline/model.json e imagens (git-ignored)
+└── Ceu/                            # câmera all-sky, frame/timeline.json e imagens (git-ignored)
 
 dist/<id>/                           # bundles de frontend gerados em lote
 └── ...                              # não inclui os diretórios de dados de dataset.paths
@@ -205,7 +205,7 @@ Carregados só onde a página os declara em `scripts:` (ver [Adicionar Página](
 | `chart-page.js`    | Utilitários compartilhados pelas três páginas de gráfico (`window.labmimChartPage`): formatação pt-BR, carimbos de hora da estação e exportação CSV; carregado antes do módulo de cada página |
 | `monitoramento.js` | Página de monitoramento viva: lê `labmim-monitoring-v1` de `dataset.paths.monitoring` e desenha bruto + horário + WRF                                                                         |
 | `climatologia.js`  | Página de climatologia: lê `labmim-climatology-v1` de `dataset.paths.climatology`, distribuição medida + teórica                                                                              |
-| `ceu.js`           | Página de condição do céu: lê `labmim-ktkd-v1` (e, sob demanda, `labmim-ktkd-points-v1`), `labmim-kt-cumulative-v1`, `labmim-allsky-frame-v2`, `labmim-allsky-timeline-v1` e `labmim-allsky-model-v1` de `dataset.paths.sky`                         |
+| `ceu.js`           | Página de condição do céu: lê `labmim-ktkd-v1` (e, sob demanda, `labmim-ktkd-points-v1`), `labmim-kt-cumulative-v1`, `labmim-allsky-frame-v2` e `labmim-allsky-timeline-v1` de `dataset.paths.sky`                         |
 
 ### Módulos Do WebGIS
 
@@ -645,7 +645,7 @@ Use antes de merge/publicação:
 - `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm run check:audit`.
 - Servir `site/` por HTTP local (`make serve`).
 - Abrir páginas institucionais em desktop e mobile; alternar dark mode em cada página.
-- Abrir `ceu.html` com e sem `site/Ceu/` populado: quadros, slider de opacidade do mapa de sensibilidade, cartão da previsão, linha do tempo, cartão do modelo, alternância das quatro condições, curva de referência, ampliação e ausência do botão CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
+- Abrir `ceu.html` com e sem `site/Ceu/` populado: imagens e estimativas antes do histórico, crédito da câmera, legendas dos quadros, slider de opacidade do mapa de sensibilidade, resumo da estimativa, linha do tempo, alternância das quatro condições, curva de referência, ampliação e ausência do botão CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
 - Abrir `mapas_interativos.html` e confirmar que Potencial Fotovoltaico não aparece como previsão; `SWDOWN` deve aparecer como Radiação Global.
 - Abrir `potenciais_energeticos.html` e confirmar que só aparecem Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Verificar se Leaflet renderiza (bundle local) e se não há erros no console.
