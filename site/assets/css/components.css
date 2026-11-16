@@ -1050,13 +1050,6 @@
 /* Sky condition borrows the climatology's .clima-panel, .clima-segmented-btn
    and .clima-empty; only the frames and the chips are declared here. The class
    and model colours come from assets/js/ceu.js at runtime. */
-.sky-frames {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.25rem;
-  margin-bottom: 1.25rem;
-}
-
 .sky-section-intro {
   margin: 0 0 1.25rem;
   color: var(--text-secondary);
@@ -1085,42 +1078,10 @@
   text-decoration-color: currentcolor;
 }
 
-.sky-camera-view {
-  position: relative;
-}
-
-.sky-frame-estimate {
-  position: absolute;
-  right: 0.45rem;
-  bottom: 0.45rem;
-  left: 0.45rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem 0.75rem;
-  align-items: baseline;
-  padding: 0.5rem 0.65rem;
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  color: #fff;
-  background: rgb(0 0 0 / 80%);
-  border-radius: 6px;
-}
-
-.sky-frame-estimate strong {
-  flex-basis: 100%;
-  font-size: 0.7rem;
-}
-
-.sky-camera-view:has(.sky-frame-missing) .sky-frame-estimate {
-  display: none;
-}
-
 .sky-opacity-control {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  margin-top: 0.5rem;
 }
 
 .sky-updated {
@@ -1132,24 +1093,182 @@
   padding-top: 1.25rem;
 }
 
-.sky-frame {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 1rem 1rem 1.1rem;
-  margin: 0;
-  border-radius: 12px;
+.sky-observatory {
+  display: grid;
+  gap: 1.25rem;
+  align-items: start;
 }
 
-/* Holds the layout still while the frames load; ceu.js replaces the square with
-   the frame's own ratio so the stacked mask registers with it. */
+.sky-observatory > * {
+  min-width: 0;
+}
+
+@media (width >= 992px) {
+  .sky-observatory {
+    grid-template-columns: minmax(0, 1.8fr) minmax(15rem, 1fr);
+  }
+}
+
+.sky-viewer {
+  padding: 1rem;
+  margin: 0;
+  border-radius: var(--radius-lg);
+}
+
+@media (width <= 576px) {
+  .sky-viewer {
+    padding: 0.75rem 0.6rem;
+  }
+}
+
+.sky-viewer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.sky-frame-photo {
+  transition: filter 0.25s ease;
+}
+
+.sky-frame-media.is-layered .sky-frame-photo {
+  filter: grayscale(0.75) brightness(0.5);
+}
+
+.sky-viewer-caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.5rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 0.8rem;
+}
+
+.sky-layer-note {
+  flex: 1 1 22rem;
+  max-width: 62ch;
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.sky-layer-scale {
+  display: grid;
+  flex: 0 1 14rem;
+  gap: 0.25rem;
+}
+
+.sky-layer-ramp {
+  height: 0.6rem;
+  background: linear-gradient(90deg, #000004, #57106e, #bc3754, #f98e09, #fcfdbf);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+}
+
+.sky-layer-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sky-models {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+  gap: 1rem;
+}
+
+.sky-model {
+  --clima-stat-size: 1.9rem;
+
+  padding: 1.1rem 1.2rem 1.2rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.2s ease;
+}
+
+.sky-model.is-selected {
+  border-color: var(--secondary-color-ink);
+  box-shadow: inset 0 0 0 1px var(--secondary-color-ink);
+}
+
+.sky-model-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sky-model-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0;
+  margin: 0.55rem 0 0.9rem;
+  list-style: none;
+}
+
+.sky-model-inputs li {
+  padding: 0.15rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--secondary-color-ink);
+  background: color-mix(in srgb, var(--secondary-color-ink) 9%, var(--bg-primary));
+  border-radius: 999px;
+}
+
+.sky-model-values {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+.sky-model-values > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.sky-model-values dt {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.sky-model-values dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sky-model-main {
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sky-model-main dt {
+  flex-basis: 100%;
+}
+
+.sky-model-pending {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 .sky-frame-media {
   position: relative;
   display: grid;
   place-items: center;
-  aspect-ratio: 1;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: var(--bg-secondary);
+  background: #000;
   border: 1px solid var(--border-color);
   border-radius: 10px;
 }
@@ -1171,24 +1290,6 @@
   font-size: 0.85rem;
   color: var(--text-secondary);
   text-align: center;
-}
-
-.sky-frame-caption {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  margin-top: 0.75rem;
-}
-
-.sky-frame-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.sky-frame-note {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
 }
 
 /* Wraps: at 320px the title pushes the guide button past the edge, and the page clips
@@ -1325,11 +1426,6 @@
   .sky-analysis > .clima-panel {
     margin-bottom: 0;
   }
-}
-
-/* The frames are context: at full height they pushed the analysis below every fold. */
-.sky-frame-media {
-  max-height: 340px;
 }
 
 /* A label stacked over its chips costs a line per group, and this panel has three. */
@@ -1508,10 +1604,6 @@
 }
 
 @media (width <= 768px) {
-  .sky-frames {
-    grid-template-columns: 1fr;
-  }
-
   .sky-chart {
     height: 340px;
   }

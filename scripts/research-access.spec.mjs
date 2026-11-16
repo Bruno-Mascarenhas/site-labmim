@@ -181,12 +181,10 @@ test("estimativa da imagem usa os dados do quadro sem depender do cartão do mod
     },
   });
 
-  await expect(page.locator("#ceuEstimativa")).toHaveText(
-    /Estimativa do modelo.*IV.*claro.*Difusa: 40,0 W\/m².*k\*: 0,750/
-  );
+  await expect(page.locator("#ceuModelos")).toHaveText(/Só imagem.*Irradiância difusa.*40,0.*W\/m².*IV.*claro.*0,750/);
 });
 
-test("imagem sem previsão disponível não exibe a faixa de estimativas", async ({ page }) => {
+test("imagem sem previsão disponível não exibe estimativas de modelo", async ({ page }) => {
   await openPage(page, "ceu.html", {
     "/Ceu/frame.json": {
       version: "fixture",
@@ -197,7 +195,134 @@ test("imagem sem previsão disponível não exibe a faixa de estimativas", async
   });
   await page.locator("#ceuMediaBruto img").waitFor({ state: "visible" });
 
-  await expect(page.locator("#ceuEstimativa")).toBeHidden();
+  await expect(page.locator("#ceuModelos")).toBeHidden();
+});
+
+const LEAFLET_IMAGES = "../assets/vendor/leaflet/images";
+
+function twoModelFrame({ sensor = {} } = {}) {
+  const imageOnly = { dhi_w_m2: 66.2, kindex: 0.993, sky: { condition: 4 } };
+  return {
+    version: "fixture",
+    captured_at: "2026-01-01T12:00:00",
+    status: { scored: true },
+    image: { file: `${LEAFLET_IMAGES}/marker-icon.png` },
+    prediction: imageOnly,
+    models: [
+      {
+        id: "image_only",
+        inputs: ["image"],
+        available: true,
+        prediction: imageOnly,
+        maps: {
+          features: { file: `${LEAFLET_IMAGES}/marker-shadow.png`, sha256_12: "featuresimg" },
+          sensitivity: {
+            file: `${LEAFLET_IMAGES}/marker-icon-2x.png`,
+            sha256_12: "sensitivity1",
+            target: "dhi",
+            full_strength_change: 6.05,
+            shared_scale: true,
+          },
+        },
+      },
+      {
+        id: "image_ghi",
+        inputs: ["image", "ghi"],
+        available: true,
+        prediction: { dhi_w_m2: 68, kindex: null, sky: null },
+        measured: { ghi_w_m2: 519.8 },
+        maps: {
+          features: { file: `${LEAFLET_IMAGES}/layers.png`, sha256_12: "featuresghi1" },
+          sensitivity: { file: `${LEAFLET_IMAGES}/layers-2x.png`, sha256_12: "sensitivity2", target: "dhi" },
+        },
+        ...sensor,
+      },
+    ],
+  };
+}
+
+const sensorWaiting = {
+  available: false,
+  prediction: null,
+  reason_pt: "a leitura da estação para este horário ainda não chegou",
+  maps: { features: null, sensitivity: null },
+};
+
+test("os dois modelos aparecem com o nome de cada um", async ({ page }) => {
+  await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame() });
+
+  await expect(page.locator("#ceuModelos .sky-model-name")).toHaveText(["Só imagem", "Imagem + sensores"]);
+});
+
+test("cada modelo diz o que lê", async ({ page }) => {
+  await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame() });
+
+  await expect(page.locator('[data-model="image_ghi"] .sky-model-inputs li')).toHaveText([
+    "Foto do céu",
+    "Radiação global medida",
+  ]);
+});
+
+test("o modelo com sensores mostra a global que leu", async ({ page }) => {
+  await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame() });
+
+  await expect(page.locator('[data-model="image_ghi"]')).toContainText(/Global medida na estação\s*520 W\/m²/);
+});
+
+test("o modelo com sensores sem leitura da estação diz por que não estima", async ({ page }) => {
+  await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame({ sensor: sensorWaiting }) });
+
+  await expect(page.locator('[data-model="image_ghi"] .sky-model-pending')).toHaveText(
+    "A leitura da estação para este horário ainda não chegou."
+  );
+});
+
+test("a camada Padrões sobrepõe à foto o mapa do modelo só imagem", async ({ page }) => {
+  await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame() });
+
+  await page.locator('#ceuVisorCamada [data-choice="features"]').click();
+
+  await expect(page.locator("#ceuMediaBruto .sky-frame-overlay")).toHaveAttribute("src", /marker-shadow\.png/);
+});
+
+test("escolher o modelo com sensores troca o mapa sobreposto", async ({ page }) => {
+  await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame() });
+  await page.locator('#ceuVisorCamada [data-choice="features"]').click();
+
+  await page.locator('#ceuVisorModelo [data-choice="image_ghi"]').click();
+
+  await expect(page.locator("#ceuMediaBruto .sky-frame-overlay")).toHaveAttribute("src", /layers\.png/);
+});
+
+test("a camada Influência mostra a escala comum aos dois modelos", async ({ page }) => {
+  await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame() });
+
+  await page.locator('#ceuVisorCamada [data-choice="sensitivity"]').click();
+
+  await expect(page.locator("#ceuEscalaMaximo")).toHaveText("6,1 W/m²");
+});
+
+test("o modelo sem mapa fica indisponível no seletor do visor", async ({ page }) => {
+  await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame({ sensor: sensorWaiting }) });
+
+  await page.locator('#ceuVisorCamada [data-choice="features"]').click();
+
+  await expect(page.locator('#ceuVisorModelo [data-choice="image_ghi"]')).toBeDisabled();
+});
+
+test("um quadro publicado sem mapa de padrões não oferece essa camada", async ({ page }) => {
+  await openPage(page, "ceu.html", {
+    "/Ceu/frame.json": {
+      version: "fixture",
+      captured_at: "2026-01-01T12:00:00",
+      status: { scored: true },
+      image: { file: `${LEAFLET_IMAGES}/marker-icon.png` },
+      prediction: { dhi_w_m2: 40, kindex: 0.75, sky: { condition: 4 } },
+      attribution: { file: `${LEAFLET_IMAGES}/marker-shadow.png`, sha256_12: "attribution1" },
+    },
+  });
+
+  await expect(page.locator("#ceuVisorCamada button")).toHaveText(["Foto", "Influência"]);
 });
 
 for (const { scale, label } of [

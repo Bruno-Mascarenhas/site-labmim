@@ -18,9 +18,19 @@
   };
   const UNDECLARED_KD_HEADROOM = 0.1;
   const DEFAULT_RAW_FRAME = "allsky.jpg";
-  const DEFAULT_ATTRIBUTION_FRAME = "attribution.png";
-  const DEFAULT_INPUT_FRAME = "input.jpg";
-  const FRAME_IMAGE_COUNT = 3;
+  const IMAGE_ONLY_MODEL = "image_only";
+  const VIEW_LAYERS = [
+    { id: "photo", label: "Foto" },
+    { id: "features", label: "Padrões" },
+    { id: "sensitivity", label: "Influência" },
+  ];
+  const MODEL_LABELS = { image_only: "Só imagem", image_ghi: "Imagem + sensores" };
+  const MODEL_INPUT_LABELS = { image: "Foto do céu", ghi: "Radiação global medida" };
+  const PHOTO_NOTE = "Foto original da câmera all-sky, como foi registrada.";
+  const FEATURES_NOTE =
+    "Cores parecidas marcam regiões que o modelo interpreta da mesma forma, como céu limpo, nuvens e o entorno do sol. " +
+    "As cores não têm significado fixo e mudam de um modelo para o outro.";
+  const FEATURES_ALT = "Mapa de padrões do modelo sobre a foto do céu";
 
   const ROMAN = ["I", "II", "III", "IV"];
 
@@ -131,7 +141,9 @@
     hidden: new Set(),
     layers: new Set([RESEARCH_MODE ? "points" : "density"]),
     activeModels: new Set(),
-    framesMissing: 0,
+    photoMissing: false,
+    viewLayer: "photo",
+    viewModel: IMAGE_ONLY_MODEL,
     payloadsCheckedAt: 0,
     announcedStatus: new Map(),
     hoverCell: null,
@@ -411,7 +423,7 @@
   }
 
   const ATTRIBUTION_ALT =
-    "Mapa de sensibilidade à oclusão sobre o quadro all-sky: cor mais intensa onde cobrir a janela mais altera o índice de céu claro previsto";
+    "Mapa de influência sobre a foto do céu: cor mais clara onde esconder um trecho mais altera a estimativa do modelo";
 
   const REASON_PT = {
     fresh: "quadro recente",
@@ -638,16 +650,13 @@
     return text(block && block.file, fallback);
   }
 
-  function frameCacheToken(name) {
-    const block = frameSection(name);
-    if (block && typeof block.sha256_12 === "string" && block.sha256_12.trim()) {
-      return `v=${encodeURIComponent(block.sha256_12.trim())}`;
-    }
-    return `t=${encodeURIComponent(frameToken())}`;
+  function frameCacheToken(block) {
+    const hash = block && typeof block.sha256_12 === "string" ? block.sha256_12.trim() : "";
+    return hash ? `v=${encodeURIComponent(hash)}` : `t=${encodeURIComponent(frameToken())}`;
   }
 
   function frameUrl(name, fallback) {
-    return `${state.base}/${frameFileName(name, fallback)}?${frameCacheToken(name)}`;
+    return `${state.base}/${frameFileName(name, fallback)}?${frameCacheToken(frameSection(name))}`;
   }
 
   function frameAlt(name, fallback) {
@@ -667,7 +676,7 @@
   function buildFrame(container, url, alt, noteElement, missingMessage) {
     const image = frameImage(url, alt, "sky-frame-image");
     image.addEventListener("error", () => {
-      state.framesMissing += 1;
+      state.photoMissing = true;
       container.replaceChildren(node("div", "sky-frame-missing", missingMessage));
       noteElement.textContent = "";
       settleEmptyState();
@@ -683,7 +692,7 @@
   }
 
   function settleEmptyState() {
-    if (state.framesMissing < FRAME_IMAGE_COUNT || !allPayloadsAbsent()) return;
+    if (!state.photoMissing || !allPayloadsAbsent()) return;
     showEmpty(
       "ceu",
       "Os dados de condição do céu ainda não foram publicados para esta estação. " +
@@ -693,10 +702,9 @@
 
   function applyOverlayOpacity() {
     const slider = el("ceuOpacidade");
-    slider.setAttribute("aria-valuetext", `${slider.value}% de opacidade do mapa de sensibilidade`);
-    const overlay = el("ceuMediaSensibilidade").querySelector(".sky-frame-overlay");
-    if (!overlay) return;
-    overlay.style.opacity = String(Number(slider.value) / 100);
+    slider.setAttribute("aria-valuetext", `${slider.value}% de opacidade da camada`);
+    const overlay = el("ceuMediaBruto").querySelector(".sky-frame-overlay");
+    if (overlay) overlay.style.opacity = String(Number(slider.value) / 100);
   }
 
   function fitFrameBox(container, image) {
@@ -709,75 +717,248 @@
     return Boolean(frame && frame.status && frame.status.scored !== false && frame.prediction);
   }
 
-  function renderFrames() {
-    const rawUrl = frameUrl("image", DEFAULT_RAW_FRAME);
-    const raw = buildFrame(
-      el("ceuMediaBruto"),
-      rawUrl,
-      frameAlt("image", "Quadro bruto da câmera all-sky"),
-      el("ceuNotaBruto"),
-      "Quadro ainda não publicado."
-    );
-    raw.addEventListener("load", () => {
-      fitFrameBox(el("ceuMediaBruto"), raw);
-      fitFrameBox(el("ceuMediaSensibilidade"), raw);
-    });
-
-    const overlayContainer = el("ceuMediaSensibilidade");
-    const overlay = buildFrame(
-      overlayContainer,
-      frameUrl("attribution", DEFAULT_ATTRIBUTION_FRAME),
-      frameAlt("attribution", ATTRIBUTION_ALT),
-      el("ceuNotaSensibilidade"),
-      "Mapa de sensibilidade ainda não publicado."
-    );
-    overlay.classList.add("sky-frame-overlay");
-    overlay.addEventListener("error", () => {
-      el("ceuOpacidadeControl").hidden = true;
-    });
-    const underlay = frameImage(rawUrl, "", "sky-frame-image");
-    underlay.setAttribute("aria-hidden", "true");
-    underlay.addEventListener("error", () => underlay.remove());
-    overlayContainer.insertBefore(underlay, overlay);
-    applyOverlayOpacity();
-
-    const input = buildFrame(
-      el("ceuMediaEntrada"),
-      frameUrl("input", DEFAULT_INPUT_FRAME),
-      frameAlt("input", "O recorte quadrado que a rede recebeu"),
-      el("ceuNotaEntrada"),
-      "Entrada da rede ainda não publicada."
-    );
-    input.addEventListener("load", () => fitFrameBox(el("ceuMediaEntrada"), input));
-
-    renderFrameNotes();
-    renderFrameStatus();
-    renderFrameEstimate();
+  function frameModels() {
+    const frame = state.framePayload;
+    if (!frame) return [];
+    if (Array.isArray(frame.models) && frame.models.length) {
+      return frame.models.filter((model) => model && typeof model === "object" && typeof model.id === "string");
+    }
+    if (!frame.prediction && !frameSection("attribution")) return [];
+    return [
+      {
+        id: IMAGE_ONLY_MODEL,
+        inputs: ["image"],
+        available: frameScored(),
+        prediction: frame.prediction || null,
+        maps: { features: null, sensitivity: frameSection("attribution") },
+      },
+    ];
   }
 
-  function renderFrameNotes() {
-    const frame = state.framePayload;
-    if (!frame) return;
-    const rawParts = [];
-    const captured = parseStationTime(frame.captured_at || "");
-    if (Number.isFinite(captured)) rawParts.push(`Capturado em ${formatStamp(captured)}`);
-    el("ceuNotaBruto").textContent = rawParts.join(" · ");
+  function modelLabel(model) {
+    return text(model.label_pt, MODEL_LABELS[model.id] || model.id);
+  }
 
-    const attribution = frameSection("attribution") || {};
-    const sensitivityParts = [];
-    if (attribution.summary_pt) sensitivityParts.push(text(attribution.summary_pt).replace(/\.\s*$/, ""));
-    el("ceuNotaSensibilidade").textContent = sensitivityParts.join(" · ");
+  function modelMap(model, layer) {
+    const meta = model && model.maps && model.maps[layer];
+    return meta && typeof meta === "object" && typeof meta.file === "string" && meta.file ? meta : null;
+  }
 
-    const input = frameSection("input") || {};
-    const inputParts = [];
-    if (finite(input.size)) inputParts.push(`${integer(input.size)} × ${integer(input.size)} px`);
-    const box = input.content_box;
-    const padded =
-      box && finite(box.width) && finite(box.height) && (box.width < input.size || box.height < input.size);
-    if (padded) {
-      inputParts.push(`${integer(box.width)} × ${integer(box.height)} px de câmera, o resto é preenchimento`);
+  function mapUrl(meta) {
+    return `${state.base}/${meta.file}?${frameCacheToken(meta)}`;
+  }
+
+  function viewedModel() {
+    const models = frameModels();
+    return models.find((model) => model.id === state.viewModel) || models[0] || null;
+  }
+
+  function layerOffered(layer) {
+    return layer.id === "photo" || frameModels().some((model) => modelMap(model, layer.id));
+  }
+
+  function settleViewChoice() {
+    const models = frameModels();
+    if (!VIEW_LAYERS.some((layer) => layer.id === state.viewLayer && layerOffered(layer))) state.viewLayer = "photo";
+    if (!models.some((model) => model.id === state.viewModel)) state.viewModel = IMAGE_ONLY_MODEL;
+    if (state.viewLayer === "photo" || modelMap(viewedModel(), state.viewLayer)) return;
+    const drawn = models.find((model) => modelMap(model, state.viewLayer));
+    if (drawn) state.viewModel = drawn.id;
+  }
+
+  function buildChoice(container, entries, onChoose) {
+    container.replaceChildren(
+      ...entries.map((entry) => {
+        const button = node("button", "clima-segmented-btn", entry.label);
+        button.type = "button";
+        button.dataset.choice = entry.id;
+        button.addEventListener("click", () => onChoose(entry.id));
+        return button;
+      })
+    );
+  }
+
+  function syncChoice(container, current, enabled) {
+    for (const button of container.children) {
+      const active = button.dataset.choice === current;
+      button.setAttribute("aria-pressed", String(active));
+      button.classList.toggle("is-active", active);
+      button.disabled = !enabled(button.dataset.choice);
     }
-    el("ceuNotaEntrada").textContent = inputParts.join(" — ");
+  }
+
+  function chooseView(change) {
+    change();
+    renderViewer();
+  }
+
+  function renderFrames() {
+    state.photoMissing = false;
+    const container = el("ceuMediaBruto");
+    const photo = buildFrame(
+      container,
+      frameUrl("image", DEFAULT_RAW_FRAME),
+      frameAlt("image", "Foto da câmera all-sky"),
+      el("ceuCamadaNota"),
+      "Foto ainda não publicada."
+    );
+    photo.classList.add("sky-frame-photo");
+    photo.addEventListener("load", () => fitFrameBox(container, photo));
+    buildChoice(el("ceuVisorCamada"), VIEW_LAYERS.filter(layerOffered), (id) =>
+      chooseView(() => {
+        state.viewLayer = id;
+      })
+    );
+    buildChoice(
+      el("ceuVisorModelo"),
+      frameModels().map((model) => ({ id: model.id, label: modelLabel(model) })),
+      (id) =>
+        chooseView(() => {
+          state.viewModel = id;
+        })
+    );
+    renderModelCards();
+    renderViewer();
+    renderFrameStatus();
+  }
+
+  function markSelectedCard() {
+    for (const card of el("ceuModelos").children) {
+      card.classList.toggle("is-selected", state.viewLayer !== "photo" && card.dataset.model === state.viewModel);
+    }
+  }
+
+  function renderViewer() {
+    settleViewChoice();
+    syncChoice(el("ceuVisorCamada"), state.viewLayer, () => true);
+    const models = frameModels();
+    el("ceuVisorModeloControl").hidden = state.viewLayer === "photo" || models.length < 2;
+    syncChoice(el("ceuVisorModelo"), state.viewModel, (id) =>
+      Boolean(
+        modelMap(
+          models.find((model) => model.id === id),
+          state.viewLayer
+        )
+      )
+    );
+    markSelectedCard();
+    renderOverlay();
+    renderLayerNote();
+  }
+
+  function renderOverlay() {
+    const container = el("ceuMediaBruto");
+    const photo = container.querySelector(".sky-frame-photo");
+    const meta = state.viewLayer === "photo" ? null : modelMap(viewedModel(), state.viewLayer);
+    let overlay = container.querySelector(".sky-frame-overlay");
+    const shown = Boolean(meta && photo);
+    container.classList.toggle("is-layered", shown);
+    el("ceuOpacidadeControl").hidden = !shown;
+    if (!shown) {
+      if (overlay) overlay.remove();
+      return;
+    }
+    const url = mapUrl(meta);
+    const alt = text(meta.alt_pt, state.viewLayer === "features" ? FEATURES_ALT : ATTRIBUTION_ALT);
+    if (!overlay) {
+      overlay = frameImage(url, alt, "sky-frame-image sky-frame-overlay");
+      overlay.addEventListener("error", () => {
+        overlay.remove();
+        container.classList.remove("is-layered");
+        el("ceuOpacidadeControl").hidden = true;
+      });
+      container.appendChild(overlay);
+    } else {
+      overlay.alt = alt;
+      if (overlay.getAttribute("src") !== url) overlay.src = url;
+    }
+    applyOverlayOpacity();
+  }
+
+  function sensitivityScaleText(meta) {
+    if (!finite(meta.full_strength_change)) return "maior";
+    return meta.target === "kindex"
+      ? decimal(meta.full_strength_change, 3)
+      : withUnit(decimal(meta.full_strength_change, 1), dhiUnit());
+  }
+
+  function renderLayerNote() {
+    const note = el("ceuCamadaNota");
+    const scale = el("ceuEscala");
+    scale.hidden = state.viewLayer !== "sensitivity";
+    if (state.viewLayer === "features") {
+      note.textContent = FEATURES_NOTE;
+      return;
+    }
+    if (state.viewLayer !== "sensitivity") {
+      note.textContent = PHOTO_NOTE;
+      return;
+    }
+    const meta = modelMap(viewedModel(), "sensitivity") || {};
+    const target = meta.target === "kindex" ? `o ${kindexLabel()} estimado` : "a estimativa de irradiância difusa";
+    const parts = [`Cores mais claras marcam onde esconder um trecho da foto muda mais ${target}.`];
+    if (meta.shared_scale === true) {
+      parts.push(
+        "Os dois modelos usam a mesma escala: um mapa mais apagado indica um modelo que depende menos da imagem."
+      );
+    }
+    note.textContent = parts.join(" ");
+    el("ceuEscalaMaximo").textContent = sensitivityScaleText(meta);
+  }
+
+  function capitalized(sentence) {
+    return sentence ? sentence.charAt(0).toUpperCase() + sentence.slice(1) : sentence;
+  }
+
+  function modelValue(list, term, value, className) {
+    const row = node("div", className || null);
+    const description = node("dd");
+    description.append(value);
+    row.append(node("dt", null, term), description);
+    list.appendChild(row);
+  }
+
+  function irradianceValue(value) {
+    const wrapper = node("span");
+    wrapper.append(node("span", "clima-stat-value", decimal(value, 1)), " ", dhiUnit());
+    return wrapper;
+  }
+
+  function modelCard(model) {
+    const card = node("article", "theme-surface sky-model");
+    card.dataset.model = model.id;
+    const inputs = node("ul", "sky-model-inputs");
+    inputs.setAttribute("aria-label", `Entradas do modelo ${modelLabel(model)}`);
+    for (const input of Array.isArray(model.inputs) ? model.inputs : []) {
+      inputs.appendChild(node("li", null, MODEL_INPUT_LABELS[input] || String(input)));
+    }
+    card.append(node("h4", "sky-model-name", modelLabel(model)), inputs);
+    const prediction =
+      model.available !== false && model.prediction && typeof model.prediction === "object" ? model.prediction : null;
+    if (!prediction || !finite(prediction.dhi_w_m2)) {
+      const reason = capitalized(text(model.reason_pt, "sem estimativa para este quadro").replace(/\.\s*$/, ""));
+      card.appendChild(node("p", "sky-model-pending", `${reason}.`));
+      return card;
+    }
+    const values = node("dl", "sky-model-values");
+    modelValue(values, "Irradiância difusa", irradianceValue(prediction.dhi_w_m2), "sky-model-main");
+    const condition = resolveCondition(state.framePayload, prediction.sky);
+    if (condition) modelValue(values, "Condição do céu", conditionCell(condition));
+    if (finite(prediction.kindex)) modelValue(values, capitalized(kindexLabel()), decimal(prediction.kindex, 3));
+    const measured = model.measured || {};
+    if (finite(measured.ghi_w_m2)) {
+      modelValue(values, "Global medida na estação", withUnit(decimal(measured.ghi_w_m2, 0), dhiUnit()));
+    }
+    card.appendChild(values);
+    return card;
+  }
+
+  function renderModelCards() {
+    const container = el("ceuModelos");
+    const models = frameModels();
+    container.hidden = !models.length;
+    container.replaceChildren(...models.map(modelCard));
+    markSelectedCard();
   }
 
   function renderFrameStatus() {
@@ -817,21 +998,6 @@
     const clock = clockOffsetText(info.camera_clock_drift_s);
     if (clock) parts.push(clock);
     status.replaceChildren(statusContent(parts, " · "));
-  }
-
-  function renderFrameEstimate() {
-    const summary = el("ceuEstimativa");
-    summary.hidden = !frameScored();
-    if (summary.hidden) return;
-    const frame = state.framePayload;
-    const prediction = frame.prediction;
-    const condition = resolveCondition(frame, prediction.sky);
-    summary.replaceChildren(node("strong", null, "Estimativa do modelo"));
-    if (condition) summary.append(" ", conditionCell(condition));
-    summary.append(" ", node("span", null, `Difusa: ${withUnit(decimal(prediction.dhi_w_m2, 1), dhiUnit())}`));
-    const index = node("span", null, `${kindexSymbol()}: ${decimal(prediction.kindex, 3)}`);
-    index.title = kindexLabel();
-    summary.append(" ", index);
   }
 
   function modelColor(model, theme) {
@@ -2643,7 +2809,7 @@
   function repaintThemedControls() {
     buildClassToggles();
     buildModelToggles();
-    renderFrameEstimate();
+    renderModelCards();
   }
 
   function repaintForPrint() {

@@ -30,7 +30,7 @@ _WebGIS de potenciais energéticos: potencial fotovoltaico em W/m², sobre a mes
 
 _Monitoramento da estação: temperatura do ar e umidade relativa em três camadas — amostras brutas de 5 min, média horária e WRF —, com ampliação e leitura de valores ao passar o cursor, sem exportação CSV de observações._
 
-**Condição do céu.** As imagens e os dados da câmera all-sky são fornecidos pelo [Planetário da UFBA](https://planetario.ufba.br/), com agradecimento à equipe na página. A câmera abre a página com as estimativas de condição do céu, irradiância difusa e índice de céu claro sobre a imagem, ao lado do mapa de sensibilidade e da entrada preparada para o modelo. Abaixo ficam a série de irradiância dos últimos dias e o histórico do índice de claridade Kt e da fração difusa Kd, com a frequência das condições de céu no registro completo e nos recortes sazonais.
+**Condição do céu.** As imagens e os dados da câmera all-sky são fornecidos pelo [Planetário da UFBA](https://planetario.ufba.br/), com agradecimento à equipe na página. A câmera abre a página com dois modelos lado a lado, um que lê só a imagem e outro que também lê a radiação global medida na estação, e com as camadas que mostram como cada um interpreta a foto: os padrões que a rede reconhece e as regiões que mais pesam na estimativa de difusa. Abaixo ficam a série de irradiância dos últimos dias e o histórico do índice de claridade Kt e da fração difusa Kd, com a frequência das condições de céu no registro completo e nos recortes sazonais.
 
 ![Histograma 2D de densidade de Kt por Kd ao lado da curva acumulada de Kt e das quatro condições de céu](docs/imagens/condicao-ceu-kt-kd.webp)
 

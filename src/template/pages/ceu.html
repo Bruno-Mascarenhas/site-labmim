@@ -22,9 +22,10 @@
     <div class="explanation-box explanation-box-narrow mx-auto">
       <div class="explanation-content text-start">
         <p>
-          As <strong>imagens</strong> mostram o céu observado e sua análise pelo modelo. A faixa sobre a câmera
-          reúne as estimativas de condição do céu, irradiância difusa e índice de céu claro. Abaixo, acompanhe
-          a irradiância dos últimos dias e explore as medições históricas da estação.
+          A <strong>foto</strong> mostra o céu observado. Ao lado ficam as estimativas de dois modelos: um lê apenas
+          a imagem, o outro também lê a radiação global medida na estação. As camadas <strong>Padrões</strong> e
+          <strong>Influência</strong> mostram como cada um interpreta a foto. Abaixo, acompanhe a irradiância dos
+          últimos dias e explore as medições históricas da estação.
         </p>
         <p>
           No <strong>acervo</strong>, K<sub>t</sub> compara a irradiação global medida com a do topo da atmosfera; K<sub
@@ -60,38 +61,33 @@
     <h3 class="sky-section-title" id="ceuCameraTitulo">Câmera e análise do modelo</h3>
     {{SKY_CAMERA_CREDIT}}
     <p class="sky-section-intro">
-      A câmera all-sky registra o céu com uma lente de amplo campo de visão. Compare a imagem original,
-      as regiões que influenciam a estimativa e a imagem preparada para o modelo.
+      Dois modelos leem a mesma foto do céu: um usa apenas a imagem, o outro também lê a radiação global medida
+      na estação. Troque a camada para ver como cada um interpreta a cena.
     </p>
     <p class="clima-status sky-frame-status" id="ceuQuadroStatus"></p>
     <div class="visually-hidden" id="ceuAnuncio" aria-live="polite"></div>
 
-    <div class="sky-frames">
-      <figure class="theme-surface sky-frame">
-        <div class="sky-camera-view">
-          <div class="sky-frame-media" id="ceuMediaBruto"></div>
-          <p class="sky-frame-estimate" id="ceuEstimativa" hidden></p>
+    <div class="sky-observatory">
+      <figure class="theme-surface sky-viewer" id="ceuVisor">
+        <div class="sky-viewer-controls">
+          <div class="clima-control">
+            <span class="clima-control-label" id="ceuVisorCamadaLabel">Camada</span>
+            <div class="clima-segmented" id="ceuVisorCamada" role="group" aria-labelledby="ceuVisorCamadaLabel"></div>
+          </div>
+          <div class="clima-control" id="ceuVisorModeloControl">
+            <span class="clima-control-label" id="ceuVisorModeloLabel">Modelo</span>
+            <div class="clima-segmented" id="ceuVisorModelo" role="group" aria-labelledby="ceuVisorModeloLabel"></div>
+          </div>
         </div>
-        <figcaption class="sky-frame-caption">
-          <span class="sky-frame-title">Céu observado</span>
-          <span class="sky-frame-note">
-            Registro da câmera all-sky. A faixa sobre a imagem mostra as estimativas do modelo para esse
-            instante; os valores de radiação estimados não são medições do instrumento.
-          </span>
-          <span class="sky-frame-note" id="ceuNotaBruto"></span>
-        </figcaption>
-      </figure>
-      <figure class="theme-surface sky-frame">
-        <div class="sky-frame-media" id="ceuMediaSensibilidade"></div>
-        <figcaption class="sky-frame-caption">
-          <span class="sky-frame-title">O que influencia a estimativa</span>
-          <span class="sky-frame-note">
-            O mapa destaca regiões em que ocultar parte da imagem altera mais o índice de céu claro estimado.
-            Ele indica a sensibilidade do modelo, não a cobertura de nuvens.
-          </span>
-          <span class="sky-frame-note" id="ceuNotaSensibilidade"></span>
-          <span class="sky-opacity-control" id="ceuOpacidadeControl">
-            <label class="clima-control-label" for="ceuOpacidade">Opacidade do mapa</label>
+        <div class="sky-frame-media" id="ceuMediaBruto"></div>
+        <figcaption class="sky-viewer-caption">
+          <p class="sky-layer-note" id="ceuCamadaNota"></p>
+          <div class="sky-layer-scale" id="ceuEscala" hidden>
+            <span class="sky-layer-ramp" aria-hidden="true"></span>
+            <span class="sky-layer-scale-labels"><span>menor</span><span id="ceuEscalaMaximo">maior</span></span>
+          </div>
+          <span class="sky-opacity-control" id="ceuOpacidadeControl" hidden>
+            <label class="clima-control-label" for="ceuOpacidade">Mistura com a foto</label>
             <input
               class="sky-range"
               type="range"
@@ -99,23 +95,14 @@
               min="0"
               max="100"
               step="5"
-              value="100"
-              aria-valuetext="100% de opacidade do mapa de sensibilidade"
+              value="85"
+              aria-valuetext="85% de opacidade da camada"
             />
           </span>
         </figcaption>
       </figure>
-      <figure class="theme-surface sky-frame">
-        <div class="sky-frame-media" id="ceuMediaEntrada"></div>
-        <figcaption class="sky-frame-caption">
-          <span class="sky-frame-title">Imagem usada pelo modelo</span>
-          <span class="sky-frame-note">
-            Versão preparada para a análise, com redimensionamento e preenchimento para o formato de entrada.
-            As faixas pretas fazem parte desse preparo e não representam regiões do céu.
-          </span>
-          <span class="sky-frame-note" id="ceuNotaEntrada"></span>
-        </figcaption>
-      </figure>
+
+      <div class="sky-models" id="ceuModelos"></div>
     </div>
     <p class="monitor-updated sky-updated" id="ceuAtualizado"></p>
 
@@ -124,7 +111,7 @@
       <div class="clima-panel-head">
         <h3 class="clima-panel-title">Irradiância difusa nos últimos dias</h3>
         <p class="clima-panel-note">
-          Compare a estimativa feita a partir das imagens com a referência de céu claro e as medições da estação,
+          Compare a estimativa do modelo só imagem com a referência de céu claro e as medições da estação,
           quando disponíveis. As lacunas indicam períodos sem dados válidos.
         </p>
         <p class="clima-legend" id="ceuLinhaNota"></p>
