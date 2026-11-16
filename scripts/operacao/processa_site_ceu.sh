@@ -1,5 +1,5 @@
 #!/bin/bash
-# Atualiza, a cada 5 min, a página Céu em SITE_DIR/Ceu:
+# Atualiza, a cada 10 min, a página Céu em SITE_DIR/Ceu:
 #   1. traz do PC da estação o que o datalogger acrescentou (sincroniza_sensores_lbm.sh)
 #   2. publica os documentos da página (allsky publish-site) a partir do que o
 #      allsky-watch (allsky-watch.service) vem pontuando nas imagens da câmera,
@@ -11,7 +11,7 @@
 # da câmera com mais de 14 dias e não aceita 0 para desligar a limpeza; aqui elas
 # ficam guardadas para montar datasets (~0,6–1,3 GB/dia). O watch já descarta
 # sozinho as capturas repetidas do mesmo horário.
-# Cron: */5 * * * *. Log por dia em LOG_DIR/AAAAMMDD-site-ceu.log.
+# Cron: */10 * * * *. Log por dia em LOG_DIR/AAAAMMDD-site-ceu.log.
 set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/comum.sh"
 inicia_rotina site-ceu

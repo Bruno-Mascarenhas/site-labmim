@@ -23,7 +23,7 @@ DADOS=(GeoJSON JSON Climatologia Monitoramento Ceu)
 RESTRITOS=(Monitoramento Climatologia Ceu)
 PARALELO=4            # conexões simultâneas do mirror
 ESPERA_COMPLETO=1800  # s esperando a trava no modo completo (depois disso, falha)
-ESPERA_DADOS=240      # s no modo dados (menos que os 5 min do Céu; depois disso, desiste)
+ESPERA_DADOS=240      # s no modo dados (menos que os 10 min do Céu; depois disso, desiste)
 LIMITE_COMPLETO=10800 # s por fase, teto do lftp: um lftp travado seguraria a trava
 LIMITE_DADOS=900
 
@@ -93,7 +93,7 @@ for regra in 'Options -Indexes -MultiViews' \
     || falha "regra de acesso ausente em $SITE_DIR/.htaccess: $regra"
 done
 
-# A rotina horária (Monitoramento) e a de 5 min (Céu) coincidem no minuto 5, e o
+# A rotina horária (Monitoramento, no minuto 5) e a de 10 min (Céu) podem se sobrepor quando uma atrasa, e o
 # completo diário pode demorar: uma publicação por vez. O dry-run só lê o servidor.
 if [ $dry -eq 0 ]; then
   exec 9> "$LOG_DIR/.site-ftp.lock"
