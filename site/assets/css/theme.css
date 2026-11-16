@@ -157,6 +157,7 @@ input:focus-visible {
   color: var(--dark-accent-hover);
 }
 
+.dark-theme .sky-camera-credit,
 .dark-theme .text-muted,
 .dark-theme .text-secondary,
 .dark-theme .text-dark {

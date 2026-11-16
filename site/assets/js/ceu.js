@@ -1,16 +1,3 @@
-/**
- * Sky-condition page: reads `labmim-ktkd-v1`, `labmim-kt-cumulative-v1`, `labmim-allsky-frame-v2`,
- * `labmim-allsky-timeline-v1` and `labmim-allsky-model-v1` from `data-sky-base`.
- *
- * Nothing is recomputed here. The histogram, the model bands and their skill
- * scores arrive from the Python exporter, which owns the filters and the
- * coefficients; the page draws what it is given and names the source. The two
- * files have different cadences on purpose — the frame is rewritten per capture,
- * the Kt/Kd artifact per archive rebuild — so each is fetched independently and
- * either can be absent. The directory is deploy-only: empty in a dev checkout
- * and in CI, where the page says so.
- */
-
 "use strict";
 
 (function () {
@@ -18,7 +5,6 @@
   const KTKD_PAYLOAD = "ktkd.json";
   const FRAME_PAYLOAD = "frame.json";
   const TIMELINE_PAYLOAD = "timeline.json";
-  const MODEL_PAYLOAD = "model.json";
   const CUMULATIVE_PAYLOAD = "kt_cumulative.json";
   const PUBLIC_POINTS_LIMIT = 5000;
   const PUBLIC_POINTS_ONE_IN = 4;
@@ -131,14 +117,11 @@
     frameStatus: "absent",
     timelinePayload: null,
     timelineStatus: "absent",
-    modelPayload: null,
-    modelStatus: "absent",
     cumulativeStatus: "absent",
     timelineChart: null,
     stripChart: null,
     timelineDrawToken: 0,
     themeDrawToken: 0,
-    curveChart: null,
     classes: [],
     models: [],
     points: [],
@@ -437,12 +420,6 @@
     watch_stale: "há luz do dia, mas a vigília não escreveu uma previsão nos últimos blocos",
   };
 
-  const REGION_PT = {
-    disc: "disco do céu",
-    overlay_band: "faixa de texto",
-    pad: "borda preta",
-    other: "restante do quadro",
-  };
   const CLOCK_OFFSET_TOLERANCE_S = 60;
   const MINUTE_MS = 60000;
   const HOUR_MS = 3600000;
@@ -455,106 +432,16 @@
     return typeof value === "number" && Number.isFinite(value);
   }
 
-  const DAY_STAMP = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-  function parseStationDate(value) {
-    const parts = DAY_STAMP.exec(String(value || "").trim());
-    if (parts) return Date.UTC(+parts[1], +parts[2] - 1, +parts[3]);
-    return parseStationTime(value || "");
-  }
-
-  const ROLE_PT = {
-    all: "todas as cabeças",
-    sky: "condição de céu",
-    dhi: "difusa",
-    kindex: "índice de céu claro",
-    best: "melhor época da validação",
-  };
-
-  function codeVersionText(value) {
-    if (value && typeof value === "object") {
-      const parts = [];
-      if (value.package_version) parts.push(`versão ${value.package_version}`);
-      if (value.git_commit) parts.push(`commit ${shortHash(value.git_commit)}`);
-      return parts.join(", ") || "—";
-    }
-    return text(value);
-  }
-
-  function centredCropStart(frameExtent, cropExtent, offset) {
-    const box = Math.min(cropExtent, frameExtent);
-    const start = Math.floor((frameExtent - box) / 2) + offset;
-    return { box, start: Math.min(Math.max(start, 0), frameExtent - box) };
-  }
-
-  function cropText(crop, image) {
-    const frameKnown = image && finite(image.original_width) && finite(image.original_height);
-    if (frameKnown && finite(crop.left) && finite(crop.top)) {
-      const columns = centredCropStart(image.original_width, crop.width, crop.left);
-      const rows = centredCropStart(image.original_height, crop.height, crop.top);
-      return `recorte de ${integer(columns.box)} × ${integer(rows.box)} px com canto em (${integer(columns.start)}, ${integer(rows.start)})`;
-    }
-    return `recorte centrado de ${integer(crop.width)} × ${integer(crop.height)} px, deslocado (${integer(crop.left)}, ${integer(crop.top)}) px`;
-  }
-
-  function geometryText(geometry, image) {
-    if (!geometry || typeof geometry !== "object") return text(geometry, "");
-    const parts = [];
-    const crop = geometry.crop;
-    if (crop && typeof crop === "object" && crop.enabled !== false && finite(crop.width) && finite(crop.height)) {
-      parts.push(cropText(crop, image));
-    }
-    const padding = geometry.pad;
-    if (padding && typeof padding === "object" && padding.enabled !== false) {
-      const sides = ["top", "right", "bottom", "left"].map((side) => integer(padding[side])).join(" / ");
-      parts.push(`preenchimento ${sides} px${padding.fill !== undefined ? ` com ${padding.fill}` : ""}`);
-    }
-    if (finite(geometry.resize)) parts.push(`redimensionado para ${integer(geometry.resize)} px`);
-    const mask = geometry.mask;
-    if (mask && typeof mask === "object") {
-      parts.push(mask.enabled ? `máscara do disco (limiar ${decimal(mask.threshold, 2)})` : "sem máscara do disco");
-    }
-    return parts.join(" · ");
-  }
-  const HEAD_PT = { dhi: "DHI", kindex: "k*", sky: "condição de céu" };
-
-  function roleLabel(value) {
-    return ROLE_PT[value] || String(value);
-  }
-
-  function headLabel(value) {
-    return HEAD_PT[value] || String(value);
-  }
-
   function text(value, fallback = "—") {
     return typeof value === "string" && value.trim() ? value.trim() : fallback;
-  }
-
-  function signed(value, digits) {
-    if (!finite(value)) return "—";
-    if (value < 0) return `−${decimal(Math.abs(value), digits)}`;
-    return `+${decimal(value, digits)}`;
-  }
-
-  function trueMinus(value, digits) {
-    if (!finite(value)) return "—";
-    return value < 0 ? `−${decimal(Math.abs(value), digits)}` : decimal(value, digits);
   }
 
   function withUnit(formatted, unit) {
     return formatted === "—" ? formatted : `${formatted} ${unit}`;
   }
 
-  function transition(from, to, digits) {
-    return finite(from) ? `${decimal(from, digits)} → ${decimal(to, digits)}` : decimal(to, digits);
-  }
-
   function unreadableMessage(subject) {
     return `${subject} chegou incompleto ou ilegível; ele pode estar sendo publicado neste momento.`;
-  }
-
-  function shortHash(value) {
-    return typeof value === "string" && value.trim() ? value.trim().slice(0, 12) : "—";
   }
 
   const ENGLISH_CONDITION_NAMES = { i: "cloudy", ii: "partly_cloudy_diffuse", iii: "partly_cloudy_clear", iv: "clear" };
@@ -707,12 +594,9 @@
   }
 
   function targetsGlossary() {
-    const evaluationTargets =
-      state.modelPayload && state.modelPayload.evaluation && state.modelPayload.evaluation.targets;
     for (const targets of [
       state.framePayload && state.framePayload.targets,
       state.timelinePayload && state.timelinePayload.targets,
-      evaluationTargets,
     ]) {
       if (targets && typeof targets === "object" && targets.kindex) return targets;
     }
@@ -793,13 +677,9 @@
   }
 
   function allPayloadsAbsent() {
-    return [
-      state.chartStatus,
-      state.frameStatus,
-      state.timelineStatus,
-      state.modelStatus,
-      state.cumulativeStatus,
-    ].every((status) => status === "absent");
+    return [state.chartStatus, state.frameStatus, state.timelineStatus, state.cumulativeStatus].every(
+      (status) => status === "absent"
+    );
   }
 
   function settleEmptyState() {
@@ -872,33 +752,20 @@
 
     renderFrameNotes();
     renderFrameStatus();
-    renderPredictionCard();
+    renderFrameEstimate();
   }
 
   function renderFrameNotes() {
     const frame = state.framePayload;
     if (!frame) return;
-    const image = frameSection("image") || {};
     const rawParts = [];
     const captured = parseStationTime(frame.captured_at || "");
     if (Number.isFinite(captured)) rawParts.push(`Capturado em ${formatStamp(captured)}`);
-    if (finite(image.width) && finite(image.height)) {
-      const original =
-        finite(image.original_width) && finite(image.original_height)
-          ? `, do original de ${integer(image.original_width)} × ${integer(image.original_height)}`
-          : "";
-      rawParts.push(`${integer(image.width)} × ${integer(image.height)} px${original}`);
-    }
     el("ceuNotaBruto").textContent = rawParts.join(" · ");
 
     const attribution = frameSection("attribution") || {};
     const sensitivityParts = [];
     if (attribution.summary_pt) sensitivityParts.push(text(attribution.summary_pt).replace(/\.\s*$/, ""));
-    if (finite(attribution.window_px) && finite(attribution.stride_px)) {
-      sensitivityParts.push(
-        `janela de ${integer(attribution.window_px)} px, passo de ${integer(attribution.stride_px)} px, alvo ${kindexSymbol()}`
-      );
-    }
     el("ceuNotaSensibilidade").textContent = sensitivityParts.join(" · ");
 
     const input = frameSection("input") || {};
@@ -952,192 +819,19 @@
     status.replaceChildren(statusContent(parts, " · "));
   }
 
-  function factRow(list, term, detail) {
-    const row = node("div", "clima-fit-row");
-    row.appendChild(node("dt", null, term));
-    const description = node("dd");
-    if (typeof detail === "string") description.textContent = detail;
-    else description.appendChild(detail);
-    row.appendChild(description);
-    list.appendChild(row);
-  }
-
-  function conditionText(payload, reference) {
-    const condition = resolveCondition(payload, reference);
-    return condition ? conditionLabel(condition) : "—";
-  }
-
-  function renderProbabilities(frame, sky) {
-    const bar = el("ceuProbabilidades");
-    const legend = el("ceuProbabilidadesLegenda");
-    legend.replaceChildren();
-    const drawn = fillConditionBar(bar, frame, sky && sky.probabilities);
-    bar.hidden = drawn.length === 0;
-    legend.hidden = bar.hidden;
-    for (const { condition, fraction } of drawn) {
-      legendItem(legend, conditionSwatch(condition), `${conditionShort(condition)} ${percent(fraction, 0)}`);
-    }
-    bar.setAttribute("aria-label", `Probabilidades por condição de céu: ${shareLabels(drawn).join(", ")}`);
-  }
-
-  function counterfactualDetail(frame, entry, base) {
-    const delta = (entry && entry.delta) || {};
-    const from = base || {};
-    const parts = [
-      `DHI ${withUnit(transition(from.dhi_w_m2, entry.dhi_w_m2, 1), dhiUnit())} (${signed(delta.dhi_w_m2, 1)})`,
-      `${kindexSymbol()} ${transition(from.kindex, entry.kindex, 3)} (${signed(delta.kindex, 3)})`,
-    ];
-    if (entry.sky) parts.push(`condição ${conditionText(frame, entry.sky)}`);
-    const test = entry.test;
-    if (test && (finite(test.dhi_rmse) || finite(test.kindex_mae))) {
-      parts.push(
-        `no teste: RMSE DHI ${withUnit(decimal(test.dhi_rmse, 2), dhiUnit())}, MAE ${kindexSymbol()} ${decimal(test.kindex_mae, 4)}`
-      );
-    }
-    return parts.join(" · ");
-  }
-
-  function noImageControls(frame) {
-    const block = frame.counterfactuals && frame.counterfactuals.no_image;
-    if (!block || typeof block !== "object") return [];
-    const labels = {
-      sensor_only: "Sem imagem — controle só com escalares",
-      climatology: "Sem imagem — média do treino",
-    };
-    return Object.entries(block)
-      .filter(([, entry]) => entry && typeof entry === "object")
-      .map(([key, entry]) => ({ label: labels[key] || `Sem imagem — ${key}`, entry }));
-  }
-
-  function renderCounterfactuals(frame) {
-    const list = el("ceuContrafactuais");
-    list.replaceChildren();
-    for (const { label, entry } of noImageControls(frame)) {
-      const member = entry.member ? ` (${entry.member})` : "";
-      factRow(list, `${label}${member}`, counterfactualDetail(frame, entry, null));
-    }
-    const neutralised = frame.counterfactuals && frame.counterfactuals.overlay_neutralised;
-    if (neutralised && typeof neutralised === "object") {
-      const member = neutralised.member ? ` (${neutralised.member})` : "";
-      factRow(
-        list,
-        `Faixa de texto da câmera neutralizada${member}`,
-        counterfactualDetail(frame, neutralised, neutralised.base || null)
-      );
-    }
-    list.parentElement.hidden = list.children.length === 0;
-  }
-
-  function renderAttributionMass(frame) {
-    const list = el("ceuMassa");
-    const note = el("ceuAtribuicaoNota");
-    list.replaceChildren();
-    const attribution = frame.attribution && typeof frame.attribution === "object" ? frame.attribution : null;
-    const mass = attribution && attribution.mass_by_region;
-    if (mass && typeof mass === "object") {
-      for (const key of ["disc", "overlay_band", "pad", "other"]) {
-        if (finite(mass[key])) factRow(list, REGION_PT[key], percent(mass[key], 1));
-      }
-      for (const [key, value] of Object.entries(mass)) {
-        if (!REGION_PT[key] && finite(value)) factRow(list, key, percent(value, 1));
-      }
-    }
-    const parts = [];
-    if (attribution) {
-      if (attribution.method === "occlusion_sensitivity") {
-        parts.push(
-          "Sonda de oclusão: cada janela é substituída pelo nível médio da rede e a célula guarda a variação do alvo"
-        );
-      }
-      const details = [];
-      if (finite(attribution.window_px)) details.push(`janela ${integer(attribution.window_px)} px`);
-      if (finite(attribution.stride_px)) details.push(`passo ${integer(attribution.stride_px)} px`);
-      details.push(
-        `alvo ${attribution.target === "kindex" || !attribution.target ? kindexSymbol() : attribution.target}`
-      );
-      if (finite(attribution.base_value)) details.push(`valor-base ${decimal(attribution.base_value, 3)}`);
-      if (attribution.member) details.push(`membro ${attribution.member}`);
-      const shape = attribution.grid_shape;
-      const peak = attribution.peak;
-      if (peak && finite(peak.row) && finite(peak.col)) {
-        const grid =
-          Array.isArray(shape) && shape.length === 2 ? ` de ${integer(shape[0])} × ${integer(shape[1])}` : "";
-        details.push(`pico na linha ${integer(peak.row)}, coluna ${integer(peak.col)}${grid}`);
-      }
-      parts.push(details.join(", "));
-    }
-    note.textContent = parts.filter(Boolean).join(". ");
-    list.parentElement.hidden = list.children.length === 0 && !note.textContent;
-  }
-
-  function renderMembers(frame) {
-    const list = el("ceuMembros");
-    list.replaceChildren();
-    const members = Array.isArray(frame.members) ? frame.members : [];
-    for (const member of members) {
-      if (!member || typeof member !== "object") continue;
-      const details = [];
-      if (finite(member.seed)) details.push(`semente ${integer(member.seed)}`);
-      if (member.role) details.push(`papel: ${roleLabel(member.role)}`);
-      if (Array.isArray(member.heads) && member.heads.length) {
-        details.push(`cabeças: ${member.heads.map(headLabel).join(", ")}`);
-      }
-      details.push(`pesos ${shortHash(member.checkpoint_sha256)}`);
-      if (member.code_version) details.push(`código: ${codeVersionText(member.code_version)}`);
-      factRow(list, text(member.name, "membro"), details.join(" · "));
-    }
-    list.parentElement.hidden = list.children.length === 0;
-  }
-
-  function renderPredictionCard() {
-    const panel = el("ceuPrevisaoPainel");
+  function renderFrameEstimate() {
+    const summary = el("ceuEstimativa");
+    summary.hidden = !frameScored();
+    if (summary.hidden) return;
     const frame = state.framePayload;
-    if (!frameScored()) {
-      panel.hidden = true;
-      return;
-    }
-    panel.hidden = false;
     const prediction = frame.prediction;
-    const solar = frame.solar || {};
-    const stats = el("ceuPrevisaoStats");
-    stats.replaceChildren();
-    statTile(stats, withUnit(decimal(prediction.dhi_w_m2, 1), dhiUnit()), `${dhiLabel()} prevista`);
-    statTile(
-      stats,
-      withUnit(decimal(solar.clearsky_dhi_w_m2, 1), dhiUnit()),
-      "difusa de céu claro no instante",
-      finite(solar.clearsky_ghi_w_m2) ? `global de céu claro ${decimal(solar.clearsky_ghi_w_m2, 1)} ${dhiUnit()}` : ""
-    );
-    statTile(
-      stats,
-      decimal(prediction.kindex, 3),
-      kindexLabel(),
-      text((targetsGlossary().kindex || {}).definition_pt, "")
-    );
-    const elevationLabel =
-      solar.extrapolation === true ? "elevação solar — acima do máximo do treino" : "elevação solar";
-    statTile(
-      stats,
-      finite(solar.elevation_deg) ? `${decimal(solar.elevation_deg, 1)}°` : "—",
-      elevationLabel,
-      finite(solar.azimuth_deg) ? `azimute ${decimal(solar.azimuth_deg, 1)}°` : ""
-    );
-
     const condition = resolveCondition(frame, prediction.sky);
-    el("ceuCondicao").replaceChildren(condition ? conditionCell(condition) : "—");
-    renderProbabilities(frame, prediction.sky);
-    renderCounterfactuals(frame);
-    renderAttributionMass(frame);
-    renderMembers(frame);
-
-    const glossary = targetsGlossary().kindex || {};
-    el("ceuPrevisaoNota").replaceChildren(
-      withReferences(
-        `${dhiLabel()} prevista só a partir dos pixels, como razão à difusa de céu claro; ${kindexLabel()}` +
-          (glossary.definition_pt ? ` — ${glossary.definition_pt}` : "") +
-          "."
-      )
-    );
+    summary.replaceChildren(node("strong", null, "Estimativa do modelo"));
+    if (condition) summary.append(" ", conditionCell(condition));
+    summary.append(" ", node("span", null, `Difusa: ${withUnit(decimal(prediction.dhi_w_m2, 1), dhiUnit())}`));
+    const index = node("span", null, `${kindexSymbol()}: ${decimal(prediction.kindex, 3)}`);
+    index.title = kindexLabel();
+    summary.append(" ", index);
   }
 
   function modelColor(model, theme) {
@@ -1735,13 +1429,9 @@
   const withReferences = (text) => refs().expand(text);
 
   function loadedPayloads() {
-    return [
-      state.framePayload,
-      state.timelinePayload,
-      state.modelPayload,
-      state.chartPayload,
-      state.cumulativePayload,
-    ].filter((payload) => payload && typeof payload === "object");
+    return [state.framePayload, state.timelinePayload, state.chartPayload, state.cumulativePayload].filter(
+      (payload) => payload && typeof payload === "object"
+    );
   }
 
   function registerPayloadReferences() {
@@ -2031,7 +1721,7 @@
   }
 
   function renderHeader() {
-    const source = state.framePayload || state.timelinePayload || state.modelPayload || state.chartPayload;
+    const source = state.framePayload || state.timelinePayload;
     const generated = parseStationTime((source && source.generated_utc) || "");
     el("ceuAtualizado").textContent = Number.isFinite(generated) ? `Publicado em ${formatStamp(generated)} UTC` : "";
   }
@@ -2409,67 +2099,7 @@
   };
   const SCREENING_PT = { "sentinels + sensor_limits": "passados pelas sentinelas e pelos limites do sensor do acervo" };
   const CORRECTED_LABEL_SCALE = "corrected";
-  const RAW_LABEL_SCALE = "raw";
-  const DECLARED_LABEL_SCALES = new Set([RAW_LABEL_SCALE, CORRECTED_LABEL_SCALE]);
-  const RAW_SCALE_LIVE_NOTE =
-    "a difusa prevista está na escala crua do rótulo de treino e a medida, na escala corrigida: RMSE, MAE e MBE incluem essa diferença de escala, não só o erro do modelo";
   const BLOCK_STATUS_PT = { scored: "pontuado", skipped: "pulado", pending: "pendente", failed: "falhou" };
-  const ARM_KIND_PT = { served: "servido", ensemble: "conjunto servido", member: "membro", control: "controle" };
-  const SERVED_ARM_KINDS = ["served", "ensemble"];
-  const TRAIN_ELEVATION_TOLERANCE_DEG = 0.05;
-  const METRIC_PT = {
-    dhi_rmse: "RMSE DHI",
-    dhi_mae: "MAE DHI",
-    dhi_mbe: "MBE DHI",
-    kindex_mae: "MAE k*",
-    kindex_rmse: "RMSE k*",
-    sky_balanced_accuracy: "acurácia balanceada",
-    sky_accuracy: "acurácia",
-    sky_macro_f1: "F1 macro",
-    sky_kappa_quadratic: "κ quadrático",
-    persistence_skill_dhi: "habilidade contra a persistência (DHI)",
-  };
-  const TRAINING_KEY_PT = {
-    epochs: "épocas",
-    epochs_budget: "orçamento de épocas",
-    batch_size: "lote",
-    learning_rate: "taxa de aprendizado",
-    lr: "taxa de aprendizado",
-    backbone_lr: "taxa de aprendizado do tronco",
-    layer_decay: "decaimento por camada",
-    scheduler: "agendador",
-    patience: "paciência",
-    min_delta: "delta mínimo",
-    monitor: "monitor",
-    early_stopping: "parada antecipada",
-    loss: "função de perda",
-    optimizer: "otimizador",
-    weight_decay: "decaimento de pesos",
-    seed: "semente",
-  };
-  const ROLE_KEY_PT = {
-    frame_sky_role: "condição de céu do quadro",
-    frame_dhi_role: "difusa do quadro",
-    sky: "condição de céu",
-    dhi: "difusa",
-  };
-  const ARCHITECTURE_NAME_PT = { image_only: "só imagem" };
-  const TARGET_SOURCE_PT = { measured: "medido na estação" };
-  const SPLIT_STRATEGY_PT = { chronological: "cronológica por dia" };
-
-  function keyLabel(dictionary, key) {
-    return dictionary[key] || String(key).replace(/_/g, " ");
-  }
-
-  function metricValue(key, value) {
-    if (!finite(value)) return "—";
-    if (key.includes("accuracy")) return percent(value, 1);
-    if (/f1|kappa|skill/.test(key)) return trueMinus(value, 3);
-    if (key.startsWith("dhi")) return trueMinus(value, 2);
-    return decimal(value, 4);
-  }
-  const SPLIT_PT = { train: "treino", val: "validação", test: "teste" };
-  const CONTROL_IDS = ["sensor_only", "climatology"];
   const TIMELINE_AXIS_WIDTH = 56;
 
   function timelineAxis() {
@@ -2628,10 +2258,7 @@
   }
 
   function predictionOnRawScale() {
-    const declared = [state.timelinePayload?.label_scale, state.modelPayload?.dataset?.label_scale].find((scale) =>
-      DECLARED_LABEL_SCALES.has(scale)
-    );
-    return declared !== CORRECTED_LABEL_SCALE;
+    return state.timelinePayload?.label_scale !== CORRECTED_LABEL_SCALE;
   }
 
   function liveWithBlocks() {
@@ -2920,38 +2547,7 @@
       return `A difusa medida não está publicada: ${reason}.`;
     }
     const source = status.source_label ? ` (${status.source_label})` : "";
-    return `A comparação ao vivo com o piranômetro${source} está pendente: ${reason}; os números do teste não a substituem.`;
-  }
-
-  function renderLiveStats() {
-    const container = el("ceuAoVivo");
-    container.replaceChildren();
-    const live = liveWithBlocks();
-    container.hidden = !live;
-    if (container.hidden) return;
-    const since = parseStationDate(live.since);
-    const window = [];
-    if (finite(live.n_days)) window.push(countNoun(live.n_days, "dia", "dias"));
-    window.push(`${integer(live.n_blocks)} blocos`);
-    const rawScale = predictionOnRawScale();
-    statTile(
-      container,
-      Number.isFinite(since) ? `desde ${formatDay(since)}` : "ao vivo",
-      `contra o piranômetro — ${window.join(", ")}`,
-      rawScale
-        ? RAW_SCALE_LIVE_NOTE
-        : "o único holdout limpo: blocos a partir do dia da decisão do pino, nunca usados em decisão"
-    );
-    const dhi = live.dhi || {};
-    const scaleNote = rawScale ? " (inclui a diferença de escala)" : "";
-    statTile(container, withUnit(decimal(dhi.rmse, 1), dhiUnit()), `RMSE da difusa ao vivo${scaleNote}`);
-    statTile(container, withUnit(decimal(dhi.mae, 1), dhiUnit()), `MAE da difusa ao vivo${scaleNote}`);
-    statTile(container, withUnit(signed(dhi.mbe, 1), dhiUnit()), `MBE da difusa ao vivo${scaleNote}`);
-    if (live.kindex && finite(live.kindex.mae))
-      statTile(container, decimal(live.kindex.mae, 3), `MAE de ${kindexSymbol()} ao vivo`);
-    if (live.sky && finite(live.sky.balanced_accuracy)) {
-      statTile(container, percent(live.sky.balanced_accuracy, 1), "acurácia balanceada ao vivo");
-    }
+    return `A comparação com o piranômetro${source} está pendente: ${reason}.`;
   }
 
   function destroyTimelineCharts() {
@@ -2999,7 +2595,6 @@
     };
     drawTimelineChart(theme, bounds, runs, series);
     renderTimelineLegend(theme, runs, series);
-    renderLiveStats();
     renderTimelineDays();
     renderTimelineStatus();
     if (!stripInSameTurn) {
@@ -3014,779 +2609,6 @@
     el("ceuLinhaStatus").replaceChildren(
       statusContent([latestSentence(payload), skippedSummary(payload), measuredSentence(payload)].filter(Boolean), " ")
     );
-  }
-
-  function evaluation() {
-    const block = state.modelPayload && state.modelPayload.evaluation;
-    return block && typeof block === "object" ? block : {};
-  }
-
-  function rowsOf(source, keyField) {
-    if (Array.isArray(source)) return source.filter((row) => row && typeof row === "object");
-    if (source && typeof source === "object") {
-      return Object.entries(source)
-        .filter(([, row]) => row && typeof row === "object")
-        .map(([key, row]) => ({ [keyField]: key, ...row }));
-    }
-    return [];
-  }
-
-  function modelArms() {
-    return rowsOf(evaluation().arms, "id").map((arm) => ({ ...arm, id: String(arm.id || arm.name || "") }));
-  }
-
-  function servedBlock() {
-    const served = state.modelPayload && state.modelPayload.served;
-    return served && typeof served === "object" ? served : {};
-  }
-
-  function attributionMemberName() {
-    const served = servedBlock();
-    const members = Array.isArray(served.members) ? served.members : [];
-    return finite(served.attribution_member)
-      ? (members[served.attribution_member] || {}).name
-      : served.attribution_member;
-  }
-
-  function armKind(arm) {
-    if (typeof arm.kind === "string") return arm.kind;
-    const served = servedBlock();
-    if ((served.id && arm.id === served.id) || arm.id === "served") return "served";
-    if (CONTROL_IDS.includes(arm.id)) return "control";
-    if (Array.isArray(served.members) && served.members.some((member) => member && member.name === arm.id))
-      return "member";
-    return "";
-  }
-
-  function servedArm() {
-    const arms = modelArms();
-    const served = servedBlock();
-    return (
-      arms.find((arm) => served.id && arm.id === served.id) ||
-      arms.find((arm) => arm.id === "served") ||
-      arms.find((arm) => SERVED_ARM_KINDS.includes(armKind(arm))) ||
-      null
-    );
-  }
-
-  function armById(id) {
-    return modelArms().find((arm) => arm.id === id) || null;
-  }
-
-  function skillEntry(name) {
-    const block = evaluation();
-    const fromSkill = block.skill && (block.skill[name] || block.skill[`vs_${name}`]);
-    const fromReference = block.references && block.references[name];
-    const merged = { ...(fromReference || {}), ...(fromSkill || {}) };
-    return finite(merged.skill) ? merged : null;
-  }
-
-  function renderModelHeadline() {
-    const model = state.modelPayload;
-    const served = servedBlock();
-    const arm = servedArm();
-    const stats = el("ceuModeloStats");
-    const skills = el("ceuModeloSkill");
-    stats.replaceChildren();
-    skills.replaceChildren();
-    const block = evaluation();
-    const dataset = model.dataset || {};
-    const split = (dataset.split && dataset.split[block.split || "test"]) || {};
-    const noteParts = [];
-    if (served.label) noteParts.push(served.label);
-    const splitParts = [];
-    if (finite(split.days)) splitParts.push(`${integer(split.days)} dias`);
-    const start = parseStationDate(split.start);
-    const end = parseStationDate(split.end);
-    if (Number.isFinite(start) && Number.isFinite(end)) splitParts.push(`${formatDay(start)} a ${formatDay(end)}`);
-    if (finite(block.n)) splitParts.push(`${integer(block.n)} linhas`);
-    if (splitParts.length)
-      noteParts.push(`${SPLIT_PT[block.split] || block.split || "teste"} cronológico: ${splitParts.join(", ")}`);
-    const selection = served.selection || {};
-    const decided = parseStationDate(selection.decided_on);
-    if (Number.isFinite(decided)) {
-      noteParts.push(
-        `pino decidido em ${formatDay(decided)} na ${SPLIT_PT[selection.selection_split] || selection.selection_split || "validação"}`
-      );
-    }
-    el("ceuModeloNota").replaceChildren(withReferences(noteParts.join(" · ")));
-
-    if (arm) {
-      const dhi = arm.dhi || {};
-      const kindex = arm.kindex || {};
-      const unit = dhiUnit();
-      statTile(
-        stats,
-        withUnit(decimal(dhi.rmse, 2), unit),
-        "RMSE da difusa no teste",
-        finite(dhi.r2) ? `r² ${decimal(dhi.r2, 3)}` : ""
-      );
-      statTile(stats, withUnit(decimal(dhi.mae, 2), unit), "MAE da difusa no teste");
-      statTile(stats, withUnit(signed(dhi.mbe, 2), unit), "MBE da difusa no teste");
-      const sensor = armById("sensor_only");
-      const climatology = armById("climatology");
-      const controls = [];
-      if (sensor) controls.push(`só escalares ${decimal((sensor.kindex || {}).mae, 4)}`);
-      if (climatology) controls.push(`média do treino ${decimal((climatology.kindex || {}).mae, 4)}`);
-      statTile(
-        stats,
-        decimal(kindex.mae, 4),
-        `MAE de ${kindexSymbol()} no teste${controls.length ? ` — controles: ${controls.join(", ")}` : ""}`
-      );
-      const sky = arm.sky || {};
-      const skyDetails = [];
-      if (finite(sky.accuracy)) skyDetails.push(`acurácia ${percent(sky.accuracy, 1)}`);
-      if (finite(sky.macro_f1)) skyDetails.push(`F1 macro ${decimal(sky.macro_f1, 3)}`);
-      if (finite(sky.kappa_quadratic)) skyDetails.push(`κ quadrático ${decimal(sky.kappa_quadratic, 3)}`);
-      statTile(
-        stats,
-        percent(sky.balanced_accuracy, 1),
-        "acurácia balanceada das condições de céu",
-        skyDetails.join(" · ")
-      );
-    }
-
-    const skillLabels = {
-      clearsky: "habilidade contra o céu claro",
-      persistence: "habilidade contra a persistência",
-      climatology: "habilidade contra a média do treino",
-      sensor_only: "habilidade contra só escalares",
-    };
-    for (const name of ["clearsky", "persistence", "climatology", "sensor_only"]) {
-      const entry = skillEntry(name);
-      if (!entry) continue;
-      const details = [];
-      if (finite(entry.horizon_minutes)) details.push(`de ${integer(entry.horizon_minutes)} min`);
-      if (finite(entry.n)) details.push(`n ${integer(entry.n)}`);
-      if (finite(entry.n_rows)) details.push(`${integer(entry.n_rows)} linhas distintas`);
-      const label = `${skillLabels[name]}${finite(entry.horizon_minutes) ? ` ${details.shift()}` : ""}${details.length ? ` (${details.join(", ")})` : ""}`;
-      statTile(skills, trueMinus(entry.skill, 3), label, text(entry.label, ""));
-    }
-  }
-
-  function persistenceCaveat() {
-    const caveats = Array.isArray(state.modelPayload.caveats) ? state.modelPayload.caveats : [];
-    return caveats.find((caveat) => typeof caveat === "string" && /persist/i.test(caveat)) || "";
-  }
-
-  function armRowLabel(arm) {
-    return text(arm.label, arm.id);
-  }
-
-  function renderArmsTable() {
-    const body = el("ceuBracosCorpo");
-    body.replaceChildren();
-    el("ceuBracosCabecalhoKindex").textContent = `MAE ${kindexSymbol()}`;
-    const block = evaluation();
-    el("ceuBracosLegenda").textContent = finite(block.n)
-      ? `${integer(block.n)} linhas do ${SPLIT_PT[block.split] || block.split || "teste"}; difusa em ${dhiUnit()}`
-      : "";
-    const order = { served: 0, ensemble: 0, member: 1, control: 2 };
-    const arms = modelArms().sort((left, right) => (order[armKind(left)] ?? 3) - (order[armKind(right)] ?? 3));
-    for (const arm of arms) {
-      const row = node("tr");
-      const dhi = arm.dhi || {};
-      const sky = arm.sky || {};
-      const kindex = arm.kindex || {};
-      cell(row, armRowLabel(arm));
-      cell(row, ARM_KIND_PT[armKind(arm)] || armKind(arm) || "—");
-      cell(row, decimal(dhi.rmse, 2));
-      cell(row, decimal(dhi.mae, 2));
-      cell(row, signed(dhi.mbe, 2));
-      cell(row, trueMinus(dhi.r2, 3));
-      cell(row, decimal(kindex.mae, 4));
-      cell(row, percent(sky.accuracy, 1));
-      cell(row, percent(sky.balanced_accuracy, 1));
-      cell(row, decimal(sky.macro_f1, 3));
-      cell(row, decimal(sky.kappa_quadratic, 3));
-      cell(row, integer(dhi.n));
-      body.appendChild(row);
-    }
-  }
-
-  function renderReferencesTable() {
-    const body = el("ceuReferenciasCorpo");
-    body.replaceChildren();
-    const references = evaluation().references || {};
-    const names = { clearsky: "difusa de céu claro", persistence: "persistência" };
-    for (const [key, reference] of Object.entries(references)) {
-      if (!reference || typeof reference !== "object") continue;
-      const row = node("tr");
-      const horizon = finite(reference.horizon_minutes) ? ` de ${integer(reference.horizon_minutes)} min` : "";
-      const label = text(reference.label, `${names[key] || key}${horizon}`);
-      cell(row, label);
-      cell(row, decimal(reference.dhi_rmse, 2));
-      cell(row, decimal(reference.model_rmse_on_paired, 2));
-      cell(row, trueMinus(reference.skill, 3));
-      cell(row, integer(reference.n));
-      const details = [];
-      if (finite(reference.horizon_minutes)) details.push(`horizonte de ${integer(reference.horizon_minutes)} min`);
-      if (finite(reference.n_rows)) details.push(`${integer(reference.n_rows)} linhas distintas do datalogger`);
-      const kindexReference = reference.kindex;
-      if (kindexReference && finite(kindexReference.skill)) {
-        details.push(
-          `${kindexSymbol()}: habilidade ${trueMinus(kindexReference.skill, 3)} (n ${integer(kindexReference.n)})`
-        );
-      }
-      const clear = reference.on_clear_rows;
-      if (clear && typeof clear === "object") {
-        details.push(
-          `nas linhas de céu claro: RMSE ${decimal(clear.rmse, 2)}, MBE ${signed(clear.mbe, 2)}, n ${integer(clear.n)}`
-        );
-      }
-      cell(row, details.join(" · ") || "—");
-      body.appendChild(row);
-    }
-  }
-
-  function renderPerClass() {
-    const body = el("ceuClassesCorpo");
-    body.replaceChildren();
-    const arm = servedArm();
-    const source = evaluation().per_class || (arm && arm.sky && arm.sky.per_class);
-    const rows = rowsOf(source, "id");
-    const model = state.modelPayload;
-    for (const condition of conditionsOf(model)) {
-      const found = rows.find((row) => (resolveCondition(model, row) || {}).id === condition.id);
-      if (!found) continue;
-      const row = node("tr");
-      cell(row, conditionCell(condition));
-      cell(row, percent(found.recall, 1));
-      cell(row, percent(found.precision, 1));
-      cell(row, decimal(found.f1, 3));
-      cell(row, integer(found.n ?? found.support));
-      body.appendChild(row);
-    }
-  }
-
-  function confusionMatrix(arm) {
-    const confusion = arm && arm.sky && arm.sky.confusion;
-    return Array.isArray(confusion) ? confusion : null;
-  }
-
-  function conditionHeader(condition, scope) {
-    const header = node("th", null, condition ? conditionShort(condition) : "—");
-    header.scope = scope;
-    return header;
-  }
-
-  function renderConfusion() {
-    const head = el("ceuConfusaoCabecalho");
-    const body = el("ceuConfusaoCorpo");
-    body.replaceChildren();
-    const model = state.modelPayload;
-    const matrix = confusionMatrix(servedArm());
-    head.closest(".clima-table-scroll").hidden = !matrix;
-    if (!matrix) return;
-    const ordered = conditionsOf(model).slice(0, matrix.length);
-    head.replaceChildren(head.firstElementChild, ...ordered.map((condition) => conditionHeader(condition, "col")));
-    const ink = themeColors().ink;
-    matrix.forEach((values, rowIndex) => {
-      if (!Array.isArray(values)) return;
-      const total = values.reduce((sum, value) => (finite(value) ? sum + value : sum), 0);
-      const row = node("tr");
-      row.appendChild(conditionHeader(ordered[rowIndex], "row"));
-      values.forEach((value, columnIndex) => {
-        const fraction = total > 0 && finite(value) ? value / total : 0;
-        const box = cell(
-          row,
-          finite(value) ? `${integer(value)} (${percent(fraction, 0)})` : "—",
-          "sky-confusion-cell"
-        );
-        box.style.background = `rgba(${ink}, ${(0.05 + 0.6 * fraction).toFixed(3)})`;
-        if (columnIndex === rowIndex) box.classList.add("is-diagonal");
-      });
-      body.appendChild(row);
-    });
-  }
-
-  function bandBounds(row) {
-    const bounds = /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/.exec(text(row.stratum, ""));
-    return bounds ? [Number(bounds[1]), Number(bounds[2])] : null;
-  }
-
-  function bandLabel(row) {
-    const bounds = bandBounds(row);
-    if (bounds) return `${decimal(bounds[0], 1)}–${decimal(bounds[1], 1)}°`;
-    return text(row.stratum, "") || "—";
-  }
-
-  function declaredElevationRange(part) {
-    const declared = part && part.solar_elevation_range_deg;
-    if (Array.isArray(declared)) return declared;
-    return declared && typeof declared === "object" ? [declared.min, declared.max] : [];
-  }
-
-  function trainElevationMaxDeg() {
-    const split = ((state.modelPayload && state.modelPayload.dataset) || {}).split || {};
-    const range = declaredElevationRange(split.train);
-    return range.length === 2 && finite(range[1]) ? range[1] : null;
-  }
-
-  function bandExtrapolationSuffix(entry, trainMaxDeg) {
-    const bounds = bandBounds(entry);
-    if (trainMaxDeg !== null && bounds && bounds[1] > trainMaxDeg + TRAIN_ELEVATION_TOLERANCE_DEG)
-      return ` — passa do máximo do treino (${decimal(trainMaxDeg, 1)}°)`;
-    return entry.extrapolation === true ? " — extrapolação" : "";
-  }
-
-  function errorCells(row, entry) {
-    cell(row, integer(entry.n));
-    cell(row, decimal(entry.rmse, 2));
-    cell(row, decimal(entry.mae, 2));
-    cell(row, signed(entry.mbe, 2));
-  }
-
-  function renderStratified() {
-    const stratified = (state.modelPayload && state.modelPayload.stratified) || {};
-    const model = state.modelPayload;
-    const elevationBody = el("ceuElevacaoCorpo");
-    elevationBody.replaceChildren();
-    const member = stratified.member || attributionMemberName();
-    const stratumLegend = (title) => `${title}${member ? ` — membro ${member}` : ""}, difusa em ${dhiUnit()}`;
-    el("ceuElevacaoLegenda").textContent = stratumLegend("Por faixa de elevação solar");
-    el("ceuEstratoClasseLegenda").textContent = stratumLegend("Por condição de céu verdadeira");
-    const trainMaxDeg = trainElevationMaxDeg();
-    for (const entry of rowsOf(stratified.solar_elevation, "stratum")) {
-      const row = node("tr");
-      cell(row, `${bandLabel(entry)}${bandExtrapolationSuffix(entry, trainMaxDeg)}`);
-      errorCells(row, entry);
-      elevationBody.appendChild(row);
-    }
-    const classBody = el("ceuEstratoClasseCorpo");
-    classBody.replaceChildren();
-    const rows = rowsOf(stratified.sky_class, "stratum");
-    for (const condition of conditionsOf(model)) {
-      const entry = rows.find((row) => (resolveCondition(model, row.stratum) || {}).id === condition.id);
-      if (!entry) continue;
-      const row = node("tr");
-      cell(row, conditionCell(condition));
-      errorCells(row, entry);
-      classBody.appendChild(row);
-    }
-  }
-
-  function renderPerDay() {
-    const body = el("ceuDiasTesteCorpo");
-    body.replaceChildren();
-    const model = state.modelPayload;
-    const days = Array.isArray(evaluation().per_day) ? evaluation().per_day : [];
-    const persistence = skillEntry("persistence");
-    el("ceuDiasTestePersistencia").textContent =
-      persistence && finite(persistence.horizon_minutes)
-        ? `RMSE da persistência de ${integer(persistence.horizon_minutes)} min`
-        : "RMSE da persistência";
-    body.closest(".clima-table-scroll").hidden = days.length === 0;
-    for (const day of days) {
-      if (!day || typeof day !== "object") continue;
-      const row = node("tr");
-      const date = parseStationTime(day.date || "");
-      cell(row, Number.isFinite(date) ? formatDay(date) : text(day.date));
-      cell(row, integer(day.n));
-      cell(row, shareBar(model, day.class_share));
-      cell(row, decimal(day.rmse_model, 2));
-      cell(row, decimal(day.rmse_persistence, 2));
-      cell(row, decimal(day.rmse_clearsky, 2));
-      body.appendChild(row);
-    }
-  }
-
-  function curveEpochs(curve) {
-    if (Array.isArray(curve.epochs)) return curve.epochs;
-    const length = Math.max(
-      ...["train_kindex_mae", "val_kindex_mae"].map((key) => (Array.isArray(curve[key]) ? curve[key].length : 0))
-    );
-    return Array.from({ length }, (_value, index) => index + 1);
-  }
-
-  function curveSeries(curve, key, epochs) {
-    const values = Array.isArray(curve[key]) ? curve[key] : null;
-    if (!values) return null;
-    const points = epochs.map((epoch, index) => ({ x: epoch, y: finite(values[index]) ? values[index] : null }));
-    return points.some((point) => point.y !== null) ? points : null;
-  }
-
-  const bestEpochMarker = {
-    id: "labmimSkyBestEpoch",
-    afterDatasetsDraw(chart, _args, options) {
-      if (!finite(options.epoch)) return;
-      const { ctx, chartArea, scales } = chart;
-      const x = scales.x.getPixelForValue(options.epoch);
-      if (x < chartArea.left || x > chartArea.right) return;
-      ctx.save();
-      ctx.strokeStyle = options.color;
-      ctx.fillStyle = options.color;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(x, chartArea.top);
-      ctx.lineTo(x, chartArea.bottom);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.font = "11px system-ui, sans-serif";
-      ctx.textAlign = x > (chartArea.left + chartArea.right) / 2 ? "right" : "left";
-      ctx.fillText(
-        `melhor época: ${integer(options.epoch)}`,
-        x + (ctx.textAlign === "left" ? 4 : -4),
-        chartArea.top + 12
-      );
-      ctx.restore();
-    },
-  };
-
-  function curveMemberName(bestEpoch) {
-    const members = servedBlock().members;
-    const matches = Array.isArray(members)
-      ? members.filter((entry) => entry && entry.best_metric && entry.best_metric.epoch === bestEpoch)
-      : [];
-    return matches.length === 1 && typeof matches[0].name === "string" ? matches[0].name : null;
-  }
-
-  function curveProvenance(curve) {
-    if (Object.hasOwn(curve, "member")) {
-      if (typeof curve.member !== "string" || !curve.member) return { member: null, budget: null, patience: null };
-      return {
-        member: curve.member,
-        budget: finite(curve.epochs_budget) ? curve.epochs_budget : null,
-        patience: finite(curve.patience) ? curve.patience : null,
-      };
-    }
-    const member = finite(curve.best_epoch) ? curveMemberName(curve.best_epoch) : null;
-    const training = servedBlock().training;
-    if (!member || member !== attributionMemberName() || !training || typeof training !== "object")
-      return { member, budget: null, patience: null };
-    const budget = training.epochs_budget ?? training.epochs;
-    const patience = training.early_stopping?.patience;
-    return { member, budget: finite(budget) ? budget : null, patience: finite(patience) ? patience : null };
-  }
-
-  function drawTrainingCurve(theme) {
-    if (state.curveChart) {
-      state.curveChart.destroy();
-      state.curveChart = null;
-    }
-    const curve = (state.modelPayload && state.modelPayload.training_curve) || {};
-    const epochs = curveEpochs(curve);
-    const train = curveSeries(curve, "train_kindex_mae", epochs);
-    const validation = curveSeries(curve, "val_kindex_mae", epochs);
-    const wrap = el("ceuCurvaChartWrap");
-    wrap.hidden = !train && !validation;
-    const note = el("ceuCurvaNota");
-    if (wrap.hidden) {
-      note.textContent = "";
-      return;
-    }
-    const { member, budget, patience } = curveProvenance(curve);
-    const noteParts = [
-      `MAE de ${kindexSymbol()} por época${member ? ` do membro ${member}` : ""}, no treino e na validação`,
-    ];
-    if (finite(curve.best_epoch))
-      noteParts.push(
-        `o checkpoint servido ${member ? "desse membro " : ""}é o da melhor época na validação (${integer(curve.best_epoch)})`
-      );
-    if (budget !== null) noteParts.push(`orçamento de ${integer(budget)} épocas`);
-    if (patience !== null) noteParts.push(`paciência de ${integer(patience)} épocas`);
-    note.textContent = `${noteParts.join(" · ")}.`;
-    const datasets = [];
-    if (train) {
-      datasets.push({
-        label: "treino",
-        data: train,
-        borderColor: theme.textSecondary,
-        backgroundColor: theme.textSecondary,
-        borderWidth: 1.4,
-        borderDash: [5, 4],
-        pointRadius: 0,
-        spanGaps: false,
-        tension: 0,
-      });
-    }
-    if (validation) {
-      datasets.push({
-        label: "validação",
-        data: validation,
-        borderColor: `rgb(${theme.ink})`,
-        backgroundColor: `rgb(${theme.ink})`,
-        borderWidth: 1.8,
-        pointRadius: 0,
-        spanGaps: false,
-        tension: 0,
-      });
-    }
-    state.curveChart = new Chart(el("ceuCurvaCanvas").getContext("2d"), {
-      type: "line",
-      data: { datasets },
-      options: {
-        ...lineChartBase(),
-        plugins: {
-          labmimSkyBestEpoch: { epoch: curve.best_epoch, color: theme.textSecondary },
-          legend: { display: true, position: "top", labels: { color: theme.legendText, boxWidth: 26 } },
-          tooltip: chartTooltip(theme, {
-            title: (items) => `Época ${integer(items[0].parsed.x)}`,
-            label: (item) => `${item.dataset.label}: ${decimal(item.parsed.y, 4)}`,
-          }),
-        },
-        scales: {
-          x: {
-            type: "linear",
-            min: epochs[0],
-            max: epochs[epochs.length - 1],
-            title: { display: true, text: "época", color: theme.textSecondary },
-            ticks: { color: theme.textSecondary, stepSize: 5, maxRotation: 0 },
-            grid: { display: false },
-          },
-          y: {
-            type: "linear",
-            title: { display: true, text: `MAE de ${kindexSymbol()}`, color: theme.textSecondary },
-            ticks: { color: theme.textSecondary, maxTicksLimit: 6 },
-            grid: { color: theme.grid },
-          },
-        },
-      },
-      plugins: [bestEpochMarker],
-    });
-  }
-
-  function bestMetricText(value) {
-    if (value && typeof value === "object") {
-      const name = typeof value.name === "string" ? ` (${keyLabel(METRIC_PT, value.name)})` : "";
-      return `${metricValue(String(value.name || ""), value.value)}${name}`;
-    }
-    return decimal(value, 4);
-  }
-
-  function renderSeeds() {
-    const body = el("ceuSementesCorpo");
-    body.replaceChildren();
-    el("ceuSementesCabecalhoKindex").textContent = `MAE ${kindexSymbol()}`;
-    const seeds = (state.modelPayload && state.modelPayload.seeds) || {};
-    const served = servedBlock();
-    const pinned = Array.isArray(served.members) ? served.members : [];
-    const members = Array.isArray(seeds.members) ? seeds.members : [];
-    const captionParts = [];
-    if (finite(seeds.n_seeds))
-      captionParts.push(`${integer(seeds.n_seeds)} sementes — sem desvio-padrão, só mínimo e máximo`);
-    const range = seeds.range && typeof seeds.range === "object" ? seeds.range : {};
-    const rangeParts = Object.entries(range)
-      .filter(([, bounds]) => bounds && finite(bounds.min) && finite(bounds.max))
-      .map(
-        ([key, bounds]) =>
-          `${keyLabel(METRIC_PT, key)} ${metricValue(key, bounds.min)} a ${metricValue(key, bounds.max)}`
-      );
-    if (rangeParts.length) captionParts.push(`faixa: ${rangeParts.join("; ")}`);
-    el("ceuSementesLegenda").textContent = captionParts.join(" · ");
-    for (const member of members) {
-      if (!member || typeof member !== "object") continue;
-      const pin = pinned.find((entry) => entry && entry.name === member.name) || {};
-      const row = node("tr");
-      cell(row, text(member.name));
-      cell(row, integer(member.seed ?? pin.seed));
-      cell(row, integer(pin.epoch));
-      cell(row, bestMetricText(pin.best_metric));
-      cell(row, decimal(member.dhi_rmse, 2));
-      cell(row, decimal(member.dhi_mae, 2));
-      cell(row, signed(member.dhi_mbe, 2));
-      cell(row, decimal(member.kindex_mae, 4));
-      cell(row, percent(member.sky_balanced_accuracy, 1));
-      body.appendChild(row);
-    }
-    body.closest(".clima-table-scroll").hidden = body.children.length === 0;
-  }
-
-  function renderDataset() {
-    const model = state.modelPayload;
-    const dataset = model.dataset || {};
-    const split = dataset.split || {};
-    const noteParts = [];
-    if (finite(dataset.rows) && finite(dataset.days))
-      noteParts.push(`${integer(dataset.rows)} linhas em ${integer(dataset.days)} dias`);
-    const period = dataset.period || {};
-    const start = parseStationDate(period.start);
-    const end = parseStationDate(period.end);
-    if (Number.isFinite(start) && Number.isFinite(end)) noteParts.push(`${formatDay(start)} a ${formatDay(end)}`);
-    if (dataset.season_note) noteParts.push(dataset.season_note);
-    if (split.strategy) noteParts.push(`divisão ${keyLabel(SPLIT_STRATEGY_PT, split.strategy)}`);
-    if (finite(split.gap_days)) noteParts.push(`${countNoun(split.gap_days, "dia", "dias")} de intervalo`);
-    if (finite(dataset.min_elevation_deg)) noteParts.push(`piso de elevação ${decimal(dataset.min_elevation_deg, 1)}°`);
-    if (dataset.frames_from) noteParts.push(`quadros de ${dataset.frames_from}`);
-    if (dataset.camera) noteParts.push(dataset.camera);
-    if (dataset.target_source) noteParts.push(`alvo: ${keyLabel(TARGET_SOURCE_PT, dataset.target_source)}`);
-    el("ceuDadosNota").replaceChildren(withReferences(noteParts.join(" · ")));
-    const body = el("ceuDivisaoCorpo");
-    body.replaceChildren();
-    el("ceuDivisaoLegenda").textContent =
-      "Cada divisão com seus dias, linhas, faixa de elevação solar e mistura de condições";
-    for (const key of ["train", "val", "test"]) {
-      const part = split[key];
-      if (!part || typeof part !== "object") continue;
-      const row = node("tr");
-      cell(row, SPLIT_PT[key]);
-      cell(row, integer(part.days));
-      const partStart = parseStationDate(part.start);
-      const partEnd = parseStationDate(part.end);
-      cell(
-        row,
-        Number.isFinite(partStart) && Number.isFinite(partEnd) ? `${formatDay(partStart)} a ${formatDay(partEnd)}` : "—"
-      );
-      cell(row, integer(part.rows));
-      const range = declaredElevationRange(part);
-      cell(row, range.length === 2 ? `${decimal(range[0], 1)}° a ${decimal(range[1], 1)}°` : "—");
-      cell(row, shareBar(model, part.class_share));
-      body.appendChild(row);
-    }
-  }
-
-  function renderProvenance() {
-    const list = el("ceuProveniencia");
-    list.replaceChildren();
-    const model = state.modelPayload;
-    const served = servedBlock();
-    const dataset = model.dataset || {};
-    if (served.id) factRow(list, "Braço servido", `${served.id}${served.label ? ` — ${served.label}` : ""}`);
-    const members = Array.isArray(served.members) ? served.members : [];
-    for (const member of members) {
-      if (!member || typeof member !== "object") continue;
-      const details = [];
-      if (finite(member.seed)) details.push(`semente ${integer(member.seed)}`);
-      if (member.role) details.push(`papel: ${roleLabel(member.role)}`);
-      if (finite(member.epoch)) details.push(`época ${integer(member.epoch)}`);
-      details.push(`pesos ${shortHash(member.checkpoint_sha256)}`);
-      factRow(list, `Membro ${text(member.name)}`, details.join(" · "));
-    }
-    const attributionMember = attributionMemberName();
-    if (attributionMember) factRow(list, "Membro do mapa de sensibilidade", text(attributionMember));
-    const roles = served.roles;
-    if (roles && typeof roles === "object") {
-      factRow(
-        list,
-        "Papéis das cabeças",
-        Object.entries(roles)
-          .map(([key, value]) => `${keyLabel(ROLE_KEY_PT, key)}: ${roleLabel(value)}`)
-          .join(" · ")
-      );
-    }
-    if (served.code_version) factRow(list, "Versão do código", codeVersionText(served.code_version));
-    const selection = served.selection || {};
-    if (selection.criterion) factRow(list, "Critério de seleção", withReferences(selection.criterion));
-    if (selection.selection_split)
-      factRow(list, "Divisão da seleção", SPLIT_PT[selection.selection_split] || selection.selection_split);
-    const decided = parseStationDate(selection.decided_on);
-    if (Number.isFinite(decided)) factRow(list, "Decidido em", formatDay(decided));
-    const architecture = served.architecture;
-    if (architecture && typeof architecture === "object") {
-      const details = [];
-      if (architecture.name) details.push(keyLabel(ARCHITECTURE_NAME_PT, architecture.name));
-      if (architecture.backbone) details.push(`tronco ${architecture.backbone}`);
-      if (finite(architecture.image_size)) details.push(`${integer(architecture.image_size)} px`);
-      if (architecture.pooling) details.push(`agregação ${architecture.pooling}`);
-      if (finite(architecture.unfreeze_last_n))
-        details.push(`${integer(architecture.unfreeze_last_n)} blocos ajustados`);
-      if (finite(architecture.trunk_hidden)) details.push(`tronco oculto ${integer(architecture.trunk_hidden)}`);
-      if (finite(architecture.parameters)) details.push(`${integer(architecture.parameters)} parâmetros`);
-      factRow(list, "Arquitetura", withReferences(details.join(" · ")));
-    }
-    const inputs = served.inputs;
-    if (inputs && typeof inputs === "object") {
-      const details = [];
-      const geometry = geometryText(inputs.image_geometry, frameSection("image"));
-      if (geometry) details.push(geometry);
-      details.push(inputs.scalars_consumed === false ? "não consome escalares" : "consome escalares");
-      if (inputs.radiometry_forbidden === true) details.push("radiometria proibida na entrada");
-      factRow(list, "Entradas", details.join(" · "));
-    }
-    const training = served.training;
-    if (training && typeof training === "object") {
-      const scalarEntry = ([key, value]) =>
-        `${keyLabel(TRAINING_KEY_PT, key)}: ${typeof value === "number" ? decimal(value, value < 1 ? 6 : 0) : value}`;
-      const details = Object.entries(training)
-        .filter(([, value]) => value !== null && typeof value !== "object")
-        .map(scalarEntry);
-      const stopping = training.early_stopping;
-      if (stopping && typeof stopping === "object") {
-        const inner = Object.entries(stopping)
-          .filter(([, value]) => value !== null && typeof value !== "object")
-          .map(scalarEntry);
-        details.push(`parada antecipada — ${inner.join(", ")}`);
-      }
-      if (details.length) factRow(list, "Treino", details.join(" · "));
-    }
-    if (dataset.manifest_sha256) factRow(list, "Manifesto do conjunto", shortHash(dataset.manifest_sha256));
-    if (dataset.split_id) {
-      const id = String(dataset.split_id);
-      factRow(list, "Identificador da divisão", /^[0-9a-f]{32,}$/i.test(id) ? shortHash(id) : id);
-    }
-    if (dataset.dataset_version) factRow(list, "Versão do conjunto", dataset.dataset_version);
-    const attribution = model.attribution_summary;
-    if (attribution && typeof attribution === "object") {
-      const details = [];
-      if (attribution.method === "occlusion_sensitivity") details.push("sensibilidade à oclusão");
-      else if (attribution.method) details.push(attribution.method);
-      if (finite(attribution.window_px)) details.push(`janela ${integer(attribution.window_px)} px`);
-      if (finite(attribution.stride_px)) details.push(`passo ${integer(attribution.stride_px)} px`);
-      if (attribution.target)
-        details.push(`alvo ${attribution.target === "kindex" ? kindexSymbol() : attribution.target}`);
-      factRow(list, "Mapa de sensibilidade", details.join(" · "));
-    }
-    const check = model.domain_check;
-    if (check && typeof check === "object") {
-      const details = [];
-      const day = parseStationDate(check.day);
-      if (Number.isFinite(day)) details.push(formatDay(day));
-      if (finite(check.n)) details.push(`n ${integer(check.n)}`);
-      if (finite(check.dhi_rmse)) details.push(`RMSE DHI ${decimal(check.dhi_rmse, 2)} ${dhiUnit()}`);
-      if (finite(check.dhi_mbe)) details.push(`MBE DHI ${signed(check.dhi_mbe, 2)} ${dhiUnit()}`);
-      if (finite(check.class_agreement)) details.push(`concordância de condição ${percent(check.class_agreement, 1)}`);
-      factRow(list, "Verificação de domínio (JPEG ao vivo × timelapse)", details.join(" · ") || "—");
-    } else {
-      factRow(list, "Verificação de domínio (JPEG ao vivo × timelapse)", "não medido");
-    }
-  }
-
-  function modelUnavailableMessage() {
-    if (state.modelStatus === "unreadable") return unreadableMessage("O cartão do modelo");
-    if (state.modelStatus === "absent") {
-      return "O cartão do modelo ainda não foi publicado — o quadro e a linha do tempo não dependem dele.";
-    }
-    return "O cartão do modelo não traz avaliação.";
-  }
-
-  function syncTrainingCurve() {
-    if (!el("ceuModeloDetalhes").hidden) {
-      drawTrainingCurve(themeColors());
-    } else if (state.curveChart) {
-      state.curveChart.destroy();
-      state.curveChart = null;
-    }
-  }
-
-  function modelCardUsable() {
-    const model = state.modelPayload;
-    return Boolean(model && typeof model === "object" && (servedArm() || servedBlock().id));
-  }
-
-  function drawModelCard() {
-    const usable = modelCardUsable();
-    el("ceuModeloToggleWrap").hidden = !usable;
-    el("ceuModeloResumo").hidden = !usable;
-    if (!usable) {
-      el("ceuModeloNota").textContent = "";
-      el("ceuModeloDetalhes").hidden = true;
-      el("ceuModeloStatus").textContent = modelUnavailableMessage();
-      return;
-    }
-    renderModelHeadline();
-    const caveat = persistenceCaveat();
-    el("ceuModeloStatus").replaceChildren(withReferences(caveat));
-    renderArmsTable();
-    renderReferencesTable();
-    renderPerClass();
-    renderConfusion();
-    renderStratified();
-    renderPerDay();
-    syncTrainingCurve();
-    renderSeeds();
-    renderDataset();
-    renderProvenance();
   }
 
   async function loadJson(name, base = state.base) {
@@ -3821,7 +2643,7 @@
   function repaintThemedControls() {
     buildClassToggles();
     buildModelToggles();
-    renderPredictionCard();
+    renderFrameEstimate();
   }
 
   function repaintForPrint() {
@@ -3830,7 +2652,6 @@
     drawChart();
     drawCumulative();
     drawTimeline({ stripInSameTurn: true });
-    drawModelCard();
   }
 
   async function onThemeChange() {
@@ -3840,8 +2661,7 @@
     await paintInTurns(
       () => current() && drawChart(),
       () => current() && drawCumulative(),
-      () => current() && drawTimeline(),
-      () => current() && drawModelCard()
+      () => current() && drawTimeline()
     );
   }
 
@@ -3938,7 +2758,6 @@
     renderHeader();
     if (frameChanged) renderFrames();
     if (timelineChanged) await drawTimeline();
-    if (frameChanged && modelCardUsable()) renderProvenance();
     buildCaveats();
     renderReferences();
     announceStatusChanges();
@@ -3978,10 +2797,9 @@
     }
 
     const chartRequest = loadJson(KTKD_PAYLOAD, state.chartBase);
-    const [frame, timeline, model, cumulative] = await Promise.all([
+    const [frame, timeline, cumulative] = await Promise.all([
       loadJson(FRAME_PAYLOAD),
       loadJson(TIMELINE_PAYLOAD),
-      loadJson(MODEL_PAYLOAD),
       loadJson(CUMULATIVE_PAYLOAD, state.chartBase),
     ]);
     state.chartStatus = "loading";
@@ -3989,8 +2807,6 @@
     state.frameStatus = frame.status;
     state.timelinePayload = timeline.payload;
     state.timelineStatus = timeline.status;
-    state.modelPayload = model.payload;
-    state.modelStatus = model.status;
     state.cumulativePayload = cumulative.payload;
     state.cumulativeStatus = cumulative.status;
     state.classes = resolveClasses(null);
@@ -4006,11 +2822,6 @@
     el("ceuGuia").addEventListener("click", openGuide);
     el("ceuAmpliar").addEventListener("click", openZoom);
 
-    new MutationObserver(syncTrainingCurve).observe(el("ceuModeloDetalhes"), {
-      attributes: true,
-      attributeFilter: ["hidden"],
-    });
-
     initCumulative();
     el("ceuEmpty").hidden = true;
     el("ceuApp").hidden = false;
@@ -4025,10 +2836,7 @@
         await drawTimeline();
         announceStatusChanges();
       },
-      () => {
-        drawModelCard();
-        renderReferences();
-      },
+      renderReferences,
       drawChart,
       () => {
         drawCumulative();

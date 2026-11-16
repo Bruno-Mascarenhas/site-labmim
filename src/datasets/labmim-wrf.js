@@ -3,6 +3,8 @@
 module.exports = {
   id: "labmim-wrf",
   attribution: "LabMiM-UFBA",
+  skyCameraCredit:
+    '<p class="sky-camera-credit">As imagens e os dados da câmera all-sky são fornecidos pelo <a href="https://planetario.ufba.br/" target="_blank" rel="noopener noreferrer">Planetário da UFBA</a>. Agradecemos à equipe do Planetário pela disponibilização desses registros para o acompanhamento e a pesquisa das condições do céu.</p>',
   // Name of the Python CLI, not derived from the dataset id.
   generator: "mm-wrf-geojson",
   model: {

@@ -163,6 +163,61 @@ test("Kt × Kd distingue o tamanho da amostra do registro completo", async ({ pa
   await expect(page.locator("#ceuPontosNota")).toContainText("amostra de 2 das 40 horas");
 });
 
+test("histórico carrega sem solicitar o cartão do modelo", async ({ page }) => {
+  const requested = await openPage(page, "ceu.html");
+  await expect(page.locator("#ceuCanvas")).toBeVisible();
+
+  expect(requested).not.toContain("/Ceu/model.json");
+});
+
+test("estimativa da imagem usa os dados do quadro sem depender do cartão do modelo", async ({ page }) => {
+  await openPage(page, "ceu.html", {
+    "/Ceu/frame.json": {
+      version: "fixture",
+      captured_at: "2026-01-01T12:00:00",
+      status: { scored: true },
+      image: { file: "../assets/vendor/leaflet/images/marker-icon.png" },
+      prediction: { dhi_w_m2: 40, kindex: 0.75, sky: { condition: 4 } },
+    },
+  });
+
+  await expect(page.locator("#ceuEstimativa")).toHaveText(
+    /Estimativa do modelo.*IV.*claro.*Difusa: 40,0 W\/m².*k\*: 0,750/
+  );
+});
+
+test("imagem sem previsão disponível não exibe a faixa de estimativas", async ({ page }) => {
+  await openPage(page, "ceu.html", {
+    "/Ceu/frame.json": {
+      version: "fixture",
+      captured_at: "2026-01-01T12:00:00",
+      status: { scored: false },
+      image: { file: "../assets/vendor/leaflet/images/marker-icon.png" },
+    },
+  });
+  await page.locator("#ceuMediaBruto img").waitFor({ state: "visible" });
+
+  await expect(page.locator("#ceuEstimativa")).toBeHidden();
+});
+
+for (const { scale, label } of [
+  { scale: "raw", label: "irradiância difusa horizontal prevista (escala crua)" },
+  { scale: "corrected", label: "irradiância difusa horizontal prevista" },
+]) {
+  test(`histórico recente identifica a escala ${scale} sem consultar o cartão do modelo`, async ({ page }) => {
+    await openPage(page, "ceu.html", {
+      "/Ceu/timeline.json": {
+        version: "fixture",
+        label_scale: scale,
+        axis: { start: "2026-01-01T12:00:00", step_minutes: 5 },
+        series: { dhi_w_m2: [40, 42, 45], measured_dhi_w_m2: [41, 43, 46] },
+      },
+    });
+
+    await expect(page.locator("#ceuLinhaLegenda li").first()).toHaveText(label);
+  });
+}
+
 test("Kt × Kd aceita cinco mil pontos quando representam um quarto do registro", async ({ page }) => {
   await openPage(page, "ceu.html", {
     "/Ceu/ktkd.json": {

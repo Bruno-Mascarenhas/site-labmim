@@ -333,6 +333,7 @@ function renderPublication({ root, outputDir, publication, validation, year }) {
     SITE_REFERENCES: JSON.stringify(SITE_REFERENCES).replace(/</g, "\\u003c"),
     MONITORING_BASE: escapeAttribute(dataset.paths.monitoring ?? ""),
     SKY_BASE: escapeAttribute(dataset.paths.sky ?? ""),
+    SKY_CAMERA_CREDIT: dataset.skyCameraCredit ?? "",
     ...Object.fromEntries(Object.entries(RUN_NOTE_SLOTS).map(([key, token]) => [token, dataset.runNotes?.[key] ?? ""])),
   };
 

@@ -711,6 +711,9 @@ function validateDataset(errors, warnings, dataset, siteDirectory, boundaryBound
   if (!addRequiredObject(errors, dataset, "dataset")) return;
   addRequiredString(errors, dataset.id, "dataset.id");
   addRequiredString(errors, dataset.attribution, "dataset.attribution");
+  if (dataset.skyCameraCredit !== undefined) {
+    addRequiredString(errors, dataset.skyCameraCredit, "dataset.skyCameraCredit");
+  }
   // Optional; the renderer falls back with `??`, which an empty string would defeat.
   if (dataset.generator !== undefined && dataset.generator !== null) {
     addRequiredString(errors, dataset.generator, "dataset.generator");
