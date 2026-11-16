@@ -38,6 +38,9 @@ RewriteCond %{REQUEST_URI} !=/Ceu/model.json
 RewriteCond %{REQUEST_URI} !=/Ceu/allsky.jpg
 RewriteCond %{REQUEST_URI} !=/Ceu/input.jpg
 RewriteCond %{REQUEST_URI} !=/Ceu/attribution.png
+RewriteCond %{REQUEST_URI} !=/Ceu/features_image_only.png
+RewriteCond %{REQUEST_URI} !=/Ceu/features_image_ghi.png
+RewriteCond %{REQUEST_URI} !=/Ceu/sensitivity_image_ghi.png
 RewriteRule ^(?:Monitoramento|Climatologia|Ceu)(?:/|$) - [F,END,NC]
 
 ErrorDocument 404 /404.html

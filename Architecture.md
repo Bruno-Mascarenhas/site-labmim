@@ -32,7 +32,7 @@ O diretório `src/sites/` é o registro. A descoberta ordena os diretórios que 
 | `site/monitoring.html`             | Monitoramento ambiental: gráficos interativos ou PNGs (ver abaixo)    |
 | `site/team.html`                   | Equipe, links e localização incorporada (iframe Google My Maps)       |
 | `site/climatologia.html`           | Distribuições observadas da estação, lidas de `Climatologia/`         |
-| `site/ceu.html`                    | Histórico de condições do céu, dispersão Kt × Kd e imagens all-sky com análise, de `Ceu/` |
+| `site/ceu.html`                    | Foto all-sky com dois modelos (só imagem e imagem + sensores) e as camadas Padrões e Influência, histórico de condições do céu e dispersão Kt × Kd, de `Ceu/` |
 | `site/mapas_interativos.html`      | WebGIS de previsões meteorológicas                                    |
 | `site/potenciais_energeticos.html` | WebGIS de potencial fotovoltaico, potencial eólico e densidade eólica |
 | `site/404.html`                    | Página de erro standalone (caminhos absolutos, `ErrorDocument 404`)   |
@@ -635,7 +635,7 @@ Use os módulos CSS compartilhados. Evite criar regras específicas no HTML.
 - Ao mexer em `maps.css`, valide light e dark mode.
 - Ao mexer em `map-manager.js`, valide play/pause (incl. autoplay e pulos por disponibilidade), troca de domínio, troca de variável, troca de rodada (regenerar o manifest local), clique em célula e camada de vento.
 - Ao mexer em `charts-manager.js`, valide carregamento via `series.bin` E via fallback (sem manifest), cancelamento, troca de tema e exportação CSV.
-- As imagens de `Ceu/` (`allsky.jpg`, `input.jpg`, `attribution.png`) reusam os mesmos nomes a cada publicação: o `?v=` vem do `sha256_12` que `frame.json` publica para cada uma; não troque os nomes fixos por nomes versionados sem coordenar o pipeline.
+- As imagens de `Ceu/` (`allsky.jpg`, `input.jpg`, `attribution.png`, `features_image_only.png`, `features_image_ghi.png`, `sensitivity_image_ghi.png`) reusam os mesmos nomes a cada publicação: o `?v=` vem do `sha256_12` que `frame.json` publica para cada uma; não troque os nomes fixos por nomes versionados sem coordenar o pipeline.
 - Documente o comportamento e os limites públicos. Mantenha procedimentos de acesso, aquisição e recuperação fora dos repositórios.
 
 ## Checklist De Validação
@@ -645,7 +645,7 @@ Use antes de merge/publicação:
 - `npm run sites:list`, `npm run build:check`, `npm run lint`, `npm run format:check` (ou `npm run lint:all` para incluir HTML e links), `npm run check:audit`.
 - Servir `site/` por HTTP local (`make serve`).
 - Abrir páginas institucionais em desktop e mobile; alternar dark mode em cada página.
-- Abrir `ceu.html` com e sem `site/Ceu/` populado: imagens e estimativas antes do histórico, crédito da câmera, legendas dos quadros, slider de opacidade do mapa de sensibilidade, resumo da estimativa, linha do tempo, alternância das quatro condições, curva de referência, ampliação e ausência do botão CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
+- Abrir `ceu.html` com e sem `site/Ceu/` populado: foto e cartões dos dois modelos antes do histórico, crédito da câmera, camadas Foto/Padrões/Influência e a troca de modelo no visor, escala comum da Influência, slider de mistura, o cartão do modelo com sensores sem leitura da estação, linha do tempo, alternância das quatro condições, curva de referência, ampliação e ausência do botão CSV; sem dados, deve aparecer o aviso de que eles chegam pelo deploy.
 - Abrir `mapas_interativos.html` e confirmar que Potencial Fotovoltaico não aparece como previsão; `SWDOWN` deve aparecer como Radiação Global.
 - Abrir `potenciais_energeticos.html` e confirmar que só aparecem Potencial Fotovoltaico, Potencial Eólico e Densidade Eólica 10m.
 - Verificar se Leaflet renderiza (bundle local) e se não há erros no console.

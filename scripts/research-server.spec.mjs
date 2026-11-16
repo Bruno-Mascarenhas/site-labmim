@@ -21,6 +21,9 @@ const publicFiles = [
   "Ceu/allsky.jpg",
   "Ceu/input.jpg",
   "Ceu/attribution.png",
+  "Ceu/features_image_only.png",
+  "Ceu/features_image_ghi.png",
+  "Ceu/sensitivity_image_ghi.png",
 ];
 
 const blockedFiles = [
