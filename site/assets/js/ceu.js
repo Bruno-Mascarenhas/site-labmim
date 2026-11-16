@@ -215,6 +215,7 @@
       crosshair: isDark() ? "rgba(255, 255, 255, 0.32)" : "rgba(0, 0, 0, 0.24)",
       band: isDark() ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.07)",
       measured: isDark() ? MODEL_PALETTE.dark.lemos_2017 : MODEL_PALETTE.light.lemos_2017,
+      sensorModel: isDark() ? MODEL_PALETTE.dark.ridley_brl_2010 : MODEL_PALETTE.light.ridley_brl_2010,
     };
   }
 
@@ -2436,8 +2437,9 @@
     return Boolean(series.measured) || liveWithBlocks() !== null;
   }
 
-  function predictedDhiLabel(series) {
-    const label = `${dhiLabel()} prevista`;
+  function predictedDhiLabel(series, model) {
+    const base = `${dhiLabel()} prevista`;
+    const label = series.sensorDhi ? `${base}, ${model === "sensor" ? "imagem + sensores" : "só imagem"}` : base;
     return comparedWithStation(series) && predictionOnRawScale() ? `${label} (escala crua)` : label;
   }
 
@@ -2450,6 +2452,20 @@
         data: predicted,
         borderColor: `rgb(${theme.ink})`,
         backgroundColor: `rgb(${theme.ink})`,
+        borderWidth: 1.8,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        spanGaps: false,
+        tension: 0,
+        order: 1,
+      });
+    }
+    if (series.sensorDhi) {
+      datasets.push({
+        label: predictedDhiLabel(series, "sensor"),
+        data: series.sensorDhi,
+        borderColor: theme.sensorModel,
+        backgroundColor: theme.sensorModel,
         borderWidth: 1.8,
         pointRadius: 0,
         pointHoverRadius: 3,
@@ -2607,6 +2623,9 @@
     list.hidden = !hasData;
     if (!hasData) return;
     legendItem(list, { background: `rgb(${theme.ink})`, height: "0.25rem" }, predictedDhiLabel(series));
+    if (series.sensorDhi) {
+      legendItem(list, { background: theme.sensorModel, height: "0.25rem" }, predictedDhiLabel(series, "sensor"));
+    }
     legendItem(
       list,
       { background: "transparent", height: "0", borderTop: `2px dashed ${theme.textSecondary}` },
@@ -2757,6 +2776,7 @@
       dhi: timelinePoints("dhi_w_m2"),
       clearsky: timelinePoints("clearsky_dhi_w_m2"),
       measured: timelinePoints("measured_dhi_w_m2"),
+      sensorDhi: timelinePoints("sensor_dhi_w_m2"),
       kindex: timelinePoints("kindex"),
     };
     drawTimelineChart(theme, bounds, runs, series);

@@ -358,6 +358,24 @@ for (const { scale, label } of [
   });
 }
 
+for (const { position, label } of [
+  { position: 0, label: "irradiância difusa horizontal prevista, só imagem" },
+  { position: 1, label: "irradiância difusa horizontal prevista, imagem + sensores" },
+]) {
+  test(`histórico recente nomeia a curva ${label.split(", ")[1]}`, async ({ page }) => {
+    await openPage(page, "ceu.html", {
+      "/Ceu/timeline.json": {
+        version: "fixture",
+        label_scale: "corrected",
+        axis: { start: "2026-01-01T12:00:00", step_minutes: 5 },
+        series: { dhi_w_m2: [40, 42, 45], sensor_dhi_w_m2: [41, 44, 47] },
+      },
+    });
+
+    await expect(page.locator("#ceuLinhaLegenda li").nth(position)).toHaveText(label);
+  });
+}
+
 test("Kt × Kd aceita cinco mil pontos quando representam um quarto do registro", async ({ page }) => {
   await openPage(page, "ceu.html", {
     "/Ceu/ktkd.json": {
