@@ -294,6 +294,21 @@ test("escolher o modelo com sensores troca o mapa sobreposto", async ({ page }) 
   await expect(page.locator("#ceuMediaBruto .sky-frame-overlay")).toHaveAttribute("src", /layers\.png/);
 });
 
+test("a camada com mistura em 100% continua por cima da foto", async ({ page }) => {
+  await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame() });
+  await page.locator('#ceuVisorCamada [data-choice="features"]').click();
+
+  await page.locator("#ceuOpacidade").fill("100");
+  await expect(page.locator("#ceuMediaBruto .sky-frame-overlay")).toHaveCSS("opacity", "1");
+
+  const topmost = await page.locator("#ceuMediaBruto").evaluate((media) => {
+    media.scrollIntoView({ block: "center", behavior: "instant" });
+    const box = media.getBoundingClientRect();
+    return document.elementsFromPoint(box.x + box.width / 2, box.y + box.height / 2)[0].className;
+  });
+  expect(topmost).toContain("sky-frame-overlay");
+});
+
 test("a camada Influência mostra a escala comum aos dois modelos", async ({ page }) => {
   await openPage(page, "ceu.html", { "/Ceu/frame.json": twoModelFrame() });
 
